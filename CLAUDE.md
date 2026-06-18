@@ -28,7 +28,7 @@ Safari) and it runs. Persisting that property is a hard constraint — see Conve
 | [`DESIGN.md`](DESIGN.md) | Full design spec: the 12 locked decisions, systems, art plan, open questions. |
 | [`CONTEXT.md`](CONTEXT.md) | **Glossary of Gaia's domain language.** Use these exact terms. |
 | [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records (immutable rationale). |
-| [`docs/design/requiem/`](docs/design/requiem/README.md) | **REQUIEM** — Dara's canonical 45-class / 246-ability combat system (source HTML + parser + JSON + MD). |
+| [`docs/design/requiem/`](docs/design/requiem/README.md) | **REQUIEM** — Dara's canonical 45-class / 250-ability combat system (source HTML + parser + JSON + MD) plus `battle-mechanics.md` (Ascension/Soul Burn/Harmonic Ascension). |
 | [`docs/art/`](docs/art/README.md) | Art-pipeline resume guide, rig spec, layer brief. |
 | [`assets/reference/`](assets/reference/) | Dara's raw reference art (class grid, loot charts, enemy sheet, maps). Source for `slice-art.py`. |
 

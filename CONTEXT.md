@@ -17,7 +17,7 @@ _Avoid_: "IRL STONKS" (that is the group-chat name where the idea was born, not 
 
 **REQUIEM**:
 Dara's canonical class & combat system for Gaia ("Attunement Combat System"): 45 classes,
-246 abilities, 45 ultimates. The authoritative capture lives in
+250 abilities, 45 ultimates. The authoritative capture lives in
 [`docs/design/requiem/`](docs/design/requiem/README.md). The playable POC implements only a
 small placeholder subset (see Flagged ambiguities).
 
@@ -85,6 +85,26 @@ _Avoid_: boss (the Bandit Brute is the boss; elites are buffed normal enemies).
 The status/effect flavor tied to each Attunement (e.g. SOL = Burn/Blind). Distinct from
 the affinity ring; the ring governs damage multipliers, the signature effect is what an
 attunement's skills tend to *inflict*.
+
+**Ascension** (canon, per REQUIEM):
+A proc effect that unlocks **Soul Burn**. Gear-gated — rare gear can force-cast it, and better
+gear raises its proc chance and uptime. See
+[`docs/design/requiem/battle-mechanics.md`](docs/design/requiem/battle-mechanics.md).
+_Not yet in the POC._
+
+**Soul Burn** (canon, per REQUIEM):
+A risk/reward mode unlocked by Ascension: a character life-drains *itself* to amp output
+(dps/hps). It raises throughput (attack speed, lower cooldowns, more dmg/healing/mitigation) and
+jumps **mana proficiency** to unlock more powerful abilities. The design hook: it turns healers
+into a *damage* enabler — a strong healer lets a burning ally push far past safe HP.
+_Avoid_: confusing with the SOL "Burn" signature effect — different thing.
+
+**Harmonic Ascension** (canon, per REQUIEM):
+A two-player co-op super: two ascended players who **harmonize attunements** and proc Ascension
+at the same instant produce power greater than the sum of their two mana attunements. Best
+between same-attunement players (e.g. two Quanta Spellblades) but allowed across classes of the
+same attunement. Built for synergized duos in raids/large fights, not solo DPS rankings.
+_Not yet in the POC._
 
 ## Flagged ambiguities
 

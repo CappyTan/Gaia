@@ -61,14 +61,14 @@
         {
           "type": "BASIC",
           "name": "Searing Slash",
-          "cost": "",
-          "desc": "Attacks single target. Generates 15 Radiance. If target has any Sol status effect — inflicts **Sunblind** (reduces hit chance 25% for 1 turn)."
+          "cost": "+15 RES",
+          "desc": "Attacks single target. Generates 15 Radiance. If target has any Sol status effect — inflicts Sunblind (reduces hit chance 25% for 1 turn)."
         },
         {
           "type": "BASIC",
           "name": "Bastion of Dawn",
           "cost": "20 RES",
-          "desc": "Slams shield down. Taunts all enemies for 2 turns. Grants all allies a **Morning Shield** barrier equal to 15% of Dawnwarden's max HP."
+          "desc": "Slams shield down. Taunts all enemies for 2 turns. Grants all allies a Morning Shield barrier equal to 15% of Dawnwarden's max HP."
         },
         {
           "type": "SIGNATURE",
@@ -80,7 +80,7 @@
           "type": "ULTIMATE",
           "name": "Daybreak",
           "cost": "100 RES",
-          "desc": "Raises shield releasing a blinding wave of pure dawn light. High Sol damage to all enemies. Forcefully dispels all positive enemy buffs. Allies fully cleansed of debuffs and healed"
+          "desc": "Raises shield releasing a blinding wave of pure dawn light. High Sol damage to all enemies. Forcefully dispels all positive enemy buffs. Allies fully cleansed of debuffs and healed for 25% max HP."
         }
       ]
     },
@@ -100,13 +100,13 @@
         {
           "type": "BASIC",
           "name": "Ray Strike",
-          "cost": "",
+          "cost": "+10 RES",
           "desc": "Quick double-slash. Deals moderate physical + Sol damage. Builds 1 stack of Solar Charge."
         },
         {
           "type": "BASIC",
           "name": "Solar Flare Dash",
-          "cost": "",
+          "cost": "20 RES",
           "desc": "Steps through light to reappear instantly behind an enemy. Deals Sol damage. Pushes enemy back on turn timeline. Generates 1 stack of Solar Charge."
         },
         {
@@ -139,26 +139,26 @@
         {
           "type": "BASIC",
           "name": "Density Strike",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Brutal overhead swing. Heavy physical damage. Generates 20 Core Heat. Pushes enemy down the turn timeline."
         },
         {
           "type": "BASIC",
           "name": "Gravity Well",
           "cost": "",
-          "desc": "Slams sword into ground. Pulls all frontline enemies into a single cluster. Increases Core Heat by 15%. Inflicts **Weighed Down** — reduces enemy evasion to 0% for 2 turns."
+          "desc": "Slams sword into ground. Pulls all frontline enemies into a single cluster. Increases Core Heat by 15%. Inflicts Weighed Down — reduces enemy evasion to 0% for 2 turns."
         },
         {
           "type": "SIGNATURE",
           "name": "Singularity Cleave",
-          "cost": "",
+          "cost": "40 RES",
           "desc": "Sweeping arc attack hitting all adjacent enemies. Damage scales higher the lower the Starbreaker's current HP. Pairs with the Dying Star passive — low HP is maximum power."
         },
         {
           "type": "ULTIMATE",
           "name": "Supernova Strike",
           "cost": "",
-          "desc": "Unleashes entire stored stellar core energy in one catastrophic blow. Massive armor-piercing explosive damage to entire enemy team. Leaves a burning aura dealing Sol DoT for 3 turn"
+          "desc": "Unleashes entire stored stellar core energy in one catastrophic blow. Massive armor-piercing explosive damage to entire enemy team. Leaves a burning aura dealing Sol DoT for 3 turns. Resets Core Heat to 0%."
         }
       ]
     },
@@ -178,26 +178,26 @@
         {
           "type": "BASIC",
           "name": "Righteous Gavel",
-          "cost": "",
-          "desc": "Hits single target. Applies **Judgment Mark** for 3 turns. Deals bonus damage if target has any negative status effects."
+          "cost": "+15 RES",
+          "desc": "Hits single target. Applies Judgment Mark for 3 turns. Deals bonus damage if target has any negative status effects."
         },
         {
           "type": "BASIC",
           "name": "Decree of Light",
           "cost": "",
-          "desc": "Emits pulse of truth. Cleanses 1 debuff from an ally. Grants that ally a **Verity Shield** — converts the next incoming attack into healing instead of damage. Generates 15 Ver"
+          "desc": "Emits pulse of truth. Cleanses 1 debuff from an ally. Grants that ally a Verity Shield — converts the next incoming attack into healing instead of damage. Generates 15 Verdict."
         },
         {
           "type": "SIGNATURE",
           "name": "Smite the Guilty",
-          "cost": "",
+          "cost": "30 RES",
           "desc": "Slams hammer on marked enemy. Consumes the Judgment Mark. Deals massive Sol damage. Stuns target for 1 turn."
         },
         {
           "type": "ULTIMATE",
           "name": "Final Verdict",
           "cost": "",
-          "desc": "Summons a colossal spectral gavel from the heavens. High physical + Sol damage to entire enemy team. Any enemy below 25% HP is instantly executed. Surviving enemies are Silenced fo"
+          "desc": "Summons a colossal spectral gavel from the heavens. High physical + Sol damage to entire enemy team. Any enemy below 25% HP is instantly executed. Surviving enemies are Silenced for 2 turns — no abilities permitted."
         }
       ]
     },
@@ -217,7 +217,7 @@
         {
           "type": "BASIC",
           "name": "Corona Stash",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Quick stab from shadows. Deals high critical damage. If it lands a critical hit — enters Solar Veil for 1 turn."
         },
         {
@@ -229,14 +229,14 @@
         {
           "type": "SIGNATURE",
           "name": "Blinding Mirror",
-          "cost": "",
-          "desc": "Throws a flurry of reflective daggers. Moderate damage to frontline. Applies **Total Eclipse** to primary target — all their attacks miss for 1 turn."
+          "cost": "25 RES",
+          "desc": "Throws a flurry of reflective daggers. Moderate damage to frontline. Applies Total Eclipse to primary target — all their attacks miss for 1 turn."
         },
         {
           "type": "ULTIMATE",
           "name": "Solar Eclipse",
           "cost": "",
-          "desc": "Plunges entire battlefield into a cosmic eclipse. Eclipsedancer vanishes completely for 2 turns. Summons 3 Refraction Echoes. For 2 turns — can attack without breaking stealth"
+          "desc": "Plunges entire battlefield into a cosmic eclipse. Eclipsedancer vanishes completely for 2 turns. Summons 3 Refraction Echoes. For 2 turns — can attack without breaking stealth. All attacks deal pure armor-piercing Sol damage."
         }
       ]
     },
@@ -256,14 +256,14 @@
         {
           "type": "BASIC",
           "name": "Dual Discharge",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Rapid two-shot burst. Sol + Energy damage. Generates 15 Solar Charge. Increases Velocity by 5%."
         },
         {
           "type": "BASIC",
           "name": "Flare Shot",
           "cost": "",
-          "desc": "High-intensity tracing round. Marks enemy with **Target Illuminated** — increases critical hit chance of ALL allies against that target by 20% for 2 turns."
+          "desc": "High-intensity tracing round. Marks enemy with Target Illuminated — increases critical hit chance of ALL allies against that target by 20% for 2 turns."
         },
         {
           "type": "SIGNATURE",
@@ -281,7 +281,7 @@
           "type": "ULTIMATE",
           "name": "Corona Storm",
           "cost": "",
-          "desc": "Spins in place unleashing an absolute tempest of hyper-velocity photon lasers at the entire enemy party. Fires 12 shots distributed randomly across all enemies. Each shot permanent"
+          "desc": "Spins in place unleashing an absolute tempest of hyper-velocity photon lasers at the entire enemy party. Fires 12 shots distributed randomly across all enemies. Each shot permanently shreds 5% of the target's total armor for the rest of combat."
         }
       ]
     },
@@ -301,7 +301,7 @@
         {
           "type": "BASIC",
           "name": "Focused Beam",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Precise rifle shot dealing high piercing damage in a straight line. Hits both the primary target AND the enemy standing directly behind them."
         },
         {
@@ -314,13 +314,13 @@
           "type": "SIGNATURE",
           "name": "Tactical Flare",
           "cost": "",
-          "desc": "Launches a flare capsule at an enemy position. Dispels all enemy evasion buffs. Applies **Melt Armor** (-30% DEF) to all targets in that row."
+          "desc": "Launches a flare capsule at an enemy position. Dispels all enemy evasion buffs. Applies Melt Armor (-30% DEF) to all targets in that row."
         },
         {
           "type": "ULTIMATE",
           "name": "Aphelion",
-          "cost": "",
-          "desc": "Channels all weapon energy into a single massive orbital laser link. Fires a colossal beam of concentrated Sol energy piercing through a single target for catastrophic damage. If t"
+          "cost": "60 RES",
+          "desc": "Channels all weapon energy into a single massive orbital laser link. Fires a colossal beam of concentrated Sol energy piercing through a single target for catastrophic damage. If this kills the target — 50% of the damage overflows and hits the remaining enemy party members."
         }
       ]
     },
@@ -347,7 +347,7 @@
           "type": "BASIC",
           "name": "Protoplanetary Spark",
           "cost": "",
-          "desc": "Summons a **Miniature Sun** construct with 30% of caster's HP onto an empty battlefield slot. Acts independently each turn."
+          "desc": "Summons a Miniature Sun construct with 30% of caster's HP onto an empty battlefield slot. Acts independently each turn."
         },
         {
           "type": "BASIC",
@@ -359,7 +359,7 @@
           "type": "SIGNATURE",
           "name": "Gravitational Pull",
           "cost": "",
-          "desc": "Commands all active Miniature Suns to shift positions simultaneously — pulling adjacent enemies toward them and applying **Immobilized** for 1 turn."
+          "desc": "Commands all active Miniature Suns to shift positions simultaneously — pulling adjacent enemies toward them and applying Immobilized for 1 turn."
         },
         {
           "type": "SIGNATURE",
@@ -371,7 +371,7 @@
           "type": "ULTIMATE",
           "name": "Starfall",
           "cost": "",
-          "desc": "Forces all active Miniature Suns to collapse simultaneously into a massive cosmic chain reaction. Devastating Sol + Fire damage to all enemies. Leaves a **Nebula Restorative Cloud*"
+          "desc": "Forces all active Miniature Suns to collapse simultaneously into a massive cosmic chain reaction. Devastating Sol + Fire damage to all enemies. Leaves a Nebula Restorative Cloud over the ally side — heals all party members for 15% max HP every turn for 3 turns."
         }
       ]
     },
@@ -397,7 +397,7 @@
         {
           "type": "BASIC",
           "name": "Plasma Singularity",
-          "cost": "",
+          "cost": "30 MP",
           "desc": "Casts a swirling ball of Sol energy at an enemy row. Fire damage over time. Shifts core toward Fusion."
         },
         {
@@ -410,13 +410,13 @@
           "type": "SIGNATURE",
           "name": "Solar Reforging",
           "cost": "",
-          "desc": "Instantly resets Stellar Core to perfect center. Cleanses all debuffs from the Knight. Transforms weapon into a **Sun-Spear** for 2 turns — basic attacks gain 2-tile reach."
+          "desc": "Instantly resets Stellar Core to perfect center. Cleanses all debuffs from the Knight. Transforms weapon into a Sun-Spear for 2 turns — basic attacks gain 2-tile reach."
         },
         {
           "type": "ULTIMATE",
           "name": "Heart Of The Sun",
           "cost": "",
-          "desc": "Plunges blade directly into armor's power core. Blinding shockwave of hard-light blades in every direction. Heavy physical + Sol damage to all enemies bypassing all defensive barri"
+          "desc": "Plunges blade directly into armor's power core. Blinding shockwave of hard-light blades in every direction. Heavy physical + Sol damage to all enemies bypassing all defensive barriers. Knight enters Over-Clocked Forge for 3 turns — every basic attack automatically triggers a free cast of Plasma Singularity without consuming a turn."
         }
       ]
     },
@@ -436,8 +436,8 @@
         {
           "type": "BASIC",
           "name": "Chill-Bite Strike",
-          "cost": "",
-          "desc": "Physical + cold damage to single target. Generates 15% Contraction. Inflicts **Frostbite** — reduces target physical damage output by 15% for 2 turns."
+          "cost": "+15 RES",
+          "desc": "Physical + cold damage to single target. Generates 15% Contraction. Inflicts Frostbite — reduces target physical damage output by 15% for 2 turns."
         },
         {
           "type": "BASIC",
@@ -449,13 +449,13 @@
           "type": "SIGNATURE",
           "name": "Absolute Zero Ward",
           "cost": "",
-          "desc": "Forms barrier of dark matter around self. For 2 turns — any enemy that casts a spell or uses an ability targets the Bastion instead. Absorbs 30% of that damage as direct heali"
+          "desc": "Forms barrier of dark matter around self. For 2 turns — any enemy that casts a spell or uses an ability targets the Bastion instead. Absorbs 30% of that damage as direct healing."
         },
         {
           "type": "ULTIMATE",
           "name": "Penumbral Collapse",
-          "cost": "",
-          "desc": "Collapses shield energy inward. Heavy cold + dark damage to all enemies. Strips all SPD and Turn Meter buffs from enemy team — freezing their current turn timeline positions f"
+          "cost": "60 RES",
+          "desc": "Collapses shield energy inward. Heavy cold + dark damage to all enemies. Strips all SPD and Turn Meter buffs from enemy team — freezing their current turn timeline positions for 1 round. Bastion gains shield equal to 40% max HP."
         }
       ]
     },
@@ -475,7 +475,7 @@
         {
           "type": "BASIC",
           "name": "Frost-Lace",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Lightning-fast dual-pierce. Physical + cold damage. Applies 1 stack of Glacial Resonance."
         },
         {
@@ -493,8 +493,8 @@
         {
           "type": "ULTIMATE",
           "name": "The Great Stillness",
-          "cost": "",
-          "desc": "Dashes through all enemies in a fraction of a second, slashing vital pressure points with absolute zero energy. High critical damage to all targets. Any enemy currently suffering a"
+          "cost": "50 RES",
+          "desc": "Dashes through all enemies in a fraction of a second, slashing vital pressure points with absolute zero energy. High critical damage to all targets. Any enemy currently suffering a SPD debuff is instantly frozen for 2 turns. Rimewalker gains an immediate free bonus turn."
         }
       ]
     },
@@ -514,14 +514,14 @@
         {
           "type": "BASIC",
           "name": "Collapse Cleave",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Brutal downward swing. Massive physical damage. Increases Entropy Decay by 20%. Lowers Worldender's own SPD by 10% for 2 turns — stackable up to 3 times."
         },
         {
           "type": "BASIC",
           "name": "Shatter-Point",
           "cost": "",
-          "desc": "Precise heavy stab aimed at enemy armor plate. Destroys 40% of target's total armor permanently. Inflicts **Brittle** — increases all incoming critical hit damage taken by 25%"
+          "desc": "Precise heavy stab aimed at enemy armor plate. Destroys 40% of target's total armor permanently. Inflicts Brittle — increases all incoming critical hit damage taken by 25%."
         },
         {
           "type": "SIGNATURE",
@@ -532,8 +532,8 @@
         {
           "type": "ULTIMATE",
           "name": "Cosmic Crunch",
-          "cost": "",
-          "desc": "Drives massive blade into the heart of the battlefield — reality folds inward. Catastrophic armor-ignoring dark damage to all enemies. Instantly triggers and consumes ALL acti"
+          "cost": "60 RES",
+          "desc": "Drives massive blade into the heart of the battlefield — reality folds inward. Catastrophic armor-ignoring dark damage to all enemies. Instantly triggers and consumes ALL active DoT effects on the enemy team — dealing their entire remaining damage pools simultaneously."
         }
       ]
     },
@@ -553,8 +553,8 @@
         {
           "type": "BASIC",
           "name": "Leveling Blow",
-          "cost": "",
-          "desc": "Physical damage to single target. Applies **Grounded** — prevents target from dodging, teleporting, or using movement abilities for 2 turns."
+          "cost": "+15 RES",
+          "desc": "Physical damage to single target. Applies Grounded — prevents target from dodging, teleporting, or using movement abilities for 2 turns."
         },
         {
           "type": "BASIC",
@@ -571,8 +571,8 @@
         {
           "type": "ULTIMATE",
           "name": "The Great Equalizer",
-          "cost": "",
-          "desc": "Slams hammer with absolute authority. Forces a team-wide reset — ALL active positive and negative status effects on all characters (allies and enemies) are instantly erased. D"
+          "cost": "50 RES",
+          "desc": "Slams hammer with absolute authority. Forces a team-wide reset — ALL active positive and negative status effects on all characters (allies and enemies) are instantly erased. Deals massive physical + dark damage to all enemies based on how many buffs were cleared from them."
         }
       ]
     },
@@ -592,26 +592,26 @@
         {
           "type": "BASIC",
           "name": "Dark-Stitch",
-          "cost": "",
+          "cost": "+25 RES",
           "desc": "Double stab from behind. High physical + dark damage. Generates 25 Shadow Weave."
         },
         {
           "type": "BASIC",
           "name": "Fade to Black",
           "cost": "",
-          "desc": "Instantly enters **Umbral Stealth** for 2 turns. Evasion increases 50%. Next attack from stealth is a guaranteed critical hit."
+          "desc": "Instantly enters Umbral Stealth for 2 turns. Evasion increases 50%. Next attack from stealth is a guaranteed critical hit."
         },
         {
           "type": "SIGNATURE",
           "name": "Void Blossom",
           "cost": "",
-          "desc": "Throws a cloud of black star-glass daggers at an enemy row. Moderate physical damage. Applies **Blindness** and **Bleeding Dark** (dark DoT) to all targets hit."
+          "desc": "Throws a cloud of black star-glass daggers at an enemy row. Moderate physical damage. Applies Blindness and Bleeding Dark (dark DoT) to all targets hit."
         },
         {
           "type": "ULTIMATE",
           "name": "Eclipse Execution",
-          "cost": "",
-          "desc": "Velestra dissolves completely into the shadows of the entire enemy team. Strikes every enemy once from their own shadow — catastrophic armor-piercing damage to all. The enemy"
+          "cost": "80 RES",
+          "desc": "Velestra dissolves completely into the shadows of the entire enemy team. Strikes every enemy once from their own shadow — catastrophic armor-piercing damage to all. The enemy with the lowest remaining HP takes double damage and is permanently silenced for the rest of the fight if they survive."
         }
       ]
     },
@@ -631,8 +631,8 @@
         {
           "type": "BASIC",
           "name": "Freeze-Fire Burst",
-          "cost": "",
-          "desc": "Fires two frozen darts. Physical + cold damage. Consumes 1 Cryo-Cartridge. Applies **Chilled** to target."
+          "cost": "+15 RES",
+          "desc": "Fires two frozen darts. Physical + cold damage. Consumes 1 Cryo-Cartridge. Applies Chilled to target."
         },
         {
           "type": "BASIC",
@@ -649,8 +649,8 @@
         {
           "type": "ULTIMATE",
           "name": "Cryo-Grid Bullet Hell",
-          "cost": "",
-          "desc": "Spins firing a grid of liquid-nitrogen lasers across the entire battlefield. High cold damage to all enemies. Locks all enemies into a **Glacial Grid** for 2 turns — any enemy"
+          "cost": "50 RES",
+          "desc": "Spins firing a grid of liquid-nitrogen lasers across the entire battlefield. High cold damage to all enemies. Locks all enemies into a Glacial Grid for 2 turns — any enemy that attempts to move, swap rows, or use a movement skill takes massive True Damage and is instantly frozen."
         }
       ]
     },
@@ -670,7 +670,7 @@
         {
           "type": "BASIC",
           "name": "Absolute Stop",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Heavy precise rifle shot. Massive piercing physical damage to single target. Pushes target's Turn Meter back by 25%."
         },
         {
@@ -683,13 +683,13 @@
           "type": "SIGNATURE",
           "name": "Void-Piercer Round",
           "cost": "",
-          "desc": "Fires high-density dark matter bullet piercing through an entire column of enemies. High dark damage. Applies **Fractured Soul** — targets cannot be healed by support classes"
+          "desc": "Fires high-density dark matter bullet piercing through an entire column of enemies. High dark damage. Applies Fractured Soul — targets cannot be healed by support classes for 2 turns."
         },
         {
           "type": "ULTIMATE",
           "name": "Heat Death Vengeance",
-          "cost": "",
-          "desc": "Fires a single devastating absolute-zero round at the speed of darkness. Catastrophic damage to a single target. If target is below 50% HP — deals triple damage. If it kills t"
+          "cost": "60 RES",
+          "desc": "Fires a single devastating absolute-zero round at the speed of darkness. Catastrophic damage to a single target. If target is below 50% HP — deals triple damage. If it kills the target — absolute-zero explosion spreads to all adjacent enemies, freezing them for 1 turn."
         }
       ]
     },
@@ -709,7 +709,7 @@
         {
           "type": "BASIC",
           "name": "Void Bolt",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Missile of pure dark antimatter. Dark damage. If target has mana — burns 15% of their mana pool and converts it into bonus damage."
         },
         {
@@ -722,13 +722,13 @@
           "type": "SIGNATURE",
           "name": "Heat Drain",
           "cost": "",
-          "desc": "Siphons literal thermal energy from an enemy. High cold damage. Inflicts **Hypothermia** — cold DoT and reduces health recovery by 80% for 3 turns."
+          "desc": "Siphons literal thermal energy from an enemy. High cold damage. Inflicts Hypothermia — cold DoT and reduces health recovery by 80% for 3 turns."
         },
         {
           "type": "ULTIMATE",
           "name": "The Cosmic Reset",
-          "cost": "",
-          "desc": "Channels the ancient state of the pre-Big Bang universe. Opens a massive void rift swallowing the battlefield in pure darkness. Immense dark + cold damage to all enemies. Forcefull"
+          "cost": "55 RES",
+          "desc": "Channels the ancient state of the pre-Big Bang universe. Opens a massive void rift swallowing the battlefield in pure darkness. Immense dark + cold damage to all enemies. Forcefully drains 50% of the entire enemy team's current resource/mana bars. Locks all enemy cooldowns from ticking down for 2 rounds."
         }
       ]
     },
@@ -748,26 +748,26 @@
         {
           "type": "BASIC",
           "name": "Lattice Slash",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Ice-infused blade strike. Physical + cold damage. Generates 1 Lattice Layer."
         },
         {
           "type": "BASIC",
           "name": "Frost Spike",
           "cost": "",
-          "desc": "Summons a massive jagged ice spike from beneath an enemy. High cold damage. Inflicts **Brittle** for 2 turns. Generates 1 Lattice Layer."
+          "desc": "Summons a massive jagged ice spike from beneath an enemy. High cold damage. Inflicts Brittle for 2 turns. Generates 1 Lattice Layer."
         },
         {
           "type": "SIGNATURE",
           "name": "Shatter-Burst Shield",
           "cost": "",
-          "desc": "Consumes 2 Lattice Layers to create an instant 25% max HP frost barrier around an ally or self. If an enemy breaks this shield — it explodes outward dealing heavy cold damage"
+          "desc": "Consumes 2 Lattice Layers to create an instant 25% max HP frost barrier around an ally or self. If an enemy breaks this shield — it explodes outward dealing heavy cold damage and blinding all frontline enemies."
         },
         {
           "type": "ULTIMATE",
           "name": "Runic Refrigeration",
-          "cost": "",
-          "desc": "Drives spellblade into the ground, freezing the molecular structure of the entire battlefield lattice. Massive physical + cold damage to all enemies. Applies **Structural Collapse*"
+          "cost": "50 RES",
+          "desc": "Drives spellblade into the ground, freezing the molecular structure of the entire battlefield lattice. Massive physical + cold damage to all enemies. Applies Structural Collapse for 3 turns — all enemies take 20% increased physical damage from all sources, and basic attacks against them splash cold damage to adjacent allies."
         }
       ]
     },
@@ -786,6 +786,12 @@
         },
         {
           "type": "PASSIVE",
+          "name": "Blazing Soul",
+          "cost": "",
+          "desc": "At 100 Kindling, for 2 turns: all HP costs are removed, broadsword strikes deal bonus Spirit damage, and 50% of all damage dealt returns as healing. The Aegis becomes the fire they were burning toward."
+        },
+        {
+          "type": "PASSIVE",
           "name": "Solar Presence",
           "cost": "",
           "desc": "Passive: Every 25 Radiance reduces enemy accuracy by 10%."
@@ -798,14 +804,20 @@
         },
         {
           "type": "BASIC",
+          "name": "Cinder Bash",
+          "cost": "5 HP",
+          "desc": "Brutal shield-slam releasing compressed heat. Heavy physical damage scaling directly with current DEF stat. Applies Charred for 2 turns — reduces target attack power 25% and prevents dodging."
+        },
+        {
+          "type": "BASIC",
           "name": "Essence Drain",
           "cost": "",
-          "desc": "Precise thrust cauterizing wounds while extracting vital energy. Moderate Spirit damage. Heals Aegis for 150% of damage dealt. If Aegis is below 40% HP — deals double damage."
+          "desc": "Precise thrust cauterizing wounds while violently extracting vital energy. Moderate Spirit damage. Heals Aegis for 150% of damage dealt. If Aegis is below 40% HP — deals double damage. The most wounded state becomes the most dangerous."
         },
         {
           "type": "BASIC",
           "name": "Martyr's Mantle",
-          "cost": "",
+          "cost": "15 HP",
           "desc": "Cloak a fragile ally in protective swirling soul-fire. For 2 turns that ally gains 50% damage reduction. If that ally takes damage — Aegis instantly gains 30 Kindling."
         },
         {
@@ -823,8 +835,8 @@
         {
           "type": "SIGNATURE",
           "name": "Beacon of the Hearth",
-          "cost": "",
-          "desc": "Slam shield into earth releasing spiritual heat. Taunts all enemies for 2 turns. Aegis gains a spiritual barrier equal to 25% max HP. Intercepts 40% of all ally damage for 2 turns."
+          "cost": "10 HP",
+          "desc": "Slam shield into earth, releasing a wave of blinding spiritual heat. Taunts all enemies for 2 turns. Aegis gains a spiritual barrier equal to 25% max HP. For 2 turns, intercepts 40% of all damage directed at allies."
         },
         {
           "type": "SIGNATURE",
@@ -836,7 +848,7 @@
           "type": "ULTIMATE",
           "name": "Threat To The Pack",
           "cost": "",
-          "desc": "Leaps high and slams sword down shattering the earth. Catastrophic physical damage to all enemies. Soul-Bound aura triggers — heals all allies for 30% of damage dealt. Applies Lifemark to all allies for 3 turns."
+          "desc": "Leaps high and slams sword down, shattering the earth. Catastrophic physical damage to all enemies. Soul-Bound aura triggers — heals all allies for 30% of damage dealt. Applies Lifemark to all allies for 3 turns, marking them for amplified future healing."
         }
       ]
     },
@@ -851,7 +863,19 @@
           "type": "PASSIVE",
           "name": "Pulse Balance",
           "cost": "",
-          "desc": "Passive: Ending a turn with the Pulse Gauge exactly centered grants a free defensive barrier for the next round. Rewards rhythmic play — neither gathering nor releasing."
+          "desc": "Ending a turn with the Pulse Gauge exactly centered grants a free defensive barrier for the next round. Rewards rhythmic play — neither gathering nor releasing too aggressively."
+        },
+        {
+          "type": "PASSIVE",
+          "name": "Systole",
+          "cost": "",
+          "desc": "Gauge state: skills that heal the Arbiter or drain enemy stats are empowered while the Pulse Gauge sits in the Systole zone — the contraction phase of the heartbeat rhythm."
+        },
+        {
+          "type": "PASSIVE",
+          "name": "Diastole",
+          "cost": "",
+          "desc": "Gauge state: skills that release energy outward as massive raw damage are empowered while the Pulse Gauge sits in the Diastole zone — the expansion phase of the heartbeat rhythm."
         },
         {
           "type": "PASSIVE",
@@ -863,25 +887,25 @@
           "type": "BASIC",
           "name": "Kinetic Cadence",
           "cost": "",
-          "desc": "Swift double-strike — one slash per blade. Moderate physical damage. Generates 10 Anima. If the target is suffering from any status ailment — strikes a third time automatically."
+          "desc": "Swift double-strike — one slash per blade. Moderate physical damage. Generates 10 Anima. If the target is suffering from any status ailment, strikes a third time automatically."
         },
         {
           "type": "BASIC",
           "name": "Resonant Riposte",
           "cost": "",
-          "desc": "Enter a hyper-aware state crossing swords to catch incoming vibrations. Grants 100% Counter-Attack chance for 1 round. When hit by a physical attack — instantly strike back for equal damage."
+          "desc": "Enter a hyper-aware state, crossing swords to catch incoming vibrations. Grants 100% Counter-Attack chance for 1 round. When hit by a physical attack, instantly strike back for equal damage."
         },
         {
           "type": "BASIC",
           "name": "Anima Sync",
           "cost": "30 RES",
-          "desc": "Drive one blade into the shadow, linking life force to an ally. For 2 turns — 30% of all damage dealt by that ally flows into the Arbiter as healing. Generates massive Anima."
+          "desc": "Drive one blade into the shadow, linking life force to an ally. For 2 turns, 30% of all damage dealt by that ally flows into the Arbiter as healing. Generates massive Anima while the link is active."
         },
         {
           "type": "BASIC",
           "name": "Echoing Flurry",
           "cost": "20 RES",
-          "desc": "Move so fast the Arbiter appears in three places simultaneously. Strikes the same target 3 times in succession with increasing damage each hit."
+          "desc": "Move so fast the Arbiter appears in three places simultaneously. Strikes the same target three times in rapid succession, with increasing damage on each successive hit."
         },
         {
           "type": "BASIC",
@@ -893,13 +917,13 @@
           "type": "SIGNATURE",
           "name": "Reaver's Rhythm",
           "cost": "20 RES",
-          "desc": "Cruel twisting slash that siphons life force. Physical damage. Applies Arrhythmia for 3 turns — reduces target speed by 15%. Arbiter heals for 50% of damage dealt. Shifts gauge to Systole."
+          "desc": "Cruel twisting slash that siphons life force. Physical damage. Applies Arrhythmia for 3 turns, reducing target speed by 15%. Arbiter heals for 50% of damage dealt. Shifts the Pulse Gauge toward Systole."
         },
         {
           "type": "SIGNATURE",
           "name": "Sovereign Verse",
           "cost": "25 RES",
-          "desc": "Heavy dual-overhead chop releasing a shockwave of compressed purpose. Deals True Damage — ignores armor entirely. If target is below 30% HP — deals 50% bonus damage. Shifts gauge to Diastole."
+          "desc": "Heavy dual-overhead chop releasing a shockwave of compressed purpose. Deals True Damage, ignoring armor entirely. If target is below 30% HP, deals 50% bonus damage. Shifts the Pulse Gauge toward Diastole."
         },
         {
           "type": "SIGNATURE",
@@ -911,7 +935,7 @@
           "type": "ULTIMATE",
           "name": "Resonance Cascade",
           "cost": "",
-          "desc": "Releases all accumulated pulse energy simultaneously. Strikes all enemies in a perfect heartbeat pattern. Damage scales with current Pulse Gauge position — maximum damage at perfect center balance."
+          "desc": "Releases all accumulated pulse energy simultaneously. Strikes all enemies in a perfect heartbeat pattern. Damage scales with current Pulse Gauge position, reaching maximum power when the gauge sits at perfect center balance between Systole and Diastole."
         }
       ]
     },
@@ -931,14 +955,14 @@
         {
           "type": "BASIC",
           "name": "Heavy Cleave",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Brutal downward hack. Heavy physical damage to single target. Splashes 30% damage to adjacent enemies. Generates 15 Dominance."
         },
         {
           "type": "BASIC",
           "name": "Prey Marker",
           "cost": "",
-          "desc": "Marks the enemy with the highest HP as **The Quarry** for 3 turns. All Dominion attacks against The Quarry ignore 30% of their total armor."
+          "desc": "Marks the enemy with the highest HP as The Quarry for 3 turns. All Dominion attacks against The Quarry ignore 30% of their total armor."
         },
         {
           "type": "SIGNATURE",
@@ -949,8 +973,8 @@
         {
           "type": "ULTIMATE",
           "name": "Threat To The Pack",
-          "cost": "",
-          "desc": "Leaps high and slams sword down shattering the earth. Catastrophic physical damage to all enemies. Surviving enemies gain **Terror** for 2 turns — lose 50% of their Turn Meter"
+          "cost": "60 RES",
+          "desc": "Leaps high and slams sword down shattering the earth. Catastrophic physical damage to all enemies. Surviving enemies gain Terror for 2 turns — lose 50% of their Turn Meter and are forced to flee/pass instead of attacking. Passive: Dominance Aura — passive fear penalties scale with Dominance gauge level. \"Life is an unyielding tyrant.\""
         }
       ]
     },
@@ -970,14 +994,14 @@
         {
           "type": "BASIC",
           "name": "Pulse Strike",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Slams hammer on single target. Physical damage. Generates 1 Vitality Echo. Lowest-health ally is instantly healed for 50% of the damage dealt."
         },
         {
           "type": "BASIC",
           "name": "Vitalizing Swing",
           "cost": "",
-          "desc": "Sweeping attack striking up to 3 frontline enemies. For each enemy hit — grants a random ally a **Regrowth** buff restoring 5% max HP per turn for 2 turns."
+          "desc": "Sweeping attack striking up to 3 frontline enemies. For each enemy hit — grants a random ally a Regrowth buff restoring 5% max HP per turn for 2 turns."
         },
         {
           "type": "SIGNATURE",
@@ -988,8 +1012,8 @@
         {
           "type": "ULTIMATE",
           "name": "The Healing Anvil",
-          "cost": "",
-          "desc": "Brings hammer down with monumental force, cracking battlefield open to release pure vital energy. Heavy blunt damage to all enemies. Creates a permanent **Sanctuary Zone** on ally"
+          "cost": "45 RES",
+          "desc": "Brings hammer down with monumental force, cracking battlefield open to release pure vital energy. Heavy blunt damage to all enemies. Creates a permanent Sanctuary Zone on ally side for 3 turns — allies cannot have HP dropped below 1, and receive 30% boost to all incoming healing. Passive: Resonant Pulse — echoes amplify healing output proportional to stacks consumed. \"To protect life, one must sometimes break the bones of those who threaten it.\""
         }
       ]
     },
@@ -1009,14 +1033,14 @@
         {
           "type": "BASIC",
           "name": "Tendril Prick",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Double-dagger puncture. High physical damage. Applies 1 stack of Infestation."
         },
         {
           "type": "BASIC",
           "name": "Host Melding",
           "cost": "",
-          "desc": "Dissolves into a dark pool of biological liquid — enters **Symbiotic Stealth** for 2 turns. Cannot be targeted. Next attack out of stealth transfers all negative status effect"
+          "desc": "Dissolves into a dark pool of biological liquid — enters Symbiotic Stealth for 2 turns. Cannot be targeted. Next attack out of stealth transfers all negative status effects currently on the Hunter onto the target."
         },
         {
           "type": "SIGNATURE",
@@ -1027,8 +1051,8 @@
         {
           "type": "ULTIMATE",
           "name": "Biological Takeover",
-          "cost": "",
-          "desc": "Teleports behind target and plunges both daggers into their spine — symbiote floods entirely into target's nervous system. Catastrophic physical damage. If target dies —"
+          "cost": "60 RES",
+          "desc": "Teleports behind target and plunges both daggers into their spine — symbiote floods entirely into target's nervous system. Catastrophic physical damage. If target dies — Hunter temporarily possesses the corpse, forcing it to attack its own allies for 1 round before collapsing into biological ash. Passive: Parasitic Bond — Hunter heals 100% of all Infestation DoT damage dealt. \"Ultimate lethality requires a partnership.\""
         }
       ]
     },
@@ -1048,14 +1072,14 @@
         {
           "type": "BASIC",
           "name": "Fungal Burst",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Rapid two-shot burst. Nature + Anima damage. Increases Spore Cloud Density by 15%."
         },
         {
           "type": "BASIC",
           "name": "Toxin Tumble",
           "cost": "",
-          "desc": "Quick acrobatic roll — dodges next incoming attack completely. While rolling drops a gas canister applying **Spore Blight** to entire enemy front row — minor DoT for 3 tu"
+          "desc": "Quick acrobatic roll — dodges next incoming attack completely. While rolling drops a gas canister applying Spore Blight to entire enemy front row — minor DoT for 3 turns."
         },
         {
           "type": "SIGNATURE",
@@ -1073,7 +1097,7 @@
           "type": "ULTIMATE",
           "name": "The Great Spore Apocalypse",
           "cost": "",
-          "desc": "Unloads both pistols into the sky raining a massive dense canopy of predatory spores across the entire map. High AoE Nature damage to all enemies. Applies **Necrotic Suffocation**"
+          "desc": "Unloads both pistols into the sky raining a massive dense canopy of predatory spores across the entire map. High AoE Nature damage to all enemies. Applies Necrotic Suffocation — stuns all enemies for 1 turn and reduces attack power by 30% for 2 turns. Heals all party members for 20% max HP. Passive: Spore Saturation — passive accuracy and evasion penalties to all enemies scale with current cloud density. \"Life spreads through airborne contagion.\""
         }
       ]
     },
@@ -1093,26 +1117,26 @@
         {
           "type": "BASIC",
           "name": "Target Sequence",
-          "cost": "",
+          "cost": "+25 RES",
           "desc": "Precise rifle shot. High piercing physical damage. Generates 25% Sequencing data on target. If target has a shield — destroys it instantly."
         },
         {
           "type": "BASIC",
           "name": "Bio-Targeting Scope",
           "cost": "",
-          "desc": "Spend the turn calibrating the rifle. Next attack's Critical Damage +60%. Inflicts **Exposed DNA** on target — prevents all defensive stat buffs for 3 turns."
+          "desc": "Spend the turn calibrating the rifle. Next attack's Critical Damage +60%. Inflicts Exposed DNA on target — prevents all defensive stat buffs for 3 turns."
         },
         {
           "type": "SIGNATURE",
           "name": "Mutagen Round",
           "cost": "",
-          "desc": "Highly unstable chemical round. Moderate physical + acid damage. Applies **Cellular Degradation** — target takes 20% increased damage from all sources for 2 turns."
+          "desc": "Highly unstable chemical round. Moderate physical + acid damage. Applies Cellular Degradation — target takes 20% increased damage from all sources for 2 turns."
         },
         {
           "type": "ULTIMATE",
           "name": "Chromosomal Breakdown",
-          "cost": "",
-          "desc": "Chambers a single glowing white-hot anti-biological bullet. Catastrophic armor-ignoring damage to single target. If target has active buffs — those buffs are violently convert"
+          "cost": "60 RES",
+          "desc": "Chambers a single glowing white-hot anti-biological bullet. Catastrophic armor-ignoring damage to single target. If target has active buffs — those buffs are violently converted into explosive energy dealing heavy splash damage to all adjacent enemies and instantly dropping their Turn Meters to 0. Passive: Genetic Mapping — sequencing data builds passively each time the target acts, rewarding patience. \"Every living thing has a genetic flaw written into its very DNA.\""
         }
       ]
     },
@@ -1132,26 +1156,26 @@
         {
           "type": "BASIC",
           "name": "Evolutionary Bolt",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Spinning missile of pure concentrated Anima energy. High Spirit damage. Generates 1 Sprout Node on the turn timeline directly ahead of the target."
         },
         {
           "type": "BASIC",
           "name": "Primal Growth",
-          "cost": "",
-          "desc": "Massive burst of life energy over a targeted ally row. Instantly heals all allies in that row. Grants **Thick Hide** — increases total DEF by 25% for 2 turns."
+          "cost": "35 MP",
+          "desc": "Massive burst of life energy over a targeted ally row. Instantly heals all allies in that row. Grants Thick Hide — increases total DEF by 25% for 2 turns."
         },
         {
           "type": "SIGNATURE",
           "name": "Mutation Cascade",
           "cost": "",
-          "desc": "Target ally or enemy. If ally — grants a random massive offensive buff (+40% ATK, +30% SPD, or +50% Crit) for 2 turns. If enemy — mutates their body into a fragile form r"
+          "desc": "Target ally or enemy. If ally — grants a random massive offensive buff (+40% ATK, +30% SPD, or +50% Crit) for 2 turns. If enemy — mutates their body into a fragile form reducing all stats by 30% for 2 turns."
         },
         {
           "type": "ULTIMATE",
           "name": "Genesis Rebirth",
           "cost": "",
-          "desc": "Channels the absolute limit of the planet's vital fire. Massive golden wave of primordial liquid across the entire field. Immense Spirit + Nature damage to all enemies. Completely"
+          "desc": "Channels the absolute limit of the planet's vital fire. Massive golden wave of primordial liquid across the entire field. Immense Spirit + Nature damage to all enemies. Completely revives any dead party members at 50% HP. Resets ALL ally skill cooldowns to 0. Floods the entire turn timeline with Sprout Nodes. Passive: The Wellspring — Sprout Nodes persist on the timeline until triggered, creating compounding battlefield pressure. \"Life is a cosmic event that began with a spark and refuses to be snuffed out.\""
         }
       ]
     },
@@ -1171,26 +1195,26 @@
         {
           "type": "BASIC",
           "name": "Siphon Slash",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Quick precise thrust with blood-blade. Physical + Anima damage. Generates 1 Flesh Shard. Heals Biomancer for 30% of damage dealt."
         },
         {
           "type": "BASIC",
           "name": "Bone Spike",
           "cost": "",
-          "desc": "Condenses blood from the battlefield to shoot a cluster of jagged bone spikes at an enemy row. High physical damage. Inflicts **Bleeding Anima** DoT on all targets hit for 3 turns."
+          "desc": "Condenses blood from the battlefield to shoot a cluster of jagged bone spikes at an enemy row. High physical damage. Inflicts Bleeding Anima DoT on all targets hit for 3 turns."
         },
         {
           "type": "SIGNATURE",
           "name": "Exoskeleton Hardening",
           "cost": "",
-          "desc": "Consumes 2 Flesh Shards. Creates heavy calcified bone shield around self or ally. While active — any enemy that strikes this shield takes high physical pierce damage back from"
+          "desc": "Consumes 2 Flesh Shards. Creates heavy calcified bone shield around self or ally. While active — any enemy that strikes this shield takes high physical pierce damage back from razor-sharp bone ridges."
         },
         {
           "type": "ULTIMATE",
           "name": "The Sacred Harvest",
-          "cost": "",
-          "desc": "Drives spellblade into the heart of a bleeding enemy — all spilled vital force violently erupts outward. Massive armor-piercing physical + Spirit damage to all enemies. Every"
+          "cost": "50 RES",
+          "desc": "Drives spellblade into the heart of a bleeding enemy — all spilled vital force violently erupts outward. Massive armor-piercing physical + Spirit damage to all enemies. Every active Bleeding Anima effect on the field is instantly consumed — healing entire party for the total remaining damage pool and granting everyone a temporary 20% max HP shield. Passive: Bio-Molding — each Flesh Shard grants 6% lifesteal, stacking to 30% at maximum. \"The flesh is a canvas, and the blade is the paintbrush.\""
         }
       ]
     },
@@ -1210,26 +1234,26 @@
         {
           "type": "BASIC",
           "name": "Chrono-Strike",
-          "cost": "",
-          "desc": "Physical + Quantum damage. Generates 15% Probability. Applies **Uncertain State** — target has 25% chance to miss their next action."
+          "cost": "+15 RES",
+          "desc": "Physical + Quantum damage. Generates 15% Probability. Applies Uncertain State — target has 25% chance to miss their next action."
         },
         {
           "type": "BASIC",
           "name": "Retrocausal Taunt",
           "cost": "",
-          "desc": "Slams shield creating a localized gravity warp. Forces Taunt on all enemies for 2 turns. If an enemy attacks an ally during this time — damage is retroactively transferred to"
+          "desc": "Slams shield creating a localized gravity warp. Forces Taunt on all enemies for 2 turns. If an enemy attacks an ally during this time — damage is retroactively transferred to the Bastion instead."
         },
         {
           "type": "SIGNATURE",
           "name": "Entangled Aegis",
           "cost": "",
-          "desc": "Select an ally. For 3 turns — Bastion and ally are quantum entangled. Ally gains 50% of Bastion's current DEF stat. Any negative status effects applied to the ally are automat"
+          "desc": "Select an ally. For 3 turns — Bastion and ally are quantum entangled. Ally gains 50% of Bastion's current DEF stat. Any negative status effects applied to the ally are automatically mirrored onto the enemy who cast them."
         },
         {
           "type": "ULTIMATE",
           "name": "Paradox Engine",
-          "cost": "",
-          "desc": "Drives shield deep into the timeline. For 2 turns entire party enters absolute superposition. All damage taken during these 2 turns is recorded — at the end there is a 50% cha"
+          "cost": "60 RES",
+          "desc": "Drives shield deep into the timeline. For 2 turns entire party enters absolute superposition. All damage taken during these 2 turns is recorded — at the end there is a 50% chance damage is entirely deleted, or a 50% chance it converts into an equivalent team-wide heal."
         }
       ]
     },
@@ -1249,8 +1273,8 @@
         {
           "type": "BASIC",
           "name": "Interference Slash",
-          "cost": "",
-          "desc": "Wave Form: hits entire row, pushes all back 10% on Turn Meter."
+          "cost": "+15 RES",
+          "desc": "Wave Form: hits entire row, pushes all back 10% on Turn Meter. Particle Form: high critical damage to single target."
         },
         {
           "type": "BASIC",
@@ -1267,8 +1291,8 @@
         {
           "type": "ULTIMATE",
           "name": "Phasecollapse Flurry",
-          "cost": "",
-          "desc": "Splits into four identical timeline duplicates surrounding the entire enemy party. All duplicates strike simultaneously — heavy Quantum damage to all targets. Phasewalker land"
+          "cost": "55 RES",
+          "desc": "Splits into four identical timeline duplicates surrounding the entire enemy party. All duplicates strike simultaneously — heavy Quantum damage to all targets. Phasewalker lands back in original position locked into Particle Form with infinite Critical Hit chance for the next round."
         }
       ]
     },
@@ -1288,8 +1312,8 @@
         {
           "type": "BASIC",
           "name": "Fracture Chop",
-          "cost": "",
-          "desc": "Heavy overhead swing. High physical damage. Generates 20 Tachyon Stress. Applies **Decaying Reality** — target takes 10% more damage from all sources for 2 turns."
+          "cost": "+20 RES",
+          "desc": "Heavy overhead swing. High physical damage. Generates 20 Tachyon Stress. Applies Decaying Reality — target takes 10% more damage from all sources for 2 turns."
         },
         {
           "type": "BASIC",
@@ -1306,8 +1330,8 @@
         {
           "type": "ULTIMATE",
           "name": "The Grand Shatter",
-          "cost": "",
-          "desc": "Raises blade and slams down with catastrophic force — shattering the current timeline for the enemy team. Immense armor-ignoring damage to all enemies. Forcefully resets ALL e"
+          "cost": "65 RES",
+          "desc": "Raises blade and slams down with catastrophic force — shattering the current timeline for the enemy team. Immense armor-ignoring damage to all enemies. Forcefully resets ALL enemy skill cooldowns back to maximum duration — locking them out of special abilities for 2 rounds."
         }
       ]
     },
@@ -1327,8 +1351,8 @@
         {
           "type": "BASIC",
           "name": "Logic Gavel",
-          "cost": "",
-          "desc": "Blunt physical damage to single target. Applies **Causality Chain** for 3 turns."
+          "cost": "+15 RES",
+          "desc": "Blunt physical damage to single target. Applies Causality Chain for 3 turns."
         },
         {
           "type": "BASIC",
@@ -1340,13 +1364,13 @@
           "type": "SIGNATURE",
           "name": "Delayed Reaction",
           "cost": "",
-          "desc": "High physical damage. Inflicts **Stasis Lock** — any actions taken on the target's next turn have no effect until the turn after next. A one-turn delay on all their actions."
+          "desc": "High physical damage. Inflicts Stasis Lock — any actions taken on the target's next turn have no effect until the turn after next. A one-turn delay on all their actions."
         },
         {
           "type": "ULTIMATE",
           "name": "Reversal Of Causality",
-          "cost": "",
-          "desc": "Flashes a blinding white grid across the arena. All damage dealt by the enemy team during the previous round is completely undone — restoring the party's health pools. The tot"
+          "cost": "60 RES",
+          "desc": "Flashes a blinding white grid across the arena. All damage dealt by the enemy team during the previous round is completely undone — restoring the party's health pools. The total amount of undone damage is gathered and slammed back into the enemy team as a massive unblockable Quantum explosion."
         }
       ]
     },
@@ -1366,7 +1390,7 @@
         {
           "type": "BASIC",
           "name": "Subatomic Puncture",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Double stab from behind. High physical damage. Generates 1 Tunneling Charge."
         },
         {
@@ -1379,13 +1403,13 @@
           "type": "SIGNATURE",
           "name": "Chromatic Slice",
           "cost": "",
-          "desc": "Swift cross-slash dealing Quantum damage. Inflicts **Entropic Bleed** — every time the infected target takes a turn, they lose 5% current HP and SPD is reduced by 10% (stacks"
+          "desc": "Swift cross-slash dealing Quantum damage. Inflicts Entropic Bleed — every time the infected target takes a turn, they lose 5% current HP and SPD is reduced by 10% (stacks up to 3 times)."
         },
         {
           "type": "ULTIMATE",
           "name": "Zero-State Execution",
-          "cost": "",
-          "desc": "Spends all remaining Tunneling Charges to erase themselves from current reality — reappears directly inside the target's space. Catastrophic True Damage to single target. If i"
+          "cost": "70 RES",
+          "desc": "Spends all remaining Tunneling Charges to erase themselves from current reality — reappears directly inside the target's space. Catastrophic True Damage to single target. If it kills the target — instantly regains all Tunneling Charges and re-enters stealth automatically."
         }
       ]
     },
@@ -1405,7 +1429,7 @@
         {
           "type": "BASIC",
           "name": "Stochastic Burst",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Rapid three-shot volley. Each bullet independently has 50% chance to deal double damage OR 50% chance to apply a random minor debuff. Generates 15% Variance shift."
         },
         {
@@ -1423,8 +1447,8 @@
         {
           "type": "ULTIMATE",
           "name": "Corona Of Echoes",
-          "cost": "",
-          "desc": "Unloads both pistols in a blinding circle creating a localized storm of temporal copies. Fires 10 high-velocity photon shots distributed randomly across enemy team. Every critical"
+          "cost": "55 RES",
+          "desc": "Unloads both pistols in a blinding circle creating a localized storm of temporal copies. Fires 10 high-velocity photon shots distributed randomly across enemy team. Every critical hit landed reduces cooldown of the party's signature abilities by 1 turn."
         }
       ]
     },
@@ -1475,7 +1499,7 @@
           "type": "ULTIMATE",
           "name": "The Ultimate Observer",
           "cost": "",
-          "desc": "Fires a single cataclysmic bullet traveling through alternate realities to find the target. Immense armor-ignoring damage to single enemy. If target is below 40% HP — instantl"
+          "desc": "Fires a single cataclysmic bullet traveling through alternate realities to find the target. Immense armor-ignoring damage to single enemy. If target is below 40% HP — instantly erased from the timeline, bypassing all death-defy skills. If it kills the target — remaining enemies gain Existential Dread, reducing Accuracy and SPD by 30% for 2 turns."
         }
       ]
     },
@@ -1514,7 +1538,7 @@
           "type": "SIGNATURE",
           "name": "Chrono-Loop",
           "cost": "",
-          "desc": "Traps an enemy in a localized time loop for 2 turns. At the start of their turn — they automatically repeat the exact action they took on their previous turn, and any damage t"
+          "desc": "Traps an enemy in a localized time loop for 2 turns. At the start of their turn — they automatically repeat the exact action they took on their previous turn, and any damage they took last round is dealt to them again."
         },
         {
           "type": "SIGNATURE",
@@ -1526,7 +1550,7 @@
           "type": "ULTIMATE",
           "name": "Time Stop",
           "cost": "",
-          "desc": "Massive reality-freezing expansion wave. ALL enemies completely frozen in time for 1 full round — cannot act, cooldowns do not tick, turn bars locked. Party gains 30% SPD buff"
+          "desc": "Massive reality-freezing expansion wave. ALL enemies completely frozen in time for 1 full round — cannot act, cooldowns do not tick, turn bars locked. Party gains 30% SPD buff and immediate turn priority once time stop ends."
         }
       ]
     },
@@ -1546,14 +1570,14 @@
         {
           "type": "BASIC",
           "name": "Lattice Slice",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Vibrating energy blade strike. Physical + Quantum damage. Generates 1 Coherence Layer."
         },
         {
           "type": "BASIC",
           "name": "Vector Flash",
           "cost": "",
-          "desc": "Burst of hard-light particles at an enemy row. High Quantum damage. Applies **Vector Distortion** — attacks made by those enemies split and deal 30% less damage for 2 turns. G"
+          "desc": "Burst of hard-light particles at an enemy row. High Quantum damage. Applies Vector Distortion — attacks made by those enemies split and deal 30% less damage for 2 turns. Generates 1 Coherence Layer."
         },
         {
           "type": "SIGNATURE",
@@ -1564,8 +1588,8 @@
         {
           "type": "ULTIMATE",
           "name": "Matrix Collapse",
-          "cost": "",
-          "desc": "Sweeping circular slash cutting through the molecular bonds of the entire arena. Massive armor-piercing physical + Quantum damage to all enemies. Leaves a **Coherent Field** on the"
+          "cost": "55 RES",
+          "desc": "Sweeping circular slash cutting through the molecular bonds of the entire arena. Massive armor-piercing physical + Quantum damage to all enemies. Leaves a Coherent Field on the ally side for 3 turns — party Critical Hit Chance +30%, everyone has 15% chance to completely phase through and negate incoming attacks."
         }
       ]
     },
@@ -1585,8 +1609,8 @@
         {
           "type": "BASIC",
           "name": "Event Horizon Smash",
-          "cost": "",
-          "desc": "Physical + Umbraxis damage. Shifts meter +15% High-G. Inflicts **Crushed** — reduces target armor by 20% for 2 turns."
+          "cost": "+15 RES",
+          "desc": "Physical + Umbraxis damage. Shifts meter +15% High-G. Inflicts Crushed — reduces target armor by 20% for 2 turns."
         },
         {
           "type": "BASIC",
@@ -1598,13 +1622,13 @@
           "type": "SIGNATURE",
           "name": "Anti-Gravity Field",
           "cost": "",
-          "desc": "Releases pulse of low-gravity energy around ally party. Cleanses all SPD-reducing debuffs. Grants all allies **Weightless** for 2 turns — SPD and Evasion +25%. Shifts meter -4"
+          "desc": "Releases pulse of low-gravity energy around ally party. Cleanses all SPD-reducing debuffs. Grants all allies Weightless for 2 turns — SPD and Evasion +25%. Shifts meter -40% Low-G."
         },
         {
           "type": "ULTIMATE",
           "name": "Tidal Collapse",
-          "cost": "",
-          "desc": "Drives blade into shield and slams down creating a catastrophic localized singularity. All enemies violently pulled into a single point — massive blunt + gravity damage. Infli"
+          "cost": "60 RES",
+          "desc": "Drives blade into shield and slams down creating a catastrophic localized singularity. All enemies violently pulled into a single point — massive blunt + gravity damage. Inflicts G-Lock — complete stun for 1 turn and Turn Meter delayed by 30%. Resets G-Force Meter to 0%."
         }
       ]
     },
@@ -1624,7 +1648,7 @@
         {
           "type": "BASIC",
           "name": "Slingshot Strike",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Swift double-slash that moves Vector to an adjacent row. Physical damage. Generates 1 Vector Momentum stack."
         },
         {
@@ -1649,7 +1673,7 @@
           "type": "ULTIMATE",
           "name": "The Event Horizon Dance",
           "cost": "",
-          "desc": "Enters over-clocked state moving along a perfect gravitational matrix. For 2 turns — infinite Vector Momentum stacks, movement skills cost no actions, every strike automatical"
+          "desc": "Enters over-clocked state moving along a perfect gravitational matrix. For 2 turns — infinite Vector Momentum stacks, movement skills cost no actions, every strike automatically hits all adjacent enemies as space bends around the blades."
         }
       ]
     },
@@ -1669,26 +1693,26 @@
         {
           "type": "BASIC",
           "name": "Dense Cleave",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Brutal downward swing. Massive physical damage to single target. 40% splash damage to entire row. Generates 20 Accretion."
         },
         {
           "type": "BASIC",
           "name": "Pull of the Core",
           "cost": "",
-          "desc": "Slams heavy hilt into ground creating a miniature gravity well. Pulls a backline enemy into the frontrow. Inflicts **Weighed Down** — Evasion -30% for 2 turns. Generates 15 Ac"
+          "desc": "Slams heavy hilt into ground creating a miniature gravity well. Pulls a backline enemy into the frontrow. Inflicts Weighed Down — Evasion -30% for 2 turns. Generates 15 Accretion."
         },
         {
           "type": "SIGNATURE",
           "name": "Crushing Void",
           "cost": "",
-          "desc": "Massive horizontal swing targeting enemy frontline. Heavy gravity damage. Applies **Fractured Guard** — physical DEF -35% for 3 turns."
+          "desc": "Massive horizontal swing targeting enemy frontline. Heavy gravity damage. Applies Fractured Guard — physical DEF -35% for 3 turns."
         },
         {
           "type": "ULTIMATE",
           "name": "Black Hole Dropdown",
-          "cost": "",
-          "desc": "Leaps into air, focuses all Accretion into greatsword tip, drives it into the center of the enemy team. Catastrophic armor-piercing damage to all enemies. Dispels all positive stat"
+          "cost": "65 RES",
+          "desc": "Leaps into air, focuses all Accretion into greatsword tip, drives it into the center of the enemy team. Catastrophic armor-piercing damage to all enemies. Dispels all positive status buffs. Locks all enemies out of gaining Turn Meter buffs for 2 rounds."
         }
       ]
     },
@@ -1708,8 +1732,8 @@
         {
           "type": "BASIC",
           "name": "Anchor Slam",
-          "cost": "",
-          "desc": "Blunt damage to single target. Places a **G-Anchor** on their location for 3 turns."
+          "cost": "+15 RES",
+          "desc": "Blunt damage to single target. Places a G-Anchor on their location for 3 turns."
         },
         {
           "type": "BASIC",
@@ -1721,13 +1745,13 @@
           "type": "SIGNATURE",
           "name": "Hyper-Mass Drop",
           "cost": "",
-          "desc": "Swings hammer upward then increases its mass tenfold as it falls. Immense blunt physical damage to single target. If target has a G-Anchor — anchor explodes dealing bonus AoE"
+          "desc": "Swings hammer upward then increases its mass tenfold as it falls. Immense blunt physical damage to single target. If target has a G-Anchor — anchor explodes dealing bonus AoE damage and Stunning target for 1 turn."
         },
         {
           "type": "ULTIMATE",
           "name": "The Kinetic Crush",
-          "cost": "",
-          "desc": "Lifts hammer pulling all active G-Anchors into a single massive orbital ring above the enemy team — slams them down like meteorites. Devastating blunt + Umbraxis damage to all"
+          "cost": "55 RES",
+          "desc": "Lifts hammer pulling all active G-Anchors into a single massive orbital ring above the enemy team — slams them down like meteorites. Devastating blunt + Umbraxis damage to all enemies. Grounds all enemies — prevents flying, dodging, or using teleportation and row-swap skills for 3 turns."
         }
       ]
     },
@@ -1747,7 +1771,7 @@
         {
           "type": "BASIC",
           "name": "Zero-G Pierce",
-          "cost": "",
+          "cost": "+20 RES",
           "desc": "Swift weightless double-stab from behind. High critical damage. Generates 1 Lagrange Node."
         },
         {
@@ -1760,13 +1784,13 @@
           "type": "SIGNATURE",
           "name": "Spacial Tear",
           "cost": "",
-          "desc": "Vicious cross-slash cutting the spatial fabric around the target. Heavy physical damage. Inflicts **Bleeding Space** — continuous Umbraxis DoT for 3 turns that cannot be clean"
+          "desc": "Vicious cross-slash cutting the spatial fabric around the target. Heavy physical damage. Inflicts Bleeding Space — continuous Umbraxis DoT for 3 turns that cannot be cleansed by basic support skills."
         },
         {
           "type": "ULTIMATE",
           "name": "Libration Point Execution",
-          "cost": "",
-          "desc": "Consumes all active Lagrange Nodes to launch a multi-dimensional execution strike. Strikes primary target once per node consumed — each hit deals massive armor-ignoring True D"
+          "cost": "65 RES",
+          "desc": "Consumes all active Lagrange Nodes to launch a multi-dimensional execution strike. Strikes primary target once per node consumed — each hit deals massive armor-ignoring True Damage. If it kills the target — instantly regains all skill cooldowns and enters permanent stealth for 2 turns."
         }
       ]
     },
@@ -1786,7 +1810,7 @@
         {
           "type": "BASIC",
           "name": "Kinetic Rotation",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Rapid two-shot burst. Umbraxis damage. Adds 1 bullet to Planetary Orbit ring per shot (max 6)."
         },
         {
@@ -1804,8 +1828,8 @@
         {
           "type": "ULTIMATE",
           "name": "Meteoric Corona",
-          "cost": "",
-          "desc": "Triggers massive gravity expansion — all 6 orbital bullets split into 12 hyper-velocity fragments. Fragments rain down randomly across entire enemy party — massive AoE da"
+          "cost": "55 RES",
+          "desc": "Triggers massive gravity expansion — all 6 orbital bullets split into 12 hyper-velocity fragments. Fragments rain down randomly across entire enemy party — massive AoE damage. Every critical hit landed increases party SPD by 5% for 3 turns."
         }
       ]
     },
@@ -1825,7 +1849,7 @@
         {
           "type": "BASIC",
           "name": "Coordinate Shot",
-          "cost": "",
+          "cost": "+25 RES",
           "desc": "Precise rifle shot. High piercing damage. Generates 25% Compression data. Pushes enemy back 15% on Turn Meter from spatial shockwave."
         },
         {
@@ -1843,8 +1867,8 @@
         {
           "type": "ULTIMATE",
           "name": "Apex Singularity Drive",
-          "cost": "",
-          "desc": "Fires a hyper-dense projectile creating a localized black hole inside the target's chest. Catastrophic damage to single enemy. If target survives — singularity violently colla"
+          "cost": "65 RES",
+          "desc": "Fires a hyper-dense projectile creating a localized black hole inside the target's chest. Catastrophic damage to single enemy. If target survives — singularity violently collapses, dealing 50% of the damage to all adjacent enemies and freezing their cooldowns for 1 turn."
         }
       ]
     },
@@ -1864,26 +1888,26 @@
         {
           "type": "BASIC",
           "name": "Dark Matter Bolt",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Swirling sphere of dense space-time particles. High Spirit damage. Generates 1 Gravity Rift on the turn timeline."
         },
         {
           "type": "BASIC",
           "name": "Temporal Dilatation",
           "cost": "",
-          "desc": "Target an ally or enemy row. Ally row: grants **Haste** (+30% SPD) for 2 turns. Enemy row: inflicts **Slow** (-30% SPD), skill cooldowns take an extra turn to refresh."
+          "desc": "Target an ally or enemy row. Ally row: grants Haste (+30% SPD) for 2 turns. Enemy row: inflicts Slow (-30% SPD), skill cooldowns take an extra turn to refresh."
         },
         {
           "type": "SIGNATURE",
           "name": "Event Horizon Loop",
           "cost": "",
-          "desc": "Traps an enemy in a localized spatial loop for 2 turns. Any damage that enemy deals to the party is gathered — at the start of their next turn that exact damage pool is slamme"
+          "desc": "Traps an enemy in a localized spatial loop for 2 turns. Any damage that enemy deals to the party is gathered — at the start of their next turn that exact damage pool is slammed back into them as internal damage."
         },
         {
           "type": "ULTIMATE",
           "name": "Unmaking Of The Lattice",
-          "cost": "",
-          "desc": "Raises staff causing the visual graphics of the screen to fold inward. Opens a massive cataclysmic void rift beneath the entire enemy team. Immense gravity + space-time damage to a"
+          "cost": "60 RES",
+          "desc": "Raises staff causing the visual graphics of the screen to fold inward. Opens a massive cataclysmic void rift beneath the entire enemy team. Immense gravity + space-time damage to all. Forcefully reduces all enemy resource and mana bars to 0. Sets all skill cooldowns to maximum. Pins all enemies to the floor for 1 round."
         }
       ]
     },
@@ -1903,14 +1927,14 @@
         {
           "type": "BASIC",
           "name": "Vector Slice",
-          "cost": "",
+          "cost": "+15 RES",
           "desc": "Vibrating energy blade strike. Physical + Umbraxis damage. Generates 1 Density Layer."
         },
         {
           "type": "BASIC",
           "name": "Cosmic Fracture",
           "cost": "",
-          "desc": "Burst of dense gravity waves at an enemy row. High Umbraxis damage. Applies **Mass Distortion** — reduces attack power of those enemies by 25% for 2 turns. Generates 1 Density"
+          "desc": "Burst of dense gravity waves at an enemy row. High Umbraxis damage. Applies Mass Distortion — reduces attack power of those enemies by 25% for 2 turns. Generates 1 Density Layer."
         },
         {
           "type": "SIGNATURE",
@@ -1921,15 +1945,15 @@
         {
           "type": "ULTIMATE",
           "name": "Voidstar Collapse",
-          "cost": "",
-          "desc": "Massive sweeping circular slash shattering the spatial bonds of the entire arena grid. Massive armor-piercing physical + gravity damage to all enemies. Leaves a **Singularity Field"
+          "cost": "55 RES",
+          "desc": "Massive sweeping circular slash shattering the spatial bonds of the entire arena grid. Massive armor-piercing physical + gravity damage to all enemies. Leaves a Singularity Field on ally side for 3 turns — party Critical Hit Chance +30%, everyone has 15% chance to completely redirect incoming physical attacks back at the attacker."
         }
       ]
     }
   ],
   "counts": {
     "classes": 45,
-    "abilities": 246,
+    "abilities": 250,
     "ultimates": 45
   },
   "source": "requiem-compendium.source.html (Dara Saadat)",
