@@ -48,15 +48,19 @@
   /* ---- Field map ---- */
   #fieldScreen{background:#0c1208;}
   #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
-  #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; gap:8px; pointer-events:none;}
+  #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; pointer-events:none;}
   .hud-pill{background:rgba(8,8,16,.78); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; pointer-events:auto;}
+  .hud-grp{display:flex; gap:6px; align-items:flex-start; flex-wrap:wrap; justify-content:flex-end;}
+  .audiobtn{cursor:pointer; color:var(--gold2); font:inherit; line-height:1;}
+  .audiobtn:hover{border-color:var(--gold);}
   #fieldParty{display:flex; gap:6px; flex-wrap:wrap;}
   #fieldParty .pm{font-size:11px;}
   #dpad{position:absolute; bottom:14px; left:14px; display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
   #dpad button{background:rgba(30,28,50,.85); border:1px solid var(--line); border-radius:8px; color:var(--gold2); font-size:18px;}
   #dpad .sp{visibility:hidden;}
-  #fieldHint{position:absolute; bottom:20px; right:16px; max-width:260px; text-align:right; color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000;}
-  #menuBtns{position:absolute; bottom:74px; right:16px; display:flex; gap:8px;}
+  #fieldHint{position:absolute; bottom:18px; right:14px; max-width:52%; text-align:right; color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000;}
+  #menuBtns{position:absolute; bottom:70px; right:10px; display:flex; flex-direction:column; gap:6px; align-items:flex-end;}
+  #menuBtns .btn{padding:7px 14px; font-size:14px; min-width:88px; text-align:center;}
 
   /* ---- Battle ---- */
   #battleScreen{background:#06060b;}
@@ -190,7 +194,11 @@
     <canvas id="fieldCanvas"></canvas>
     <div id="fieldHud">
       <div class="hud-pill" id="fieldZone">Greenvale</div>
-      <div class="hud-pill"><span id="fieldGold">0</span> gold</div>
+      <div class="hud-grp">
+        <div class="hud-pill"><span id="fieldGold">0</span> gold</div>
+        <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
+        <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle('field')">♪ <span id="st-field">Radiant</span></button>
+      </div>
     </div>
     <div class="hud-pill" id="fieldPartyWrap" style="position:absolute;top:40px;left:8px;">
       <div id="fieldParty"></div>
@@ -200,8 +208,6 @@
       <button class="btn" onclick="UI.openParty()">Party</button>
       <button class="btn" onclick="UI.openInventory()">Bag</button>
       <button class="btn" onclick="Telemetry.show()">Stats</button>
-      <button class="btn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
-      <button class="btn" title="Field music style" onclick="Music.cycleStyle('field')">♪ <span id="st-field">Radiant</span> ▸</button>
     </div>
     <div id="dpad">
       <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
@@ -251,7 +257,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.10";
+const GAME_VERSION = "v0.10.1";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
