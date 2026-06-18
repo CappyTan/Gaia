@@ -12,3 +12,6 @@ _*.js
 Thumbs.db
 .vscode/
 .idea/
+
+# calibration scratch
+assets/reference/_preview/
