@@ -43,14 +43,16 @@ bonus damage vs NOX foes (Bandit, Lurker, Captain, Brute), resisted by UMBRAXIS 
 
 ## Art status
 
-**Dara's real art is now wired in** (sliced from his reference sheets into [`assets/`](assets/)):
-- **Weapons** — 24 loot icons sliced from the four SOL loot charts (`assets/items/{sns,dual,staff,spell}-{rarity}.png`), shown on every weapon drop and in the bag/equip screens.
-- **Enemies** — the five Greenvale bandits as battle figures (`assets/enemies/`). The six added enemies (wolf/wisp/lurker/shade/shaman/captain) have no art yet and fall back to emoji.
-- **Heroes** — the four SOL party portraits sliced from the class grid (`assets/heroes/`), shown in the battle party zone.
+**Dara's real art is wired in**, sliced + background-removed by the reproducible pipeline
+[`tools/slice-art.py`](tools/slice-art.py) (flood-fills the dark sheet background to
+transparency so figures sit flush in the scene; re-run any time to rebuild `assets/`):
+- **Weapons** — 24 loot icons from the four SOL charts (`assets/items/{sns,dual,staff,spell}-{rarity}.png`), shown on drops, in the bag/equip screens, AND composited onto the character in battle (the equipped weapon shows on the hero with a rarity glow and updates when you upgrade).
+- **Enemies** — the five Greenvale bandits as transparent battle figures (`assets/enemies/`). The six added enemies fall back to emoji (no art on the sheets).
+- **Heroes** — the four SOL party portraits from the class grid (`assets/heroes/`), transparent, with a grounding shadow.
+- **Battle backgrounds** — dark, painterly, vignette scenes per environment (CSS), so transparent sprites read as in-scene rather than cut-out rectangles.
 
-Still placeholder: field-map tiles (emoji/CSS), battle backgrounds (CSS gradients per
-environment), and the field walking marker. Do **not** ship the FF reference screenshots
-(Square Enix copyright). Next: art for the six new enemies + battle backgrounds in Dara's style.
+Still placeholder: field-map tiles + walking marker. Do **not** ship the FF reference
+screenshots (Square Enix copyright). Next: art for the six new enemies; field-map art.
 
 ## Validation
 

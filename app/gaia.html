@@ -75,12 +75,26 @@
   .enemy .ename{font-size:12px;}
   .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
   .pchar .spr{font-size:30px; filter:drop-shadow(0 3px 4px #000);}
-  .pchar .spr-img{width:62px; height:74px; object-fit:contain; filter:drop-shadow(0 3px 5px #000);}
-  .pchar.acting .spr, .pchar.acting .spr-img{animation:bob .5s ease;}
+  /* grounding shadow under the figure (an ellipse) sells "standing in the scene" */
+  .pspr{position:relative; display:inline-block;}
+  .pspr::after{content:""; position:absolute; left:50%; bottom:-3px; width:54px; height:10px; transform:translateX(-50%);
+    background:radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%);}
+  .pchar .spr-img, .enemy .spr-img{filter:drop-shadow(0 4px 4px rgba(0,0,0,.6));}
+  .pchar .spr-img{width:62px; height:74px; object-fit:contain;}
+  .wep-overlay{position:absolute; left:50%; bottom:2px; transform:translateX(-50%) rotate(-12deg);
+    width:40px; height:auto; pointer-events:none;}
+  .pchar.acting .spr, .pchar.acting .pspr{animation:bob .5s ease;}
   @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
-  .pchar.hurt .spr, .pchar.hurt .spr-img{animation:shake .25s;}
+  .pchar.hurt .spr, .pchar.hurt .pspr{animation:shake .25s;}
   @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
-  .item .ico{width:74px; height:50px; object-fit:contain; border-radius:4px; background:#000; flex:0 0 auto;}
+  /* equipped-weapon glow, by rarity */
+  .g-common{filter:drop-shadow(0 0 2px rgba(255,255,255,.4));}
+  .g-uncommon{filter:drop-shadow(0 0 3px var(--uncommon));}
+  .g-rare{filter:drop-shadow(0 0 4px var(--rare));}
+  .g-epic{filter:drop-shadow(0 0 5px var(--epic));}
+  .g-legendary{filter:drop-shadow(0 0 6px var(--legendary));}
+  .g-artifact{filter:drop-shadow(0 0 7px var(--artifact));}
+  .item .ico{width:74px; height:50px; object-fit:contain; border-radius:4px; flex:0 0 auto;}
 
   .bar{height:9px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden; position:relative;}
   .bar > i{display:block; height:100%; transition:width .25s;}
@@ -231,7 +245,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.5";
+const GAME_VERSION = "v0.6";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -242,6 +256,10 @@ const itemIcon = it => (it.slot==="weapon" && WEAP_IMG[it.cls])
 const enemySprite = e => ENEMY_IMG[e.key]
   ? `<img class="spr-img" src="assets/enemies/${e.key}.png" alt="">` : `<div class="spr">${e.spr}</div>`;
 const heroSprite = m => `<img class="spr-img" src="assets/heroes/${m.id}.png" alt="${m.name}">`;
+// the equipped weapon shown ON the character in battle (loot-chart art, glows by rarity,
+// updates whenever you equip an upgrade)
+const heroWeaponOverlay = m => { const it=m.equip&&m.equip.weapon; if(!it||!WEAP_IMG[it.cls]) return "";
+  return `<img class="wep-overlay g-${it.rarity}" src="assets/items/${WEAP_IMG[it.cls]}-${it.rarity}.png" alt="">`; };
 
 /* =====================================================================================
    1. CONTENT — the Five Powers, classes, enemies, loot, affixes
@@ -810,12 +828,15 @@ const Battle = {
 
   /* ---- rendering ---- */
   renderBg(){
-    const bgs={ plains:"linear-gradient(#7db9e8 0%,#a9d6f0 35%,#8fbf5a 60%,#5a8c3a 100%)",
-      forest:"linear-gradient(#2c4a2c,#15301a 70%,#0d2010)",
-      desert:"linear-gradient(#e8c98a,#d6a85a 55%,#a87a3a)",
-      mountains:"linear-gradient(#9fb0c8,#6c7a96 55%,#3a4258)" };
+    // Dark, painterly, vignette scenes (Dara's gold-on-near-black palette) so transparent
+    // figures sit IN the scene and never read as cut-out rectangles.
+    const bgs={
+      plains:    "radial-gradient(130% 95% at 50% 22%, #34465a 0%, #131a26 50%, #06090f 100%)",
+      forest:    "radial-gradient(130% 95% at 50% 22%, #243a2a 0%, #0d1611 50%, #060a07 100%)",
+      desert:    "radial-gradient(130% 95% at 50% 22%, #4a3a22 0%, #1b1308 50%, #0a0704 100%)",
+      mountains: "radial-gradient(130% 95% at 50% 22%, #2c3645 0%, #131722 50%, #070a0e 100%)" };
     $("#battleBg").style.background=bgs[this.env]||bgs.plains;
-    if(this.isBoss) $("#battleBg").style.background="radial-gradient(circle at 30% 40%,#3a1020,#120608 80%)";
+    if(this.isBoss) $("#battleBg").style.background="radial-gradient(120% 95% at 38% 34%, #4a1424 0%, #1a0810 52%, #070406 100%)";
   },
   renderAll(){ this.renderEnemies(this.selecting&&this.selecting.kind==="enemy"); this.renderParty(); this.renderRoster(); this.renderLog(); },
   renderEnemies(targetable){
@@ -834,7 +855,8 @@ const Battle = {
     const z=$("#partyZone"); z.innerHTML="";
     Game.party.forEach(m=>{
       const d=el("div","pchar"+(m.alive?"":" downed")+(m.acting?" acting":"")+(m._hurt?" hurt":""));
-      d.innerHTML=`<div style="text-align:right"><div class="ename" style="color:${m.alive?'var(--gold2)':'#666'}">${m.name}${statusBadges(m)}</div></div>${m.alive?heroSprite(m):'<div class="spr">💤</div>'}`;
+      const spr = m.alive ? `<div class="pspr">${heroSprite(m)}${heroWeaponOverlay(m)}</div>` : '<div class="spr">💤</div>';
+      d.innerHTML=`<div style="text-align:right"><div class="ename" style="color:${m.alive?'var(--gold2)':'#666'}">${m.name}${statusBadges(m)}</div></div>${spr}`;
       z.appendChild(d);
     });
   },
