@@ -231,7 +231,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.4";
+const GAME_VERSION = "v0.5";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -357,18 +357,26 @@ const PARTY_DEFS = [
 const ENEMIES = {
   // att chosen to exercise the whole ring vs the SOL party: SOL is STRONG vs NOX (+50%),
   // WEAK vs UMBRAXIS (-50%), neutral vs ANIMA/QUANTA/SOL. onHit/leech/skills add texture.
-  bandit:   {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:42, atk:11, spd:7, armor:1, mag:0,  xp:30, gold:[6,14],  ai:"basic"},
-  wolf:     {name:"Gray Wolf",        spr:"🐺", att:"ANIMA",    lvl:1, hp:30, atk:12, spd:13,armor:0, mag:0,  xp:26, gold:[3,8],   ai:"basic"},
-  cutpurse: {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:56, atk:14, spd:11,armor:2, mag:0,  xp:44, gold:[10,22], ai:"evasive"},
-  wisp:     {name:"Forest Wisp",      spr:"💠", att:"QUANTA",   lvl:2, hp:36, atk:8,  spd:12,armor:0, mag:11, xp:42, gold:[6,12],  ai:"evasive", skills:["hex"], castChance:0.5},
-  marauder: {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:90, atk:19, spd:6, armor:3, mag:0,  xp:64, gold:[14,26], ai:"basic"},
-  lurker:   {name:"Bog Lurker",       spr:"🦎", att:"NOX",      lvl:3, hp:98, atk:17, spd:5, armor:4, mag:0,  xp:68, gold:[12,22], ai:"basic", onHit:{poison:3}},
-  archer:   {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:74, atk:22, spd:9, armor:2, mag:2,  xp:74, gold:[16,28], ai:"basic"},
-  shade:    {name:"Hollow Shade",     spr:"👻", att:"UMBRAXIS", lvl:4, hp:72, atk:21, spd:9, armor:2, mag:4,  xp:78, gold:[14,26], ai:"basic", leech:35},
-  shaman:   {name:"Bandit Shaman",    spr:"🧙", att:"ANIMA",    lvl:4, hp:66, atk:12, spd:8, armor:1, mag:13, xp:82, gold:[18,30], ai:"caster", skills:["mend"], castChance:0.55},
-  captain:  {name:"Brigand Captain",  spr:"🪖", att:"NOX",      lvl:5, hp:380,atk:27, spd:7, armor:5, mag:0,  xp:120,gold:[60,100], ai:"boss", miniboss:true, skills:["rally"], castChance:0.4},
-  brute:    {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:6, hp:640,atk:34, spd:6, armor:8, mag:0,  xp:170,gold:[120,180],ai:"boss", boss:true},
+  bandit:   {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:40, atk:11, spd:8, armor:1, mag:0,  xp:30, gold:[6,14],  ai:"basic"},
+  wolf:     {name:"Gray Wolf",        spr:"🐺", att:"ANIMA",    lvl:1, hp:30, atk:12, spd:14,armor:0, mag:0,  xp:26, gold:[3,8],   ai:"basic"},
+  cutpurse: {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:52, atk:13, spd:12,armor:2, mag:0,  xp:44, gold:[10,22], ai:"evasive"},
+  wisp:     {name:"Forest Wisp",      spr:"💠", att:"QUANTA",   lvl:2, hp:34, atk:9,  spd:13,armor:0, mag:12, xp:42, gold:[6,12],  ai:"evasive", skills:["hex"], castChance:0.5},
+  marauder: {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:80, atk:17, spd:7, armor:3, mag:0,  xp:64, gold:[14,26], ai:"basic"},
+  lurker:   {name:"Bog Lurker",       spr:"🦎", att:"NOX",      lvl:3, hp:88, atk:15, spd:6, armor:4, mag:0,  xp:68, gold:[12,22], ai:"basic", onHit:{poison:3}},
+  archer:   {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:66, atk:18, spd:10,armor:2, mag:2,  xp:74, gold:[16,28], ai:"basic"},
+  shade:    {name:"Hollow Shade",     spr:"👻", att:"UMBRAXIS", lvl:4, hp:64, atk:17, spd:10,armor:2, mag:4,  xp:78, gold:[14,26], ai:"basic", leech:35},
+  shaman:   {name:"Bandit Shaman",    spr:"🧙", att:"ANIMA",    lvl:4, hp:60, atk:11, spd:9, armor:1, mag:14, xp:82, gold:[18,30], ai:"caster", skills:["mend"], castChance:0.55},
+  captain:  {name:"Brigand Captain",  spr:"🪖", att:"NOX",      lvl:5, hp:720, atk:27, spd:8, armor:5, mag:0,  xp:120,gold:[60,100], ai:"boss", miniboss:true, skills:["rally"], castChance:0.4},
+  brute:    {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:6, hp:1300,atk:34, spd:7, armor:8, mag:0,  xp:170,gold:[120,180],ai:"boss", boss:true},
 };
+// Enemies scale with DEPTH (how far east through Greenvale you are) so they keep pace with
+// the party's level + gear growth. HP scales HARD (so enemies survive the party's burst and
+// keep acting = steady pressure) while ATK scales GENTLY (hits chip instead of one-shotting
+// squishies = fewer death-spiral wipes). Base stats are tuned for the zone START (fresh
+// party). Tuned via app/tools/balance-sim.js.
+const HP_DEPTH = 2.4, ATK_DEPTH = 0.78;
+const depthHpScale  = d => 1 + clamp(d,0,1)*HP_DEPTH;
+const depthAtkScale = d => 1 + clamp(d,0,1)*ATK_DEPTH;
 
 // ---- Enemy abilities (cast in enemyTurn). Each returns true if it actually fired. ----
 const ENEMY_ABILITIES = {
@@ -531,11 +539,12 @@ const Battle = {
   active:false, enemies:[], order:[], current:null, awaiting:false,
   selecting:null, raf:0, last:0, env:"plains", isBoss:false, finalBoss:false,
 
-  begin(enemyKeys, env, isBoss, finalBoss){
+  begin(enemyKeys, env, isBoss, finalBoss, depth){
     this.active=true; this.isBoss=!!isBoss; this.finalBoss=!!finalBoss; this.env=env||"plains";
-    this.enemies = enemyKeys.map((k,i)=>makeEnemy(k,i,isBoss));
+    const dp = depth || 0;
+    this.enemies = enemyKeys.map((k,i)=>makeEnemy(k,i,isBoss,dp));
     Telemetry.encounterStart(enemyKeys, env||"plains", !!isBoss);
-    Game.party.forEach(m=>{ m.atb=ri(0,40); m.status={}; m.side="party"; m.guarding=false; m.acted=false; });
+    Game.party.forEach(m=>{ m.atb=ri(0,40); m.status={}; m.side="party"; m.guarding=false; m.acted=false; m.acting=false; m._hurt=false; });
     this.enemies.forEach(e=>{ e.atb=ri(0,30); });
     this.awaiting=false; this.current=null; this.logLines=[];
     Screens.show("battle");
@@ -659,30 +668,9 @@ const Battle = {
 
   strike(actor,target,act){
     const s=act.skill;
-    // blind: chance to miss
-    if(actor.status.blind && Math.random()<0.4){ float(target,"miss","#bbb"); this.log(`${actor.name} is blinded — misses!`); return; }
-    let power = s? s.power : 1.0;
-    let isMag = s? (s.type==="mag") : false;
-    let baseStat = isMag ? actor.mag : actor.atk;
-    let raw = baseStat*power + rnd(-1,2);
-    // ATK-up buff
-    if(actor.status.atkup) raw*=1.5;
-    // affinity ring
-    const sol = (s&&s.sol) || actor.att==="SOL" && !s ? true : (s&&s.sol);
-    const atkAtt = (s&&s.sol)? "SOL" : actor.att;
-    let mult = affinity(atkAtt, target.att);
-    // +SOL% gear
-    if((atkAtt==="SOL")&&actor.solPct) raw*=(1+actor.solPct/100);
-    raw*=mult;
-    // crit
-    let critC = (actor.critPct||5) + (s&&s.crit?s.crit:0) + (actor.att==="QUANTA"?10:0);
-    let crit = Math.random()*100<critC;
-    if(crit) raw*=1.8;
-    // armor mitigation
-    let dmg = Math.max(1, Math.round(raw - target.armor*0.6*(isMag?0.5:1)));
-    // guarding halves
-    if(target.guarding) dmg=Math.round(dmg*0.5);
-    if(target.status.wardArmor) dmg=Math.max(1,dmg-(target.wardAmt||0));
+    const r=combatDamage(actor,target,act);
+    if(r.miss){ float(target,"miss","#bbb"); this.log(`${actor.name} is blinded — misses!`); return; }
+    const {dmg,crit,mult}=r;
     damage(target,dmg);
     Telemetry.dmg(actor.side, dmg, crit, mult);
     float(target, (crit?"✦":"")+dmg, mult>1?"#ffd97a":mult<1?"#9aa":"#fff");
@@ -734,10 +722,10 @@ const Battle = {
         if(e.ai==="boss"){ target = Math.random()<0.5 ? party.slice().sort((a,b)=>a.hp-b.hp)[0] : pick(party); }
         else { target = pick(party); }
         if(taunter && Math.random()<0.5) target=taunter;
-        // bosses occasionally hit the whole party
-        if(e.boss && Math.random()<0.25){
+        // bosses occasionally hit the whole party (a glancing sweep — reduced per-target)
+        if(e.boss && Math.random()<0.2){
           this.log(`${e.name} unleashes a wild swing!`);
-          party.forEach(t=>this.strike(e,t,{}));
+          party.forEach(t=>this.strike(e,t,{aoe:true}));
         } else {
           this.log(`${e.name} strikes ${target.name}.`);
           this.strike(e,target,{});
@@ -779,6 +767,8 @@ const Battle = {
   end(victory, fled){
     if(!this.active) return;
     this.active=false; this.awaiting=true; cancelAnimationFrame(this.raf);
+    Game.party.forEach(m=>{ m.acting=false; m._hurt=false; });   // no lingering "active" state
+    this.enemies.forEach(e=>{ e.acting=false; });
     if(fled){ Telemetry.encounterEnd("fled"); setTimeout(()=>Screens.show("field"),300); return; }
     if(!victory){ Telemetry.encounterEnd("wipe"); setTimeout(()=>Game.gameOver(),600); return; }
     // ----- victory: XP + gold + loot -----
@@ -880,10 +870,11 @@ const Battle = {
   renderLog(){ const l=$("#log"); if(!l)return; l.innerHTML=this.logLines.map(x=>`<div>${x}</div>`).join(""); },
 };
 
-function makeEnemy(key,idx,isBossBattle){
+function makeEnemy(key,idx,isBossBattle,depth=0){
   const d=ENEMIES[key];
+  const hp=Math.round(d.hp*depthHpScale(depth)), atk=Math.round(d.atk*depthAtkScale(depth)), mag=Math.round((d.mag||0)*depthAtkScale(depth));
   const e={ key, name:d.name, spr:d.spr, att:d.att, lvl:d.lvl, side:"enemy",
-    maxhp:d.hp, hp:d.hp, atk:d.atk, spd:d.spd, armor:d.armor, mag:d.mag||0,
+    maxhp:hp, hp:hp, atk:atk, spd:d.spd, armor:d.armor, mag:mag,
     xpReward:d.xp, goldRange:d.gold, ai:d.ai, boss:!!d.boss, miniboss:!!d.miniboss,
     skills:d.skills||null, castChance:d.castChance||0, onHitPoison:(d.onHit&&d.onHit.poison)||0,
     alive:true, atb:0, status:{}, critPct:5, leech:d.leech||0, solPct:0 };
@@ -898,6 +889,29 @@ function makeEnemy(key,idx,isBossBattle){
 }
 
 /* ---- combat helpers ---- */
+// PURE damage math (no DOM / no side effects) — used by Battle.strike AND the balance sim.
+// rng injectable for deterministic tests. Returns {dmg, crit, mult, miss}.
+function combatDamage(actor, target, act, rng=Math.random){
+  const s=act.skill;
+  if(actor.status.blind && rng()<0.4) return {dmg:0, crit:false, mult:1, miss:true};
+  const isMag = s? (s.type==="mag") : false;
+  const power = s? s.power : 1.0;
+  const baseStat = isMag ? actor.mag : actor.atk;
+  let raw = baseStat*power + (rng()*3 - 1);            // jitter [-1,2)
+  if(actor.status.atkup) raw*=1.5;
+  if(act && act.aoe) raw*=0.6;                         // sweep hits everyone, but glancing
+  const atkAtt = (s&&s.sol)? "SOL" : actor.att;
+  const mult = affinity(atkAtt, target.att);
+  if(atkAtt==="SOL" && actor.solPct) raw*=(1+actor.solPct/100);
+  raw*=mult;
+  const critC = (actor.critPct||5) + (s&&s.crit?s.crit:0) + (actor.att==="QUANTA"?10:0);
+  const crit = rng()*100<critC;
+  if(crit) raw*=1.8;
+  let dmg = Math.max(1, Math.round(raw - target.armor*0.6*(isMag?0.5:1)));
+  if(target.guarding) dmg=Math.round(dmg*0.5);
+  if(target.status.wardArmor) dmg=Math.max(1, dmg-(target.wardAmt||0));
+  return {dmg, crit, mult, miss:false};
+}
 function damage(u,d){ u.hp=Math.max(0,u.hp-d); if(u.hp<=0){u.alive=false;} }
 function heal(u,h){ if(!u.alive)return; u.hp=Math.min(u.maxhp,u.hp+h); }
 function applyStatus(u,st){ for(const k in st){ if(k==="turns")continue; u.status[k]=Math.max(u.status[k]||0, st[k]); } }
@@ -1014,10 +1028,10 @@ const Field = {
     for(const e of ENCOUNTERS){ if(p>=e.at) band=e; }
     const set=pick(band.sets);
     const env = p<0.3?"plains": p<0.55?"forest": p<0.8?"desert":"mountains";
-    Battle.begin(set, env, false, false);
+    Battle.begin(set, env, false, false, p);
   },
-  startBoss(){ Battle.begin(["brute"], "mountains", true, true); },
-  startMiniBoss(){ const env=this.progress()<0.55?"forest":"desert"; Battle.begin(["captain","bandit","bandit"], env, true, false); },
+  startBoss(){ Battle.begin(["brute"], "mountains", true, true, this.progress()); },
+  startMiniBoss(){ const p=this.progress(); const env=p<0.55?"forest":"desert"; Battle.begin(["captain","bandit","bandit"], env, true, false, p); },
   openChest(x,y){
     this.map[y][x]="path";
     const floor=clamp(2+Math.floor(this.progress()*3),1,5);   // deeper chests = better floor
