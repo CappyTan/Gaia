@@ -47,6 +47,13 @@ The starter zone and the POC vertical slice. Its bestiary is five bandit enemies
 The set of player-controlled characters taken into battle (FF-style, multiple characters
 acting in turn order).
 
+**Paper-doll**:
+The character-rendering model (ADR 0004): a character is a stack of aligned **layers**
+(back / body / armor / off-hand / main-hand / fx) on one shared canvas; equipping an item
+**swaps a layer**. The **body** is the weaponless base pose; the **anchor** is the
+normalized hand point a weapon attaches to.
+_Avoid_: "sprite" for the whole character (it's composed of layers, not one sprite).
+
 **Battle screen**:
 The Final Fantasy-style combat view: party on the right, enemies on the left, a command
 menu (Attack / Skill / Item / Defend / Flee), and an HP/MP status panel. Combat runs on

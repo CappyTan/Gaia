@@ -75,17 +75,17 @@
   .enemy .ename{font-size:12px;}
   .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
   .pchar .spr{font-size:30px; filter:drop-shadow(0 3px 4px #000);}
-  /* grounding shadow under the figure (an ellipse) sells "standing in the scene" */
-  .pspr{position:relative; display:inline-block;}
-  .pspr::after{content:""; position:absolute; left:50%; bottom:-3px; width:54px; height:10px; transform:translateX(-50%);
-    background:radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%);}
-  .pchar .spr-img, .enemy .spr-img{filter:drop-shadow(0 4px 4px rgba(0,0,0,.6));}
-  .pchar .spr-img{width:62px; height:74px; object-fit:contain;}
-  .wep-overlay{position:absolute; left:50%; bottom:2px; transform:translateX(-50%) rotate(-12deg);
-    width:40px; height:auto; pointer-events:none;}
-  .pchar.acting .spr, .pchar.acting .pspr{animation:bob .5s ease;}
+  .enemy .spr-img{filter:drop-shadow(0 4px 4px rgba(0,0,0,.6));}
+  /* ── paper-doll: a character is a stack of aligned layers; equipment swaps a layer (ADR 0004) ── */
+  .doll{position:relative; width:62px; height:74px; display:inline-block;}
+  .doll::after{content:""; position:absolute; left:50%; bottom:-3px; width:54px; height:10px; transform:translateX(-50%);
+    background:radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%);}  /* grounding shadow */
+  .doll img.dl-body, .doll img.dl-layer{position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain;
+    filter:drop-shadow(0 4px 4px rgba(0,0,0,.55));}
+  .doll img.dl-wep{position:absolute; height:auto; transform-origin:center center; pointer-events:none;}
+  .pchar.acting .spr, .pchar.acting .doll{animation:bob .5s ease;}
   @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
-  .pchar.hurt .spr, .pchar.hurt .pspr{animation:shake .25s;}
+  .pchar.hurt .spr, .pchar.hurt .doll{animation:shake .25s;}
   @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
   /* equipped-weapon glow, by rarity */
   .g-common{filter:drop-shadow(0 0 2px rgba(255,255,255,.4));}
@@ -245,7 +245,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.6";
+const GAME_VERSION = "v0.7";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -256,10 +256,35 @@ const itemIcon = it => (it.slot==="weapon" && WEAP_IMG[it.cls])
 const enemySprite = e => ENEMY_IMG[e.key]
   ? `<img class="spr-img" src="assets/enemies/${e.key}.png" alt="">` : `<div class="spr">${e.spr}</div>`;
 const heroSprite = m => `<img class="spr-img" src="assets/heroes/${m.id}.png" alt="${m.name}">`;
-// the equipped weapon shown ON the character in battle (loot-chart art, glows by rarity,
-// updates whenever you equip an upgrade)
-const heroWeaponOverlay = m => { const it=m.equip&&m.equip.weapon; if(!it||!WEAP_IMG[it.cls]) return "";
-  return `<img class="wep-overlay g-${it.rarity}" src="assets/items/${WEAP_IMG[it.cls]}-${it.rarity}.png" alt="">`; };
+
+// ── PAPER-DOLL RIG + COMPOSITOR (ADR 0004) ─────────────────────────────────────────────
+// A character renders as a STACK of aligned layers in one box; equipping an item swaps a
+// layer. Art-gated: BODY_LAYER (weaponless bodies) and ARMOR_LAYER are empty until that art
+// exists — then the SAME compositor draws them with zero code change. Anchors are normalized
+// (0..1) on the doll box; weapon scale is a fraction of box width. See docs/art/rig-spec.md.
+const RIG = {
+  // main-hand anchor per class (where the weapon attaches)
+  hand: { dawnguard:{x:0.34,y:0.60}, sunblade:{x:0.42,y:0.58}, lightkeeper:{x:0.30,y:0.50}, dawnchaser:{x:0.42,y:0.58} },
+  // per weapon-class display transform (grip-ready art would set grip too; v1 centers on the hand)
+  weapon: { "Sword & Shield":{scale:0.95,rot:-16}, "Dual Swords":{scale:0.95,rot:-20},
+            "Staff":{scale:0.80,rot:-72}, "Spellblade":{scale:0.95,rot:-18} },
+};
+const BODY_LAYER  = {};  // weaponless body by class id -> "assets/bodies/{id}.png" (drop in when produced)
+const ARMOR_LAYER = {};  // armor over-body by class id -> { rarity: art } (later)
+function renderDoll(m){
+  const id=m.id;
+  const body = BODY_LAYER[id] || `assets/heroes/${id}.png`;   // weaponless base if it exists, else current figure
+  let h = `<div class="doll"><img class="dl-body" src="${body}" alt="${m.name}">`;
+  const ar = m.equip && m.equip.armor;
+  if(ar && ARMOR_LAYER[id] && ARMOR_LAYER[id][ar.rarity]) h += `<img class="dl-layer" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
+  const w = m.equip && m.equip.weapon;
+  if(w && WEAP_IMG[w.cls]){
+    const r=RIG.weapon[w.cls]||{scale:0.9,rot:-16}, hand=RIG.hand[id]||{x:0.4,y:0.58};
+    const st=`left:${(hand.x*100).toFixed(1)}%;top:${(hand.y*100).toFixed(1)}%;width:${Math.round(r.scale*100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
+    h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="assets/items/${WEAP_IMG[w.cls]}-${w.rarity}.png" alt="">`;
+  }
+  return h + `</div>`;
+}
 
 /* =====================================================================================
    1. CONTENT — the Five Powers, classes, enemies, loot, affixes
@@ -855,7 +880,7 @@ const Battle = {
     const z=$("#partyZone"); z.innerHTML="";
     Game.party.forEach(m=>{
       const d=el("div","pchar"+(m.alive?"":" downed")+(m.acting?" acting":"")+(m._hurt?" hurt":""));
-      const spr = m.alive ? `<div class="pspr">${heroSprite(m)}${heroWeaponOverlay(m)}</div>` : '<div class="spr">💤</div>';
+      const spr = m.alive ? renderDoll(m) : '<div class="spr">💤</div>';
       d.innerHTML=`<div style="text-align:right"><div class="ename" style="color:${m.alive?'var(--gold2)':'#666'}">${m.name}${statusBadges(m)}</div></div>${spr}`;
       z.appendChild(d);
     });
