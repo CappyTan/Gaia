@@ -36,6 +36,7 @@ Two zones — **Greenvale** → **The Duskmarsh** — with a merchant between th
 | Path | What |
 |---|---|
 | [`app/`](app/) | The game — a single self-contained `gaia.html` + notes |
+| [`docs/design/requiem/`](docs/design/requiem/README.md) | **REQUIEM** — Dara's canonical 45-class / 246-ability combat system (source + parsed data + compendium) |
 | [`DESIGN.md`](DESIGN.md) | Full design spec (decisions, systems, art plan) |
 | [`CONTEXT.md`](CONTEXT.md) | Glossary of Gaia's domain language |
 | [`docs/adr/`](docs/adr/README.md) | Architecture decision records |

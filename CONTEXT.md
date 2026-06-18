@@ -15,20 +15,36 @@ The game world and the title (full title: _Gaia: A World of Five Powers_). The "
 Powers" are the five Attunements.
 _Avoid_: "IRL STONKS" (that is the group-chat name where the idea was born, not the game).
 
-**Attunement**:
-One of the five mana types a Class draws from: **SOL, NOX, ANIMA, QUANTA, UMBRAXIS**. The
-"Five Powers." Determines a Class's elemental flavor and affinities.
-_Avoid_: element, school, mana type (when you mean the named five).
+**REQUIEM**:
+Dara's canonical class & combat system for Gaia ("Attunement Combat System"): 45 classes,
+246 abilities, 45 ultimates. The authoritative capture lives in
+[`docs/design/requiem/`](docs/design/requiem/README.md). The playable POC implements only a
+small placeholder subset (see Flagged ambiguities).
 
-**Weapon Class**:
-One of the nine weapon archetypes that defines how a character fights: Sword & Shield,
-Dual Swords, Two-Handed Sword, Hammer, Dual Daggers, Dual Pistols, Rifle, Staff,
-Spellblade.
-_Avoid_: "class" unqualified (ambiguous — see Flagged ambiguities).
+**Attunement** (canon, per REQUIEM):
+One of the five "Powers" a Class draws from, each with a **domain** and a distinct **mana
+mechanic**:
+- **SOL** — Expansion · Light · Fire · Entropy — mana scales damage output (→+60% at 200)
+- **NOX** — Preservation · Cold · Darkness · Order · Anti-Entropy — mana scales damage output
+- **ANIMA** — Life · Purpose · Evolution · Vitality — mana scales healing potency
+- **QUANTA** — Probability · Time · Observation · Possibility — mana scales SPD / turn-order
+- **UMBRAXIS** — Gravity · Spacetime · Singularities · Cosmic Structure — mana scales Defense
+_Avoid_: element, school. Note the mechanic is per-attunement, NOT a damage rock-paper-scissors.
+
+**Weapon Archetype**:
+One of the nine that defines how a character fights: Sword & Shield, Dual Swords, Two-Handed
+Sword, Hammer, Dual Daggers, Dual Pistols, Rifle, Staff, Spellblade.
+_Avoid_: "Weapon Class" (Dara's term is **Archetype**); "class" unqualified.
 
 **Class**:
-A specific **Attunement × Weapon Class** combination. There are 45 (5 × 9). Example:
-the Umbraxis Dual-Daggers class ("the Lagrangian"). These are Dara's classes.
+A specific **Attunement × Weapon Archetype** combination — 45 total. Each has a **role** and
+a unique **Resource**, with an ability kit (Passive / Basic ×2-3 / Signature ×1-2 /
+Ultimate). Example: the Umbraxis Dual-Daggers class **The Lagrangian** (resource: Lagrange
+Nodes). Full roster in [`docs/design/requiem/REQUIEM-classes.md`](docs/design/requiem/REQUIEM-classes.md).
+
+**Resource** (per Class):
+The class-specific meter its abilities build/spend (e.g. Radiance, Solar Charge, Core Heat,
+Entropy Debt, Lagrange Nodes). Distinct from MNA (attunement mana) and RES/MP costs.
 
 **Rarity**:
 A loot item's quality tier, lowest to highest: **Common, Uncommon, Rare, Epic, Legendary,
@@ -72,11 +88,17 @@ attunement's skills tend to *inflict*.
 
 ## Flagged ambiguities
 
-- **"Class"** is overloaded. Dara's grid has 9 *Weapon Classes* (columns) and 45 *Classes*
-  (each cell = Attunement × Weapon Class). When precision matters, say "Weapon Class" for
-  the archetype and "Class" for the full combination.
+- **"Class"** is overloaded. There are 9 *Weapon Archetypes* (Dara's term) and 45 *Classes*
+  (each = Attunement × Archetype). Say "Archetype" for the weapon family, "Class" for the
+  full combination. ("Weapon Class" was earlier EA shorthand; Dara's canon is "Archetype".)
 - **"Tier"** often means loot quality in other games. In Gaia, loot quality is **Rarity**,
   not tier. Keep "tier" out of the loot vocabulary.
+- **Canon vs. POC.** REQUIEM (`docs/design/requiem/`) is Dara's authoritative class/combat
+  design — distinct per-attunement mana mechanics, per-class resources, full ability kits.
+  The playable POC (`app/gaia.html`) currently uses an **invented placeholder** (a damage
+  affinity ring + a single "signature effect" per attunement) and only the 4 SOL classes.
+  When the two disagree, **REQUIEM is canon**; the POC is a slice to be reconciled, not the
+  source of truth.
 
 ## Example dialogue
 
