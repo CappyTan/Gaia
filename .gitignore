@@ -1,0 +1,14 @@
+# dependencies / build
+node_modules/
+dist/
+*.log
+
+# test scratch
+_check.js
+_*.js
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

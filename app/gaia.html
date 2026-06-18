@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Gaia: A World of Five Powers</title>
+<style>
+  /* ---- Gaia palette: gold-on-dark, matched to Dara's loot/world art ---- */
+  :root{
+    --bg:#0a0a0f; --panel:#12121c; --panel2:#1b1b2a; --ink:#e8e4d8; --dim:#9a93a8;
+    --gold:#e0a92e; --gold2:#f4d27a; --line:#33304a; --sol:#f4b942; --sol2:#ffd97a;
+    --hp:#7ad06b; --hpb:#2a4d28; --mp:#5aa9e6; --mpb:#1f3a55; --atb:#c7a3ff; --atbf:#7a5bd6;
+    --common:#cfcfcf; --uncommon:#5fd16a; --rare:#4ea3ff; --epic:#b46bff; --legendary:#f4972e; --artifact:#ff5a5a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family:"Trebuchet MS",Verdana,system-ui,sans-serif; overflow:hidden; user-select:none;}
+  #app{position:relative; width:100vw; height:100dvh; display:flex; align-items:center; justify-content:center;}
+  #stage{position:relative; width:min(100vw,920px); height:min(100dvh,640px);
+    background:#06060b; border:1px solid var(--line); box-shadow:0 0 40px #000 inset; overflow:hidden;}
+
+  .screen{position:absolute; inset:0; display:none;}
+  .screen.on{display:block;}
+
+  h1,h2,h3{font-family:"Georgia",serif; letter-spacing:.5px; margin:0;}
+  .title-gold{color:var(--gold2); text-shadow:0 0 12px rgba(240,180,60,.5), 0 2px 0 #000;}
+  button{font-family:inherit; cursor:pointer;}
+  .btn{background:linear-gradient(#23223a,#16162a); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:10px 16px; font-size:15px;}
+  .btn:hover{border-color:var(--gold); color:var(--gold2);}
+  .btn:active{transform:translateY(1px);}
+  .btn.gold{background:linear-gradient(#3a2e10,#221a08); border-color:var(--gold); color:var(--gold2); font-weight:bold;}
+
+  /* ---- Title ---- */
+  #titleScreen{display:none; flex-direction:column; align-items:center; justify-content:center; gap:18px; text-align:center;
+    background:radial-gradient(circle at 50% 30%, #1a1530 0%, #06060b 70%);}
+  #titleScreen.on{display:flex;}
+  #titleScreen .sun{width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,var(--sol2) 30%,var(--sol) 55%,#7a4d00 100%);
+    box-shadow:0 0 60px rgba(244,185,66,.7),0 0 120px rgba(244,185,66,.3); margin-bottom:6px;
+    animation:pulse 4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+  #titleScreen h1{font-size:40px;}
+  #titleScreen .sub{color:var(--dim); font-size:15px; letter-spacing:3px; text-transform:uppercase;}
+  #titleScreen .powers{display:flex; gap:14px; margin:6px 0;}
+  #titleScreen .pw{font-size:12px; letter-spacing:2px; opacity:.8;}
+
+  /* ---- Field map ---- */
+  #fieldScreen{background:#0c1208;}
+  #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
+  #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; gap:8px; pointer-events:none;}
+  .hud-pill{background:rgba(8,8,16,.78); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; pointer-events:auto;}
+  #fieldParty{display:flex; gap:6px; flex-wrap:wrap;}
+  #fieldParty .pm{font-size:11px;}
+  #dpad{position:absolute; bottom:14px; left:14px; display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
+  #dpad button{background:rgba(30,28,50,.85); border:1px solid var(--line); border-radius:8px; color:var(--gold2); font-size:18px;}
+  #dpad .sp{visibility:hidden;}
+  #fieldHint{position:absolute; bottom:20px; right:16px; max-width:260px; text-align:right; color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000;}
+  #menuBtns{position:absolute; bottom:74px; right:16px; display:flex; gap:8px;}
+
+  /* ---- Battle ---- */
+  #battleScreen{background:#06060b;}
+  #battleField{position:absolute; top:0; left:0; right:0; height:58%; overflow:hidden;}
+  #battleBg{position:absolute; inset:0;}
+  #enemyZone{position:absolute; left:3%; top:8%; bottom:6%; width:46%; display:flex; flex-direction:column; justify-content:space-around;}
+  #partyZone{position:absolute; right:3%; top:10%; bottom:6%; width:42%; display:flex; flex-direction:column; justify-content:space-around;}
+  .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
+  .enemy .spr{font-size:34px; filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
+  .enemy .ebar{flex:1; min-width:60px;}
+  .enemy.dead{opacity:.18; filter:grayscale(1);}
+  .enemy.targetable{outline:2px dashed var(--gold); outline-offset:4px; border-radius:6px;}
+  .enemy.elite .ename{color:var(--legendary); font-weight:bold;}
+  .enemy.acting{transform:translateX(10px) scale(1.05);}
+  .enemy .ename{font-size:12px;}
+  .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
+  .pchar .spr{font-size:30px; filter:drop-shadow(0 3px 4px #000);}
+  .pchar.acting .spr{animation:bob .5s ease;}
+  @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
+  .pchar.hurt .spr{animation:shake .25s;}
+  @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
+
+  .bar{height:9px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden; position:relative;}
+  .bar > i{display:block; height:100%; transition:width .25s;}
+  .bar.hp > i{background:linear-gradient(var(--hp),var(--hpb));}
+  .bar.mp{height:6px;} .bar.mp > i{background:linear-gradient(var(--mp),var(--mpb));}
+  .bar.atb{height:5px;} .bar.atb > i{background:linear-gradient(var(--atb),var(--atbf)); transition:width .08s linear;}
+  .bartxt{position:absolute; right:4px; top:-1px; font-size:8px; color:#fff; text-shadow:0 0 2px #000;}
+
+  #battleUi{position:absolute; bottom:0; left:0; right:0; height:42%; display:flex; border-top:2px solid var(--gold);
+    background:linear-gradient(#10101e,#0a0a14);}
+  #cmdPanel{width:34%; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px;}
+  #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
+  .cmd{background:#191830; border:1px solid var(--line); border-radius:6px; padding:8px 10px; color:var(--ink); font-size:14px; text-align:left;}
+  .cmd:hover{border-color:var(--gold); color:var(--gold2);}
+  .cmd:disabled{opacity:.35; cursor:default;}
+  .cmd .cost{float:right; font-size:11px; color:var(--mp);}
+  #rosterPanel{flex:1; display:flex; flex-direction:column; padding:6px 8px; gap:4px; overflow:hidden;}
+  .prow{display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; font-size:12px;}
+  .prow.turn{background:rgba(244,185,66,.12); outline:1px solid var(--gold);}
+  .prow.downed{opacity:.4;}
+  .prow .pn{width:80px; color:var(--gold2);}
+  .prow .stat{width:64px; color:var(--dim); font-size:11px;}
+  .prow .bars{flex:1; display:flex; flex-direction:column; gap:2px;}
+  .badge{display:inline-block; font-size:9px; padding:0 4px; border-radius:4px; margin-left:3px; vertical-align:middle;}
+  .badge.burn{background:#7a2e0a; color:#ffb27a;} .badge.blind{background:#333; color:#bbb;}
+  .badge.def{background:#1f3a55; color:#9cd1ff;} .badge.regen{background:#2a4d28; color:#aef0a0;}
+  .badge.stun{background:#5a4a00; color:#ffe27a;} .badge.atkup{background:#5a2e00; color:#ffb27a;}
+
+  #log{position:absolute; left:34%; right:0; bottom:42%; height:auto; max-height:64px; overflow:hidden; pointer-events:none;
+    padding:4px 10px; font-size:12px; color:var(--gold2); text-shadow:0 1px 2px #000;}
+  #log div{opacity:.55;} #log div:last-child{opacity:1;}
+
+  .float{position:absolute; font-weight:bold; font-size:18px; pointer-events:none; text-shadow:0 2px 3px #000;
+    animation:floatup 1s ease-out forwards;}
+  @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
+
+  /* ---- Overlays: loot / levelup / menus ---- */
+  .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; padding:18px; text-align:center; z-index:20;}
+  .overlay.on{display:flex;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; max-width:520px; width:100%;}
+  .item{border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:6px 0; background:#0e0e18; text-align:left;}
+  .item .iname{font-weight:bold;}
+  .item .affix{font-size:12px; color:var(--sol2);}
+  .item .meta{font-size:11px; color:var(--dim);}
+  .r-common{color:var(--common);} .r-uncommon{color:var(--uncommon);} .r-rare{color:var(--rare);}
+  .r-epic{color:var(--epic);} .r-legendary{color:var(--legendary);} .r-artifact{color:var(--artifact);}
+  .b-common{border-color:var(--common);} .b-uncommon{border-color:var(--uncommon);} .b-rare{border-color:var(--rare);}
+  .b-epic{border-color:var(--epic);} .b-legendary{border-color:var(--legendary);} .b-artifact{border-color:var(--artifact);}
+  .row{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .small{font-size:12px; color:var(--dim);}
+  .scroll{max-height:300px; overflow-y:auto; width:100%;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .tag{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim);}
+  .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
+  .equip-slot button{font-size:11px; padding:3px 8px;}
+  .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}
+  a.link{color:var(--gold2); cursor:pointer; text-decoration:underline;}
+</style>
+</head>
+<body>
+<div id="app"><div id="stage">
+
+  <!-- TITLE -->
+  <div id="titleScreen" class="screen on">
+    <div class="sun"></div>
+    <h1 class="title-gold">GAIA</h1>
+    <div class="sub">A World of Five Powers</div>
+    <div class="powers">
+      <span class="pw" style="color:var(--sol)">SOL</span>
+      <span class="pw" style="color:#7ad0c0">NOX</span>
+      <span class="pw" style="color:#7ad06b">ANIMA</span>
+      <span class="pw" style="color:#b46bff">QUANTA</span>
+      <span class="pw" style="color:#888">UMBRAXIS</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn gold" onclick="Game.start()">Enter Greenvale</button>
+      <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
+    </div>
+    <div class="small" style="max-width:460px;margin-top:8px">
+      Proof of concept. Four SOL adventurers cut a path through Greenvale to the Bandit Brute.
+      ATB combat, the five-power affinity ring, and Diablo-style loot. ~1 hour slice.
+    </div>
+    <div class="small">Move: arrows / WASD or the on-screen pad. Everything else is tap/click.</div>
+  </div>
+
+  <!-- FIELD -->
+  <div id="fieldScreen" class="screen">
+    <canvas id="fieldCanvas"></canvas>
+    <div id="fieldHud">
+      <div class="hud-pill" id="fieldZone">Greenvale</div>
+      <div class="hud-pill"><span id="fieldGold">0</span> gold</div>
+    </div>
+    <div class="hud-pill" id="fieldPartyWrap" style="position:absolute;top:40px;left:8px;">
+      <div id="fieldParty"></div>
+    </div>
+    <div id="fieldHint"></div>
+    <div id="menuBtns">
+      <button class="btn" onclick="UI.openParty()">Party</button>
+      <button class="btn" onclick="UI.openInventory()">Bag</button>
+      <button class="btn" onclick="Telemetry.show()">Stats</button>
+    </div>
+    <div id="dpad">
+      <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
+      <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
+      <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
+    </div>
+  </div>
+
+  <!-- BATTLE -->
+  <div id="battleScreen" class="screen">
+    <div id="battleField">
+      <div id="battleBg"></div>
+      <div id="enemyZone"></div>
+      <div id="partyZone"></div>
+    </div>
+    <div id="log"></div>
+    <div id="battleUi">
+      <div id="cmdPanel"><div class="who" id="cmdWho"></div><div id="cmdList"></div></div>
+      <div id="rosterPanel"></div>
+    </div>
+  </div>
+
+  <!-- OVERLAYS -->
+  <div id="overlay" class="overlay"><div id="overlayInner" class="card"></div></div>
+
+</div></div>
+
+<script>
+"use strict";
+/* =====================================================================================
+   GAIA: A WORLD OF FIVE POWERS  —  vertical-slice POC
+   Single self-contained file. Systems: ATB battle, five-power affinity ring + signature
+   effects, Diablo loot (named items as rarity rungs + random affixes), elites,
+   levels/skill-unlocks, tile field map with random encounters, Bandit Brute boss.
+   Built fresh per ADR 0002. Placeholder programmer-art in Dara's palette; real/generated
+   art is a fast-follow (see app/README.md).
+   ===================================================================================== */
+
+/* ---------- tiny utils ---------- */
+const $ = s => document.querySelector(s);
+const el = (t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+const rnd = (a,b)=>a+Math.random()*(b-a);
+const ri = (a,b)=>Math.floor(rnd(a,b+1));
+const pick = arr=>arr[Math.floor(Math.random()*arr.length)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+/* =====================================================================================
+   1. CONTENT — the Five Powers, classes, enemies, loot, affixes
+   ===================================================================================== */
+
+// ---- Attunements: the affinity ring (each beats the NEXT, loses to the PREV) ----
+//   SOL -> NOX -> ANIMA -> QUANTA -> UMBRAXIS -> SOL
+// Working proposal; ordering + signature effects to confirm against Dara's lore.
+const RING = ["SOL","NOX","ANIMA","QUANTA","UMBRAXIS"];
+const ATT = {
+  SOL:      {color:"#f4b942", sig:"burn"},   // light/fire  -> Burn
+  NOX:      {color:"#7ad0c0", sig:"decay"},  // cold/decay  -> Decay (DoT)
+  ANIMA:    {color:"#7ad06b", sig:"poison"}, // life/nature -> Poison
+  QUANTA:   {color:"#b46bff", sig:"none"},   // probability -> crit/dodge swings (passive)
+  UMBRAXIS: {color:"#9a9aa8", sig:"drain"},  // shadow/void -> Drain
+};
+const STRONG=1.5, WEAK=0.5;
+function affinity(att, defAtt){           // multiplier of att hitting defAtt
+  if(!att||!defAtt||att===defAtt) return 1;
+  const i=RING.indexOf(att), j=RING.indexOf(defAtt);
+  if(i<0||j<0) return 1;
+  if((i+1)%5===j) return STRONG;          // att beats the next in the ring
+  if((i+4)%5===j) return WEAK;            // att is weak to the prev
+  return 1;
+}
+
+// ---- Rarity ladder ----
+const RARITY = [
+  {key:"common",    mult:1.00, affixes:0},
+  {key:"uncommon",  mult:1.30, affixes:1},
+  {key:"rare",      mult:1.70, affixes:2},
+  {key:"epic",      mult:2.20, affixes:3},
+  {key:"legendary", mult:3.00, affixes:4},
+  {key:"artifact",  mult:4.00, affixes:5},
+];
+const rarityIx = k => RARITY.findIndex(r=>r.key===k);
+
+// ---- SOL named-item drop tables (from Dara's four loot charts) ----
+//   index 0..5 = common..artifact. One representative name per rung per weapon.
+const ITEM_NAMES = {
+  "Sword & Shield": ["Dawnwatch Guard","Verdant Protector","Skyward Bastion","Solar Flare","Solaris Majesty","Eternal Radiance"],
+  "Dual Swords":    ["Militia Blades","Verdant Scimitars","Celestial Wards","Solar Flare Blades","Solaris Edge","Starfall Daggers"],
+  "Staff":          ["Sunward Staff","Verdant Growth Staff","Celestial Focus","Voidlight Staff","Dawnbreaker","Eternal Sol"],
+  "Spellblade":     ["Soldier's Spellblade","Verdant Spellblade","Celestial Spellblade","Voidlight Spellblade","Dawnbreaker Spellblade","Eternal Sol Spellblade"],
+};
+// generic names for the non-art-backed slots
+const ARMOR_NAMES   = ["Padded Vestments","Sunsteel Mail","Aegis Plate","Radiant Cuirass","Solaris Aegis","Heart of Sol"];
+const TRINKET_NAMES = ["Brass Charm","Sun Pendant","Solar Sigil","Eclipse Band","Helios Crown","Origin Relic"];
+
+// ---- Affix pool: rolled onto items AND onto elite enemies ----
+const AFFIXES = [
+  {key:"atk",   label:n=>`+${n}% ATK`,        roll:r=>ri(6+r*2,12+r*4),  stat:"atkPct"},
+  {key:"crit",  label:n=>`+${n}% Crit`,       roll:r=>ri(4+r,8+r*2),     stat:"critPct"},
+  {key:"spd",   label:n=>`+${n} SPD`,         roll:r=>ri(1,2+r),         stat:"spd"},
+  {key:"hp",    label:n=>`+${n} HP`,          roll:r=>ri(8+r*4,16+r*8),  stat:"hp"},
+  {key:"sol",   label:n=>`+${n}% SOL dmg`,    roll:r=>ri(6+r*2,12+r*4),  stat:"solPct"},
+  {key:"armor", label:n=>`+${n} Armor`,       roll:r=>ri(1,2+r),         stat:"armor"},
+  {key:"leech", label:n=>`${n}% Lifesteal`,   roll:r=>ri(3+r,6+r*2),     stat:"leech"},
+  {key:"mp",    label:n=>`+${n} MP`,          roll:r=>ri(4+r*2,8+r*3),   stat:"mp"},
+];
+// elite-only enemy affixes (mirror the loot engine)
+const ELITE_AFFIXES = [
+  {key:"Frenzied",  apply:u=>{u.spd=Math.round(u.spd*1.4);}},
+  {key:"Ironhide",  apply:u=>{u.armor+=5;}},
+  {key:"Vampiric",  apply:u=>{u.leech=20;}},
+  {key:"Scorched",  apply:u=>{u.bonusBurn=true;}},
+  {key:"Hulking",   apply:u=>{u.maxhp=Math.round(u.maxhp*1.6);}},
+];
+
+// ---- Skills (ATB commands beyond Attack). unlock = level at which it's learned. ----
+// target: "enemy"|"allEnemies"|"ally"|"allAllies"|"self".  power scales vs ATK or MAG.
+const SKILLS = {
+  // Sword & Shield (tank)
+  shieldBash:{name:"Shield Bash", mp:4, target:"enemy", unlock:1, type:"phys", power:1.1, status:{stun:1}, desc:"Smash one foe; may stun."},
+  guard:{name:"Guard", mp:0, target:"self", unlock:1, type:"buff", buff:{def:1}, desc:"Brace: take half damage this turn."},
+  taunt:{name:"Sun Bulwark", mp:6, target:"allAllies", unlock:3, type:"buff", buff:{wardArmor:6,turns:3}, desc:"+6 armor to the party (3 turns)."},
+  radiantSmite:{name:"Radiant Smite", mp:12, target:"enemy", unlock:5, type:"phys", power:2.4, sol:true, desc:"A heavy SOL strike."},
+  // Dual Swords (DPS)
+  twinSlash:{name:"Twin Slash", mp:4, target:"enemy", unlock:1, type:"phys", power:0.7, hits:2, desc:"Two quick strikes."},
+  flurry:{name:"Flurry", mp:8, target:"enemy", unlock:3, type:"phys", power:0.5, hits:4, desc:"Four blinding cuts."},
+  solarFlareB:{name:"Solar Flare", mp:10, target:"allEnemies", unlock:4, type:"mag", power:1.2, sol:true, status:{burn:2}, desc:"SOL burst, all foes; Burn."},
+  eclipse:{name:"Eclipse Strike", mp:14, target:"enemy", unlock:6, type:"phys", power:3.0, crit:40, desc:"High crit-chance finisher."},
+  // Staff (caster/healer)
+  heal:{name:"Heal", mp:5, target:"ally", unlock:1, type:"heal", power:1.4, desc:"Restore one ally's HP."},
+  sunbolt:{name:"Sunbolt", mp:4, target:"enemy", unlock:1, type:"mag", power:1.3, sol:true, status:{burn:2}, desc:"SOL bolt; Burn."},
+  cleanse:{name:"Cleanse", mp:6, target:"ally", unlock:3, type:"util", cleanse:true, desc:"Remove an ally's debuffs."},
+  dawnsLight:{name:"Dawn's Light", mp:14, target:"allAllies", unlock:5, type:"heal", power:0.9, status:{regen:3}, desc:"Heal the party; grant Regen."},
+  // Spellblade (hybrid)
+  flameStrike:{name:"Flame Strike", mp:4, target:"enemy", unlock:1, type:"phys", power:1.0, sol:true, status:{burn:2}, desc:"Burning melee strike."},
+  empower:{name:"Empower", mp:6, target:"self", unlock:2, type:"buff", buff:{atkup:1,turns:3}, desc:"+50% ATK for 3 turns."},
+  sunfire:{name:"Sunfire", mp:8, target:"enemy", unlock:4, type:"mag", power:1.8, sol:true, desc:"A lance of SOL fire."},
+  blindingLight:{name:"Blinding Light", mp:10, target:"allEnemies", unlock:5, type:"mag", power:0.8, sol:true, status:{blind:3}, desc:"SOL flash; blinds all foes."},
+};
+
+// ---- The fixed all-SOL party (ADR 0003) ----
+const PARTY_DEFS = [
+  {id:"dawnguard", name:"Auren", cls:"Sword & Shield", att:"SOL", role:"Tank", spr:"🛡️",
+   base:{hp:62, mp:14, atk:10, spd:6, armor:6, mag:4}, growth:{hp:9,mp:2,atk:2,spd:0.6,armor:1.2,mag:0.5},
+   skills:["shieldBash","guard","taunt","radiantSmite"]},
+  {id:"sunblade", name:"Kaela", cls:"Dual Swords", att:"SOL", role:"DPS", spr:"⚔️",
+   base:{hp:44, mp:14, atk:14, spd:11, armor:2, mag:5}, growth:{hp:6,mp:2,atk:3,spd:1.1,armor:0.4,mag:0.6},
+   skills:["twinSlash","flurry","solarFlareB","eclipse"]},
+  {id:"lightkeeper", name:"Sephi", cls:"Staff", att:"SOL", role:"Caster", spr:"🔮",
+   base:{hp:36, mp:30, atk:6, spd:8, armor:1, mag:13}, growth:{hp:5,mp:5,atk:1,spd:0.8,armor:0.3,mag:2.2},
+   skills:["heal","sunbolt","cleanse","dawnsLight"]},
+  {id:"dawnchaser", name:"Rion", cls:"Spellblade", att:"SOL", role:"Hybrid", spr:"✨",
+   base:{hp:48, mp:22, atk:11, spd:9, armor:3, mag:10}, growth:{hp:7,mp:3,atk:2,spd:0.9,armor:0.6,mag:1.4},
+   skills:["flameStrike","empower","sunfire","blindingLight"]},
+];
+
+// ---- Greenvale bestiary (levels 1-5). Attunement chosen so the SOL party feels the ring. ----
+//   SOL strong vs NOX (+50%), weak vs UMBRAXIS (-50%), neutral vs ANIMA/QUANTA.
+const ENEMIES = {
+  bandit:    {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:34, atk:9,  spd:7, armor:1, mag:0, xp:14, gold:[6,14],  ai:"basic"},
+  cutpurse:  {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:40, atk:11, spd:10,armor:2, mag:0, xp:20, gold:[10,20], ai:"evasive"},
+  marauder:  {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:62, atk:14, spd:6, armor:3, mag:0, xp:30, gold:[14,26], ai:"basic"},
+  archer:    {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:50, atk:16, spd:9, armor:2, mag:2, xp:34, gold:[16,28], ai:"basic"},
+  brute:     {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:5, hp:340,atk:24, spd:6, armor:6, mag:0, xp:200,gold:[120,180],ai:"boss", boss:true},
+};
+// Encounter table by area depth (the further you walk, the tougher the roll-set)
+const ENCOUNTERS = [
+  {at:0.0, sets:[["bandit"],["bandit"],["bandit","bandit"]]},
+  {at:0.25,sets:[["bandit","bandit"],["cutpurse"],["bandit","cutpurse"]]},
+  {at:0.5, sets:[["cutpurse","bandit"],["marauder"],["marauder","bandit"]]},
+  {at:0.75,sets:[["marauder","cutpurse"],["archer"],["archer","bandit","bandit"]]},
+];
+
+/* =====================================================================================
+   2. GAME STATE
+   ===================================================================================== */
+const Game = {
+  state:"title",
+  gold:0,
+  party:[],          // live party-member objects
+  inventory:[],      // unequipped items
+  steps:0,
+  encountersWon:0,
+  bossDefeated:false,
+
+  start(){
+    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false;
+    Telemetry.load(); Telemetry.startSession();
+    this.party = PARTY_DEFS.map(d=>makeMember(d));
+    // starting gear: a common weapon each so the loot loop has a baseline to beat
+    this.party.forEach(m=>{ m.equip.weapon = makeItem(m.cls,"weapon",0,m.cls); });
+    recalc(this.party);
+    Field.init();
+    Screens.show("field");
+  },
+  gameOver(){ Telemetry.endSession("wipe"); Screens.show("title"); Overlay.show(`
+    <h2 class="title-gold">The party has fallen</h2>
+    <p class="small">Greenvale claims another band of adventurers.</p>
+    <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Try again</button></div>`); },
+  victory(){ this.bossDefeated=true; Telemetry.boss("win"); Telemetry.endSession("victory"); Screens.show("title"); Overlay.show(`
+    <h2 class="title-gold">Greenvale is clear</h2>
+    <p>The Bandit Brute is dead. The road to the deeper Powers lies open.</p>
+    <p class="small">Vertical slice complete — encounters won: ${this.encountersWon}. Gold: ${this.gold}.</p>
+    <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Play again</button></div>`); },
+};
+
+function makeMember(d){
+  return {
+    def:d, id:d.id, name:d.name, cls:d.cls, att:d.att, role:d.role, spr:d.spr,
+    level:1, xp:0,
+    base:{...d.base},
+    equip:{weapon:null, armor:null, trinket:null},
+    skills:d.skills,
+    // live combat fields filled by recalc / battle:
+    hp:0, maxhp:0, mp:0, maxmp:0, atk:0, spd:0, armor:0, mag:0,
+    status:{}, atb:0, side:"party", alive:true,
+  };
+}
+
+// effective stats = base + per-level growth + gear (base + affixes)
+function recalc(party){
+  party.forEach(m=>{
+    const g=m.def.growth, lv=m.level-1;
+    let s={
+      hp:  Math.round(m.base.hp + g.hp*lv),
+      mp:  Math.round(m.base.mp + g.mp*lv),
+      atk: Math.round(m.base.atk + g.atk*lv),
+      spd: Math.round(m.base.spd + g.spd*lv),
+      armor:Math.round(m.base.armor + g.armor*lv),
+      mag: Math.round(m.base.mag + g.mag*lv),
+    };
+    let add={atkPct:0,critPct:0,spd:0,hp:0,solPct:0,armor:0,leech:0,mp:0};
+    for(const slot of ["weapon","armor","trinket"]){
+      const it=m.equip[slot]; if(!it) continue;
+      add.hp+=it.implicit.hp||0; add.atk0=(add.atk0||0)+(it.implicit.atk||0);
+      add.armor+=it.implicit.armor||0; add.mp+=it.implicit.mp||0;
+      s.atk+=it.implicit.atk||0; s.armor+=it.implicit.armor||0; s.hp+=it.implicit.hp||0; s.mp+=it.implicit.mp||0;
+      s.mag+=it.implicit.mag||0;
+      for(const a of it.affixes){ add[a.stat]=(add[a.stat]||0)+a.value; }
+    }
+    s.atk = Math.round(s.atk*(1+add.atkPct/100)) + 0;
+    s.hp += add.hp; s.mp += add.mp; s.spd += add.spd; s.armor += add.armor;
+    m.maxhp=s.hp; m.maxmp=s.mp; m.atk=s.atk; m.spd=Math.max(1,s.spd);
+    m.armor=s.armor; m.mag=s.mag;
+    m.critPct = 5 + (add.critPct||0);
+    m.solPct  = add.solPct||0;
+    m.leech   = add.leech||0;
+    if(!m._init){ m.hp=m.maxhp; m.mp=m.maxmp; m._init=true; }   // first build only — never refill on recalc
+    m.hp=Math.min(m.hp,m.maxhp); m.mp=Math.min(m.mp,m.maxmp);
+    m.alive = m.hp>0;
+  });
+}
+
+/* =====================================================================================
+   3. LOOT
+   ===================================================================================== */
+function makeItem(cls, slot, rarityIx, weaponClass){
+  const R=RARITY[rarityIx]; const r=rarityIx;
+  let name, implicit={};
+  if(slot==="weapon"){
+    name = (ITEM_NAMES[weaponClass]||ITEM_NAMES["Dual Swords"])[r];
+    implicit.atk = Math.round((4+r*4)*R.mult/ (r? R.mult:1)); // base atk by rung
+    implicit.atk = Math.round(5 + r*5);                       // simpler legible ladder
+  } else if(slot==="armor"){
+    name = ARMOR_NAMES[r]; implicit.hp = Math.round(10 + r*12); implicit.armor = 1 + r;
+  } else {
+    name = TRINKET_NAMES[r]; implicit.mp = Math.round(4 + r*5); implicit.mag = Math.round(2 + r*2);
+  }
+  // roll affixes
+  const pool=[...AFFIXES]; const affixes=[];
+  for(let i=0;i<R.affixes;i++){
+    const a=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; if(!a) break;
+    affixes.push({key:a.key, stat:a.stat, value:a.roll(r), label:a.label});
+  }
+  return {slot, cls:weaponClass||cls, rarity:R.key, rIx:r, name, implicit, affixes};
+}
+function itemScore(it){ // crude power score for compare
+  let s=(it.implicit.atk||0)*3 + (it.implicit.hp||0)*0.5 + (it.implicit.armor||0)*4 + (it.implicit.mp||0)*0.3 + (it.implicit.mag||0)*2;
+  for(const a of it.affixes) s+= a.value*(a.stat==="atkPct"?2:a.stat==="critPct"?2:a.stat.endsWith("Pct")?2:1.2);
+  return Math.round(s + it.rIx*4);
+}
+// drop: rarity weighted by enemy level + boss/elite bonus
+function rollDrop(enemy, weaponClassPreference){
+  const lvl=enemy.lvl||1;
+  let floor=0, ceil=2 + Math.floor(lvl/2);
+  if(enemy.elite){ floor=2; ceil=Math.min(5,ceil+1); }
+  if(enemy.boss){ floor=3; ceil=5; }
+  // weighted toward floor with a chance to spike up
+  let r=floor; for(let i=floor;i<=ceil;i++){ if(Math.random()<0.45) r=i; else break; }
+  r=clamp(r,0,5);
+  const slot = pick(["weapon","weapon","armor","trinket"]);
+  const wc = slot==="weapon" ? (weaponClassPreference||pick(Object.keys(ITEM_NAMES))) : null;
+  return makeItem(null, slot, r, wc);
+}
+
+/* =====================================================================================
+   4. ATB BATTLE ENGINE
+   ===================================================================================== */
+const Battle = {
+  active:false, enemies:[], order:[], current:null, awaiting:false,
+  selecting:null, raf:0, last:0, env:"plains", isBoss:false,
+
+  begin(enemyKeys, env, isBoss){
+    this.active=true; this.isBoss=!!isBoss; this.env=env||"plains";
+    this.enemies = enemyKeys.map((k,i)=>makeEnemy(k,i,isBoss));
+    Telemetry.encounterStart(enemyKeys, env||"plains", !!isBoss);
+    Game.party.forEach(m=>{ m.atb=ri(0,40); m.status={}; m.side="party"; m.guarding=false; m.acted=false; });
+    this.enemies.forEach(e=>{ e.atb=ri(0,30); });
+    this.awaiting=false; this.current=null; this.logLines=[];
+    Screens.show("battle");
+    this.renderBg(); this.renderAll();
+    this.log(isBoss? "The Bandit Brute blocks the path!" : "Bandits ambush the party!");
+    this.last=performance.now(); cancelAnimationFrame(this.raf);
+    this.raf=requestAnimationFrame(t=>this.tick(t));
+  },
+
+  tick(t){
+    const dt=Math.min(80,(t-this.last)); this.last=t;
+    if(!this.awaiting){
+      // advance ATB gauges
+      const units=this.allLiving();
+      for(const u of units){
+        u.atb += (u.spd) * dt * 0.012;          // SPD drives fill rate
+        if(u.atb>=100){ u.atb=100; }
+      }
+      // find a ready unit (highest over 100)
+      const ready=units.filter(u=>u.atb>=100).sort((a,b)=>b.atb-a.atb)[0];
+      if(ready){
+        if(ready.side==="party"){ this.startPlayerTurn(ready); }
+        else { this.enemyTurn(ready); }
+      }
+      this.renderBars();
+    }
+    if(this.active) this.raf=requestAnimationFrame(t=>this.tick(t));
+  },
+
+  allUnits(){ return [...this.enemies, ...Game.party]; },
+  allLiving(){ return this.allUnits().filter(u=>u.alive); },
+  livingEnemies(){ return this.enemies.filter(e=>e.alive); },
+  livingParty(){ return Game.party.filter(m=>m.alive); },
+
+  /* ---- player turn ---- */
+  startPlayerTurn(m){
+    this.awaiting=true; this.current=m; this.selecting=null;
+    this.tickStatuses(m, ()=>{
+      if(!m.alive){ this.endTurn(m); return; }
+      this.renderAll(); this.showCommands(m);
+    });
+  },
+  showCommands(m){
+    $("#cmdWho").textContent = `${m.name}  ·  ${m.cls}`;
+    const list=$("#cmdList"); list.innerHTML="";
+    const mk=(label,cost,fn,dis)=>{ const b=el("button","cmd",`${label}${cost?`<span class="cost">${cost} MP</span>`:""}`);
+      if(dis)b.disabled=true; else b.onclick=fn; list.appendChild(b); };
+    mk("Attack",0,()=>this.chooseTarget(m,{type:"attack"}));
+    // skills
+    const known = m.skills.map(k=>SKILLS[k]).filter(s=>s.unlock<=m.level);
+    const skBtn=el("button","cmd","Skill ▸"); skBtn.onclick=()=>this.showSkills(m,known); list.appendChild(skBtn);
+    mk("Defend",0,()=>{ m.guarding=true; this.log(`${m.name} braces.`); this.endTurn(m); });
+    mk("Flee", 0, ()=>this.tryFlee(m), this.isBoss);
+  },
+  showSkills(m,known){
+    const list=$("#cmdList"); list.innerHTML="";
+    const back=el("button","cmd","◂ Back"); back.onclick=()=>this.showCommands(m); list.appendChild(back);
+    known.forEach(s=>{
+      const b=el("button","cmd",`${s.name}<span class="cost">${s.mp} MP</span>`);
+      if(m.mp<s.mp) b.disabled=true; else b.onclick=()=>this.useSkill(m,s);
+      b.title=s.desc; list.appendChild(b);
+    });
+    if(known.length===0) list.appendChild(el("div","small","No skills yet."));
+  },
+  useSkill(m,s){
+    if(s.target==="self"){ this.resolve(m,[m],{skill:s}); return; }
+    if(s.target==="allEnemies"){ this.resolve(m,this.livingEnemies(),{skill:s}); return; }
+    if(s.target==="allAllies"){ this.resolve(m,this.livingParty(),{skill:s}); return; }
+    if(s.target==="ally"){ this.chooseAlly(m,{skill:s}); return; }
+    this.chooseTarget(m,{skill:s});  // enemy
+  },
+  chooseTarget(m,act){
+    this.selecting={m,act,kind:"enemy"};
+    $("#cmdWho").textContent="Choose a target";
+    this.renderEnemies(true);
+  },
+  chooseAlly(m,act){
+    this.selecting={m,act,kind:"ally"};
+    $("#cmdList").innerHTML="";
+    const back=el("button","cmd","◂ Back"); back.onclick=()=>this.showCommands(m); $("#cmdList").appendChild(back);
+    $("#cmdWho").textContent="Choose an ally";
+    this.livingParty().forEach(a=>{ const b=el("button","cmd",`${a.name} (${a.hp}/${a.maxhp})`); b.onclick=()=>this.resolve(m,[a],this.selecting.act); $("#cmdList").appendChild(b); });
+  },
+  targetClicked(e){
+    if(!this.selecting||this.selecting.kind!=="enemy") return;
+    const m=this.selecting.m, act=this.selecting.act; this.selecting=null;
+    this.renderEnemies(false);
+    this.resolve(m,[e],act);
+  },
+
+  /* ---- resolution ---- */
+  resolve(actor, targets, act){
+    this.selecting=null;
+    const s=act.skill;
+    if(s&&s.mp){ actor.mp=Math.max(0,actor.mp-s.mp); }
+    markActing(actor);
+
+    if(s&&(s.type==="heal")){
+      targets.forEach(t=>{ const amt=Math.round((actor.mag)*s.power+6); heal(t,amt); float(t,`+${amt}`,"#aef0a0"); if(s.status)applyStatus(t,s.status); });
+      this.log(`${actor.name} casts ${s.name}.`);
+    } else if(s&&s.type==="buff"){
+      targets.forEach(t=>{ if(s.buff.def)t.guarding=true; if(s.buff.atkup)applyStatus(t,{atkup:s.buff.turns}); if(s.buff.wardArmor){applyStatus(t,{wardArmor:s.buff.turns}); t.wardAmt=s.buff.wardArmor;} });
+      this.log(`${actor.name} uses ${s.name}.`);
+    } else if(s&&s.type==="util"&&s.cleanse){
+      targets.forEach(t=>{ t.status={}; float(t,"cleansed","#9cd1ff"); });
+      this.log(`${actor.name} cleanses ${targets[0].name}.`);
+    } else {
+      // damage (attack or offensive skill)
+      const hits = s? (s.hits||1):1;
+      const name = s? s.name : "attacks";
+      this.log(`${actor.name} ${s?`uses ${name}`:"attacks"}.`);
+      targets.forEach(t=>{
+        for(let h=0;h<hits;h++){ if(!t.alive) break; this.strike(actor,t,act); }
+      });
+    }
+    recalc(Game.party);
+    this.renderAll();
+    setTimeout(()=>this.afterAction(actor), 360);
+  },
+
+  strike(actor,target,act){
+    const s=act.skill;
+    // blind: chance to miss
+    if(actor.status.blind && Math.random()<0.4){ float(target,"miss","#bbb"); this.log(`${actor.name} is blinded — misses!`); return; }
+    let power = s? s.power : 1.0;
+    let isMag = s? (s.type==="mag") : false;
+    let baseStat = isMag ? actor.mag : actor.atk;
+    let raw = baseStat*power + rnd(-1,2);
+    // ATK-up buff
+    if(actor.status.atkup) raw*=1.5;
+    // affinity ring
+    const sol = (s&&s.sol) || actor.att==="SOL" && !s ? true : (s&&s.sol);
+    const atkAtt = (s&&s.sol)? "SOL" : actor.att;
+    let mult = affinity(atkAtt, target.att);
+    // +SOL% gear
+    if((atkAtt==="SOL")&&actor.solPct) raw*=(1+actor.solPct/100);
+    raw*=mult;
+    // crit
+    let critC = (actor.critPct||5) + (s&&s.crit?s.crit:0) + (actor.att==="QUANTA"?10:0);
+    let crit = Math.random()*100<critC;
+    if(crit) raw*=1.8;
+    // armor mitigation
+    let dmg = Math.max(1, Math.round(raw - target.armor*0.6*(isMag?0.5:1)));
+    // guarding halves
+    if(target.guarding) dmg=Math.round(dmg*0.5);
+    if(target.status.wardArmor) dmg=Math.max(1,dmg-(target.wardAmt||0));
+    damage(target,dmg);
+    Telemetry.dmg(actor.side, dmg, crit, mult);
+    float(target, (crit?"✦":"")+dmg, mult>1?"#ffd97a":mult<1?"#9aa":"#fff");
+    if(mult>1) this.log(`  ${target.name}: ${dmg} (SOL surges!)`);
+    else if(mult<1) this.log(`  ${target.name} resists: ${dmg}`);
+    if(crit) this.log(`  Critical! ${dmg} to ${target.name}`);
+    // lifesteal
+    const leech=actor.leech||(actor.bonusBurn?0:0);
+    if(actor.leech){ const h=Math.round(dmg*actor.leech/100); if(h>0){heal(actor,h);} }
+    // status on hit
+    if(s&&s.status) applyStatus(target,s.status);
+    if(actor.bonusBurn) applyStatus(target,{burn:2});
+    markHurt(target);
+    if(!target.alive) this.onDeath(target);
+  },
+
+  onDeath(u){
+    this.log(`${u.name} is defeated.`);
+    if(u.side==="enemy" && (u.drop)){ /* drops collected at battle end */ }
+  },
+
+  afterAction(actor){
+    if(this.checkEnd()) return;
+    this.endTurn(actor);
+  },
+  endTurn(actor){
+    actor.atb=0; actor.acting=false;          // guard persists until this unit's NEXT turn (cleared in tickStatuses)
+    this.awaiting=false; this.current=null;
+    this.renderAll();
+  },
+
+  /* ---- enemy AI ---- */
+  enemyTurn(e){
+    this.awaiting=true; this.current=e; markActing(e);
+    this.tickStatuses(e, ()=>{
+      if(!e.alive){ this.endTurn(e); return; }
+      const party=this.livingParty();
+      if(party.length===0){ this.endTurn(e); return; }
+      let target;
+      // prefer lowest-HP for evasive/boss sometimes, else random; tank-taunt draws aggro
+      const taunter=party.find(p=>p.status.wardArmor && p.role==="Tank");
+      if(e.ai==="boss"){
+        target = Math.random()<0.5 ? party.sort((a,b)=>a.hp-b.hp)[0] : pick(party);
+      } else if(e.ai==="evasive"){
+        target = pick(party);
+      } else { target = pick(party); }
+      if(taunter && Math.random()<0.5) target=taunter;
+      this.log(`${e.name} strikes ${target.name}.`);
+      // boss occasionally hits the whole party
+      if(e.boss && Math.random()<0.25){
+        this.log(`${e.name} unleashes a wild swing!`);
+        party.forEach(t=>this.strike(e,t,{}));
+      } else {
+        this.strike(e,target,{});
+      }
+      recalc(Game.party);
+      this.renderAll();
+      setTimeout(()=>{ if(!this.checkEnd()) this.endTurn(e); }, 380);
+    });
+  },
+
+  /* ---- status ticking at the start of a unit's turn ---- */
+  tickStatuses(u, done){
+    const st=u.status; let delay=0;
+    if(st.burn){ const d=Math.max(2,Math.round((u.maxhp||40)*0.05)); damage(u,d); float(u,`-${d}`,"#ffb27a"); st.burn--; if(st.burn<=0)delete st.burn; delay=300; }
+    if(st.poison){ const d=Math.max(2,Math.round((u.maxhp||40)*0.06)); damage(u,d); float(u,`-${d}`,"#aef0a0"); st.poison--; if(st.poison<=0)delete st.poison; delay=300; }
+    if(st.decay){ const d=Math.max(2,Math.round((u.maxhp||40)*0.05)); damage(u,d); float(u,`-${d}`,"#7ad0c0"); st.decay--; if(st.decay<=0)delete st.decay; delay=300; }
+    if(st.regen){ const h=Math.round((u.maxhp||40)*0.08); heal(u,h); float(u,`+${h}`,"#aef0a0"); st.regen--; if(st.regen<=0)delete st.regen; delay=300; }
+    if(st.wardArmor){ st.wardArmor--; if(st.wardArmor<=0){delete st.wardArmor; delete u.wardAmt;} }
+    if(st.atkup){ st.atkup--; if(st.atkup<=0)delete st.atkup; }
+    if(st.blind){ st.blind--; if(st.blind<=0)delete st.blind; }
+    u.guarding=false;
+    if(st.stun){ delete st.stun; this.log(`${u.name} is stunned!`); recalc(Game.party); this.renderAll(); if(!u.alive){done();return;} setTimeout(()=>{ u.atb=0; this.awaiting=false; this.current=null; done&&this.endTurn(u);}, 400); return; }
+    recalc(Game.party);
+    if(!u.alive){ this.renderAll(); setTimeout(done,delay); return; }
+    setTimeout(done, delay);
+  },
+
+  tryFlee(m){
+    if(Math.random()<0.6){ this.log("Got away safely."); this.end(false,true); }
+    else { this.log("Couldn't escape!"); this.endTurn(m); }
+  },
+
+  checkEnd(){
+    if(this.livingEnemies().length===0){ this.end(true); return true; }
+    if(this.livingParty().length===0){ this.end(false); return true; }
+    return false;
+  },
+  end(victory, fled){
+    if(!this.active) return;
+    this.active=false; this.awaiting=true; cancelAnimationFrame(this.raf);
+    if(fled){ Telemetry.encounterEnd("fled"); setTimeout(()=>Screens.show("field"),300); return; }
+    if(!victory){ Telemetry.encounterEnd("wipe"); setTimeout(()=>Game.gameOver(),600); return; }
+    // ----- victory: XP + gold + loot -----
+    Telemetry.encounterEnd("won");
+    Game.encountersWon++;
+    let xp=0, gold=0, drops=[];
+    this.enemies.forEach(e=>{ xp+=e.xpReward; gold+=ri(e.goldRange[0],e.goldRange[1]);
+      // drop chance: normal 35%, elite 100%, boss 100% (2 drops)
+      const chance = e.boss?1 : e.elite?1 : 0.4;
+      if(Math.random()<chance){ drops.push(rollDrop(e, pick(Game.party).cls)); }
+      if(e.boss){ drops.push(rollDrop(e, pick(Game.party).cls)); }
+    });
+    Game.gold+=gold;
+    const leveled=grantXp(Game.party, xp);
+    if(leveled.length) Telemetry.levelup(leveled.length);
+    drops.forEach(d=>{ Game.inventory.push(d); Telemetry.drop(d.rarity); });
+    const wasBoss=this.isBoss;
+    setTimeout(()=>this.showSpoils(xp,gold,drops,leveled,wasBoss), 500);
+  },
+  showSpoils(xp,gold,drops,leveled,wasBoss){
+    let h=`<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +${gold} gold</p>`;
+    if(leveled.length){ h+=`<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
+      leveled.forEach(l=>{ h+=`<div class="small">${l.name} → Lv ${l.level}${l.newSkill?` · learned <span class="r-legendary">${l.newSkill}</span>`:""}</div>`; });
+      h+="</div>"; }
+    if(drops.length){ h+=`<div class="tag">Loot</div><div class="scroll">`; drops.forEach(d=>h+=itemHtml(d)); h+="</div>"; }
+    else h+=`<p class="small">No loot this time.</p>`;
+    h+=`<div class="row"><button class="btn" onclick="UI.openInventory()">Open Bag</button>`;
+    h+= wasBoss ? `<button class="btn gold" onclick="Overlay.hide();Game.victory()">Finish</button>`
+                : `<button class="btn gold" onclick="Overlay.hide();Screens.show('field')">Continue</button>`;
+    h+=`</div>`;
+    Overlay.show(h);
+  },
+
+  /* ---- rendering ---- */
+  renderBg(){
+    const bgs={ plains:"linear-gradient(#7db9e8 0%,#a9d6f0 35%,#8fbf5a 60%,#5a8c3a 100%)",
+      forest:"linear-gradient(#2c4a2c,#15301a 70%,#0d2010)",
+      desert:"linear-gradient(#e8c98a,#d6a85a 55%,#a87a3a)",
+      mountains:"linear-gradient(#9fb0c8,#6c7a96 55%,#3a4258)" };
+    $("#battleBg").style.background=bgs[this.env]||bgs.plains;
+    if(this.isBoss) $("#battleBg").style.background="radial-gradient(circle at 30% 40%,#3a1020,#120608 80%)";
+  },
+  renderAll(){ this.renderEnemies(this.selecting&&this.selecting.kind==="enemy"); this.renderParty(); this.renderRoster(); this.renderLog(); },
+  renderEnemies(targetable){
+    const z=$("#enemyZone"); z.innerHTML="";
+    this.enemies.forEach((e,i)=>{
+      const d=el("div","enemy"+(e.alive?"":" dead")+(e.elite?" elite":"")+(targetable&&e.alive?" targetable":"")+(e.acting?" acting":""));
+      d.innerHTML=`<div class="spr">${e.spr}</div><div class="ebar">
+        <div class="ename">${e.name}${e.eliteAffixes?` <span class="badge atkup">${e.eliteAffixes.join(" ")}</span>`:""}${statusBadges(e)}</div>
+        <div class="bar hp"><i style="width:${pct(e.hp,e.maxhp)}%"></i><span class="bartxt">${Math.max(0,e.hp)}</span></div>
+        <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
+      if(targetable&&e.alive) d.onclick=()=>this.targetClicked(e);
+      z.appendChild(d);
+    });
+  },
+  renderParty(){
+    const z=$("#partyZone"); z.innerHTML="";
+    Game.party.forEach(m=>{
+      const d=el("div","pchar"+(m.alive?"":" downed")+(m.acting?" acting":"")+(m._hurt?" hurt":""));
+      d.innerHTML=`<div style="text-align:right"><div class="ename" style="color:${m.alive?'var(--gold2)':'#666'}">${m.name}${statusBadges(m)}</div></div><div class="spr">${m.alive?m.spr:"💤"}</div>`;
+      z.appendChild(d);
+    });
+  },
+  renderBars(){ // light per-frame bar update (atb) without full rebuild
+    const ez=$("#enemyZone").children;
+    this.enemies.forEach((e,i)=>{ const n=ez[i]; if(!n)return; const atb=n.querySelector(".bar.atb > i"); if(atb)atb.style.width=e.atb+"%"; });
+    this.renderRoster(true);
+  },
+  renderRoster(barsOnly){
+    const p=$("#rosterPanel");
+    if(!barsOnly||p.children.length!==Game.party.length){ p.innerHTML=""; Game.party.forEach(m=>{
+      const row=el("div","prow"+(m===this.current?" turn":"")+(m.alive?"":" downed"));
+      row.dataset.id=m.id;
+      row.innerHTML=`<div class="pn">${m.name}${statusBadges(m)}</div>
+        <div class="bars">
+          <div class="bar hp"><i style="width:${pct(m.hp,m.maxhp)}%"></i><span class="bartxt">${Math.max(0,m.hp)}/${m.maxhp}</span></div>
+          <div class="bar mp"><i style="width:${pct(m.mp,m.maxmp)}%"></i></div>
+          <div class="bar atb"><i style="width:${m.atb}%"></i></div>
+        </div>`;
+      p.appendChild(row);
+    }); return; }
+    // barsOnly fast path
+    [...p.children].forEach(row=>{ const m=Game.party.find(x=>x.id===row.dataset.id); if(!m)return;
+      row.classList.toggle("turn",m===this.current);
+      const bars=row.querySelectorAll(".bar > i");
+      if(bars[0]){bars[0].style.width=pct(m.hp,m.maxhp)+"%"; row.querySelector(".bar.hp .bartxt").textContent=`${Math.max(0,m.hp)}/${m.maxhp}`;}
+      if(bars[1])bars[1].style.width=pct(m.mp,m.maxmp)+"%";
+      if(bars[2])bars[2].style.width=m.atb+"%";
+    });
+  },
+  logLines:[],
+  log(t){ this.logLines.push(t); if(this.logLines.length>4)this.logLines.shift(); this.renderLog(); },
+  renderLog(){ const l=$("#log"); if(!l)return; l.innerHTML=this.logLines.map(x=>`<div>${x}</div>`).join(""); },
+};
+
+function makeEnemy(key,idx,isBossBattle){
+  const d=ENEMIES[key];
+  const e={ key, name:d.name, spr:d.spr, att:d.att, lvl:d.lvl, side:"enemy",
+    maxhp:d.hp, hp:d.hp, atk:d.atk, spd:d.spd, armor:d.armor, mag:d.mag||0,
+    xpReward:d.xp, goldRange:d.gold, ai:d.ai, boss:!!d.boss, alive:true, atb:0, status:{},
+    critPct:5, leech:0, solPct:0 };
+  // elite roll (not bosses): ~22% of non-boss enemies become elite
+  if(!e.boss && Math.random()<0.22){
+    e.elite=true; Telemetry.noteElite(); const n=ri(1,2); const used=[]; e.eliteAffixes=[];
+    for(let i=0;i<n;i++){ const a=pick(ELITE_AFFIXES.filter(x=>!used.includes(x.key))); if(!a)break; used.push(a.key); e.eliteAffixes.push(a.key);
+      a.apply(e); }
+    e.hp=e.maxhp;
+  }
+  return e;
+}
+
+/* ---- combat helpers ---- */
+function damage(u,d){ u.hp=Math.max(0,u.hp-d); if(u.hp<=0){u.alive=false;} }
+function heal(u,h){ if(!u.alive)return; u.hp=Math.min(u.maxhp,u.hp+h); }
+function applyStatus(u,st){ for(const k in st){ if(k==="turns")continue; u.status[k]=Math.max(u.status[k]||0, st[k]); } }
+function statusBadges(u){ let h=""; const m={burn:"burn",blind:"blind",regen:"regen",stun:"stun",atkup:"atkup",wardArmor:"def",poison:"regen",decay:"def"};
+  for(const k in u.status){ if(u.status[k]>0&&m[k]) h+=`<span class="badge ${m[k]}">${k.slice(0,3)}</span>`; } return h; }
+function pct(a,b){ return clamp(Math.round((a/b)*100),0,100); }
+function markActing(u){ u.acting=true; Battle.renderAll(); }
+function markHurt(u){ u._hurt=true; Battle.renderAll(); setTimeout(()=>{u._hurt=false;},260); }
+function float(u,txt,color){
+  // find the DOM node for the unit and pop a floating number
+  let node;
+  if(u.side==="enemy"){ const i=Battle.enemies.indexOf(u); node=$("#enemyZone").children[i]; }
+  else { const i=Game.party.indexOf(u); node=$("#partyZone").children[i]; }
+  if(!node) return;
+  const f=el("div","float",txt); f.style.color=color||"#fff";
+  const r=node.getBoundingClientRect(), s=$("#stage").getBoundingClientRect();
+  f.style.left=(r.left-s.left+r.width/2)+"px"; f.style.top=(r.top-s.top)+"px";
+  $("#stage").appendChild(f); setTimeout(()=>f.remove(),1000);
+}
+
+/* ---- progression ---- */
+function xpForLevel(l){ return Math.round(20*Math.pow(l,1.6)); }
+function grantXp(party, xp){
+  const leveled=[];
+  party.forEach(m=>{
+    if(!m.alive && m.hp<=0){ /* downed still earn a share */ }
+    m.xp+=xp;
+    while(m.xp>=xpForLevel(m.level)){
+      m.xp-=xpForLevel(m.level); m.level++;
+      let newSkill=null;
+      const justUnlocked=m.skills.map(k=>SKILLS[k]).find(s=>s.unlock===m.level);
+      if(justUnlocked) newSkill=justUnlocked.name;
+      leveled.push({name:m.name, level:m.level, newSkill});
+    }
+  });
+  recalc(party);
+  // level-up fully heals (FF-style)
+  party.forEach(m=>{ if(leveled.find(l=>l.name===m.name)){ m.hp=m.maxhp; m.mp=m.maxmp; m.alive=true; } });
+  return leveled;
+}
+
+/* =====================================================================================
+   5. FIELD MAP — tile grid, movement, random encounters, boss gate
+   ===================================================================================== */
+const Field = {
+  W:26, H:18, tile:0, px:0, py:0, map:[], boss:{x:24,y:9}, stepsToEncounter:0,
+  canvas:null, ctx:null,
+
+  init(){
+    this.canvas=$("#fieldCanvas"); this.ctx=this.canvas.getContext("2d");
+    this.resize();
+    this.px=1; this.py=9;
+    this.genMap();
+    this.stepsToEncounter=ri(6,11);
+    this.hint();
+    this.draw();
+    window.addEventListener("resize",()=>{this.resize();this.draw();});
+  },
+  resize(){ const s=$("#stage").getBoundingClientRect();
+    const w=Math.round(s.width)||window.innerWidth||800, h=Math.round(s.height)||window.innerHeight||600;
+    this.canvas.width=w; this.canvas.height=h;
+    this.tile=Math.max(28, Math.floor(Math.min(w/13, h/9))); },   // never 0 (would blank the map)
+  genMap(){
+    this.map=[];
+    for(let y=0;y<this.H;y++){ const row=[]; for(let x=0;x<this.W;x++){
+      let t="grass";
+      if(x===0||y===0||x===this.W-1||y===this.H-1) t="tree";
+      else if(Math.random()<0.08) t="tree";
+      else if(Math.random()<0.05) t="bush";
+      row.push(t);
+    } this.map.push(row); }
+    // carve a corridor along the player's row so the path is never blocked
+    for(let x=1;x<this.W-1;x++){ this.map[9][x]="path"; this.map[8][x]=this.map[8][x]==="tree"?"grass":this.map[8][x]; this.map[10][x]=this.map[10][x]==="tree"?"grass":this.map[10][x]; }
+    this.map[this.boss.y][this.boss.x]="boss";
+    this.map[9][1]="path";
+  },
+  progress(){ return clamp((this.px-1)/(this.boss.x-1),0,1); },
+  passable(x,y){ if(x<0||y<0||x>=this.W||y>=this.H)return false; const t=this.map[y][x]; return t!=="tree"; },
+  move(dx,dy){
+    if(Game.state!=="field"&&Screens.cur!=="field") return;
+    if(Overlay.isOn()) return;
+    const nx=this.px+dx, ny=this.py+dy;
+    if(!this.passable(nx,ny)) return;
+    this.px=nx; this.py=ny; Game.steps++; Telemetry.step();
+    this.draw(); this.hint();
+    if(this.map[ny][nx]==="boss" && !Game.bossDefeated){ this.startBoss(); return; }
+    this.stepsToEncounter--;
+    if(this.stepsToEncounter<=0 && this.map[ny][nx]!=="boss"){ this.stepsToEncounter=ri(6,12); this.rollEncounter(); }
+  },
+  rollEncounter(){
+    const p=this.progress();
+    let band=ENCOUNTERS[0];
+    for(const e of ENCOUNTERS){ if(p>=e.at) band=e; }
+    const set=pick(band.sets);
+    const env = p<0.3?"plains": p<0.55?"forest": p<0.8?"desert":"mountains";
+    Battle.begin(set, env, false);
+  },
+  startBoss(){ Battle.begin(["brute"], "mountains", true); },
+  hint(){
+    const p=this.progress();
+    let msg = p<0.15? "Head east through Greenvale." : p>0.85? "The Bandit Brute's camp lies just ahead." :
+      "Random bandits roam these fields. Keep moving east.";
+    $("#fieldHint").textContent=msg;
+    $("#fieldGold").textContent=Game.gold;
+    const fp=$("#fieldParty"); fp.innerHTML=Game.party.map(m=>`<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
+  },
+  draw(){
+    const c=this.ctx, t=this.tile; if(!c)return;
+    c.clearRect(0,0,this.canvas.width,this.canvas.height);
+    // camera centered on player
+    const viewW=Math.ceil(this.canvas.width/t), viewH=Math.ceil(this.canvas.height/t);
+    let camx=clamp(this.px-Math.floor(viewW/2),0,Math.max(0,this.W-viewW));
+    let camy=clamp(this.py-Math.floor(viewH/2),0,Math.max(0,this.H-viewH));
+    const colors={grass:"#4a7a32",path:"#7a6a3a",tree:"#1f3a1c",bush:"#3a6a2a",boss:"#6a1020"};
+    for(let y=0;y<viewH+1;y++)for(let x=0;x<viewW+1;x++){
+      const mx=camx+x, my=camy+y; if(mx>=this.W||my>=this.H)continue;
+      const cell=this.map[my][mx];
+      c.fillStyle=colors[cell]||"#4a7a32";
+      const sx=(mx-camx)*t, sy=(my-camy)*t;
+      c.fillRect(sx,sy,t,t);
+      if(cell==="grass"||cell==="path"){ c.fillStyle="rgba(0,0,0,.06)"; if((mx+my)%2)c.fillRect(sx,sy,t,t); }
+      if(cell==="tree"){ c.font=`${t*0.9}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText("🌲",sx+t/2,sy+t/2); }
+      if(cell==="bush"){ c.font=`${t*0.7}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText("🌿",sx+t/2,sy+t/2); }
+      if(cell==="boss"){ c.font=`${t*0.9}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(Game.bossDefeated?"🏴":"⛺",sx+t/2,sy+t/2); }
+    }
+    // ---- player marker: unmistakable glowing disc + ring + sprite ----
+    const cx=(this.px-camx)*t+t/2, cy=(this.py-camy)*t+t/2;
+    c.save();
+    c.beginPath(); c.arc(cx,cy,t*0.46,0,Math.PI*2); c.fillStyle="rgba(244,210,122,.18)"; c.fill();   // glow halo
+    c.beginPath(); c.arc(cx,cy,t*0.36,0,Math.PI*2); c.fillStyle="#1a1330"; c.fill();                  // dark disc
+    c.lineWidth=Math.max(2,t*0.09); c.strokeStyle="#f4d27a"; c.stroke();                              // gold ring
+    c.font=`${t*0.6}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#fff";
+    c.fillText("🧝",cx,cy);                                                                            // hero glyph
+    // little downward chevron above so it always reads as "you are here"
+    c.beginPath(); c.moveTo(cx-t*0.12,cy-t*0.6); c.lineTo(cx+t*0.12,cy-t*0.6); c.lineTo(cx,cy-t*0.45); c.closePath();
+    c.fillStyle="#f4d27a"; c.fill();
+    c.restore();
+  },
+};
+
+/* =====================================================================================
+   6. SCREENS / OVERLAY / UI (party, inventory, equip)
+   ===================================================================================== */
+const Screens = {
+  cur:"title",
+  show(name){ Game.state=name; this.cur=name;
+    ["title","field","battle"].forEach(s=>$("#"+s+"Screen").classList.toggle("on",s===name));
+    if(name==="field"){ Field.resize(); Field.draw(); Field.hint();
+      requestAnimationFrame(()=>{ Field.resize(); Field.draw(); });   // redraw once layout has settled
+    }
+  }
+};
+const Overlay = {
+  show(html){ $("#overlayInner").innerHTML=html; $("#overlay").classList.add("on"); },
+  hide(){ $("#overlay").classList.remove("on"); },
+  isOn(){ return $("#overlay").classList.contains("on"); },
+};
+
+function itemHtml(it, actionBtn){
+  const rc="r-"+it.rarity, bc="b-"+it.rarity;
+  let aff=it.affixes.map(a=>`<div class="affix">• ${a.label(a.value)}</div>`).join("");
+  let imp=Object.entries(it.implicit).map(([k,v])=>`+${v} ${k}`).join("  ");
+  return `<div class="item ${bc}">
+    <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot==="weapon"?` · ${it.cls}`:""}]</span></div>
+    <div class="meta">${imp}</div>${aff}${actionBtn||""}</div>`;
+}
+
+const UI = {
+  openParty(){
+    let h=`<h2 class="title-gold">Party</h2><div class="scroll">`;
+    Game.party.forEach(m=>{
+      h+=`<div class="card" style="margin:6px 0;text-align:left">
+        <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill">${m.cls} · ${m.att} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
+        <div class="small">HP ${m.maxhp} · MP ${m.maxmp} · ATK ${m.atk} · MAG ${m.mag} · SPD ${m.spd} · ARM ${m.armor} · Crit ${m.critPct}%${m.solPct?` · +${m.solPct}% SOL`:""}${m.leech?` · ${m.leech}% leech`:""}</div>
+        <div class="small">XP ${m.xp}/${xpForLevel(m.level)}</div>
+        <div class="grid2" style="margin-top:6px">${["weapon","armor","trinket"].map(slot=>{
+          const it=m.equip[slot];
+          return `<div class="equip-slot"><span><span class="tag">${slot}</span><br>${it?`<span class="r-${it.rarity}">${it.name}</span>`:"<span class='small'>— empty —</span>"}</span>
+            <button class="btn" onclick="UI.equipPicker('${m.id}','${slot}')">Swap</button></div>`;
+        }).join("")}</div>
+        <div class="small" style="margin-top:6px">Skills: ${m.skills.map(k=>SKILLS[k]).map(s=>`<span class="${s.unlock<=m.level?'r-uncommon':'small'}">${s.name}${s.unlock>m.level?` (L${s.unlock})`:""}</span>`).join(" · ")}</div>
+      </div>`;
+    });
+    h+=`</div><div class="row"><button class="btn gold" onclick="Overlay.hide()">Close</button></div>`;
+    Overlay.show(h);
+  },
+  equipPicker(memberId, slot){
+    const m=Game.party.find(x=>x.id===memberId);
+    const usable=Game.inventory.filter(it=>it.slot===slot && (slot!=="weapon"||it.cls===m.cls));
+    let h=`<h2 class="title-gold">${cap(slot)} — ${m.name}</h2>`;
+    h+=`<div class="small">Equipped: ${m.equip[slot]?`<span class="r-${m.equip[slot].rarity}">${m.equip[slot].name}</span> (score ${itemScore(m.equip[slot])})`:"none"}</div>`;
+    h+=`<div class="scroll">`;
+    if(usable.length===0) h+=`<p class="small">No ${slot==="weapon"?m.cls+" ":""}${slot}s in your bag.</p>`;
+    usable.sort((a,b)=>itemScore(b)-itemScore(a)).forEach((it)=>{
+      const idx=Game.inventory.indexOf(it);
+      h+=itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="UI.doEquip('${memberId}','${slot}',${idx})">Equip (score ${itemScore(it)})</button></div>`);
+    });
+    h+=`</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Back</button></div>`;
+    Overlay.show(h);
+  },
+  doEquip(memberId,slot,invIdx){
+    const m=Game.party.find(x=>x.id===memberId); const it=Game.inventory[invIdx];
+    if(!it) return;
+    const old=m.equip[slot]; m.equip[slot]=it; Game.inventory.splice(invIdx,1);
+    if(old) Game.inventory.push(old);
+    recalc(Game.party);
+    this.equipPicker(memberId,slot);
+  },
+  openInventory(){
+    let h=`<h2 class="title-gold">Bag</h2><div class="small">${Game.inventory.length} items · ${Game.gold} gold</div><div class="scroll">`;
+    if(Game.inventory.length===0) h+=`<p class="small">Empty. Win fights to find loot.</p>`;
+    Game.inventory.slice().sort((a,b)=>rarityIx(b.rarity)-rarityIx(a.rarity)).forEach(it=>{ h+=itemHtml(it); });
+    h+=`</div><div class="row"><button class="btn" onclick="UI.openParty()">To Party</button><button class="btn gold" onclick="Overlay.hide();if(Screens.cur=='field'){}else{Overlay.hide()}">Close</button></div>`;
+    Overlay.show(h);
+  },
+};
+
+/* =====================================================================================
+   7. TELEMETRY — per-session + lifetime gameplay metrics, persisted to localStorage.
+   Purpose: tune the ~1-hour pacing (encounter rate, fight length, drop rates, difficulty).
+   ===================================================================================== */
+const Telemetry = {
+  key:"gaia_telemetry_v1", s:null, all:[],
+  load(){ try{ this.all=JSON.parse(localStorage.getItem(this.key))||[]; }catch(e){ this.all=[]; } },
+  save(){ try{ localStorage.setItem(this.key, JSON.stringify(this.all.slice(-50))); }catch(e){} },
+  startSession(){
+    this.endSession("restart"); // close any dangling session
+    this.s={ id:Date.now(), start:Date.now(), end:null, durationMs:0, reason:null, steps:0,
+      encounters:0, won:0, fled:0, wipes:0, eliteFights:0,
+      dmgDealt:0, dmgTaken:0, partyHits:0, crits:0, affinityBonus:0, affinityResist:0,
+      drops:{common:0,uncommon:0,rare:0,epic:0,legendary:0,artifact:0}, dropTotal:0,
+      levelups:0, gold:0, bossResult:null, timeToBossMs:null, encMs:[] };
+  },
+  step(){ if(this.s) this.s.steps++; },
+  encounterStart(set,env,boss){ if(!this.s)return; this.s.encounters++; this._encStart=Date.now(); this._encBoss=boss;
+    if(set.length && this._eliteThisFight) this.s.eliteFights++; this._eliteThisFight=false; },
+  noteElite(){ if(this.s){ this._eliteThisFight=true; } },
+  encounterEnd(result){ if(!this.s)return; const d=Date.now()-(this._encStart||Date.now()); this.s.encMs.push(d);
+    if(result==="won")this.s.won++; else if(result==="fled")this.s.fled++; else if(result==="wipe")this.s.wipes++; },
+  dmg(fromSide,amt,crit,mult){ if(!this.s)return;
+    if(fromSide==="party"){ this.s.dmgDealt+=amt; this.s.partyHits++; if(crit)this.s.crits++; if(mult>1)this.s.affinityBonus++; else if(mult<1)this.s.affinityResist++; }
+    else this.s.dmgTaken+=amt; },
+  drop(rarity){ if(this.s&&this.s.drops[rarity]!=null){ this.s.drops[rarity]++; this.s.dropTotal++; } },
+  levelup(n){ if(this.s) this.s.levelups+=n; },
+  boss(result){ if(this.s){ this.s.bossResult=result; if(this.s.timeToBossMs==null) this.s.timeToBossMs=Date.now()-this.s.start; } },
+  endSession(reason){ if(!this.s)return; this.s.end=Date.now(); this.s.durationMs=this.s.end-this.s.start;
+    this.s.reason=reason; this.s.gold=Game.gold||0; this.all.push(this.s); this.save(); this.s=null; },
+  // ---- reporting ----
+  agg(){
+    const sessions=[...this.all, ...(this.s?[this.s]:[])];
+    const A={sessions:sessions.length, steps:0, encounters:0, won:0, fled:0, wipes:0, eliteFights:0,
+      dmgDealt:0, dmgTaken:0, partyHits:0, crits:0, affinityBonus:0, affinityResist:0, levelups:0,
+      drops:{common:0,uncommon:0,rare:0,epic:0,legendary:0,artifact:0}, dropTotal:0,
+      encMsAll:[], durationMs:0, bossWins:0, timeToBoss:[]};
+    sessions.forEach(s=>{ A.steps+=s.steps; A.encounters+=s.encounters; A.won+=s.won; A.fled+=s.fled; A.wipes+=s.wipes;
+      A.eliteFights+=s.eliteFights; A.dmgDealt+=s.dmgDealt; A.dmgTaken+=s.dmgTaken; A.partyHits+=s.partyHits;
+      A.crits+=s.crits; A.affinityBonus+=s.affinityBonus; A.affinityResist+=s.affinityResist; A.levelups+=s.levelups;
+      A.dropTotal+=s.dropTotal; A.durationMs+=s.durationMs||(s===this.s?Date.now()-s.start:0);
+      for(const k in A.drops)A.drops[k]+=s.drops[k]||0; A.encMsAll.push(...(s.encMs||[]));
+      if(s.bossResult==="win")A.bossWins++; if(s.timeToBossMs!=null)A.timeToBoss.push(s.timeToBossMs); });
+    return A;
+  },
+  show(){
+    Telemetry.load && null;
+    const cur=this.s, A=this.agg();
+    const ms=v=>v==null?"—":(v<60000?(v/1000).toFixed(0)+"s":(v/60000).toFixed(1)+"m");
+    const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
+    const pctf=(n,d)=>d?Math.round(n/d*100)+"%":"—";
+    const dropRow=d=>RARITY.map(r=>`<span class="r-${r.key}">${cap(r.key)} ${d[r.key]}</span>`).join(" · ");
+    let h=`<h2 class="title-gold">Telemetry</h2>`;
+    if(cur){ h+=`<div class="card" style="text-align:left;border-color:var(--gold)">
+      <div class="tag">Current session</div>
+      <div class="small">Time ${ms(Date.now()-cur.start)} · Steps ${cur.steps} · Encounters ${cur.encounters} (won ${cur.won}, fled ${cur.fled})</div>
+      <div class="small">Dmg dealt ${cur.dmgDealt} · taken ${cur.dmgTaken} · Crit ${pctf(cur.crits,cur.partyHits)} · SOL-bonus hits ${cur.affinityBonus} / resisted ${cur.affinityResist}</div>
+      <div class="small">Level-ups ${cur.levelups} · Drops ${cur.dropTotal} · Gold ${Game.gold}</div>
+      <div class="small">Drops: ${dropRow(cur.drops)}</div>
+      ${cur.timeToBossMs!=null?`<div class="small">Reached boss in ${ms(cur.timeToBossMs)}</div>`:""}
+    </div>`; }
+    h+=`<div class="card" style="text-align:left">
+      <div class="tag">Lifetime (${A.sessions} sessions)</div>
+      <div class="small">Avg session ${ms(A.sessions?A.durationMs/A.sessions:0)} · Avg fight ${ms(avg(A.encMsAll))} · Total steps ${A.steps}</div>
+      <div class="small">Encounters ${A.encounters} · Win ${pctf(A.won,A.encounters)} · Fled ${A.fled} · Wipes ${A.wipes} · Elite fights ${A.eliteFights}</div>
+      <div class="small">Crit rate ${pctf(A.crits,A.partyHits)} · Affinity bonus ${pctf(A.affinityBonus,A.partyHits)} / resist ${pctf(A.affinityResist,A.partyHits)}</div>
+      <div class="small">Dmg dealt ${A.dmgDealt} · taken ${A.dmgTaken} · Level-ups ${A.levelups}</div>
+      <div class="small">Drops (${A.dropTotal}): ${dropRow(A.drops)}</div>
+      <div class="small">Boss wins ${A.bossWins} · Avg time-to-boss ${ms(avg(A.timeToBoss))}</div>
+    </div>`;
+    h+=`<div class="row">
+      <button class="btn" onclick="Telemetry.download()">Download JSON</button>
+      <button class="btn" onclick="Telemetry.reset()">Reset</button>
+      <button class="btn gold" onclick="Overlay.hide()">Close</button></div>`;
+    Overlay.show(h);
+  },
+  download(){
+    const blob=new Blob([JSON.stringify({exported:Date.now(),sessions:this.all,current:this.s},null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="gaia-telemetry.json";
+    document.body.appendChild(a); a.click(); a.remove();
+  },
+  reset(){ this.all=[]; this.save(); this.show(); },
+};
+
+/* ---- keyboard ---- */
+window.addEventListener("keydown",e=>{
+  if(Screens.cur!=="field"||Overlay.isOn()) return;
+  const k=e.key.toLowerCase();
+  if(k==="arrowup"||k==="w"){Field.move(0,-1);e.preventDefault();}
+  else if(k==="arrowdown"||k==="s"){Field.move(0,1);e.preventDefault();}
+  else if(k==="arrowleft"||k==="a"){Field.move(-1,0);e.preventDefault();}
+  else if(k==="arrowright"||k==="d"){Field.move(1,0);e.preventDefault();}
+});
+
+/* ---- boot ---- */
+Screens.show("title");
+</script>
+</body>
+</html>
