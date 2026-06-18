@@ -1,10 +1,11 @@
-name: Deploy to GitHub Pages
+name: Build & Deploy to GitHub Pages
 
-# Builds the Vite + TypeScript app and publishes dist/ to GitHub Pages.
-# Runs on pushes to main; can also be triggered manually.
+# Builds the Vite + TypeScript app on every push/PR (validation), and publishes dist/ to
+# GitHub Pages only for pushes to main.
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -12,7 +13,6 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment; don't cancel an in-progress production deploy.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -27,6 +27,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -35,6 +37,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Only deploy from main; PR builds validate but don't publish.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

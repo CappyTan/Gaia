@@ -11,5 +11,4 @@ export default defineConfig({
     emptyOutDir: true,
     target: "es2020",
   },
-  server: { open: true },
 });
