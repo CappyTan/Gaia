@@ -9,7 +9,7 @@ faithful capture of that design — not an interpretation.
 - **`parse-requiem.js`** — deterministic parser. Re-run after any source update: `node docs/design/requiem/parse-requiem.js`
 - **`classes.json`** — structured extraction (attunements + every class + every ability with type/cost/description). What the game/tools read.
 - **`REQUIEM-classes.md`** — human-readable compendium generated from the JSON.
-- **`battle-mechanics.md`** — Ascension · Soul Burn · Harmonic Ascension (combat-systems layer above the class kits). Captured from Dara's notes; not yet in the compendium HTML.
+- **`battle-mechanics.md`** — Ascension · Soul Burn · Harmonic Ascension · Archon Types (combat-systems + mastery layer above the class kits). Captured from Dara's notes; not yet in the compendium HTML.
 
 Everything in the JSON/MD comes straight from the HTML via the parser — nothing invented or
 edited by hand. Open `requiem-compendium.source.html` in a browser for Dara's filterable view.

@@ -106,6 +106,19 @@ between same-attunement players (e.g. two Quanta Spellblades) but allowed across
 same attunement. Built for synergized duos in raids/large fights, not solo DPS rankings.
 _Not yet in the POC._
 
+**Archon** (canon, per REQUIEM lore):
+An attunement-mastery threshold — embodying a faction's ontology physically. **Type I** (Mortal
+Mastery): 100 MNA in a single attunement. **Type II** (Dual Convergence): 100 MNA in two
+attunements at once — a living paradox. **Type III**: intentionally mysterious, the path toward
+the **Sixth Deity**. See
+[`docs/design/requiem/battle-mechanics.md`](docs/design/requiem/battle-mechanics.md).
+_Not yet in the POC._
+
+**Sixth Deity** (canon, per REQUIEM lore):
+A being or state beyond the five-faction (five-Attunement) framework, reached via the Archon
+Type III path. No roster class attains it — "what lies beyond the game." Deliberately
+under-defined.
+
 ## Flagged ambiguities
 
 - **"Class"** is overloaded. There are 9 *Weapon Archetypes* (Dara's term) and 45 *Classes*

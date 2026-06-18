@@ -1,4 +1,4 @@
-# REQUIEM — Battle Mechanics (Ascension · Soul Burn · Harmonic Ascension)
+# REQUIEM — Battle Mechanics (Ascension · Soul Burn · Harmonic Ascension · Archon Types)
 
 Canon from Dara Saadat, captured 2026-06-18 (design notes + IRL STONKS chat). This is the
 combat-systems layer that sits **on top of** the class compendium
@@ -50,11 +50,34 @@ On **Harmonic Ascension**:
   yields more than the sum. Designed around synergized duos in raids/large fights, not solo DPS
   rankings.
 
-## Fragment — "Archon"-tier supers (incomplete)
+## Archon Types (from the `requiem-lore` note, verbatim)
 
-The top of the source note is cut off; this is the legible remainder of a separate sketch of
-tiered "super" abilities on **Graviton / Archon**-type classes. Recorded so it isn't lost —
-**treat as partial and unconfirmed** until Dara provides the full list.
+An **Archon** is an attunement-mastery threshold — a fighter who has embodied a faction's
+ontology deeply enough to manifest it physically. The tier referenced by the super-ability
+sketch below (Archon Type I / II) maps to these definitions:
+
+**Archon Type I — Mortal Mastery.** A fighter who has achieved sufficient mastery of a single
+faction's ontology that their body begins to embody it physically. Eyes change color. Weapons
+manifest attunement effects naturally. The first threshold of what was once called "divine
+gift."
+*Requirement: 100 MNA in a single attunement.*
+
+**Archon Type II — Dual Convergence.** A being who has partially embodied two faction
+philosophies simultaneously. This is considered theoretically contradictory by scholars — Sol
+and Nox cannot both be true. And yet. Type II Archons exist as living paradoxes, wielding
+incompatible realities at once.
+*Requirement: 100 MNA in two different attunements simultaneously.*
+
+**Archon Type III — (intentionally mysterious).** The design note literally reads: intentionally
+mysterious. This is the pathway that leads toward the **Sixth Deity** — a being or state that
+exists beyond the five-faction framework entirely. No class in the current roster reaches this.
+It is what lies beyond the game. *(Unknown. Perhaps unknowable.)*
+
+## Fragment — Archon-tier supers (still incomplete)
+
+A separate sketch of tiered "super" abilities on Graviton / Archon-type classes; the top of that
+note was cut off, so the list is partial. The Archon Type tags now resolve to the definitions
+above. **Treat the abilities as partial/unconfirmed** until Dara provides the full list.
 
 - *(Quanta)* … super — **Wave Collapse**
 - **Sol Graviton Breaker** (Archon Type …) — Second Tier super — **Nova …**, plus damage
@@ -64,11 +87,12 @@ tiered "super" abilities on **Graviton / Archon**-type classes. Recorded so it i
 
 Cross-reference: the only Graviton class currently in the compendium is **Graviton Warden**
 (Umbraxis, Hammer). The "Breaker / Adjudicator / Battlemage" Archon variants and the
-First/Second-Tier super system above are **not** in the 45-class roster — they read as a newer
-super/Archon layer Dara is still drafting.
+First/Second-Tier super system are **not** in the 45-class roster — they read as a newer
+super/Archon layer above the base classes that Dara is still drafting.
 
 ## Source
 
-Dara Saadat's design notes (screenshot) + IRL STONKS chat, 2026-06-18. The accompanying updated
-class compendium from the same drop is captured in `requiem-compendium.source.html` (250
-abilities — more complete ability text than the prior send).
+Dara Saadat's design notes + `requiem-lore` note (screenshots) + IRL STONKS chat, 2026-06-18.
+The accompanying updated class compendium from the same drop is captured in
+`requiem-compendium.source.html` (250 abilities — more complete ability text than the prior
+send).
