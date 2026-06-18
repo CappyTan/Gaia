@@ -32,6 +32,7 @@ Safari — including iOS Safari). That's it.
 | Inventory + per-character equip screen (weapon/armor/trinket) | ✅ |
 | Progression: XP, level-ups, stat growth, **skill unlocks** (~Lv 1→8) | ✅ |
 | Mini-boss + final boss + victory / party-wipe defeat | ✅ |
+| **Chiptune soundtrack** (Web Audio, no asset files): title / field / battle / boss / victory, cross-faded by state, mute toggle, iOS-safe start | ✅ |
 
 The four SOL party members: **Auren** (Sword & Shield, tank), **Kaela** (Dual Swords,
 DPS), **Sephi** (Staff, caster/healer), **Rion** (Spellblade, hybrid). Greenvale bestiary
