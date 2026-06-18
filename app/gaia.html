@@ -60,6 +60,7 @@
 
   /* ---- Battle ---- */
   #battleScreen{background:#06060b;}
+  #battleStyleBtn{position:absolute; top:6px; right:6px; z-index:6; font-size:11px; padding:4px 8px; opacity:.82;}
   #battleField{position:absolute; top:0; left:0; right:0; height:58%; overflow:hidden;}
   #battleBg{position:absolute; inset:0;}
   #enemyZone{position:absolute; left:3%; top:8%; bottom:6%; width:46%; display:flex; flex-direction:column; justify-content:space-around;}
@@ -174,7 +175,7 @@
       <button class="btn gold" onclick="Game.start()">Enter Greenvale</button>
       <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
       <button class="btn mutebtn" title="Music on/off" onclick="Music.unlock();Music.toggleMute()">🔊</button>
-      <button class="btn" title="Switch home theme" onclick="Music.cycleTitle()">♪ <span id="themeName">Radiant</span> ▸</button>
+      <button class="btn" title="Home music style" onclick="Music.cycleStyle('title')">♪ <span id="st-title">Radiant</span> ▸</button>
     </div>
     <div class="small" style="max-width:460px;margin-top:8px">
       Proof of concept. Four SOL adventurers cut a path through Greenvale to the Bandit Brute.
@@ -200,6 +201,7 @@
       <button class="btn" onclick="UI.openInventory()">Bag</button>
       <button class="btn" onclick="Telemetry.show()">Stats</button>
       <button class="btn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
+      <button class="btn" title="Field music style" onclick="Music.cycleStyle('field')">♪ <span id="st-field">Radiant</span> ▸</button>
     </div>
     <div id="dpad">
       <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
@@ -214,6 +216,7 @@
       <div id="battleBg"></div>
       <div id="enemyZone"></div>
       <div id="partyZone"></div>
+      <button id="battleStyleBtn" class="btn" title="Battle music style" onclick="Music.cycleStyle(Music.cur)">♪ <span id="st-battle">Radiant</span></button>
     </div>
     <div id="log"></div>
     <div id="battleUi">
@@ -248,7 +251,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.9";
+const GAME_VERSION = "v0.10";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -590,7 +593,7 @@ const Battle = {
     const dp = depth || 0;
     this.enemies = enemyKeys.map((k,i)=>makeEnemy(k,i,isBoss,dp));
     Telemetry.encounterStart(enemyKeys, env||"plains", !!isBoss);
-    Music.play(isBoss ? "boss" : "battle");
+    Music.play(isBoss ? "boss" : "battle"); Music._renderStyleLabels();
     Game.party.forEach(m=>{ m.atb=ri(0,40); m.status={}; m.side="party"; m.guarding=false; m.acted=false; m.acting=false; m._hurt=false; });
     this.enemies.forEach(e=>{ e.atb=ri(0,30); });
     this.awaiting=false; this.current=null; this.logLines=[];
@@ -646,7 +649,12 @@ const Battle = {
     const skBtn=el("button","cmd","Skill ▸"); skBtn.onclick=()=>this.showSkills(m,known); list.appendChild(skBtn);
     mk("Defend",0,()=>{ m.guarding=true; this.log(`${m.name} braces.`); this.endTurn(m); });
     mk("Flee", 0, ()=>this.tryFlee(m), this.isBoss);
+    this.lockInput(350);   // ignore taps for a beat so a finger still tapping where the D-pad
+                           // was (when the fight started) can't instantly hit a command (e.g. Flee)
   },
+  // briefly make the command panel + target zone non-interactive (stray-tap guard)
+  lockInput(ms){ const ids=["#cmdPanel","#enemyZone"]; ids.forEach(s=>{const e=$(s); if(e)e.style.pointerEvents="none";});
+    clearTimeout(this._unlockT); this._unlockT=setTimeout(()=>ids.forEach(s=>{const e=$(s); if(e)e.style.pointerEvents="";}), ms); },
   showSkills(m,known){
     const list=$("#cmdList"); list.innerHTML="";
     const back=el("button","cmd","◂ Back"); back.onclick=()=>this.showCommands(m); list.appendChild(back);
@@ -852,7 +860,7 @@ const Battle = {
     h+=`<div class="row"><button class="btn" onclick="UI.openInventory()">Open Bag</button>`;
     h+= wasFinal ? `<button class="btn gold" onclick="UI.close()">Finish</button>`
                  : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
-    h+=`</div>`;
+    h+=`</div><div class="small" style="margin-top:8px">Victory jingle: <a class="link" onclick="Music.cycleStyle('victory')">${cap(Music.styleByState.victory)} ▸</a></div>`;
     Overlay.show(h);
   },
 
@@ -1148,8 +1156,9 @@ const Screens = {
   cur:"title",
   show(name){ Game.state=name; this.cur=name;
     ["title","field","battle"].forEach(s=>$("#"+s+"Screen").classList.toggle("on",s===name));
-    if(name==="title") Music.play(Music.titleTrack);
+    if(name==="title") Music.play("title");
     else if(name==="field") Music.play("field");   // battle music is set by Battle.begin
+    Music._renderStyleLabels();
     if(name==="field"){ Field.resize(); Field.draw(); Field.hint();
       requestAnimationFrame(()=>{ Field.resize(); Field.draw(); });   // redraw once layout has settled
     }
@@ -1326,55 +1335,61 @@ const Music = {
   ctx:null, master:null, started:false, muted:false, vol:0.16,
   pending:"title", cur:null, track:null, stepDur:0, cursors:[], _timer:null,
   LOOKAHEAD:0.12, TICK:25,
-  titleTrack:"title", titleVariants:[["title","Radiant"],["titleB","Orchestral"],["titleC","Heroic"]],
-  // ── tracks: bpm + channels; each channel seq = [noteName|'r'|drum('K'/'S'/'H'), steps(16ths)] ──
-  TRACKS:{
-    // ── HOME THEMES (switchable on the title screen via the ♪ button) ──
-    // A — "Radiant": fuller, faster chiptune (sustained pad + arp fill the gaps).
-    title:{ bpm:106, ch:[
-      {w:"triangle",vol:0.42,gate:0.92, seq:[["A2",8],["F2",8],["C2",8],["G2",8],["A2",8],["F2",8],["C2",8],["G2",8]]},
-      {w:"triangle",vol:0.15,atk:0.05,gate:0.98,rel:0.25, seq:[["E3",8],["C3",8],["G3",8],["D3",8],["E3",8],["C3",8],["G3",8],["D3",8]]},
-      {w:"square",vol:0.13,gate:0.5, seq:[["A3",2],["C4",2],["E4",2],["A4",2],["A3",2],["C4",2],["F4",2],["A4",2],["C4",2],["E4",2],["G4",2],["C5",2],["B3",2],["D4",2],["G4",2],["B4",2]]},
-      {w:"square",vol:0.3,gate:0.82, seq:[["E4",4],["A4",4],["C5",4],["B4",4],["A4",4],["C5",4],["F5",4],["E5",4],["E5",4],["G4",4],["C5",4],["G5",4],["D5",4],["B4",4],["G4",4],["D5",4]]},
-    ]},
-    // B — "Orchestral": sustained detuned-saw string pad (triad across 3 voices) + horn melody.
-    titleB:{ bpm:96, ch:[
-      {w:"triangle",vol:0.3,gate:0.96,rel:0.3, seq:[["A2",8],["F2",8],["C2",8],["G2",8],["A2",8],["F2",8],["C2",8],["G2",8]]},
-      {w:"sawtooth",vol:0.12,atk:0.1,gate:0.99,rel:0.4,cutoff:1100,detune:8, seq:[["E3",8],["C4",8],["G3",8],["D4",8],["E3",8],["C4",8],["G3",8],["D4",8]]},
-      {w:"sawtooth",vol:0.11,atk:0.1,gate:0.99,rel:0.4,cutoff:1100, seq:[["C4",8],["A3",8],["E4",8],["B3",8],["C4",8],["A3",8],["E4",8],["B3",8]]},
-      {w:"triangle",vol:0.27,atk:0.05,gate:0.9,rel:0.2, seq:[["E4",4],["A4",4],["C5",4],["B4",4],["A4",4],["C5",4],["F5",4],["E5",4],["G4",4],["C5",4],["E5",4],["G5",4],["D5",4],["B4",4],["G4",4],["A4",4]]},
-    ]},
-    // C — "Heroic": up-tempo, eighth-pulse bass + sixteenth arp + bold lead.
-    titleC:{ bpm:128, ch:[
-      {w:"triangle",vol:0.44,gate:0.8, seq:[["A2",2],["A2",2],["A2",2],["A2",2],["F2",2],["F2",2],["F2",2],["F2",2],["C2",2],["C2",2],["C2",2],["C2",2],["G2",2],["G2",2],["G2",2],["G2",2]]},
-      {w:"square",vol:0.18,gate:0.5, seq:[["A3",2],["C4",2],["E4",2],["A4",2],["A3",2],["C4",2],["F4",2],["C4",2],["C4",2],["E4",2],["G4",2],["E4",2],["B3",2],["D4",2],["G4",2],["D4",2]]},
-      {w:"square",vol:0.32,gate:0.82, seq:[["E5",2],["C5",2],["A4",2],["B4",2],["C5",2],["A4",2],["F4",2],["A4",2],["G4",2],["C5",2],["E5",2],["G5",2],["D5",2],["B4",2],["G4",2],["D5",2]]},
-    ]},
-    field:{ bpm:116, ch:[
-      {w:"triangle",vol:0.45, seq:[["A2",8],["G2",8],["F2",8],["E2",8]]},
-      {w:"square",vol:0.32, seq:[["A4",2],["C5",2],["E5",2],["C5",2],["B4",2],["D5",2],["G4",2],["B4",2],["A4",2],["C5",2],["F4",2],["A4",2],["G#4",2],["B4",2],["E4",2],["B4",2]]},
-      {w:"square",vol:0.13, seq:[["A3",2],["C4",2],["E4",2],["C4",2],["G3",2],["B3",2],["D4",2],["B3",2],["F3",2],["A3",2],["C4",2],["A3",2],["E3",2],["G#3",2],["B3",2],["G#3",2]]},
-    ]},
-    battle:{ bpm:152, ch:[
-      {w:"triangle",vol:0.5, seq:[["A2",2],["A2",2],["A2",2],["A2",2],["E2",2],["E2",2],["E2",2],["E2",2],["A2",2],["A2",2],["A2",2],["A2",2],["G2",2],["G2",2],["G2",2],["G2",2]]},
-      {drum:true,vol:1, seq:[["K",2],["H",2],["S",2],["H",2],["K",2],["H",2],["S",2],["H",2],["K",2],["H",2],["S",2],["H",2],["K",2],["H",2],["S",2],["H",2]]},
-      {w:"square",vol:0.34, seq:[["A4",2],["C5",2],["E5",2],["C5",2],["E4",2],["G#4",2],["B4",2],["G#4",2],["A4",2],["E5",2],["C5",2],["A4",2],["G4",2],["B4",2],["D5",2],["B4",2]]},
-    ]},
-    boss:{ bpm:134, ch:[
-      {w:"triangle",vol:0.55, seq:[["D2",2],["D2",2],["D2",2],["D2",2],["Bb1",2],["Bb1",2],["Bb1",2],["Bb1",2],["C2",2],["C2",2],["C2",2],["C2",2],["A1",2],["A1",2],["A1",2],["A1",2]]},
-      {drum:true,vol:1, seq:[["K",2],["H",2],["K",2],["S",2],["K",2],["H",2],["K",2],["S",2],["K",2],["H",2],["K",2],["S",2],["K",2],["H",2],["S",2],["S",2]]},
-      {w:"square",vol:0.32, seq:[["D4",2],["F4",2],["A4",2],["F4",2],["D4",2],["F4",2],["Bb4",2],["A4",2],["E4",2],["G4",2],["C5",2],["B4",2],["C#5",2],["A4",2],["E4",2],["C#5",2]]},
-    ]},
-    victory:{ bpm:140, loop:false, ch:[
-      {w:"square",vol:0.4, seq:[["G4",2],["C5",2],["E5",2],["G5",6],["E5",2],["G5",2],["C6",8]]},
-      {w:"triangle",vol:0.45, seq:[["C3",8],["G2",8],["C3",8]]},
-    ]},
+  // Per-screen STYLE choice (persisted). Each screen can play any of the 3 styles.
+  styleByState:{title:"radiant",field:"radiant",battle:"radiant",boss:"radiant",victory:"radiant"},
+  STYLE_ORDER:["radiant","orchestral","heroic"],
+  // ── SONGS: per-screen note data by ROLE (bass/pad/arp/lead/drums). seq = [note|'r'|drum, steps(16ths)] ──
+  SONGS:{
+    title:{ bpm:100, roles:{
+      bass:[["A2",8],["F2",8],["C2",8],["G2",8],["A2",8],["F2",8],["C2",8],["G2",8]],
+      pad:[["E3",8],["C3",8],["G3",8],["D3",8],["E3",8],["C3",8],["G3",8],["D3",8]],
+      arp:[["A3",2],["C4",2],["E4",2],["A4",2],["A3",2],["C4",2],["F4",2],["A4",2],["C4",2],["E4",2],["G4",2],["C5",2],["B3",2],["D4",2],["G4",2],["B4",2]],
+      lead:[["E4",4],["A4",4],["C5",4],["B4",4],["A4",4],["C5",4],["F5",4],["E5",4],["E5",4],["G4",4],["C5",4],["G5",4],["D5",4],["B4",4],["G4",4],["D5",4]],
+    }},
+    field:{ bpm:116, roles:{
+      bass:[["A2",8],["G2",8],["F2",8],["E2",8]],
+      pad:[["E3",8],["D3",8],["C3",8],["B2",8]],
+      arp:[["A3",2],["C4",2],["E4",2],["C4",2],["G3",2],["B3",2],["D4",2],["B3",2],["F3",2],["A3",2],["C4",2],["A3",2],["E3",2],["G#3",2],["B3",2],["G#3",2]],
+      lead:[["A4",2],["C5",2],["E5",2],["C5",2],["B4",2],["D5",2],["G4",2],["B4",2],["A4",2],["C5",2],["F4",2],["A4",2],["G#4",2],["B4",2],["E4",2],["B4",2]],
+    }},
+    battle:{ bpm:152, roles:{
+      bass:[["A2",2],["A2",2],["A2",2],["A2",2],["E2",2],["E2",2],["E2",2],["E2",2],["A2",2],["A2",2],["A2",2],["A2",2],["G2",2],["G2",2],["G2",2],["G2",2]],
+      drums:[["K",2],["H",2],["S",2],["H",2],["K",2],["H",2],["S",2],["H",2],["K",2],["H",2],["S",2],["H",2],["K",2],["H",2],["S",2],["H",2]],
+      lead:[["A4",2],["C5",2],["E5",2],["C5",2],["E4",2],["G#4",2],["B4",2],["G#4",2],["A4",2],["E5",2],["C5",2],["A4",2],["G4",2],["B4",2],["D5",2],["B4",2]],
+    }},
+    boss:{ bpm:134, roles:{
+      bass:[["D2",2],["D2",2],["D2",2],["D2",2],["Bb1",2],["Bb1",2],["Bb1",2],["Bb1",2],["C2",2],["C2",2],["C2",2],["C2",2],["A1",2],["A1",2],["A1",2],["A1",2]],
+      drums:[["K",2],["H",2],["K",2],["S",2],["K",2],["H",2],["K",2],["S",2],["K",2],["H",2],["K",2],["S",2],["K",2],["H",2],["S",2],["S",2]],
+      lead:[["D4",2],["F4",2],["A4",2],["F4",2],["D4",2],["F4",2],["Bb4",2],["A4",2],["E4",2],["G4",2],["C5",2],["B4",2],["C#5",2],["A4",2],["E4",2],["C#5",2]],
+    }},
+    victory:{ bpm:140, loop:false, roles:{
+      lead:[["G4",2],["C5",2],["E5",2],["G5",6],["E5",2],["G5",2],["C6",8]],
+      bass:[["C3",8],["G2",8],["C3",8]],
+    }},
   },
-  load(){ try{ this.muted = localStorage.getItem("gaia_muted")==="1"; const t=localStorage.getItem("gaia_title"); if(t&&this.TRACKS[t])this.titleTrack=t; }catch(e){} this._renderBtns(); this._renderTitleLabel(); },
-  cycleTitle(){ const v=this.titleVariants; let i=v.findIndex(x=>x[0]===this.titleTrack); i=(i+1)%v.length;
-    this.titleTrack=v[i][0]; try{localStorage.setItem("gaia_title",this.titleTrack);}catch(e){}
-    this.unlock(); this.play(this.titleTrack); this._renderTitleLabel(); },
-  _renderTitleLabel(){ if(!document.querySelector)return; const v=this.titleVariants.find(x=>x[0]===this.titleTrack); const e=document.querySelector("#themeName"); if(e&&v)e.textContent=v[1]; },
+  // ── STYLES: how each role is voiced. "radiant" reproduces the original chiptune sound. ──
+  STYLES:{
+    radiant:{ tempo:1.0, roles:{
+      bass:{w:"triangle",vol:0.46,gate:0.88}, pad:{w:"triangle",vol:0.15,atk:0.05,gate:0.98,rel:0.25},
+      arp:{w:"square",vol:0.14,gate:0.5}, lead:{w:"square",vol:0.32,gate:0.82}, drums:{drum:true,vol:1} }},
+    orchestral:{ tempo:0.9, roles:{
+      bass:{w:"triangle",vol:0.34,gate:0.96,rel:0.3}, pad:{w:"sawtooth",vol:0.12,atk:0.1,gate:0.99,rel:0.4,cutoff:1100,detune:8},
+      arp:{w:"triangle",vol:0.1,atk:0.03,gate:0.7}, lead:{w:"triangle",vol:0.27,atk:0.05,gate:0.92,rel:0.2}, drums:null }},
+    heroic:{ tempo:1.18, roles:{
+      bass:{w:"triangle",vol:0.46,gate:0.8}, pad:{w:"square",vol:0.12,gate:0.6},
+      arp:{w:"square",vol:0.2,gate:0.5}, lead:{w:"square",vol:0.34,gate:0.86}, drums:{drum:true,vol:1} }},
+  },
+  load(){ try{ this.muted = localStorage.getItem("gaia_muted")==="1";
+    for(const s of Object.keys(this.styleByState)){ const v=localStorage.getItem("gaia_style_"+s); if(v&&this.STYLES[v]) this.styleByState[s]=v; } }catch(e){}
+    this._renderBtns(); this._renderStyleLabels(); },
+  cycleStyle(state){ if(!this.SONGS[state]) state="title"; const o=this.STYLE_ORDER;
+    this.styleByState[state]=o[(o.indexOf(this.styleByState[state]||"radiant")+1)%o.length];
+    try{ localStorage.setItem("gaia_style_"+state, this.styleByState[state]); }catch(e){}
+    this.unlock(); if(this.cur===state) this._switch(state); this._renderStyleLabels(); },
+  _renderStyleLabels(){ if(!document.querySelector)return; const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+    const set=(sel,state)=>{ const e=document.querySelector(sel); if(e) e.textContent=cap(this.styleByState[state]||"radiant"); };
+    set("#st-title","title"); set("#st-field","field");
+    set("#st-battle", (this.cur==="boss"||this.cur==="battle")?this.cur:"battle"); },
   unlock(){
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
     if(!this.ctx){
@@ -1401,14 +1416,19 @@ const Music = {
     this._renderBtns();
   },
   status(){ return (this.ctx?this.ctx.state:"none") + " · " + (this.route||"-") + (this.muted?" · muted":""); },
-  play(name){ this.pending=name; if(this.started && this.cur!==name) this._switch(name); },
-  _switch(name){ const g=this.master.gain, t=this.ctx.currentTime;
+  play(state){ this.pending=state; if(this.started && this.cur!==state) this._switch(state); },
+  _switch(state){ const g=this.master.gain, t=this.ctx.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(Math.max(0.0001,g.value),t); g.linearRampToValueAtTime(0.0001,t+0.12);
-    setTimeout(()=>{ this._start(name); const tt=this.ctx.currentTime; g.cancelScheduledValues(tt); g.setValueAtTime(0.0001,tt);
+    setTimeout(()=>{ this._start(state); const tt=this.ctx.currentTime; g.cancelScheduledValues(tt); g.setValueAtTime(0.0001,tt);
       g.linearRampToValueAtTime(this.muted?0:this.vol,tt+0.16); }, 130); },
-  _start(name){ const t=this.TRACKS[name]; this.cur=name; this.track=t; if(!t)return;
-    this.stepDur=60/t.bpm/4; const t0=this.ctx.currentTime+0.06;
-    this.cursors=t.ch.map(()=>({i:0,next:t0})); },
+  // render a screen's SONG through its chosen STYLE into a playable track {bpm, loop, ch[]}
+  _render(state){ const song=this.SONGS[state]; if(!song) return null;
+    const st=this.STYLES[this.styleByState[state]||"radiant"]||this.STYLES.radiant; const ch=[];
+    for(const role of ["bass","pad","arp","lead","drums"]){ const seq=song.roles[role], v=st.roles[role]; if(seq&&v) ch.push(Object.assign({seq},v)); }
+    return { bpm:Math.round(song.bpm*(st.tempo||1)), loop:song.loop, ch }; },
+  _start(state){ this.cur=state; this.track=this._render(state); if(!this.track) return;
+    this.stepDur=60/this.track.bpm/4; const t0=this.ctx.currentTime+0.06;
+    this.cursors=this.track.ch.map(()=>({i:0,next:t0})); },
   _sched(){ if(!this.ctx||!this.track) return; const now=this.ctx.currentTime, t=this.track;
     t.ch.forEach((ch,ci)=>{ const cur=this.cursors[ci];
       while(cur.next < now+this.LOOKAHEAD){
