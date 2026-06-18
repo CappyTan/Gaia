@@ -174,6 +174,7 @@
       <button class="btn gold" onclick="Game.start()">Enter Greenvale</button>
       <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
       <button class="btn mutebtn" title="Music on/off" onclick="Music.unlock();Music.toggleMute()">🔊</button>
+      <button class="btn" title="Switch home theme" onclick="Music.cycleTitle()">♪ <span id="themeName">Radiant</span> ▸</button>
     </div>
     <div class="small" style="max-width:460px;margin-top:8px">
       Proof of concept. Four SOL adventurers cut a path through Greenvale to the Bandit Brute.
@@ -247,7 +248,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.8.2";
+const GAME_VERSION = "v0.9";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -1147,7 +1148,7 @@ const Screens = {
   cur:"title",
   show(name){ Game.state=name; this.cur=name;
     ["title","field","battle"].forEach(s=>$("#"+s+"Screen").classList.toggle("on",s===name));
-    if(name==="title") Music.play("title");
+    if(name==="title") Music.play(Music.titleTrack);
     else if(name==="field") Music.play("field");   // battle music is set by Battle.begin
     if(name==="field"){ Field.resize(); Field.draw(); Field.hint();
       requestAnimationFrame(()=>{ Field.resize(); Field.draw(); });   // redraw once layout has settled
@@ -1325,11 +1326,29 @@ const Music = {
   ctx:null, master:null, started:false, muted:false, vol:0.16,
   pending:"title", cur:null, track:null, stepDur:0, cursors:[], _timer:null,
   LOOKAHEAD:0.12, TICK:25,
+  titleTrack:"title", titleVariants:[["title","Radiant"],["titleB","Orchestral"],["titleC","Heroic"]],
   // ── tracks: bpm + channels; each channel seq = [noteName|'r'|drum('K'/'S'/'H'), steps(16ths)] ──
   TRACKS:{
-    title:{ bpm:84, ch:[
-      {w:"triangle",vol:0.5, seq:[["A2",8],["F2",8],["C2",8],["G2",8],["A2",8],["F2",8],["C2",8],["G2",8]]},
-      {w:"square",vol:0.34, seq:[["E4",4],["A4",4],["C5",4],["B4",4],["A4",4],["C5",4],["F5",4],["E5",4],["E5",4],["C5",4],["G4",4],["E5",4],["D5",4],["B4",4],["G4",4],["D5",4]]},
+    // ── HOME THEMES (switchable on the title screen via the ♪ button) ──
+    // A — "Radiant": fuller, faster chiptune (sustained pad + arp fill the gaps).
+    title:{ bpm:106, ch:[
+      {w:"triangle",vol:0.42,gate:0.92, seq:[["A2",8],["F2",8],["C2",8],["G2",8],["A2",8],["F2",8],["C2",8],["G2",8]]},
+      {w:"triangle",vol:0.15,atk:0.05,gate:0.98,rel:0.25, seq:[["E3",8],["C3",8],["G3",8],["D3",8],["E3",8],["C3",8],["G3",8],["D3",8]]},
+      {w:"square",vol:0.13,gate:0.5, seq:[["A3",2],["C4",2],["E4",2],["A4",2],["A3",2],["C4",2],["F4",2],["A4",2],["C4",2],["E4",2],["G4",2],["C5",2],["B3",2],["D4",2],["G4",2],["B4",2]]},
+      {w:"square",vol:0.3,gate:0.82, seq:[["E4",4],["A4",4],["C5",4],["B4",4],["A4",4],["C5",4],["F5",4],["E5",4],["E5",4],["G4",4],["C5",4],["G5",4],["D5",4],["B4",4],["G4",4],["D5",4]]},
+    ]},
+    // B — "Orchestral": sustained detuned-saw string pad (triad across 3 voices) + horn melody.
+    titleB:{ bpm:96, ch:[
+      {w:"triangle",vol:0.3,gate:0.96,rel:0.3, seq:[["A2",8],["F2",8],["C2",8],["G2",8],["A2",8],["F2",8],["C2",8],["G2",8]]},
+      {w:"sawtooth",vol:0.12,atk:0.1,gate:0.99,rel:0.4,cutoff:1100,detune:8, seq:[["E3",8],["C4",8],["G3",8],["D4",8],["E3",8],["C4",8],["G3",8],["D4",8]]},
+      {w:"sawtooth",vol:0.11,atk:0.1,gate:0.99,rel:0.4,cutoff:1100, seq:[["C4",8],["A3",8],["E4",8],["B3",8],["C4",8],["A3",8],["E4",8],["B3",8]]},
+      {w:"triangle",vol:0.27,atk:0.05,gate:0.9,rel:0.2, seq:[["E4",4],["A4",4],["C5",4],["B4",4],["A4",4],["C5",4],["F5",4],["E5",4],["G4",4],["C5",4],["E5",4],["G5",4],["D5",4],["B4",4],["G4",4],["A4",4]]},
+    ]},
+    // C — "Heroic": up-tempo, eighth-pulse bass + sixteenth arp + bold lead.
+    titleC:{ bpm:128, ch:[
+      {w:"triangle",vol:0.44,gate:0.8, seq:[["A2",2],["A2",2],["A2",2],["A2",2],["F2",2],["F2",2],["F2",2],["F2",2],["C2",2],["C2",2],["C2",2],["C2",2],["G2",2],["G2",2],["G2",2],["G2",2]]},
+      {w:"square",vol:0.18,gate:0.5, seq:[["A3",2],["C4",2],["E4",2],["A4",2],["A3",2],["C4",2],["F4",2],["C4",2],["C4",2],["E4",2],["G4",2],["E4",2],["B3",2],["D4",2],["G4",2],["D4",2]]},
+      {w:"square",vol:0.32,gate:0.82, seq:[["E5",2],["C5",2],["A4",2],["B4",2],["C5",2],["A4",2],["F4",2],["A4",2],["G4",2],["C5",2],["E5",2],["G5",2],["D5",2],["B4",2],["G4",2],["D5",2]]},
     ]},
     field:{ bpm:116, ch:[
       {w:"triangle",vol:0.45, seq:[["A2",8],["G2",8],["F2",8],["E2",8]]},
@@ -1351,7 +1370,11 @@ const Music = {
       {w:"triangle",vol:0.45, seq:[["C3",8],["G2",8],["C3",8]]},
     ]},
   },
-  load(){ try{ this.muted = localStorage.getItem("gaia_muted")==="1"; }catch(e){} this._renderBtns(); },
+  load(){ try{ this.muted = localStorage.getItem("gaia_muted")==="1"; const t=localStorage.getItem("gaia_title"); if(t&&this.TRACKS[t])this.titleTrack=t; }catch(e){} this._renderBtns(); this._renderTitleLabel(); },
+  cycleTitle(){ const v=this.titleVariants; let i=v.findIndex(x=>x[0]===this.titleTrack); i=(i+1)%v.length;
+    this.titleTrack=v[i][0]; try{localStorage.setItem("gaia_title",this.titleTrack);}catch(e){}
+    this.unlock(); this.play(this.titleTrack); this._renderTitleLabel(); },
+  _renderTitleLabel(){ if(!document.querySelector)return; const v=this.titleVariants.find(x=>x[0]===this.titleTrack); const e=document.querySelector("#themeName"); if(e&&v)e.textContent=v[1]; },
   unlock(){
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
     if(!this.ctx){
@@ -1399,11 +1422,22 @@ const Music = {
     const c=this.ctx;
     if(ch.drum){ this._drum(note,time); return; }
     const f=noteFreq(note); if(!f) return;
-    const o=c.createOscillator(); o.type=ch.w||"square"; o.frequency.value=f;
-    const g=c.createGain(); const v=ch.vol||0.4; const hold=Math.max(0.03,dur*0.78), rel=Math.min(0.07,dur*0.25);
-    g.gain.setValueAtTime(0.0001,time); g.gain.exponentialRampToValueAtTime(v,time+0.006);
-    g.gain.setValueAtTime(v,time+hold); g.gain.exponentialRampToValueAtTime(0.0001,time+hold+rel);
-    o.connect(g); g.connect(this.master); o.start(time); o.stop(time+hold+rel+0.02);
+    const v=ch.vol||0.4;
+    const atk=ch.atk||0.006;                       // attack time (pads use a slow attack)
+    const gate=ch.gate||0.78;                      // fraction of the note held (legato -> ~0.95+)
+    const hold=Math.max(atk+0.01, dur*gate);
+    const rel=ch.rel||Math.min(0.07, dur*0.25);    // release tail
+    const g=c.createGain();
+    g.gain.setValueAtTime(0.0001,time);
+    g.gain.exponentialRampToValueAtTime(v, time+atk);
+    g.gain.setValueAtTime(v, time+hold);
+    g.gain.exponentialRampToValueAtTime(0.0001, time+hold+rel);
+    let tail=g;
+    if(ch.cutoff){ const lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=ch.cutoff; g.connect(lp); lp.connect(this.master); }
+    else g.connect(this.master);
+    const stop=time+hold+rel+0.05;
+    const mk=det=>{ const o=c.createOscillator(); o.type=ch.w||"square"; o.frequency.value=f; if(det)o.detune.value=det; o.connect(g); o.start(time); o.stop(stop); };
+    mk(0); if(ch.detune){ mk(ch.detune); mk(-ch.detune); }   // detuned stack = warm/orchestral
   },
   _drum(note,time){ const c=this.ctx;
     if(note==="K"){ const o=c.createOscillator(),g=c.createGain(); o.type="triangle";
