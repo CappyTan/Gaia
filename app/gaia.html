@@ -247,7 +247,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.8.1";
+const GAME_VERSION = "v0.8.2";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -1281,7 +1281,7 @@ const Telemetry = {
     const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
     const pctf=(n,d)=>d?Math.round(n/d*100)+"%":"—";
     const dropRow=d=>RARITY.map(r=>`<span class="r-${r.key}">${cap(r.key)} ${d[r.key]}</span>`).join(" · ");
-    let h=`<h2 class="title-gold">Telemetry</h2><div class="small" style="margin-top:-4px;opacity:.7">build ${GAME_VERSION}</div>`;
+    let h=`<h2 class="title-gold">Telemetry</h2><div class="small" style="margin-top:-4px;opacity:.7">build ${GAME_VERSION} · audio: ${Music.status()}</div>`;
     if(cur){ h+=`<div class="card" style="text-align:left;border-color:var(--gold)">
       <div class="tag">Current session</div>
       <div class="small">Time ${ms(Date.now()-cur.start)} · Steps ${cur.steps} · Encounters ${cur.encounters} (won ${cur.won}, fled ${cur.fled})</div>
@@ -1356,17 +1356,28 @@ const Music = {
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
     if(!this.ctx){
       try{ this.ctx=new AC(); }catch(e){ return; }
-      this.master=this.ctx.createGain(); this.master.gain.value=this.muted?0:this.vol; this.master.connect(this.ctx.destination);
+      this.master=this.ctx.createGain(); this.master.gain.value=this.muted?0:this.vol;
+      // Route through an <audio> element via a MediaStream so iOS plays on the MEDIA channel
+      // and ignores the hardware ring/silent switch (Web Audio -> ctx.destination obeys it).
+      // Fall back to direct output if MediaStreamDestination/srcObject is unsupported.
+      try{
+        this.sink=this.ctx.createMediaStreamDestination(); this.master.connect(this.sink);
+        const el=document.createElement("audio");
+        el.setAttribute("playsinline",""); el.setAttribute("webkit-playsinline",""); el.autoplay=true; el.loop=true;
+        el.srcObject=this.sink.stream; (document.body||document.documentElement).appendChild(el); this.el=el; this.route="media";
+      }catch(e){ this.master.connect(this.ctx.destination); this.route="direct"; }
       this.started=true; this._start(this.pending);
       this._timer=setInterval(()=>this._sched(), this.TICK);
     }
+    if(this.el){ try{ const p=this.el.play(); if(p&&p.catch)p.catch(()=>{ /* will retry on next gesture */ }); }catch(e){} }
     // iOS/Safari start a fresh context SUSPENDED — must resume() inside a user gesture or it's silent.
     if(this.ctx.state!=="running" && this.ctx.resume){
       this.ctx.resume();
-      // nudge the scheduler clock to "now" so it doesn't try to schedule a backlog post-resume
       if(this.track){ const t0=this.ctx.currentTime+0.06; this.cursors.forEach(c=>{ if(c.next!==Infinity) c.next=t0; }); }
     }
+    this._renderBtns();
   },
+  status(){ return (this.ctx?this.ctx.state:"none") + " · " + (this.route||"-") + (this.muted?" · muted":""); },
   play(name){ this.pending=name; if(this.started && this.cur!==name) this._switch(name); },
   _switch(name){ const g=this.master.gain, t=this.ctx.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(Math.max(0.0001,g.value),t); g.linearRampToValueAtTime(0.0001,t+0.12);
