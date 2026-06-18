@@ -338,19 +338,40 @@ const PARTY_DEFS = [
 // ---- Greenvale bestiary (levels 1-5). Attunement chosen so the SOL party feels the ring. ----
 //   SOL strong vs NOX (+50%), weak vs UMBRAXIS (-50%), neutral vs ANIMA/QUANTA.
 const ENEMIES = {
-  bandit:    {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:42, atk:11, spd:7, armor:1, mag:0, xp:30, gold:[6,14],  ai:"basic"},
-  cutpurse:  {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:56, atk:14, spd:10,armor:2, mag:0, xp:44, gold:[10,20], ai:"evasive"},
-  marauder:  {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:90, atk:19, spd:6, armor:3, mag:0, xp:64, gold:[14,26], ai:"basic"},
-  archer:    {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:74, atk:22, spd:9, armor:2, mag:2, xp:74, gold:[16,28], ai:"basic"},
-  brute:     {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:5, hp:620,atk:34, spd:6, armor:8, mag:0, xp:160,gold:[120,180],ai:"boss", boss:true},
+  // att chosen to exercise the whole ring vs the SOL party: SOL is STRONG vs NOX (+50%),
+  // WEAK vs UMBRAXIS (-50%), neutral vs ANIMA/QUANTA/SOL. onHit/leech/skills add texture.
+  bandit:   {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:42, atk:11, spd:7, armor:1, mag:0,  xp:30, gold:[6,14],  ai:"basic"},
+  wolf:     {name:"Gray Wolf",        spr:"🐺", att:"ANIMA",    lvl:1, hp:30, atk:12, spd:13,armor:0, mag:0,  xp:26, gold:[3,8],   ai:"basic"},
+  cutpurse: {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:56, atk:14, spd:11,armor:2, mag:0,  xp:44, gold:[10,22], ai:"evasive"},
+  wisp:     {name:"Forest Wisp",      spr:"💠", att:"QUANTA",   lvl:2, hp:36, atk:8,  spd:12,armor:0, mag:11, xp:42, gold:[6,12],  ai:"evasive", skills:["hex"], castChance:0.5},
+  marauder: {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:90, atk:19, spd:6, armor:3, mag:0,  xp:64, gold:[14,26], ai:"basic"},
+  lurker:   {name:"Bog Lurker",       spr:"🦎", att:"NOX",      lvl:3, hp:98, atk:17, spd:5, armor:4, mag:0,  xp:68, gold:[12,22], ai:"basic", onHit:{poison:3}},
+  archer:   {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:74, atk:22, spd:9, armor:2, mag:2,  xp:74, gold:[16,28], ai:"basic"},
+  shade:    {name:"Hollow Shade",     spr:"👻", att:"UMBRAXIS", lvl:4, hp:72, atk:21, spd:9, armor:2, mag:4,  xp:78, gold:[14,26], ai:"basic", leech:35},
+  shaman:   {name:"Bandit Shaman",    spr:"🧙", att:"ANIMA",    lvl:4, hp:66, atk:12, spd:8, armor:1, mag:13, xp:82, gold:[18,30], ai:"caster", skills:["mend"], castChance:0.55},
+  captain:  {name:"Brigand Captain",  spr:"🪖", att:"NOX",      lvl:5, hp:380,atk:27, spd:7, armor:5, mag:0,  xp:120,gold:[60,100], ai:"boss", miniboss:true, skills:["rally"], castChance:0.4},
+  brute:    {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:6, hp:640,atk:34, spd:6, armor:8, mag:0,  xp:170,gold:[120,180],ai:"boss", boss:true},
 };
-// Encounter table by area depth (the further you walk, the tougher the roll-set)
+
+// ---- Enemy abilities (cast in enemyTurn). Each returns true if it actually fired. ----
+const ENEMY_ABILITIES = {
+  mend:{ use(e,B){ const hurt=B.livingEnemies().filter(x=>x.hp<x.maxhp).sort((a,b)=>a.hp/a.maxhp-b.hp/b.maxhp);
+    const t=hurt[0]; if(!t) return false; const amt=Math.round(e.mag*1.7+22); heal(t,amt); float(t,`+${amt}`,"#aef0a0");
+    B.log(`${e.name} mends ${t.name} (+${amt}).`); return true; }},
+  hex:{ use(e,B){ const p=pick(B.livingParty()); if(!p) return false; applyStatus(p,{blind:2}); float(p,"blinded","#bbb");
+    B.log(`${e.name} hexes ${p.name}.`); return true; }},
+  rally:{ use(e,B){ const allies=B.livingEnemies(); if(!allies.length) return false;
+    allies.forEach(a=>{ applyStatus(a,{atkup:3}); float(a,"ATK↑","#ffb27a"); }); B.log(`${e.name} rallies the bandits!`); return true; }},
+};
+
+// Encounter table by area depth (the further you walk, the tougher the roll-set). The
+// mid-zone chokepoint (Brigand Captain) and the final Brute are NOT in this table.
 const ENCOUNTERS = [
-  {at:0.0, sets:[["bandit"],["bandit","bandit"],["bandit"]]},
-  {at:0.2, sets:[["bandit","bandit"],["cutpurse"],["bandit","cutpurse"]]},
-  {at:0.4, sets:[["cutpurse","bandit"],["marauder"],["bandit","bandit","cutpurse"]]},
-  {at:0.6, sets:[["marauder","bandit"],["archer"],["marauder","cutpurse"]]},
-  {at:0.8, sets:[["archer","cutpurse"],["marauder","archer"],["archer","bandit","bandit"]]},
+  {at:0.0,  sets:[["bandit"],["wolf","wolf"],["bandit","wolf"]]},
+  {at:0.18, sets:[["bandit","bandit"],["cutpurse"],["wolf","wolf","bandit"],["wisp"]]},
+  {at:0.36, sets:[["cutpurse","bandit"],["marauder"],["lurker"],["wisp","bandit"]]},
+  {at:0.54, sets:[["marauder","bandit"],["shade"],["shaman","bandit"],["archer"]]},
+  {at:0.72, sets:[["archer","cutpurse"],["shade","shaman"],["marauder","archer"],["shaman","bandit","bandit"]]},
 ];
 
 /* =====================================================================================
@@ -364,10 +385,11 @@ const Game = {
   steps:0,
   encountersWon:0,
   bossDefeated:false,
+  miniBossDefeated:false,
   continueAfterBattle:null,   // set after a victory; UI.close() fires it (anti-soft-lock)
 
   start(){
-    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false; this.continueAfterBattle=null;
+    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false; this.miniBossDefeated=false; this.continueAfterBattle=null;
     Telemetry.load(); Telemetry.startSession();
     this.party = PARTY_DEFS.map(d=>makeMember(d));
     // starting gear: a common weapon each so the loot loop has a baseline to beat
@@ -475,16 +497,23 @@ function rollDrop(enemy, weaponClassPreference){
   const wc = slot==="weapon" ? (weaponClassPreference||pick(Object.keys(ITEM_NAMES))) : null;
   return makeItem(null, slot, r, wc);
 }
+// chest loot: roll around a target rarity floor (used by field-map treasure chests)
+function rollItemAtRarity(floor, weaponClassPreference){
+  let r=clamp(floor,0,5); for(let i=r;i<=5;i++){ if(Math.random()<0.4) r=i; else break; }
+  const slot = pick(["weapon","weapon","armor","trinket"]);
+  const wc = slot==="weapon" ? (weaponClassPreference||pick(Object.keys(ITEM_NAMES))) : null;
+  return makeItem(null, slot, clamp(r,0,5), wc);
+}
 
 /* =====================================================================================
    4. ATB BATTLE ENGINE
    ===================================================================================== */
 const Battle = {
   active:false, enemies:[], order:[], current:null, awaiting:false,
-  selecting:null, raf:0, last:0, env:"plains", isBoss:false,
+  selecting:null, raf:0, last:0, env:"plains", isBoss:false, finalBoss:false,
 
-  begin(enemyKeys, env, isBoss){
-    this.active=true; this.isBoss=!!isBoss; this.env=env||"plains";
+  begin(enemyKeys, env, isBoss, finalBoss){
+    this.active=true; this.isBoss=!!isBoss; this.finalBoss=!!finalBoss; this.env=env||"plains";
     this.enemies = enemyKeys.map((k,i)=>makeEnemy(k,i,isBoss));
     Telemetry.encounterStart(enemyKeys, env||"plains", !!isBoss);
     Game.party.forEach(m=>{ m.atb=ri(0,40); m.status={}; m.side="party"; m.guarding=false; m.acted=false; });
@@ -492,7 +521,8 @@ const Battle = {
     this.awaiting=false; this.current=null; this.logLines=[];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
-    this.log(isBoss? "The Bandit Brute blocks the path!" : "Bandits ambush the party!");
+    const lead=this.enemies.find(e=>e.boss)||this.enemies[0];
+    this.log(isBoss? `${lead.name} blocks the path!` : "Enemies ambush the party!");
     this.last=performance.now(); cancelAnimationFrame(this.raf);
     this.raf=requestAnimationFrame(t=>this.tick(t));
   },
@@ -646,6 +676,7 @@ const Battle = {
     // status on hit
     if(s&&s.status) applyStatus(target,s.status);
     if(actor.bonusBurn) applyStatus(target,{burn:2});
+    if(actor.onHitPoison) applyStatus(target,{poison:actor.onHitPoison});
     markHurt(target);
     if(!target.alive) this.onDeath(target);
   },
@@ -672,22 +703,26 @@ const Battle = {
       if(!e.alive){ this.endTurn(e); return; }
       const party=this.livingParty();
       if(party.length===0){ this.endTurn(e); return; }
-      let target;
-      // prefer lowest-HP for evasive/boss sometimes, else random; tank-taunt draws aggro
-      const taunter=party.find(p=>p.status.wardArmor && p.role==="Tank");
-      if(e.ai==="boss"){
-        target = Math.random()<0.5 ? party.sort((a,b)=>a.hp-b.hp)[0] : pick(party);
-      } else if(e.ai==="evasive"){
-        target = pick(party);
-      } else { target = pick(party); }
-      if(taunter && Math.random()<0.5) target=taunter;
-      this.log(`${e.name} strikes ${target.name}.`);
-      // boss occasionally hits the whole party
-      if(e.boss && Math.random()<0.25){
-        this.log(`${e.name} unleashes a wild swing!`);
-        party.forEach(t=>this.strike(e,t,{}));
-      } else {
-        this.strike(e,target,{});
+      // ability first: caster/special enemies may cast instead of striking (returns false
+      // -> fall through to a normal attack, e.g. the Shaman with no wounded ally to mend)
+      let used=false;
+      if(e.skills && e.skills.length && Math.random()<e.castChance){
+        const ab=ENEMY_ABILITIES[pick(e.skills)]; if(ab) used=ab.use(e,this);
+      }
+      if(!used){
+        let target;
+        const taunter=party.find(p=>p.status.wardArmor && p.role==="Tank");
+        if(e.ai==="boss"){ target = Math.random()<0.5 ? party.slice().sort((a,b)=>a.hp-b.hp)[0] : pick(party); }
+        else { target = pick(party); }
+        if(taunter && Math.random()<0.5) target=taunter;
+        // bosses occasionally hit the whole party
+        if(e.boss && Math.random()<0.25){
+          this.log(`${e.name} unleashes a wild swing!`);
+          party.forEach(t=>this.strike(e,t,{}));
+        } else {
+          this.log(`${e.name} strikes ${target.name}.`);
+          this.strike(e,target,{});
+        }
       }
       recalc(Game.party);
       this.renderAll();
@@ -732,24 +767,25 @@ const Battle = {
     Game.encountersWon++;
     let xp=0, gold=0, drops=[];
     this.enemies.forEach(e=>{ xp+=e.xpReward; gold+=ri(e.goldRange[0],e.goldRange[1]);
-      // drop chance: normal 35%, elite 100%, boss 100% (2 drops)
-      const chance = e.boss?1 : e.elite?1 : 0.4;
+      // drop chance + count: normal 40%, elite 100%, mini-boss 100% (+1), final boss 100% (+2)
+      const chance = (e.boss||e.miniboss)?1 : e.elite?1 : 0.4;
       if(Math.random()<chance){ drops.push(rollDrop(e, pick(Game.party).cls)); }
-      if(e.boss){ drops.push(rollDrop(e, pick(Game.party).cls)); }
+      if(e.miniboss){ drops.push(rollDrop(e, pick(Game.party).cls)); }
+      if(e.boss){ drops.push(rollDrop(e, pick(Game.party).cls)); drops.push(rollDrop(e, pick(Game.party).cls)); }
     });
     Game.gold+=gold;
     const leveled=grantXp(Game.party, xp);
     if(leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach(d=>{ Game.inventory.push(d); Telemetry.drop(d.rarity); });
-    const wasBoss=this.isBoss;
-    // Set the post-battle continuation. ANY overlay close routes through UI.close(), which
-    // fires this if set — so drilling into Bag/Party after a win can never soft-lock (the
-    // old bug: opening the bag replaced the spoils overlay and stranded you on the dead
-    // battle screen with no Continue button).
-    Game.continueAfterBattle = wasBoss ? ()=>Game.victory() : ()=>Screens.show("field");
-    setTimeout(()=>this.showSpoils(xp,gold,drops,leveled,wasBoss), 500);
+    const wasBoss=this.isBoss, wasFinal=this.finalBoss;
+    // mini-boss win clears the chokepoint gate so the road east opens
+    if(wasBoss && !wasFinal){ Game.miniBossDefeated=true; if(Field.gate) Field.map[Field.gate.y][Field.gate.x]="path"; }
+    // Post-battle continuation. ANY overlay close routes through UI.close(), which fires this
+    // if set — so drilling into Bag/Party after a win can never soft-lock.
+    Game.continueAfterBattle = wasFinal ? ()=>Game.victory() : ()=>Screens.show("field");
+    setTimeout(()=>this.showSpoils(xp,gold,drops,leveled,wasFinal), 500);
   },
-  showSpoils(xp,gold,drops,leveled,wasBoss){
+  showSpoils(xp,gold,drops,leveled,wasFinal){
     let h=`<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +${gold} gold</p>`;
     if(leveled.length){ h+=`<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
       leveled.forEach(l=>{ h+=`<div class="small">${l.name} → Lv ${l.level}${l.newSkill?` · learned <span class="r-legendary">${l.newSkill}</span>`:""}</div>`; });
@@ -757,8 +793,8 @@ const Battle = {
     if(drops.length){ h+=`<div class="tag">Loot</div><div class="scroll">`; drops.forEach(d=>h+=itemHtml(d)); h+="</div>"; }
     else h+=`<p class="small">No loot this time.</p>`;
     h+=`<div class="row"><button class="btn" onclick="UI.openInventory()">Open Bag</button>`;
-    h+= wasBoss ? `<button class="btn gold" onclick="UI.close()">Finish</button>`
-                : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
+    h+= wasFinal ? `<button class="btn gold" onclick="UI.close()">Finish</button>`
+                 : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
     h+=`</div>`;
     Overlay.show(h);
   },
@@ -829,10 +865,11 @@ function makeEnemy(key,idx,isBossBattle){
   const d=ENEMIES[key];
   const e={ key, name:d.name, spr:d.spr, att:d.att, lvl:d.lvl, side:"enemy",
     maxhp:d.hp, hp:d.hp, atk:d.atk, spd:d.spd, armor:d.armor, mag:d.mag||0,
-    xpReward:d.xp, goldRange:d.gold, ai:d.ai, boss:!!d.boss, alive:true, atb:0, status:{},
-    critPct:5, leech:0, solPct:0 };
-  // elite roll (not bosses): ~22% of non-boss enemies become elite
-  if(!e.boss && Math.random()<0.22){
+    xpReward:d.xp, goldRange:d.gold, ai:d.ai, boss:!!d.boss, miniboss:!!d.miniboss,
+    skills:d.skills||null, castChance:d.castChance||0, onHitPoison:(d.onHit&&d.onHit.poison)||0,
+    alive:true, atb:0, status:{}, critPct:5, leech:d.leech||0, solPct:0 };
+  // elite roll (regular enemies only): ~22% become elite with 1-2 affixes
+  if(!e.boss && !e.miniboss && Math.random()<0.22){
     e.elite=true; Telemetry.noteElite(); const n=ri(1,2); const used=[]; e.eliteAffixes=[];
     for(let i=0;i<n;i++){ const a=pick(ELITE_AFFIXES.filter(x=>!used.includes(x.key))); if(!a)break; used.push(a.key); e.eliteAffixes.push(a.key);
       a.apply(e); }
@@ -892,6 +929,8 @@ const Field = {
   // Together these set run length: ~W/((MIN+MAX)/2) fights on the road east. Crank W
   // for a longer quest. (v0.1 was W:26 → only ~3 fights / ~5 min.)
   W:60, H:18, tile:0, px:0, py:0, map:[], boss:{x:58,y:9}, stepsToEncounter:0,
+  gate:{x:30,y:9},                 // mid-zone chokepoint — the Brigand Captain mini-boss
+  chests:[{x:8,y:5},{x:16,y:13},{x:23,y:5},{x:41,y:13},{x:51,y:5}],
   ENC_MIN:3, ENC_MAX:6,
   canvas:null, ctx:null,
 
@@ -914,12 +953,23 @@ const Field = {
     for(let y=0;y<this.H;y++){ const row=[]; for(let x=0;x<this.W;x++){
       let t="grass";
       if(x===0||y===0||x===this.W-1||y===this.H-1) t="tree";
-      else if(Math.random()<0.08) t="tree";
+      else if(Math.random()<0.10) t="tree";
       else if(Math.random()<0.05) t="bush";
       row.push(t);
     } this.map.push(row); }
-    // carve a corridor along the player's row so the path is never blocked
-    for(let x=1;x<this.W-1;x++){ this.map[9][x]="path"; this.map[8][x]=this.map[8][x]==="tree"?"grass":this.map[8][x]; this.map[10][x]=this.map[10][x]==="tree"?"grass":this.map[10][x]; }
+    // guaranteed-walkable central band (rows 8-10) so the road east is never blocked
+    for(let x=1;x<this.W-1;x++){ this.map[8][x]="grass"; this.map[9][x]="path"; this.map[10][x]="grass"; }
+    // mid-zone CHOKEPOINT: a full-height tree wall with one gap holding the mini-boss tile,
+    // so you must beat the Brigand Captain to pass east (built AFTER the band carve)
+    const gx=this.gate.x;
+    for(let y=1;y<this.H-1;y++) this.map[y][gx]="tree";
+    this.map[this.gate.y][gx]="miniboss";
+    // treasure chests, each with a cleared halo so they're always reachable off the path
+    this.chests.forEach(c=>{
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ const xx=c.x+dx, yy=c.y+dy;
+        if(xx>0&&yy>0&&xx<this.W-1&&yy<this.H-1&&this.map[yy][xx]==="tree") this.map[yy][xx]="grass"; }
+      this.map[c.y][c.x]="chest";
+    });
     this.map[this.boss.y][this.boss.x]="boss";
     this.map[9][1]="path";
   },
@@ -932,9 +982,12 @@ const Field = {
     if(!this.passable(nx,ny)) return;
     this.px=nx; this.py=ny; Game.steps++; Telemetry.step();
     this.draw(); this.hint();
-    if(this.map[ny][nx]==="boss" && !Game.bossDefeated){ this.startBoss(); return; }
+    const cell=this.map[ny][nx];
+    if(cell==="boss" && !Game.bossDefeated){ this.startBoss(); return; }
+    if(cell==="miniboss" && !Game.miniBossDefeated){ this.startMiniBoss(); return; }
+    if(cell==="chest"){ this.openChest(nx,ny); return; }   // a chest doesn't also trigger a fight
     this.stepsToEncounter--;
-    if(this.stepsToEncounter<=0 && this.map[ny][nx]!=="boss"){ this.stepsToEncounter=ri(this.ENC_MIN,this.ENC_MAX); this.rollEncounter(); }
+    if(this.stepsToEncounter<=0){ this.stepsToEncounter=ri(this.ENC_MIN,this.ENC_MAX); this.rollEncounter(); }
   },
   rollEncounter(){
     const p=this.progress();
@@ -942,13 +995,25 @@ const Field = {
     for(const e of ENCOUNTERS){ if(p>=e.at) band=e; }
     const set=pick(band.sets);
     const env = p<0.3?"plains": p<0.55?"forest": p<0.8?"desert":"mountains";
-    Battle.begin(set, env, false);
+    Battle.begin(set, env, false, false);
   },
-  startBoss(){ Battle.begin(["brute"], "mountains", true); },
+  startBoss(){ Battle.begin(["brute"], "mountains", true, true); },
+  startMiniBoss(){ const env=this.progress()<0.55?"forest":"desert"; Battle.begin(["captain","bandit","bandit"], env, true, false); },
+  openChest(x,y){
+    this.map[y][x]="path";
+    const floor=clamp(2+Math.floor(this.progress()*3),1,5);   // deeper chests = better floor
+    const it=rollItemAtRarity(floor, pick(Game.party).cls);
+    Game.inventory.push(it); Telemetry.drop(it.rarity);
+    this.draw(); this.hint();
+    Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+  },
   hint(){
     const p=this.progress();
-    let msg = p<0.12? "Head east through Greenvale." : p>0.88? "The Bandit Brute's camp lies just ahead." :
-      `${Math.round(p*100)}% through Greenvale. Keep moving east.`;
+    let msg;
+    if(!Game.miniBossDefeated && p>=0.38) msg="A Brigand Captain blocks the road ahead.";
+    else if(p<0.12) msg="Head east through Greenvale. Search off the path for treasure.";
+    else if(p>0.88) msg="The Bandit Brute's camp lies just ahead.";
+    else msg=`${Math.round(p*100)}% through Greenvale. Keep moving east.`;
     $("#fieldHint").textContent=msg;
     $("#fieldZone").textContent=`Greenvale · ${Game.encountersWon} cleared`;
     $("#fieldGold").textContent=Game.gold;
@@ -961,7 +1026,7 @@ const Field = {
     const viewW=Math.ceil(this.canvas.width/t), viewH=Math.ceil(this.canvas.height/t);
     let camx=clamp(this.px-Math.floor(viewW/2),0,Math.max(0,this.W-viewW));
     let camy=clamp(this.py-Math.floor(viewH/2),0,Math.max(0,this.H-viewH));
-    const colors={grass:"#4a7a32",path:"#7a6a3a",tree:"#1f3a1c",bush:"#3a6a2a",boss:"#6a1020"};
+    const colors={grass:"#4a7a32",path:"#7a6a3a",tree:"#1f3a1c",bush:"#3a6a2a",boss:"#6a1020",chest:"#6a5a2a",miniboss:"#5a1226"};
     for(let y=0;y<viewH+1;y++)for(let x=0;x<viewW+1;x++){
       const mx=camx+x, my=camy+y; if(mx>=this.W||my>=this.H)continue;
       const cell=this.map[my][mx];
@@ -969,9 +1034,12 @@ const Field = {
       const sx=(mx-camx)*t, sy=(my-camy)*t;
       c.fillRect(sx,sy,t,t);
       if(cell==="grass"||cell==="path"){ c.fillStyle="rgba(0,0,0,.06)"; if((mx+my)%2)c.fillRect(sx,sy,t,t); }
-      if(cell==="tree"){ c.font=`${t*0.9}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText("🌲",sx+t/2,sy+t/2); }
-      if(cell==="bush"){ c.font=`${t*0.7}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText("🌿",sx+t/2,sy+t/2); }
-      if(cell==="boss"){ c.font=`${t*0.9}px serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(Game.bossDefeated?"🏴":"⛺",sx+t/2,sy+t/2); }
+      c.font=`${t*0.82}px serif`; c.textAlign="center"; c.textBaseline="middle";
+      if(cell==="tree") c.fillText("🌲",sx+t/2,sy+t/2);
+      else if(cell==="bush") c.fillText("🌿",sx+t/2,sy+t/2);
+      else if(cell==="chest") c.fillText("📦",sx+t/2,sy+t/2);
+      else if(cell==="miniboss") c.fillText("🪖",sx+t/2,sy+t/2);
+      else if(cell==="boss") c.fillText(Game.bossDefeated?"🏴":"⛺",sx+t/2,sy+t/2);
     }
     // ---- player marker: unmistakable glowing disc + ring + sprite ----
     const cx=(this.px-camx)*t+t/2, cy=(this.py-camy)*t+t/2;

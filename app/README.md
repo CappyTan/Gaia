@@ -16,9 +16,13 @@ Safari — including iOS Safari). That's it.
 
 | System | Status |
 |---|---|
-| Tile field map (Greenvale), camera, random encounters, boss gate | ✅ |
+| Open tile field map (Greenvale), camera, random encounters | ✅ |
+| **Chokepoint gate**: Brigand Captain mini-boss mid-zone, then the Bandit Brute east | ✅ |
+| **Treasure chests** off the path (loot reward for exploring) | ✅ |
 | **ATB** battle: SPD-driven gauges, act-when-ready, enemy AI | ✅ |
 | Command menu: Attack / Skill / Defend / Flee, target select | ✅ |
+| **Enemy abilities**: Shaman heals allies, Wisp blinds, Captain rallies the pack | ✅ |
+| On-hit effects: Bog Lurker poison, Hollow Shade lifesteal | ✅ |
 | Five-Powers **affinity ring** (SOL strong vs NOX, weak vs UMBRAXIS, etc.) | ✅ |
 | **Signature effects**: Burn, Poison, Decay, Drain, crit/dodge (QUANTA) | ✅ |
 | Status effects: burn/poison/regen/stun/blind/atk-up/ward-armor | ✅ |
@@ -27,13 +31,15 @@ Safari — including iOS Safari). That's it.
 | **Elite** enemies (1-2 random affixes, guaranteed better drops) | ✅ |
 | Inventory + per-character equip screen (weapon/armor/trinket) | ✅ |
 | Progression: XP, level-ups, stat growth, **skill unlocks** (~Lv 1→8) | ✅ |
-| Bandit Brute boss + victory / party-wipe defeat | ✅ |
+| Mini-boss + final boss + victory / party-wipe defeat | ✅ |
 
 The four SOL party members: **Auren** (Sword & Shield, tank), **Kaela** (Dual Swords,
-DPS), **Sephi** (Staff, caster/healer), **Rion** (Spellblade, hybrid). Greenvale bestiary:
-Highway Bandit, Thieves' Cutpurse, Marauder, Outlaw Archer, Bandit Brute (boss). Enemy
-attunements are set so the all-SOL party feels the ring (bonus vs NOX bandits, resisted by
-the UMBRAXIS cutpurse).
+DPS), **Sephi** (Staff, caster/healer), **Rion** (Spellblade, hybrid). Greenvale bestiary
+(11 types): Highway Bandit, Gray Wolf, Thieves' Cutpurse, Forest Wisp, Marauder, Bog
+Lurker, Outlaw Archer, Hollow Shade, Bandit Shaman, Brigand Captain (mini-boss), Bandit
+Brute (final boss). Enemy attunements span the whole ring so the all-SOL party feels it:
+bonus damage vs NOX foes (Bandit, Lurker, Captain, Brute), resisted by UMBRAXIS foes
+(Cutpurse, Shade), neutral vs ANIMA/QUANTA.
 
 ## Art status (deliberate)
 
