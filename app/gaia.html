@@ -257,7 +257,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.10.1";
+const GAME_VERSION = "v0.11";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -423,6 +423,14 @@ const ENEMIES = {
   shaman:   {name:"Bandit Shaman",    spr:"🧙", att:"ANIMA",    lvl:4, hp:60, atk:11, spd:9, armor:1, mag:14, xp:82, gold:[18,30], ai:"caster", skills:["mend"], castChance:0.55},
   captain:  {name:"Brigand Captain",  spr:"🪖", att:"NOX",      lvl:5, hp:720, atk:27, spd:8, armor:5, mag:0,  xp:120,gold:[60,100], ai:"boss", miniboss:true, skills:["rally"], castChance:0.4},
   brute:    {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:6, hp:1300,atk:34, spd:7, armor:8, mag:0,  xp:170,gold:[120,180],ai:"boss", boss:true},
+  // ── ZONE 2: The Duskmarsh (entered ~Lv 7-8, so higher base stats; no real art yet -> emoji) ──
+  serpent:  {name:"Mire Serpent",     spr:"🐍", att:"ANIMA",    lvl:7, hp:115, atk:30, spd:13,armor:1, mag:0,  xp:120,gold:[16,30], ai:"basic", onHit:{poison:3}},
+  husk:     {name:"Drowned Husk",     spr:"🧟", att:"UMBRAXIS", lvl:7, hp:155, atk:26, spd:6, armor:3, mag:0,  xp:130,gold:[20,38], ai:"basic", leech:30},
+  gloomwisp:{name:"Gloom Wisp",       spr:"👁️", att:"QUANTA",   lvl:8, hp:92,  atk:18, spd:13,armor:0, mag:22, xp:130,gold:[14,26], ai:"evasive", skills:["hex"], castChance:0.5},
+  fenwitch: {name:"Fen Witch",        spr:"🧙‍♀️", att:"ANIMA",   lvl:8, hp:124, atk:18, spd:9, armor:1, mag:24, xp:150,gold:[28,46], ai:"caster", skills:["mend"], castChance:0.55},
+  knight:   {name:"Sunken Knight",    spr:"⚰️", att:"NOX",      lvl:8, hp:205, atk:36, spd:6, armor:6, mag:0,  xp:150,gold:[24,42], ai:"basic"},
+  fenwarden:{name:"Fen Warden",       spr:"🐲", att:"NOX",      lvl:9, hp:1120,atk:40, spd:8, armor:7, mag:0,  xp:240,gold:[120,200],ai:"boss", miniboss:true, skills:["rally"], castChance:0.4},
+  vorn:     {name:"Mirelord Vorn",    spr:"👹", att:"ANIMA",    lvl:10,hp:2600,atk:50, spd:7, armor:10,mag:6,  xp:320,gold:[260,400],ai:"boss", boss:true, skills:["rally"], castChance:0.35},
 };
 // Enemies scale with DEPTH (how far east through Greenvale you are) so they keep pace with
 // the party's level + gear growth. HP scales HARD (so enemies survive the party's burst and
@@ -454,6 +462,21 @@ const ENCOUNTERS = [
   {at:0.72, sets:[["archer","cutpurse"],["shade","shaman"],["marauder","archer"],["shaman","bandit","bandit"]]},
 ];
 
+// ---- ZONES: ordered. Each has its own bestiary bands, chokepoint mini-boss, and end boss.
+// Beating a zone's boss opens a merchant, then the next zone; the LAST zone's boss wins the run.
+const ZONES = [
+  { id:"greenvale", name:"Greenvale", mini:"captain", miniAdds:["bandit","bandit"], boss:"brute",
+    envs:["plains","forest","desert","mountains"], bands:ENCOUNTERS },
+  { id:"duskmarsh", name:"The Duskmarsh", mini:"fenwarden", miniAdds:["serpent","serpent"], boss:"vorn",
+    envs:["mire","forest","mire","hollow"], bands:[
+      {at:0.0,  sets:[["serpent"],["husk"],["serpent","serpent"]]},
+      {at:0.2,  sets:[["husk","serpent"],["gloomwisp"],["knight"]]},
+      {at:0.4,  sets:[["knight","serpent"],["fenwitch","husk"],["gloomwisp","serpent"]]},
+      {at:0.6,  sets:[["husk","knight"],["fenwitch","gloomwisp"],["serpent","serpent","husk"]]},
+      {at:0.8,  sets:[["knight","fenwitch"],["husk","husk","serpent"],["gloomwisp","knight","fenwitch"]]},
+    ] },
+];
+
 /* =====================================================================================
    2. GAME STATE
    ===================================================================================== */
@@ -469,7 +492,7 @@ const Game = {
   continueAfterBattle:null,   // set after a victory; UI.close() fires it (anti-soft-lock)
 
   start(){
-    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false; this.miniBossDefeated=false; this.continueAfterBattle=null;
+    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false; this.miniBossDefeated=false; this.continueAfterBattle=null; this._inMerchant=false;
     Telemetry.load(); Telemetry.startSession();
     this.party = PARTY_DEFS.map(d=>makeMember(d));
     // starting gear: a common weapon each so the loot loop has a baseline to beat
@@ -483,13 +506,36 @@ const Game = {
     <p class="small">Greenvale claims another band of adventurers.</p>
     <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Try again</button>
       <button class="btn" onclick="Overlay.hide()">Home</button></div>`); },
-  victory(){ this.bossDefeated=true; Telemetry.boss("win"); Telemetry.endSession("victory"); Screens.show("title"); Overlay.show(`
-    <h2 class="title-gold">Greenvale is clear</h2>
-    <p>The Bandit Brute is dead. The road to the deeper Powers lies open.</p>
-    <p class="small">Vertical slice complete — encounters won: ${this.encountersWon}. Gold: ${this.gold}.</p>
+  victory(){ this.bossDefeated=true; this._inMerchant=false; Telemetry.boss("win"); Telemetry.endSession("victory"); Screens.show("title"); Overlay.show(`
+    <h2 class="title-gold">Gaia is saved</h2>
+    <p>Mirelord Vorn falls. You have cut a path through every zone of the slice.</p>
+    <p class="small">Run complete — encounters won: ${this.encountersWon}. Gold: ${this.gold}.</p>
     <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Play again</button>
       <button class="btn" onclick="Overlay.hide()">Home</button></div>`); },
+
+  // ── MERCHANT: appears after a zone boss; spend gold on rolled loot, then press on ──
+  openMerchant(){
+    this._inMerchant=true;
+    const floor=clamp(1+Field.zoneIndex*2,0,5);   // deeper zone = better base stock
+    this._stock=[]; for(let i=0;i<6;i++) this._stock.push(rollItemAtRarity(ri(floor,Math.min(5,floor+2)), pick(this.party).cls));
+    this.renderMerchant();
+  },
+  renderMerchant(){
+    const next = Field.isLastZone() ? null : ZONES[Field.zoneIndex+1];
+    let h=`<h2 class="title-gold">Wandering Merchant</h2><div class="small">"Spoils for the road ahead." Gold: <b>${this.gold}</b></div><div class="scroll">`;
+    if(!this._stock.length) h+=`<p class="small">Sold out. Safe travels.</p>`;
+    this._stock.forEach((it,idx)=>{ const price=priceOf(it), afford=this.gold>=price;
+      h+=itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${afford?" gold":""}" ${afford?"":"disabled"} onclick="Game.buyItem(${idx})">Buy · ${price}g</button></div>`); });
+    h+=`</div><div class="row"><button class="btn" onclick="UI.openParty()">Party</button><button class="btn" onclick="UI.openInventory()">Bag</button>`;
+    h+=`<button class="btn gold" onclick="Game.leaveMerchant()">${next?("Onward to "+next.name+" →"):"Leave →"}</button></div>`;
+    Overlay.show(h);
+  },
+  buyItem(idx){ const it=this._stock[idx]; if(!it) return; const price=priceOf(it); if(this.gold<price) return;
+    this.gold-=price; this.inventory.push(it); this._stock.splice(idx,1); this.renderMerchant(); },
+  leaveMerchant(){ this._inMerchant=false; Overlay.hide();
+    if(Field.isLastZone()) this.victory(); else Field.loadZone(Field.zoneIndex+1); },
 };
+function priceOf(it){ const base=[30,70,150,320,650,1300][it.rIx]||30; return Math.round(base + itemScore(it)*2); }
 
 function makeMember(d){
   return {
@@ -848,12 +894,15 @@ const Battle = {
     const leveled=grantXp(Game.party, xp);
     if(leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach(d=>{ Game.inventory.push(d); Telemetry.drop(d.rarity); });
-    const wasBoss=this.isBoss, wasFinal=this.finalBoss;
+    const wasMini = this.enemies.some(e=>e.miniboss), wasZoneBoss = this.enemies.some(e=>e.boss), wasFinal=this.finalBoss;
     // mini-boss win clears the chokepoint gate so the road east opens
-    if(wasBoss && !wasFinal){ Game.miniBossDefeated=true; if(Field.gate) Field.map[Field.gate.y][Field.gate.x]="path"; }
-    // Post-battle continuation. ANY overlay close routes through UI.close(), which fires this
-    // if set — so drilling into Bag/Party after a win can never soft-lock.
-    Game.continueAfterBattle = wasFinal ? ()=>Game.victory() : ()=>Screens.show("field");
+    if(wasMini){ Game.miniBossDefeated=true; if(Field.gate) Field.map[Field.gate.y][Field.gate.x]="path"; }
+    // Post-battle continuation (fired by UI.close so Bag/Party can't soft-lock):
+    //   zone boss -> merchant then next zone, or victory if it was the final zone;
+    //   mini-boss / normal fight -> back to the field.
+    Game.continueAfterBattle = wasZoneBoss
+      ? (wasFinal ? ()=>Game.victory() : ()=>Game.openMerchant())
+      : ()=>Screens.show("field");
     setTimeout(()=>this.showSpoils(xp,gold,drops,leveled,wasFinal), 500);
   },
   showSpoils(xp,gold,drops,leveled,wasFinal){
@@ -878,7 +927,9 @@ const Battle = {
       plains:    "radial-gradient(130% 95% at 50% 22%, #34465a 0%, #131a26 50%, #06090f 100%)",
       forest:    "radial-gradient(130% 95% at 50% 22%, #243a2a 0%, #0d1611 50%, #060a07 100%)",
       desert:    "radial-gradient(130% 95% at 50% 22%, #4a3a22 0%, #1b1308 50%, #0a0704 100%)",
-      mountains: "radial-gradient(130% 95% at 50% 22%, #2c3645 0%, #131722 50%, #070a0e 100%)" };
+      mountains: "radial-gradient(130% 95% at 50% 22%, #2c3645 0%, #131722 50%, #070a0e 100%)",
+      mire:      "radial-gradient(130% 95% at 50% 22%, #1f3a36 0%, #0c1a18 50%, #050d0c 100%)",
+      hollow:    "radial-gradient(130% 95% at 50% 22%, #2a2440 0%, #120e22 50%, #07050e 100%)" };
     $("#battleBg").style.background=bgs[this.env]||bgs.plains;
     if(this.isBoss) $("#battleBg").style.background="radial-gradient(120% 95% at 38% 34%, #4a1424 0%, #1a0810 52%, #070406 100%)";
   },
@@ -1028,13 +1079,18 @@ const Field = {
   // Together these set run length: ~W/((MIN+MAX)/2) fights on the road east. Crank W
   // for a longer quest. (v0.1 was W:26 → only ~3 fights / ~5 min.)
   W:60, H:18, tile:0, px:0, py:0, map:[], boss:{x:58,y:9}, stepsToEncounter:0,
-  gate:{x:30,y:9},                 // mid-zone chokepoint — the Brigand Captain mini-boss
+  gate:{x:30,y:9},                 // mid-zone chokepoint — the zone's mini-boss
   chests:[{x:8,y:5},{x:16,y:13},{x:23,y:5},{x:41,y:13},{x:51,y:5}],
   ENC_MIN:3, ENC_MAX:6,
+  zoneIndex:0,
   canvas:null, ctx:null,
+  zone(){ return ZONES[this.zoneIndex]; },
+  isLastZone(){ return this.zoneIndex >= ZONES.length-1; },
+  envFor(p){ const e=this.zone().envs; return e[clamp(Math.floor(p*4),0,e.length-1)]; },
 
   init(){
     this.canvas=$("#fieldCanvas"); this.ctx=this.canvas.getContext("2d");
+    this.zoneIndex=0;
     this.resize();
     this.px=1; this.py=9;
     this.genMap();
@@ -1042,6 +1098,14 @@ const Field = {
     this.hint();
     this.draw();
     window.addEventListener("resize",()=>{this.resize();this.draw();});
+  },
+  // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
+  loadZone(i){
+    this.zoneIndex=i; Game.bossDefeated=false; Game.miniBossDefeated=false;
+    this.px=1; this.py=9; this.resize(); this.genMap();
+    this.stepsToEncounter=ri(this.ENC_MIN,this.ENC_MAX);
+    Screens.show("field");
+    Overlay.show(`<h2 class="title-gold">${this.zone().name}</h2><p class="small">A new road, new dangers. Your gear and levels carry over.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Enter</button></div>`);
   },
   resize(){ const s=$("#stage").getBoundingClientRect();
     const w=Math.round(s.width)||window.innerWidth||800, h=Math.round(s.height)||window.innerHeight||600;
@@ -1089,15 +1153,13 @@ const Field = {
     if(this.stepsToEncounter<=0){ this.stepsToEncounter=ri(this.ENC_MIN,this.ENC_MAX); this.rollEncounter(); }
   },
   rollEncounter(){
-    const p=this.progress();
-    let band=ENCOUNTERS[0];
-    for(const e of ENCOUNTERS){ if(p>=e.at) band=e; }
-    const set=pick(band.sets);
-    const env = p<0.3?"plains": p<0.55?"forest": p<0.8?"desert":"mountains";
-    Battle.begin(set, env, false, false, p);
+    const p=this.progress(), bands=this.zone().bands;
+    let band=bands[0]; for(const e of bands){ if(p>=e.at) band=e; }
+    Battle.begin(pick(band.sets), this.envFor(p), false, false, p);
   },
-  startBoss(){ Battle.begin(["brute"], "mountains", true, true, this.progress()); },
-  startMiniBoss(){ const p=this.progress(); const env=p<0.55?"forest":"desert"; Battle.begin(["captain","bandit","bandit"], env, true, false, p); },
+  startBoss(){ Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress()); },
+  startMiniBoss(){ const p=this.progress(), z=this.zone();
+    Battle.begin([z.mini, ...(z.miniAdds||[])], this.envFor(p), true, false, p); },
   openChest(x,y){
     this.map[y][x]="path";
     const floor=clamp(2+Math.floor(this.progress()*3),1,5);   // deeper chests = better floor
@@ -1107,14 +1169,15 @@ const Field = {
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
   hint(){
-    const p=this.progress();
+    const p=this.progress(), z=this.zone(), name=z.name;
+    const miniNm=ENEMIES[z.mini].name, bossNm=ENEMIES[z.boss].name;
     let msg;
-    if(!Game.miniBossDefeated && p>=0.38) msg="A Brigand Captain blocks the road ahead.";
-    else if(p<0.12) msg="Head east through Greenvale. Search off the path for treasure.";
-    else if(p>0.88) msg="The Bandit Brute's camp lies just ahead.";
-    else msg=`${Math.round(p*100)}% through Greenvale. Keep moving east.`;
+    if(!Game.miniBossDefeated && p>=0.38) msg=`A ${miniNm} blocks the road ahead.`;
+    else if(p<0.12) msg=`Head east through ${name}. Search off the path for treasure.`;
+    else if(p>0.88) msg=`The ${bossNm} lies just ahead.`;
+    else msg=`${Math.round(p*100)}% through ${name}. Keep moving east.`;
     $("#fieldHint").textContent=msg;
-    $("#fieldZone").textContent=`Greenvale · ${Game.encountersWon} cleared`;
+    $("#fieldZone").textContent=`${name} · ${Game.encountersWon} cleared`;
     $("#fieldGold").textContent=Game.gold;
     const fp=$("#fieldParty"); fp.innerHTML=Game.party.map(m=>`<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
   },
@@ -1193,6 +1256,7 @@ const UI = {
   // Universal overlay close. Outside post-battle it just hides; after a victory it fires
   // Game.continueAfterBattle so the player can never get stranded in the Bag/Party menus.
   close(){
+    if(Game._inMerchant){ Game.renderMerchant(); return; }   // Party/Bag from the shop return to the shop
     Overlay.hide();
     if(Game.continueAfterBattle){ const fn=Game.continueAfterBattle; Game.continueAfterBattle=null; fn(); }
   },

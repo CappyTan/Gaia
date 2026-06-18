@@ -26,10 +26,10 @@ const ctx={ document:{querySelector:()=>elStub(),createElement:()=>elStub(),body
 vm.createContext(ctx);
 // top-level consts in a vm script don't attach to the context; export them via a shim
 // (the script's trailing `this` is the sandbox global, and the consts are in scope here).
-const SHIM=`;this.__game={PARTY_DEFS,makeMember,recalc,makeItem,makeEnemy,combatDamage,SKILLS,ENEMIES,ENCOUNTERS,Field,grantXp,rollDrop,itemScore,ri,pick};`;
+const SHIM=`;this.__game={PARTY_DEFS,makeMember,recalc,makeItem,makeEnemy,combatDamage,SKILLS,ENEMIES,ENCOUNTERS,ZONES,Field,grantXp,rollDrop,itemScore,ri,pick};`;
 vm.runInContext(body+SHIM, ctx);
 const {PARTY_DEFS, makeMember, recalc, makeItem, makeEnemy, combatDamage, SKILLS, ENEMIES,
-  ENCOUNTERS, Field, grantXp, rollDrop, itemScore, ri, pick} = ctx.__game;
+  ENCOUNTERS, ZONES, Field, grantXp, rollDrop, itemScore, ri, pick} = ctx.__game;
 
 const ZERO={implicit:{},affixes:[],rIx:-1};
 function freshParty(){ const p=PARTY_DEFS.map(makeMember); p.forEach(m=>m.equip.weapon=makeItem(m.cls,"weapon",0,m.cls)); recalc(p); return p; }
@@ -94,31 +94,30 @@ function gearUp(party, enemies){
   recalc(party);
 }
 function simRun(){
-  const party=freshParty(); let px=1; const bx=Field.boss.x, gx=Field.gate.x; let toEnc=ri(Field.ENC_MIN,Field.ENC_MAX);
-  const fights=[]; let wiped=false;
-  const prog=()=>(px-1)/(bx-1);
-  const fight=(keys,kind)=>{ const r=simFight(party,keys,prog()); fights.push({kind,p:prog(),...r}); if(!r.win){wiped=true;return false;}
-    let xp=0; keys.forEach(k=>xp+=ENEMIES[k].xp); grantXp(party,xp); gearUp(party,r.enemies); return true; };
-  while(px<bx&&!wiped){ px++;
-    if(px===gx){ if(!fight(["captain","bandit","bandit"],"mini"))break; continue; }
-    toEnc--; if(toEnc<=0){ toEnc=ri(Field.ENC_MIN,Field.ENC_MAX); const p=prog(); let band=ENCOUNTERS[0]; for(const b of ENCOUNTERS)if(p>=b.at)band=b; if(!fight(pick(band.sets),"rand"))break; } }
-  if(!wiped) fight(["brute"],"boss");
+  const party=freshParty(); const fights=[]; let wiped=false; const bx=Field.boss.x, gx=Field.gate.x;
+  for(let zi=0; zi<ZONES.length && !wiped; zi++){
+    const Z=ZONES[zi]; let px=1; let toEnc=ri(Field.ENC_MIN,Field.ENC_MAX); const prog=()=>(px-1)/(bx-1);
+    const fight=(keys,kind)=>{ const r=simFight(party,keys,prog()); fights.push({kind,zone:zi,p:prog(),...r}); if(!r.win){wiped=true;return false;}
+      let xp=0; keys.forEach(k=>xp+=ENEMIES[k].xp); grantXp(party,xp); gearUp(party,r.enemies); return true; };
+    while(px<bx && !wiped){ px++;
+      if(px===gx){ if(!fight([Z.mini,...(Z.miniAdds||[])],"mini")) break; continue; }
+      toEnc--; if(toEnc<=0){ toEnc=ri(Field.ENC_MIN,Field.ENC_MAX); const p=prog(); let band=Z.bands[0]; for(const b of Z.bands) if(p>=b.at) band=b; if(!fight(pick(band.sets),"rand")) break; } }
+    if(!wiped) fight([Z.boss], zi===ZONES.length-1?"finalboss":"boss");
+  }
   return {fights, wiped, lvl:party.reduce((a,m)=>a+m.level,0)/4};
 }
 
 const N=parseInt(process.argv[2]||"60",10);
-let wipes=0, endAll=[], early=[], late=[], minMini=[], minBoss=[], danger=0, total=0, lvls=[];
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0, pc=x=>(x*100).toFixed(0)+"%";
+let wipes=0, lvls=[], byZone={};
 for(let i=0;i<N;i++){ const r=simRun(); if(r.wiped)wipes++; lvls.push(r.lvl);
-  r.fights.forEach(f=>{ total++; endAll.push(f.endHP); if(f.minHP<0.4)danger++;
-    if(f.kind==="rand"&&f.p<0.4)early.push(f.minHP); if(f.kind==="rand"&&f.p>0.6)late.push(f.minHP);
-    if(f.kind==="mini")minMini.push(f.minHP); if(f.kind==="boss")minBoss.push(f.minHP); }); }
-const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
-const pc=x=>(x*100).toFixed(0)+"%";
-console.log(`runs ${N} | wipe rate ${pc(wipes/N)} | avg final party level ${avg(lvls).toFixed(1)}`);
-console.log(`LOW POINT during fight (avg):  early random ${pc(avg(early))} | late random ${pc(avg(late))} | mini-boss ${pc(avg(minMini))} | final boss ${pc(avg(minBoss))}`);
-console.log(`avg end-of-fight HP ${pc(avg(endAll))}  (caster heals back up after the dip)`);
-console.log(`fights that dipped <40% HP: ${pc(danger/total)} (${danger}/${total})`);
-console.log(`scariest boss dip: ${pc(Math.min(...minBoss))} | scariest mini dip: ${pc(Math.min(...minMini))}`);
+  r.fights.forEach(f=>{ const z=byZone[f.zone]||(byZone[f.zone]={rand:[],mini:[],boss:[],n:0,danger:0});
+    z.n++; if(f.minHP<0.4)z.danger++;
+    if(f.kind==="rand")z.rand.push(f.minHP); else if(f.kind==="mini")z.mini.push(f.minHP); else z.boss.push(f.minHP); }); }
+console.log(`runs ${N} | full-clear wipe rate ${pc(wipes/N)} | avg final party level ${avg(lvls).toFixed(1)}`);
+console.log(`(low point during fight = lowest party HP%; boss = zone/final boss)`);
+for(const zi of Object.keys(byZone)){ const z=byZone[zi]; const name=ZONES[zi]?ZONES[zi].name:("zone"+zi);
+  console.log(`  ${name}: random ${pc(avg(z.rand))} | mini ${pc(avg(z.mini))} | boss ${pc(avg(z.boss))} | dipped<40%: ${pc(z.danger/z.n)} | scariest boss ${pc(z.boss.length?Math.min(...z.boss):1)}`); }
 // diagnostics for sizing enemy HP/ATK
 let pdph=[], eacts=[], pmaxLate=[], eactsBoss=[];
 for(let i=0;i<20;i++){ const r=simRun(); r.fights.forEach(f=>{ pdph.push(f.pdph); eacts.push(f.eActs); if(f.kind==="boss"){eactsBoss.push(f.eActs); pmaxLate.push(f.partyMax);} }); }

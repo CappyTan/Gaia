@@ -18,11 +18,12 @@ iOS Safari). **No build step, no server, no install.** Just open the file.
 
 ## The proof-of-concept slice
 
-One zone, **Greenvale** — roughly an hour of play:
+Two zones — **Greenvale** → **The Duskmarsh** — with a merchant between them:
 
 - A fixed party of four **SOL**-attunement adventurers: Auren (Sword & Shield, tank),
   Kaela (Dual Swords, DPS), Sephi (Staff, caster/healer), Rion (Spellblade, hybrid).
-- A tile field map with random bandit encounters that escalate to the **Bandit Brute** boss.
+- Tile field maps with random encounters → a mid-zone **mini-boss** gate → the **zone boss**.
+  Beat the boss, **shop at the merchant** with your gold, then press on to the next zone.
 - **ATB** battle screen (party right, enemies left, command menu) — see the FF reference.
 - **The Five Powers** as an affinity ring (SOL strong vs NOX, weak vs UMBRAXIS, …) plus a
   signature status effect per power. Enemy attunements make the ring matter in every fight.

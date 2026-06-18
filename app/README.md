@@ -16,8 +16,10 @@ Safari — including iOS Safari). That's it.
 
 | System | Status |
 |---|---|
-| Open tile field map (Greenvale), camera, random encounters | ✅ |
-| **Chokepoint gate**: Brigand Captain mini-boss mid-zone, then the Bandit Brute east | ✅ |
+| **Multiple zones** (Greenvale → The Duskmarsh): own bestiary, mini-boss, boss, environments | ✅ |
+| **Merchant** after each zone boss: spend gold on rolled loot before the next zone | ✅ |
+| Open tile field map, camera, random encounters | ✅ |
+| **Chokepoint gate**: a mini-boss mid-zone, then the zone boss east | ✅ |
 | **Treasure chests** off the path (loot reward for exploring) | ✅ |
 | **ATB** battle: SPD-driven gauges, act-when-ready, enemy AI | ✅ |
 | Command menu: Attack / Skill / Defend / Flee, target select | ✅ |
@@ -30,17 +32,19 @@ Safari — including iOS Safari). That's it.
 | 6 rarities (Common→Artifact) drive base stats + affix count | ✅ |
 | **Elite** enemies (1-2 random affixes, guaranteed better drops) | ✅ |
 | Inventory + per-character equip screen (weapon/armor/trinket) | ✅ |
-| Progression: XP, level-ups, stat growth, **skill unlocks** (~Lv 1→8) | ✅ |
-| Mini-boss + final boss + victory / party-wipe defeat | ✅ |
-| **Chiptune soundtrack** (Web Audio, no asset files): title / field / battle / boss / victory, cross-faded by state, mute toggle, iOS-safe start | ✅ |
+| Progression: XP, level-ups, stat growth, **skill unlocks** (~Lv 1→12 over two zones) | ✅ |
+| Depth-scaled difficulty per zone; mini-boss + zone boss; final-zone boss wins the run | ✅ |
+| **Chiptune soundtrack** (Web Audio, no asset files): per-screen song × style (radiant/orchestral/heroic), cross-faded by state, mute toggle, iOS-safe start | ✅ |
 
 The four SOL party members: **Auren** (Sword & Shield, tank), **Kaela** (Dual Swords,
-DPS), **Sephi** (Staff, caster/healer), **Rion** (Spellblade, hybrid). Greenvale bestiary
-(11 types): Highway Bandit, Gray Wolf, Thieves' Cutpurse, Forest Wisp, Marauder, Bog
-Lurker, Outlaw Archer, Hollow Shade, Bandit Shaman, Brigand Captain (mini-boss), Bandit
-Brute (final boss). Enemy attunements span the whole ring so the all-SOL party feels it:
-bonus damage vs NOX foes (Bandit, Lurker, Captain, Brute), resisted by UMBRAXIS foes
-(Cutpurse, Shade), neutral vs ANIMA/QUANTA.
+DPS), **Sephi** (Staff, caster/healer), **Rion** (Spellblade, hybrid).
+
+**Zone 1 — Greenvale** (Lv 1-6): Highway Bandit, Gray Wolf, Thieves' Cutpurse, Forest Wisp,
+Marauder, Bog Lurker, Outlaw Archer, Hollow Shade, Bandit Shaman, Brigand Captain (mini),
+Bandit Brute (boss). **Zone 2 — The Duskmarsh** (Lv 7-10): Mire Serpent, Drowned Husk, Gloom
+Wisp, Fen Witch, Sunken Knight, Fen Warden (mini), Mirelord Vorn (final boss). Greenvale
+enemies use real sliced art; Duskmarsh enemies are emoji until art exists. Enemy attunements
+span the whole ring so the all-SOL party always feels strong/weak/neutral matchups.
 
 ## Art status
 
