@@ -247,7 +247,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.8";
+const GAME_VERSION = "v0.8.1";
 
 // ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
 //    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
@@ -1353,12 +1353,19 @@ const Music = {
   },
   load(){ try{ this.muted = localStorage.getItem("gaia_muted")==="1"; }catch(e){} this._renderBtns(); },
   unlock(){
-    if(this.ctx){ if(this.ctx.state==="suspended") this.ctx.resume(); return; }
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
-    try{ this.ctx=new AC(); }catch(e){ return; }
-    this.master=this.ctx.createGain(); this.master.gain.value=this.muted?0:this.vol; this.master.connect(this.ctx.destination);
-    this.started=true; this._start(this.pending);
-    this._timer=setInterval(()=>this._sched(), this.TICK);
+    if(!this.ctx){
+      try{ this.ctx=new AC(); }catch(e){ return; }
+      this.master=this.ctx.createGain(); this.master.gain.value=this.muted?0:this.vol; this.master.connect(this.ctx.destination);
+      this.started=true; this._start(this.pending);
+      this._timer=setInterval(()=>this._sched(), this.TICK);
+    }
+    // iOS/Safari start a fresh context SUSPENDED — must resume() inside a user gesture or it's silent.
+    if(this.ctx.state!=="running" && this.ctx.resume){
+      this.ctx.resume();
+      // nudge the scheduler clock to "now" so it doesn't try to schedule a backlog post-resume
+      if(this.track){ const t0=this.ctx.currentTime+0.06; this.cursors.forEach(c=>{ if(c.next!==Infinity) c.next=t0; }); }
+    }
   },
   play(name){ this.pending=name; if(this.started && this.cur!==name) this._switch(name); },
   _switch(name){ const g=this.master.gain, t=this.ctx.currentTime;
@@ -1399,7 +1406,8 @@ const Music = {
     const g=c.createGain(); g.gain.setValueAtTime(note==="H"?0.1:0.28,time); g.gain.exponentialRampToValueAtTime(0.001,time+dur);
     n.connect(hp); hp.connect(g); g.connect(this.master); n.start(time); n.stop(time+dur+0.02);
   },
-  toggleMute(){ this.muted=!this.muted; try{localStorage.setItem("gaia_muted",this.muted?"1":"0");}catch(e){}
+  toggleMute(){ this.unlock();   // ensure the context exists + is resumed (covers the "tapped speaker, still silent" case)
+    this.muted=!this.muted; try{localStorage.setItem("gaia_muted",this.muted?"1":"0");}catch(e){}
     if(this.master) this.master.gain.value=this.muted?0:this.vol; this._renderBtns(); return this.muted; },
   _renderBtns(){ if(!document.querySelectorAll)return; document.querySelectorAll(".mutebtn").forEach(b=>b.textContent=this.muted?"🔇":"🔊"); },
 };
