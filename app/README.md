@@ -1,11 +1,23 @@
-# Gaia — POC build (`app/`)
+# Gaia — build (`app/`)
 
-A self-contained, single-file proof of concept. **No build step, no server.**
+A **TypeScript + Vite** app (ADR 0005). Source is in [`src/`](src/), split into layers
+(`data` / `systems` / `ui` / `controllers` / `core`); it builds to a static bundle for GitHub
+Pages. No runtime framework. See [CLAUDE.md](../CLAUDE.md#architecture-appsrc) for the layer map.
 
 ## Run it
 
-Double-click [`gaia.html`](gaia.html), or open it in any modern browser (Chrome, Edge,
-Safari — including iOS Safari). That's it.
+From the repo root (needs Node ≥18 + npm):
+
+```bash
+npm install      # first time
+npm run dev      # dev server with hot reload — opens the game
+npm run build    # production build -> dist/  (what CI deploys to Pages)
+npm test         # Vitest unit tests for the pure systems
+npm run sim      # headless balance simulator (npm run sim 200 for more runs)
+```
+
+The modular app needs the dev server / a static host — it does **not** open from `file://`.
+The frozen single-file build [`gaia.html`](gaia.html) (v0.11) still does, as a reference/fallback.
 
 ## Controls
 
@@ -61,16 +73,14 @@ screenshots (Square Enix copyright). Next: art for the six new enemies; field-ma
 
 ## Validation
 
-No automated UI test, but the core logic is headless-tested (run from `app/`):
-- Syntax: `node -e` extract + `node --check` (passes).
-- Logic harness (affinity ring, loot generation across all weapons/rarities, recalc death
-  handling, leveling + skill unlock + revive, item scoring): **14/14 pass**.
-- Boot/battle smoke (start, field move, battle init, strike w/ affinity, heal, burn tick):
-  **6/6 pass**.
+- **Type safety:** `npm run typecheck` (`tsc --noEmit`, strict).
+- **Unit tests:** `npm test` (Vitest) — the pure systems (affinity ring, loot generation across
+  all weapons/rarities, deterministic combat math, recalc + leveling/skill-unlock, item scoring)
+  in [`tests/`](tests/). These import the shipping `src/systems/**` directly.
+- **Balance sim:** `npm run sim` exercises the real `combatDamage` / `makeEnemy` / loot /
+  progression over full runs.
 
-The harness is an inline node script that extracts the `<script>` block and exercises the
-pure systems. A proper module split + `node:test` suite is the follow-up if this graduates
-past POC.
+No automated UI test yet (the controllers/DOM layer). That's the next testing follow-up.
 
 ## Known rough edges (POC)
 

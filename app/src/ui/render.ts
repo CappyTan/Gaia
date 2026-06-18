@@ -1,0 +1,75 @@
+// Pure presentation helpers: turn domain objects into HTML strings. No control flow, no
+// game state mutation — just rendering. Swapping the renderer later means replacing this file.
+
+import type { Enemy, Item, Member, Unit } from "../types";
+import { cap, clamp } from "../core/rng";
+import { assetUrl } from "../core/assets";
+import { WEAP_IMG, RIG, BODY_LAYER, ARMOR_LAYER } from "../data/art";
+
+export function itemIcon(it: Item): string {
+  if (it.slot !== "weapon" || !WEAP_IMG[it.cls]) return "";
+  const url = assetUrl(`items/${WEAP_IMG[it.cls]}-${it.rarity}.png`);
+  return url ? `<img class="ico" src="${url}" alt="">` : "";
+}
+
+export function enemySprite(e: Enemy): string {
+  const url = assetUrl(`enemies/${e.key}.png`);
+  return url ? `<img class="spr-img" src="${url}" alt="">` : `<div class="spr">${e.spr}</div>`;
+}
+
+export function heroSprite(m: Member): string {
+  const url = assetUrl(`heroes/${m.id}.png`);
+  return url ? `<img class="spr-img" src="${url}" alt="${m.name}">` : `<div class="spr">${m.spr}</div>`;
+}
+
+// PAPER-DOLL COMPOSITOR (ADR 0004): a character is a STACK of aligned layers; equipping an
+// item swaps a layer. Art-gated layers (BODY_LAYER / ARMOR_LAYER) draw with zero code change
+// once that art exists.
+export function renderDoll(m: Member): string {
+  const id = m.id;
+  const body = BODY_LAYER[id] || assetUrl(`heroes/${id}.png`) || "";
+  let h = `<div class="doll"><img class="dl-body" src="${body}" alt="${m.name}">`;
+  const ar = m.equip && m.equip.armor;
+  if (ar && ARMOR_LAYER[id] && ARMOR_LAYER[id][ar.rarity]) {
+    h += `<img class="dl-layer" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
+  }
+  const w = m.equip && m.equip.weapon;
+  if (w && WEAP_IMG[w.cls]) {
+    const r = RIG.weapon[w.cls] || { scale: 0.9, rot: -16 };
+    const hand = RIG.hand[id] || { x: 0.4, y: 0.58 };
+    const url = assetUrl(`items/${WEAP_IMG[w.cls]}-${w.rarity}.png`) || "";
+    const st = `left:${(hand.x * 100).toFixed(1)}%;top:${(hand.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
+    h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="${url}" alt="">`;
+  }
+  return h + `</div>`;
+}
+
+export function itemHtml(it: Item, actionBtn?: string): string {
+  const rc = "r-" + it.rarity,
+    bc = "b-" + it.rarity;
+  const aff = it.affixes.map((a) => `<div class="affix">• ${a.label(a.value)}</div>`).join("");
+  const imp = Object.entries(it.implicit).map(([k, v]) => `+${v} ${k}`).join("  ");
+  const ico = itemIcon(it);
+  return `<div class="item ${bc}" style="display:flex; gap:10px; align-items:flex-start">
+    ${ico}
+    <div style="flex:1; min-width:0">
+      <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.cls}` : ""}]</span></div>
+      <div class="meta">${imp}</div>${aff}${actionBtn || ""}
+    </div></div>`;
+}
+
+export function statusBadges(u: Unit): string {
+  const m: Record<string, string> = {
+    burn: "burn", blind: "blind", regen: "regen", stun: "stun",
+    atkup: "atkup", wardArmor: "def", poison: "regen", decay: "def",
+  };
+  let h = "";
+  for (const k in u.status) {
+    if (u.status[k] > 0 && m[k]) h += `<span class="badge ${m[k]}">${k.slice(0, 3)}</span>`;
+  }
+  return h;
+}
+
+export function pct(a: number, b: number): number {
+  return clamp(Math.round((a / b) * 100), 0, 100);
+}
