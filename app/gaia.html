@@ -162,6 +162,7 @@
       ATB combat, the five-power affinity ring, and Diablo-style loot. ~1 hour slice.
     </div>
     <div class="small">Move: arrows / WASD or the on-screen pad. Everything else is tap/click.</div>
+    <div class="small" id="verTag" style="margin-top:8px;opacity:.7;letter-spacing:1px"></div>
   </div>
 
   <!-- FIELD -->
@@ -225,6 +226,9 @@ const ri = (a,b)=>Math.floor(rnd(a,b+1));
 const pick = arr=>arr[Math.floor(Math.random()*arr.length)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+// Build version — shown on the title screen and stamped into every telemetry session.
+const GAME_VERSION = "v0.3";
 
 /* =====================================================================================
    1. CONTENT — the Five Powers, classes, enemies, loot, affixes
@@ -401,12 +405,14 @@ const Game = {
   gameOver(){ Telemetry.endSession("wipe"); Screens.show("title"); Overlay.show(`
     <h2 class="title-gold">The party has fallen</h2>
     <p class="small">Greenvale claims another band of adventurers.</p>
-    <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Try again</button></div>`); },
+    <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Try again</button>
+      <button class="btn" onclick="Overlay.hide()">Home</button></div>`); },
   victory(){ this.bossDefeated=true; Telemetry.boss("win"); Telemetry.endSession("victory"); Screens.show("title"); Overlay.show(`
     <h2 class="title-gold">Greenvale is clear</h2>
     <p>The Bandit Brute is dead. The road to the deeper Powers lies open.</p>
     <p class="small">Vertical slice complete — encounters won: ${this.encountersWon}. Gold: ${this.gold}.</p>
-    <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Play again</button></div>`); },
+    <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Play again</button>
+      <button class="btn" onclick="Overlay.hide()">Home</button></div>`); },
 };
 
 function makeMember(d){
@@ -1149,7 +1155,7 @@ const Telemetry = {
   save(){ try{ localStorage.setItem(this.key, JSON.stringify(this.all.slice(-50))); }catch(e){} },
   startSession(){
     this.endSession("restart"); // close any dangling session
-    this.s={ id:Date.now(), start:Date.now(), end:null, durationMs:0, reason:null, steps:0,
+    this.s={ id:Date.now(), version:GAME_VERSION, start:Date.now(), end:null, durationMs:0, reason:null, steps:0,
       encounters:0, won:0, fled:0, wipes:0, eliteFights:0,
       dmgDealt:0, dmgTaken:0, partyHits:0, crits:0, affinityBonus:0, affinityResist:0,
       drops:{common:0,uncommon:0,rare:0,epic:0,legendary:0,artifact:0}, dropTotal:0,
@@ -1191,7 +1197,7 @@ const Telemetry = {
     const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
     const pctf=(n,d)=>d?Math.round(n/d*100)+"%":"—";
     const dropRow=d=>RARITY.map(r=>`<span class="r-${r.key}">${cap(r.key)} ${d[r.key]}</span>`).join(" · ");
-    let h=`<h2 class="title-gold">Telemetry</h2>`;
+    let h=`<h2 class="title-gold">Telemetry</h2><div class="small" style="margin-top:-4px;opacity:.7">build ${GAME_VERSION}</div>`;
     if(cur){ h+=`<div class="card" style="text-align:left;border-color:var(--gold)">
       <div class="tag">Current session</div>
       <div class="small">Time ${ms(Date.now()-cur.start)} · Steps ${cur.steps} · Encounters ${cur.encounters} (won ${cur.won}, fled ${cur.fled})</div>
@@ -1234,6 +1240,7 @@ window.addEventListener("keydown",e=>{
 });
 
 /* ---- boot ---- */
+$("#verTag").textContent = `Gaia ${GAME_VERSION}`;
 Screens.show("title");
 </script>
 </body>
