@@ -41,16 +41,16 @@ Brute (final boss). Enemy attunements span the whole ring so the all-SOL party f
 bonus damage vs NOX foes (Bandit, Lurker, Captain, Brute), resisted by UMBRAXIS foes
 (Cutpurse, Shade), neutral vs ANIMA/QUANTA.
 
-## Art status (deliberate)
+## Art status
 
-This build uses **programmer/placeholder art** in Dara's gold-on-dark palette (emoji
-sprites, CSS gradients per environment, rarity-colored loot). The point of the POC is the
-**gameplay mechanics** — Dara has the world and art but no mechanics. Next art pass per the
-locked decision (DESIGN.md item 11, "generate to fill gaps"):
-- Slice real item icons from the four SOL loot charts.
-- Slice the five Greenvale enemies + four SOL class figures for the battle screen.
-- Generate field tiles, walking sprites, and battle backgrounds matching Dara's style.
-- Do **not** ship the FF reference screenshots (Square Enix copyright).
+**Dara's real art is now wired in** (sliced from his reference sheets into [`assets/`](assets/)):
+- **Weapons** — 24 loot icons sliced from the four SOL loot charts (`assets/items/{sns,dual,staff,spell}-{rarity}.png`), shown on every weapon drop and in the bag/equip screens.
+- **Enemies** — the five Greenvale bandits as battle figures (`assets/enemies/`). The six added enemies (wolf/wisp/lurker/shade/shaman/captain) have no art yet and fall back to emoji.
+- **Heroes** — the four SOL party portraits sliced from the class grid (`assets/heroes/`), shown in the battle party zone.
+
+Still placeholder: field-map tiles (emoji/CSS), battle backgrounds (CSS gradients per
+environment), and the field walking marker. Do **not** ship the FF reference screenshots
+(Square Enix copyright). Next: art for the six new enemies + battle backgrounds in Dara's style.
 
 ## Validation
 

@@ -66,6 +66,7 @@
   #partyZone{position:absolute; right:3%; top:10%; bottom:6%; width:42%; display:flex; flex-direction:column; justify-content:space-around;}
   .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
   .enemy .spr{font-size:34px; filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
+  .enemy .spr-img{width:72px; height:78px; object-fit:contain; filter:drop-shadow(0 3px 5px #000); image-rendering:auto;}
   .enemy .ebar{flex:1; min-width:60px;}
   .enemy.dead{opacity:.18; filter:grayscale(1);}
   .enemy.targetable{outline:2px dashed var(--gold); outline-offset:4px; border-radius:6px;}
@@ -74,10 +75,12 @@
   .enemy .ename{font-size:12px;}
   .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
   .pchar .spr{font-size:30px; filter:drop-shadow(0 3px 4px #000);}
-  .pchar.acting .spr{animation:bob .5s ease;}
+  .pchar .spr-img{width:62px; height:74px; object-fit:contain; filter:drop-shadow(0 3px 5px #000);}
+  .pchar.acting .spr, .pchar.acting .spr-img{animation:bob .5s ease;}
   @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
-  .pchar.hurt .spr{animation:shake .25s;}
+  .pchar.hurt .spr, .pchar.hurt .spr-img{animation:shake .25s;}
   @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
+  .item .ico{width:74px; height:50px; object-fit:contain; border-radius:4px; background:#000; flex:0 0 auto;}
 
   .bar{height:9px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden; position:relative;}
   .bar > i{display:block; height:100%; transition:width .25s;}
@@ -228,7 +231,17 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const cap = s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 // Build version — shown on the title screen and stamped into every telemetry session.
-const GAME_VERSION = "v0.3.1";
+const GAME_VERSION = "v0.4";
+
+// ── Real art (sliced from Dara's reference sheets; see assets/). Anything without art
+//    falls back to its emoji glyph, so new enemies degrade gracefully. ──────────────
+const WEAP_IMG = {"Sword & Shield":"sns","Dual Swords":"dual","Staff":"staff","Spellblade":"spell"};
+const ENEMY_IMG = {bandit:1, cutpurse:1, marauder:1, archer:1, brute:1};  // 5 Greenvale bandits have art
+const itemIcon = it => (it.slot==="weapon" && WEAP_IMG[it.cls])
+  ? `<img class="ico" src="assets/items/${WEAP_IMG[it.cls]}-${it.rarity}.png" alt="">` : "";
+const enemySprite = e => ENEMY_IMG[e.key]
+  ? `<img class="spr-img" src="assets/enemies/${e.key}.png" alt="">` : `<div class="spr">${e.spr}</div>`;
+const heroSprite = m => `<img class="spr-img" src="assets/heroes/${m.id}.png" alt="${m.name}">`;
 
 /* =====================================================================================
    1. CONTENT — the Five Powers, classes, enemies, loot, affixes
@@ -819,7 +832,7 @@ const Battle = {
     const z=$("#enemyZone"); z.innerHTML="";
     this.enemies.forEach((e,i)=>{
       const d=el("div","enemy"+(e.alive?"":" dead")+(e.elite?" elite":"")+(targetable&&e.alive?" targetable":"")+(e.acting?" acting":""));
-      d.innerHTML=`<div class="spr">${e.spr}</div><div class="ebar">
+      d.innerHTML=`${enemySprite(e)}<div class="ebar">
         <div class="ename">${e.name}${e.eliteAffixes?` <span class="badge atkup">${e.eliteAffixes.join(" ")}</span>`:""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp,e.maxhp)}%"></i><span class="bartxt">${Math.max(0,e.hp)}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
@@ -831,7 +844,7 @@ const Battle = {
     const z=$("#partyZone"); z.innerHTML="";
     Game.party.forEach(m=>{
       const d=el("div","pchar"+(m.alive?"":" downed")+(m.acting?" acting":"")+(m._hurt?" hurt":""));
-      d.innerHTML=`<div style="text-align:right"><div class="ename" style="color:${m.alive?'var(--gold2)':'#666'}">${m.name}${statusBadges(m)}</div></div><div class="spr">${m.alive?m.spr:"💤"}</div>`;
+      d.innerHTML=`<div style="text-align:right"><div class="ename" style="color:${m.alive?'var(--gold2)':'#666'}">${m.name}${statusBadges(m)}</div></div>${m.alive?heroSprite(m):'<div class="spr">💤</div>'}`;
       z.appendChild(d);
     });
   },
@@ -1084,9 +1097,13 @@ function itemHtml(it, actionBtn){
   const rc="r-"+it.rarity, bc="b-"+it.rarity;
   let aff=it.affixes.map(a=>`<div class="affix">• ${a.label(a.value)}</div>`).join("");
   let imp=Object.entries(it.implicit).map(([k,v])=>`+${v} ${k}`).join("  ");
-  return `<div class="item ${bc}">
-    <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot==="weapon"?` · ${it.cls}`:""}]</span></div>
-    <div class="meta">${imp}</div>${aff}${actionBtn||""}</div>`;
+  const ico=itemIcon(it);
+  return `<div class="item ${bc}" style="display:flex; gap:10px; align-items:flex-start">
+    ${ico}
+    <div style="flex:1; min-width:0">
+      <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot==="weapon"?` · ${it.cls}`:""}]</span></div>
+      <div class="meta">${imp}</div>${aff}${actionBtn||""}
+    </div></div>`;
 }
 
 const UI = {
