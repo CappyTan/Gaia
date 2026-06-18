@@ -338,18 +338,19 @@ const PARTY_DEFS = [
 // ---- Greenvale bestiary (levels 1-5). Attunement chosen so the SOL party feels the ring. ----
 //   SOL strong vs NOX (+50%), weak vs UMBRAXIS (-50%), neutral vs ANIMA/QUANTA.
 const ENEMIES = {
-  bandit:    {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:34, atk:9,  spd:7, armor:1, mag:0, xp:14, gold:[6,14],  ai:"basic"},
-  cutpurse:  {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:40, atk:11, spd:10,armor:2, mag:0, xp:20, gold:[10,20], ai:"evasive"},
-  marauder:  {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:62, atk:14, spd:6, armor:3, mag:0, xp:30, gold:[14,26], ai:"basic"},
-  archer:    {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:50, atk:16, spd:9, armor:2, mag:2, xp:34, gold:[16,28], ai:"basic"},
-  brute:     {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:5, hp:340,atk:24, spd:6, armor:6, mag:0, xp:200,gold:[120,180],ai:"boss", boss:true},
+  bandit:    {name:"Highway Bandit",   spr:"🗡️", att:"NOX",      lvl:1, hp:42, atk:11, spd:7, armor:1, mag:0, xp:30, gold:[6,14],  ai:"basic"},
+  cutpurse:  {name:"Thieves' Cutpurse",spr:"🥷", att:"UMBRAXIS", lvl:2, hp:56, atk:14, spd:10,armor:2, mag:0, xp:44, gold:[10,20], ai:"evasive"},
+  marauder:  {name:"Marauder",         spr:"🪓", att:"ANIMA",    lvl:3, hp:90, atk:19, spd:6, armor:3, mag:0, xp:64, gold:[14,26], ai:"basic"},
+  archer:    {name:"Outlaw Archer",    spr:"🏹", att:"QUANTA",   lvl:4, hp:74, atk:22, spd:9, armor:2, mag:2, xp:74, gold:[16,28], ai:"basic"},
+  brute:     {name:"Bandit Brute",     spr:"💀", att:"NOX",      lvl:5, hp:620,atk:34, spd:6, armor:8, mag:0, xp:160,gold:[120,180],ai:"boss", boss:true},
 };
 // Encounter table by area depth (the further you walk, the tougher the roll-set)
 const ENCOUNTERS = [
-  {at:0.0, sets:[["bandit"],["bandit"],["bandit","bandit"]]},
-  {at:0.25,sets:[["bandit","bandit"],["cutpurse"],["bandit","cutpurse"]]},
-  {at:0.5, sets:[["cutpurse","bandit"],["marauder"],["marauder","bandit"]]},
-  {at:0.75,sets:[["marauder","cutpurse"],["archer"],["archer","bandit","bandit"]]},
+  {at:0.0, sets:[["bandit"],["bandit","bandit"],["bandit"]]},
+  {at:0.2, sets:[["bandit","bandit"],["cutpurse"],["bandit","cutpurse"]]},
+  {at:0.4, sets:[["cutpurse","bandit"],["marauder"],["bandit","bandit","cutpurse"]]},
+  {at:0.6, sets:[["marauder","bandit"],["archer"],["marauder","cutpurse"]]},
+  {at:0.8, sets:[["archer","cutpurse"],["marauder","archer"],["archer","bandit","bandit"]]},
 ];
 
 /* =====================================================================================
@@ -363,9 +364,10 @@ const Game = {
   steps:0,
   encountersWon:0,
   bossDefeated:false,
+  continueAfterBattle:null,   // set after a victory; UI.close() fires it (anti-soft-lock)
 
   start(){
-    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false;
+    this.gold=0; this.inventory=[]; this.steps=0; this.encountersWon=0; this.bossDefeated=false; this.continueAfterBattle=null;
     Telemetry.load(); Telemetry.startSession();
     this.party = PARTY_DEFS.map(d=>makeMember(d));
     // starting gear: a common weapon each so the loot loop has a baseline to beat
@@ -740,6 +742,11 @@ const Battle = {
     if(leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach(d=>{ Game.inventory.push(d); Telemetry.drop(d.rarity); });
     const wasBoss=this.isBoss;
+    // Set the post-battle continuation. ANY overlay close routes through UI.close(), which
+    // fires this if set — so drilling into Bag/Party after a win can never soft-lock (the
+    // old bug: opening the bag replaced the spoils overlay and stranded you on the dead
+    // battle screen with no Continue button).
+    Game.continueAfterBattle = wasBoss ? ()=>Game.victory() : ()=>Screens.show("field");
     setTimeout(()=>this.showSpoils(xp,gold,drops,leveled,wasBoss), 500);
   },
   showSpoils(xp,gold,drops,leveled,wasBoss){
@@ -750,8 +757,8 @@ const Battle = {
     if(drops.length){ h+=`<div class="tag">Loot</div><div class="scroll">`; drops.forEach(d=>h+=itemHtml(d)); h+="</div>"; }
     else h+=`<p class="small">No loot this time.</p>`;
     h+=`<div class="row"><button class="btn" onclick="UI.openInventory()">Open Bag</button>`;
-    h+= wasBoss ? `<button class="btn gold" onclick="Overlay.hide();Game.victory()">Finish</button>`
-                : `<button class="btn gold" onclick="Overlay.hide();Screens.show('field')">Continue</button>`;
+    h+= wasBoss ? `<button class="btn gold" onclick="UI.close()">Finish</button>`
+                : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
     h+=`</div>`;
     Overlay.show(h);
   },
@@ -880,7 +887,12 @@ function grantXp(party, xp){
    5. FIELD MAP — tile grid, movement, random encounters, boss gate
    ===================================================================================== */
 const Field = {
-  W:26, H:18, tile:0, px:0, py:0, map:[], boss:{x:24,y:9}, stepsToEncounter:0,
+  // ── PACING KNOBS ──────────────────────────────────────────────────────────────
+  // W = zone length (steps to the boss). ENC_MIN/MAX = steps between random fights.
+  // Together these set run length: ~W/((MIN+MAX)/2) fights on the road east. Crank W
+  // for a longer quest. (v0.1 was W:26 → only ~3 fights / ~5 min.)
+  W:60, H:18, tile:0, px:0, py:0, map:[], boss:{x:58,y:9}, stepsToEncounter:0,
+  ENC_MIN:3, ENC_MAX:6,
   canvas:null, ctx:null,
 
   init(){
@@ -888,7 +900,7 @@ const Field = {
     this.resize();
     this.px=1; this.py=9;
     this.genMap();
-    this.stepsToEncounter=ri(6,11);
+    this.stepsToEncounter=ri(this.ENC_MIN,this.ENC_MAX);
     this.hint();
     this.draw();
     window.addEventListener("resize",()=>{this.resize();this.draw();});
@@ -922,7 +934,7 @@ const Field = {
     this.draw(); this.hint();
     if(this.map[ny][nx]==="boss" && !Game.bossDefeated){ this.startBoss(); return; }
     this.stepsToEncounter--;
-    if(this.stepsToEncounter<=0 && this.map[ny][nx]!=="boss"){ this.stepsToEncounter=ri(6,12); this.rollEncounter(); }
+    if(this.stepsToEncounter<=0 && this.map[ny][nx]!=="boss"){ this.stepsToEncounter=ri(this.ENC_MIN,this.ENC_MAX); this.rollEncounter(); }
   },
   rollEncounter(){
     const p=this.progress();
@@ -935,9 +947,10 @@ const Field = {
   startBoss(){ Battle.begin(["brute"], "mountains", true); },
   hint(){
     const p=this.progress();
-    let msg = p<0.15? "Head east through Greenvale." : p>0.85? "The Bandit Brute's camp lies just ahead." :
-      "Random bandits roam these fields. Keep moving east.";
+    let msg = p<0.12? "Head east through Greenvale." : p>0.88? "The Bandit Brute's camp lies just ahead." :
+      `${Math.round(p*100)}% through Greenvale. Keep moving east.`;
     $("#fieldHint").textContent=msg;
+    $("#fieldZone").textContent=`Greenvale · ${Game.encountersWon} cleared`;
     $("#fieldGold").textContent=Game.gold;
     const fp=$("#fieldParty"); fp.innerHTML=Game.party.map(m=>`<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
   },
@@ -1003,6 +1016,12 @@ function itemHtml(it, actionBtn){
 }
 
 const UI = {
+  // Universal overlay close. Outside post-battle it just hides; after a victory it fires
+  // Game.continueAfterBattle so the player can never get stranded in the Bag/Party menus.
+  close(){
+    Overlay.hide();
+    if(Game.continueAfterBattle){ const fn=Game.continueAfterBattle; Game.continueAfterBattle=null; fn(); }
+  },
   openParty(){
     let h=`<h2 class="title-gold">Party</h2><div class="scroll">`;
     Game.party.forEach(m=>{
@@ -1018,7 +1037,7 @@ const UI = {
         <div class="small" style="margin-top:6px">Skills: ${m.skills.map(k=>SKILLS[k]).map(s=>`<span class="${s.unlock<=m.level?'r-uncommon':'small'}">${s.name}${s.unlock>m.level?` (L${s.unlock})`:""}</span>`).join(" · ")}</div>
       </div>`;
     });
-    h+=`</div><div class="row"><button class="btn gold" onclick="Overlay.hide()">Close</button></div>`;
+    h+=`</div><div class="row"><button class="btn gold" onclick="UI.close()">Close</button></div>`;
     Overlay.show(h);
   },
   equipPicker(memberId, slot){
@@ -1047,7 +1066,7 @@ const UI = {
     let h=`<h2 class="title-gold">Bag</h2><div class="small">${Game.inventory.length} items · ${Game.gold} gold</div><div class="scroll">`;
     if(Game.inventory.length===0) h+=`<p class="small">Empty. Win fights to find loot.</p>`;
     Game.inventory.slice().sort((a,b)=>rarityIx(b.rarity)-rarityIx(a.rarity)).forEach(it=>{ h+=itemHtml(it); });
-    h+=`</div><div class="row"><button class="btn" onclick="UI.openParty()">To Party</button><button class="btn gold" onclick="Overlay.hide();if(Screens.cur=='field'){}else{Overlay.hide()}">Close</button></div>`;
+    h+=`</div><div class="row"><button class="btn" onclick="UI.openParty()">To Party</button><button class="btn gold" onclick="UI.close()">Close</button></div>`;
     Overlay.show(h);
   },
 };
