@@ -47,4 +47,7 @@ gold-on-dark palette). Next passes: wire Dara's real art into the battle screen,
 field tiles/backgrounds, tune the one-hour pacing from telemetry, and open the party beyond
 the SOL attunement once more art exists.
 
+**Picking up the art later?** The character paper-doll engine is built and waiting on
+weaponless body art — the full resume guide is **[`docs/art/README.md`](docs/art/README.md)**.
+
 See [`DESIGN.md`](DESIGN.md) for the locked decisions and the open questions.
