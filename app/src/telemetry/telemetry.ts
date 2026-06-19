@@ -142,13 +142,22 @@ export const Telemetry = {
       <div class="small">Drops (${A.dropTotal}): ${dropRow(A.drops)}</div>
       <div class="small">Boss wins ${A.bossWins} · Avg time-to-boss ${ms(avg(A.timeToBoss))}</div>
     </div>`;
+    const canSave = TELEMETRY_ENDPOINT && this.s; // a Worker is wired AND a run is in progress
     h += `<div class="row">
-      <button id="tmCopyBtn" class="btn gold" onclick="Telemetry.copy()">Copy JSON</button>
+      ${canSave ? `<button id="tmSaveBtn" class="btn gold" onclick="Telemetry.saveNow()">Save run → repo</button>` : ""}
+      <button id="tmCopyBtn" class="btn${canSave ? "" : " gold"}" onclick="Telemetry.copy()">Copy JSON</button>
       <button class="btn" onclick="Telemetry.download()">Download</button>
       <button class="btn" onclick="Telemetry.reset()">Reset</button>
       <button class="btn" onclick="Overlay.hide()">Close</button></div>
-      <div class="small" style="opacity:.7;margin-top:6px">On mobile use <b>Copy JSON</b> (downloads are blocked in-app) — paste into Notes or a message.</div>`;
+      <div class="small" style="opacity:.7;margin-top:6px">${TELEMETRY_ENDPOINT ? "Finished runs auto-save to the repo; <b>Save run → repo</b> sends the current run mid-way." : "On mobile use <b>Copy JSON</b> (downloads are blocked in-app) — paste into Notes."}</div>`;
     Overlay.show(h);
+  },
+  // Push the IN-PROGRESS run to the repo now (in case the session won't be finished). Marks it
+  // reason:"midrun" with the current duration so partial runs are distinguishable.
+  saveNow(): void {
+    if (!this.s) return;
+    this._autosave({ ...this.s, end: Date.now(), durationMs: Date.now() - this.s.start, reason: "midrun", gold: Game.gold || 0 });
+    const b = document.getElementById("tmSaveBtn"); if (b) b.textContent = "Saved ✓";
   },
   _exportJson(): string {
     return JSON.stringify({ exported: Date.now(), sessions: this.all, current: this.s }, null, 2);

@@ -191,9 +191,14 @@ describe("MNA gating & scaling", () => {
         expect(kit && kit.length).toBeGreaterThan(0);
         kit!.forEach((k) => expect(SKILLS[k]).toBeTruthy()); // every kit key is a real skill
       }
-    // attunements without authored archetype kits fall back to the generic tree
-    expect(kitFor("ANIMA", "Staff")).toEqual(KITS_GENERIC.ANIMA);
-    expect(kitFor("SOL", "Hammer")).toEqual(KITS_GENERIC.SOL); // SOL archetype with no specific kit
+    // every class now has its OWN canon kit, not the shared generic placeholder (the fix for
+    // "ANIMA S&S borrowed another class's abilities" / "classes need distinction")
+    expect(kitFor("ANIMA", "Staff")).not.toEqual(KITS_GENERIC.ANIMA);
+    expect(kitFor("SOL", "Hammer")).not.toEqual(KITS_GENERIC.SOL);
+    // all 45 attunement×archetype kits are distinct
+    const all = (["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"] as const)
+      .flatMap((att) => ARCHETYPE_KEYS.map((arch) => JSON.stringify(kitFor(att, arch))));
+    expect(new Set(all).size).toBe(45);
   });
   it("buildDef makes a playable hero of a chosen attunement × archetype", () => {
     const m = makeMember(buildDef("hero0", "Test", "QUANTA", "Rifle", "back"));
