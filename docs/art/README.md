@@ -11,25 +11,48 @@ Two-Handed Sword makes you a Starbreaker. So the weapon must **read instantly an
 silhouette** — render weapons **big, prominent, and over-the-top**, oversized relative to the
 body, the first thing the eye lands on. When in doubt, scale the weapon *up*. This applies to
 the battle paper-doll and (later) loot/equip art.
-- The knob already exists: `RIG.weapon[archetype].scale` in
-  [`app/src/data/art.ts`](../../app/src/data/art.ts) (a fraction of the doll-box width). Today
-  it's a tasteful ~0.8–0.95; the directive is to push it well past 1.0 (hero-sized weapons)
-  once real grip-ready weapon art exists, and to tune per archetype in
-  [`rig-spec.md`](rig-spec.md).
+- Done (v0.23): `RIG.weapon[archetype]` in
+  [`app/src/data/art.ts`](../../app/src/data/art.ts) carries `{x, y, scale, rot}` per archetype,
+  with `scale` now past 1.0 (~1.1–1.3 of the doll-box width) for the hero-sized look. Tune
+  further there.
 - Generated/sliced weapon art should be drawn to be legible and impressive at large scale
   (heavy gold-on-dark, strong rarity glow), not dainty.
 
 ## What's already done (no action needed)
 - The **paper-doll engine** is built and live (ADR 0004): characters render as stacked
   layers — body + armor + weapon + fx — and **equipping swaps a layer**.
-- It's **art-gated and falls back safely**: with no weaponless-body art yet, it uses the
-  current figure as the body and attaches the equipped weapon at the hand. The moment the
-  art below exists and is registered, equip becomes fully clean **with zero code change**.
+- It's **art-gated and falls back safely**: a missing layer degrades to the previous look,
+  no code change.
+- **All 45 weaponless class bodies are in** (v0.22). The full base-model grid
+  (`assets/reference/class-base-models-45.png`, 5 attunement rows × 9 archetype columns) is
+  sliced to `bodies/{att}-{slug}.png`. Class = attunement × archetype, so `ui/render.ts
+  classBody()` shows the figure for a hero's **current** class — equipping a foreign-attunement
+  weapon swaps the body to match. The four SOL party figures are also written as
+  `heroes/{id}.png` (sprite + identity fallback). All weaponless, so the rig overlays the
+  equipped weapon on a clean hand. (The "decked" grid, `class-concept-decked-45.png`, is
+  **aspirational reference only** — what a fully-geared class should look like — not a slice
+  source.)
+- **Per-attunement weapon art is in** (v0.21–22). The painterly loot sheets are sliced to
+  `items/{stem}-{att}-{rarity}.png` for **all four** POC archetypes (Sword & Shield, Dual
+  Swords, Staff, Spellblade) × 5 attunements × 6 rarities; `weaponArt()` prefers the
+  attunement match and falls back to the SOL-keyed file. So a NOX blade shows NOX art.
+- **Armor item icons are in** (v0.22). The painterly armor-set sheet is sliced to
+  `items/armor-{att}-{rarity}.png` (+ SOL-keyed fallback); `itemIcon()` renders them for the
+  armour slot. (Armor items are attunement-agnostic today, so they use the SOL set; the
+  per-attunement files are ready for when armour gains an attunement.)
 
-## What's pending (the one gating thing)
-**Weaponless body bases** — one per class. Today's hero figures have the weapon painted in,
-so nothing can be truly "clean" until we have figures with an empty hand. (Armor layers are
-a nice-to-have after that, same system.)
+- **Hero-sized weapon placement is in** (v0.23). `RIG.weapon` is now keyed by **archetype**
+  (the body's pose, shared across attunements) and carries `{x, y, scale, rot}`. Weapons are
+  drawn **oversized** (scale ~1.1–1.3, past 1.0 per the directive) so they dominate the
+  silhouette; `DEFAULT_WEAPON` covers archetypes without a tuned entry. Tuned against a
+  faithful offline doll compositor (matches the CSS) since the sandbox can't run a browser.
+
+## What's pending
+- **Armour-over-body layer.** Today armour is an item icon only. A true fitted armour layer
+  drawn over the rig (`ARMOR_LAYER`, per class × rarity) needs art authored on our shared
+  canvas — the loot-sheet figures are standalone mannequins, not body-fitted overlays.
+- **Non-SOL party members.** The bodies for all 45 classes exist; the game still ships the four
+  SOL heroes (who reclass via weapons). New non-SOL party members can drop straight in.
 
 ## How to make them — two paths
 
@@ -53,6 +76,11 @@ Requires a **separate OpenAI API account + key** (a few cents per image), indepe
 ChatGPT Teams. Set `OPENAI_API_KEY` in the environment and ask me to build
 `app/tools/gen-art.py` — it reads the prompts here + the rig spec and generates the layers
 (weaponless bodies, then armor) directly into `app/assets/`.
+
+## Field map (walking around a zone)
+The top-down walkable field is the last placeholder system (Canvas rects + emoji). The asset
+checklist — Greenvale tileset, dungeon floor, markers (chest / gate / entrance / merchant), and a
+top-down player walker — is in **[`field-map-brief.md`](field-map-brief.md)**.
 
 ## The contract the art must meet
 See **[`rig-spec.md`](rig-spec.md)** — shared canvas, feet/hand anchors, slot z-order, file

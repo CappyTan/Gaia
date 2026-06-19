@@ -1,15 +1,42 @@
 // Pure presentation helpers: turn domain objects into HTML strings. No control flow, no
 // game state mutation — just rendering. Swapping the renderer later means replacing this file.
 
-import type { Enemy, Item, Member, Unit } from "../types";
+import type { Attunement, Enemy, Item, Member, Unit } from "../types";
 import { cap, clamp } from "../core/rng";
 import { assetUrl } from "../core/assets";
-import { WEAP_IMG, RIG, BODY_LAYER, ARMOR_LAYER } from "../data/art";
+import { WEAP_IMG, ARCH_SLUG, RIG, DEFAULT_WEAPON, BODY_LAYER, ARMOR_LAYER } from "../data/art";
+
+// Resolve a weapon's sprite. Prefers attunement-specific art (items/{stem}-{att}-{rarity}.png,
+// e.g. a NOX blade gets the NOX painterly sprite) and falls back to the legacy SOL-keyed file
+// (items/{stem}-{rarity}.png) so weapons still render before the per-attunement art is sliced.
+export function weaponArt(cls: string, rarity: string, att?: string): string | null {
+  const stem = WEAP_IMG[cls];
+  if (!stem) return null;
+  const a = (att || "SOL").toLowerCase();
+  return assetUrl(`items/${stem}-${a}-${rarity}.png`) || assetUrl(`items/${stem}-${rarity}.png`);
+}
+
+// Armor is attunement-agnostic loot, so it falls back to the SOL-keyed set; the per-attunement
+// files exist for when armor gains an attunement (or for an armour-over-body layer later).
+export function armorArt(rarity: string, att?: string): string | null {
+  const a = (att || "SOL").toLowerCase();
+  return assetUrl(`items/armor-${a}-${rarity}.png`) || assetUrl(`items/armor-${rarity}.png`);
+}
 
 export function itemIcon(it: Item): string {
-  if (it.slot !== "weapon" || !WEAP_IMG[it.cls]) return "";
-  const url = assetUrl(`items/${WEAP_IMG[it.cls]}-${it.rarity}.png`);
+  const url = it.slot === "weapon" ? weaponArt(it.cls, it.rarity, it.att)
+            : it.slot === "armor" ? armorArt(it.rarity, it.att)
+            : null;
   return url ? `<img class="ico" src="${url}" alt="">` : "";
+}
+
+// Weaponless body for a hero's CURRENT class (attunement × archetype), falling back to their
+// identity portrait (heroes/{id}.png) then nothing. Reclassing via a weapon swaps the figure.
+export function classBody(att: Attunement | undefined, archetype: string, id?: string): string {
+  const slug = ARCH_SLUG[archetype];
+  const a = (att || "SOL").toLowerCase();
+  return (slug ? assetUrl(`bodies/${a}-${slug}.png`) : null)
+    || (id ? assetUrl(`heroes/${id}.png`) : null) || "";
 }
 
 export function enemySprite(e: Enemy): string {
@@ -18,7 +45,7 @@ export function enemySprite(e: Enemy): string {
 }
 
 export function heroSprite(m: Member): string {
-  const url = assetUrl(`heroes/${m.id}.png`);
+  const url = classBody(m.att, m.cls, m.id);
   return url ? `<img class="spr-img" src="${url}" alt="${m.name}">` : `<div class="spr">${m.spr}</div>`;
 }
 
@@ -27,7 +54,7 @@ export function heroSprite(m: Member): string {
 // once that art exists.
 export function renderDoll(m: Member): string {
   const id = m.id;
-  const body = BODY_LAYER[id] || assetUrl(`heroes/${id}.png`) || "";
+  const body = BODY_LAYER[id] || classBody(m.att, m.cls, id);
   let h = `<div class="doll"><img class="dl-body" src="${body}" alt="${m.name}">`;
   const ar = m.equip && m.equip.armor;
   if (ar && ARMOR_LAYER[id] && ARMOR_LAYER[id][ar.rarity]) {
@@ -35,10 +62,9 @@ export function renderDoll(m: Member): string {
   }
   const w = m.equip && m.equip.weapon;
   if (w && WEAP_IMG[w.cls]) {
-    const r = RIG.weapon[w.cls] || { scale: 0.9, rot: -16 };
-    const hand = RIG.hand[id] || { x: 0.4, y: 0.58 };
-    const url = assetUrl(`items/${WEAP_IMG[w.cls]}-${w.rarity}.png`) || "";
-    const st = `left:${(hand.x * 100).toFixed(1)}%;top:${(hand.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
+    const r = RIG.weapon[w.cls] || DEFAULT_WEAPON;
+    const url = weaponArt(w.cls, w.rarity, w.att) || "";
+    const st = `left:${(r.x * 100).toFixed(1)}%;top:${(r.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
     h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="${url}" alt="">`;
   }
   return h + `</div>`;
