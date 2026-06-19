@@ -84,6 +84,7 @@ export const Battle = {
     });
   },
   showCommands(m: Member): void {
+    this.setCmdWide(false);
     $("#cmdWho")!.textContent = `${m.name}  ·  ${m.cls}`;
     const list = $("#cmdList")!; list.innerHTML = "";
     const mk = (label: string, cost: number, fn: () => void, dis?: boolean) => {
@@ -105,15 +106,19 @@ export const Battle = {
     this._unlockT = setTimeout(() => ids.forEach((s) => { const e = $(s); if (e) e.style.pointerEvents = ""; }), ms);
   },
   showSkills(m: Member, known: Skill[]): void {
+    this.setCmdWide(true); // give descriptions room to breathe
     const list = $("#cmdList")!; list.innerHTML = "";
-    const back = el("button", "cmd", "◂ Back"); back.onclick = () => this.showCommands(m); list.appendChild(back);
+    const back = el("button", "cmd", "◂ Back"); back.onclick = () => { this.setCmdWide(false); this.showCommands(m); }; list.appendChild(back);
     known.forEach((s) => {
-      const b = el("button", "cmd", `${s.name}<span class="cost">${s.mp} MP</span><div class="small" style="font-size:10px;opacity:.78;line-height:1.15;margin-top:2px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
-      if (m.mp < s.mp) b.disabled = true; else b.onclick = () => this.useSkill(m, s);
-      b.title = s.desc; list.appendChild(b);
+      const afford = m.mp >= s.mp;
+      const cost = `<span class="cost${afford ? "" : " low"}">${s.mp} MP${afford ? "" : " — low"}</span>`;
+      const b = el("button", "cmd", `${s.name}${cost}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
+      if (!afford) b.disabled = true; else b.onclick = () => { this.setCmdWide(false); this.useSkill(m, s); };
+      list.appendChild(b);
     });
-    if (known.length === 0) list.appendChild(el("div", "small", "No skills yet."));
+    if (known.length === 0) list.appendChild(el("div", "small", "No abilities unlocked yet — raise MNA in the Party screen."));
   },
+  setCmdWide(on: boolean): void { $("#cmdPanel")?.classList.toggle("cmd-wide", on); },
   useSkill(m: Member, s: Skill): void {
     if (s.target === "self") { this.resolve(m, [m], { skill: s }); return; }
     if (s.target === "allEnemies") { this.resolve(m, this.livingEnemies(), { skill: s }); return; }
@@ -316,6 +321,7 @@ export const Battle = {
       h += "</div>";
     } else h += `<p class="small">No loot this time.</p>`;
     h += `<div class="row"><button class="btn" onclick="UI.openInventory()">Open Bag</button>`;
+    if (leveled.length) h += `<button class="btn" onclick="UI.openParty()">Spend MNA →</button>`;
     h += wasFinal ? `<button class="btn gold" onclick="UI.close()">Finish</button>` : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
     h += `</div><div class="small" style="margin-top:8px">Victory jingle: <a class="link" onclick="Music.cycleStyle('victory')">${cap(Music.styleByState.victory)} ▸</a></div>`;
     Overlay.show(h);
@@ -345,7 +351,7 @@ export const Battle = {
       const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
         <div class="ename">${e.name}${e.eliteAffixes ? ` <span class="badge atkup">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
-        <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}</span></div>
+        <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       if (targetable && e.alive) d.onclick = () => this.targetClicked(e);
       z.appendChild(d);
