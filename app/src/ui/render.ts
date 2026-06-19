@@ -6,9 +6,19 @@ import { cap, clamp } from "../core/rng";
 import { assetUrl } from "../core/assets";
 import { WEAP_IMG, RIG, BODY_LAYER, ARMOR_LAYER } from "../data/art";
 
+// Resolve a weapon's sprite. Prefers attunement-specific art (items/{stem}-{att}-{rarity}.png,
+// e.g. a NOX blade gets the NOX painterly sprite) and falls back to the legacy SOL-keyed file
+// (items/{stem}-{rarity}.png) so weapons still render before the per-attunement art is sliced.
+export function weaponArt(cls: string, rarity: string, att?: string): string | null {
+  const stem = WEAP_IMG[cls];
+  if (!stem) return null;
+  const a = (att || "SOL").toLowerCase();
+  return assetUrl(`items/${stem}-${a}-${rarity}.png`) || assetUrl(`items/${stem}-${rarity}.png`);
+}
+
 export function itemIcon(it: Item): string {
-  if (it.slot !== "weapon" || !WEAP_IMG[it.cls]) return "";
-  const url = assetUrl(`items/${WEAP_IMG[it.cls]}-${it.rarity}.png`);
+  if (it.slot !== "weapon") return "";
+  const url = weaponArt(it.cls, it.rarity, it.att);
   return url ? `<img class="ico" src="${url}" alt="">` : "";
 }
 
@@ -37,7 +47,7 @@ export function renderDoll(m: Member): string {
   if (w && WEAP_IMG[w.cls]) {
     const r = RIG.weapon[w.cls] || { scale: 0.9, rot: -16 };
     const hand = RIG.hand[id] || { x: 0.4, y: 0.58 };
-    const url = assetUrl(`items/${WEAP_IMG[w.cls]}-${w.rarity}.png`) || "";
+    const url = weaponArt(w.cls, w.rarity, w.att) || "";
     const st = `left:${(hand.x * 100).toFixed(1)}%;top:${(hand.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
     h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="${url}" alt="">`;
   }

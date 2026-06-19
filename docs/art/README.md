@@ -22,14 +22,27 @@ the battle paper-doll and (later) loot/equip art.
 ## What's already done (no action needed)
 - The **paper-doll engine** is built and live (ADR 0004): characters render as stacked
   layers — body + armor + weapon + fx — and **equipping swaps a layer**.
-- It's **art-gated and falls back safely**: with no weaponless-body art yet, it uses the
-  current figure as the body and attaches the equipped weapon at the hand. The moment the
-  art below exists and is registered, equip becomes fully clean **with zero code change**.
+- It's **art-gated and falls back safely**: a missing layer degrades to the previous look,
+  no code change.
+- **Weaponless SOL bodies are in** (v0.21). The four SOL heroes (`dawnguard`, `sunblade`,
+  `lightkeeper`, `dawnchaser`) are now sliced from the **45-class base-model grid**
+  (`assets/reference/class-base-models-45.png`, SOL row) — empty-handed figures — so the
+  doll overlays the equipped weapon on a clean hand. They replaced the old pre-equipped
+  portraits. (`slice-art.py`, `HCOL`.)
+- **Per-attunement weapon art is in** (v0.21). The painterly loot sheets are sliced to
+  `items/{stem}-{att}-{rarity}.png` (Sword & Shield, Staff, Spellblade × 5 attunements × 6
+  rarities); `ui/render.ts weaponArt()` prefers the attunement match and falls back to the
+  SOL-keyed file. So a NOX blade now shows NOX art instead of borrowing SOL's.
 
-## What's pending (the one gating thing)
-**Weaponless body bases** — one per class. Today's hero figures have the weapon painted in,
-so nothing can be truly "clean" until we have figures with an empty hand. (Armor layers are
-a nice-to-have after that, same system.)
+## What's pending
+- **Weaponless bodies for the other 41 classes** — only the SOL row is sliced today. The
+  remaining four attunement rows of the base-model grid (NOX/ANIMA/QUANTA/UMBRAXIS × 9
+  archetypes) can be sliced the same way when those heroes exist. (The "decked" grid,
+  `class-concept-decked-45.png`, is **aspirational reference only** — what a fully-geared
+  class should look like — not a slice source.)
+- **Dual Swords** has no painterly multi-attunement sheet yet, so it still uses the SOL-only
+  slices from the original loot chart (every attunement falls back to SOL art for now).
+- **Armor layers** — a nice-to-have after bodies, same system.
 
 ## How to make them — two paths
 
