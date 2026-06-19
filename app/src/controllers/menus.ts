@@ -2,9 +2,11 @@
 // post-battle Bag/Party menus from soft-locking the run.
 
 import { cap } from "../core/rng";
+import { ATTUNEMENTS } from "../types";
 import { SKILLS } from "../data/skills";
 import { rarityIx } from "../data/rarity";
-import { recalc, xpForLevel } from "../systems/progression";
+import { className } from "../data/classes";
+import { recalc, xpForLevel, skillUnlocked } from "../systems/progression";
 import { itemScore } from "../systems/loot";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
@@ -21,16 +23,22 @@ export const UI = {
   openParty(): void {
     let h = `<h2 class="title-gold">Party</h2><div class="scroll">`;
     Game.party.forEach((m) => {
+      const arch = m.equip.weapon?.cls || m.cls;
+      const cls = className(m.att, arch);
+      const mnaStr = ATTUNEMENTS.filter((a) => m.mna[a] > 0)
+        .map((a) => `${a} ${m.mna[a]}${m.mna[a] >= 100 ? " ⭐" : ""}`)
+        .join(" · ") || "—";
       h += `<div class="card" style="margin:6px 0;text-align:left">
-        <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill">${m.cls} · ${m.att} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
+        <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill">${cls} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
         <div class="small">HP ${m.maxhp} · MP ${m.maxmp} · ATK ${m.atk} · MAG ${m.mag} · SPD ${m.spd} · ARM ${m.armor} · Crit ${m.critPct}%${m.solPct ? ` · +${m.solPct}% SOL` : ""}${m.leech ? ` · ${m.leech}% leech` : ""}</div>
+        <div class="small">MNA: ${mnaStr}${ATTUNEMENTS.some((a) => m.mna[a] >= 100) ? ` <span class="r-legendary">Archon</span>` : ""}</div>
         <div class="small">XP ${m.xp}/${xpForLevel(m.level)}</div>
         <div class="grid2" style="margin-top:6px">${(["weapon", "armor", "trinket"] as const).map((slot) => {
         const it = m.equip[slot];
         return `<div class="equip-slot"><span><span class="tag">${slot}</span><br>${it ? `<span class="r-${it.rarity}">${it.name}</span>` : "<span class='small'>— empty —</span>"}</span>
             <button class="btn" onclick="UI.equipPicker('${m.id}','${slot}')">Swap</button></div>`;
       }).join("")}</div>
-        <div class="small" style="margin-top:6px">Skills: ${m.skills.map((k) => SKILLS[k]).map((s) => `<span class="${s.unlock <= m.level ? "r-uncommon" : "small"}">${s.name}${s.unlock > m.level ? ` (L${s.unlock})` : ""}</span>`).join(" · ")}</div>
+        <div class="small" style="margin-top:6px">Abilities: ${m.skills.map((k) => SKILLS[k]).map((s) => { const ok = skillUnlocked(m, s); return `<span class="${ok ? (s.ult ? "r-legendary" : "r-uncommon") : "small"}">${s.name}${ok ? "" : ` (${s.att} ${s.mnaReq})`}${s.ult ? " ★" : ""}</span>`; }).join(" · ")}</div>
       </div>`;
     });
     h += `</div><div class="row"><button class="btn gold" onclick="UI.close()">Close</button></div>`;

@@ -14,10 +14,14 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   const k = ilvlMult(ilvl);
   let name: string;
   const implicit: Implicit = {};
+  let mna: Item["mna"];
   if (slot === "weapon") {
     const wc = weaponClass || "Dual Swords";
     name = (ITEM_NAMES[wc] || ITEM_NAMES["Dual Swords"])[r];
     implicit.atk = Math.round((5 + r * 5) * k); // base atk ladder by rung, scaled by ilvl
+    // Weapons carry intrinsic MNA in their Attunement (the main MNA source). POC weapons are
+    // all SOL; a generic weapon would key this to its own Attunement.
+    mna = { SOL: Math.round(14 + ilvl * 2.7 + r * 9) };
   } else if (slot === "armor") {
     name = ARMOR_NAMES[r];
     implicit.hp = Math.round((10 + r * 12) * k);
@@ -35,7 +39,7 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     if (!a) break;
     affixes.push({ key: a.key, stat: a.stat, value: a.roll(r), label: a.label });
   }
-  return { slot, cls: weaponClass || cls || "", rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, affixes };
+  return { slot, cls: weaponClass || cls || "", rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, affixes };
 }
 
 // crude power score for comparing/sorting items
@@ -49,6 +53,7 @@ export function itemScore(it: Item): number {
   for (const a of it.affixes) {
     s += a.value * (a.stat === "atkPct" ? 2 : a.stat === "critPct" ? 2 : a.stat.endsWith("Pct") ? 2 : 1.2);
   }
+  if (it.mna) for (const v of Object.values(it.mna)) s += (v || 0) * 0.8; // MNA unlocks/scales — valued
   return Math.round(s + it.rIx * 4);
 }
 
