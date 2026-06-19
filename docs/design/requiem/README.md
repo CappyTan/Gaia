@@ -1,18 +1,20 @@
 # REQUIEM — canonical class & combat design (Dara)
 
 **REQUIEM** is Dara Saadat's Attunement Combat System for Gaia: **45 base classes** (5
-attunements × 9 weapon archetypes), **246 abilities**, **45 ultimates**. This folder is the
+attunements × 9 weapon archetypes), **250 abilities**, **45 ultimates**. This folder is the
 faithful capture of that design — not an interpretation.
 
 ## Files
-- **`requiem-compendium.source.html`** — Dara's original compendium, verbatim. Source of truth.
+- **`requiem-compendium.source.html`** — Dara's compendium, verbatim. Source of truth.
 - **`parse-requiem.js`** — deterministic parser. Re-run after any source update: `node docs/design/requiem/parse-requiem.js`
 - **`classes.json`** — structured extraction (attunements + every class + every ability with type/cost/description). What the game/tools read.
 - **`REQUIEM-classes.md`** — human-readable compendium generated from the JSON.
+- **`battle-mechanics.md`** — Ascension · Soul Burn · Harmonic Ascension · Archon Types (combat-systems + mastery layer above the class kits). Captured from Dara's notes; not yet in the compendium HTML.
 
 Everything in the JSON/MD comes straight from the HTML via the parser — nothing invented or
-edited by hand. A few ability descriptions are truncated in Dara's source; they're reproduced
-as-is. Open `requiem-compendium.source.html` in a browser for Dara's filterable view.
+edited by hand. Open `requiem-compendium.source.html` in a browser for Dara's filterable view.
+The current source (250 abilities) is the more complete revision — earlier ability text that
+was truncated is now full.
 
 ## The five attunements (each has its own mana mechanic)
 | Attunement | Domain | Mana mechanic |

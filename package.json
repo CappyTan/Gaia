@@ -1,0 +1,23 @@
+{
+  "name": "gaia-world-of-five-powers",
+  "private": true,
+  "version": "0.12.0",
+  "type": "module",
+  "description": "Gaia: A World of Five Powers — turn-based RPG (ATB combat, five-power attunement ring, Diablo loot).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sim": "tsx app/tools/balance-sim.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}

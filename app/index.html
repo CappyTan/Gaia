@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Gaia: A World of Five Powers</title>
+<style>
+  /* ---- Gaia palette: gold-on-dark, matched to Dara's loot/world art ---- */
+  :root{
+    --bg:#0a0a0f; --panel:#12121c; --panel2:#1b1b2a; --ink:#e8e4d8; --dim:#9a93a8;
+    --gold:#e0a92e; --gold2:#f4d27a; --line:#33304a; --sol:#f4b942; --sol2:#ffd97a;
+    --hp:#7ad06b; --hpb:#2a4d28; --mp:#5aa9e6; --mpb:#1f3a55; --atb:#c7a3ff; --atbf:#7a5bd6;
+    --common:#cfcfcf; --uncommon:#5fd16a; --rare:#4ea3ff; --epic:#b46bff; --legendary:#f4972e; --artifact:#ff5a5a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family:"Trebuchet MS",Verdana,system-ui,sans-serif; overflow:hidden; user-select:none;}
+  #app{position:relative; width:100vw; height:100dvh; display:flex; align-items:center; justify-content:center;}
+  #stage{position:relative; width:min(100vw,920px); height:min(100dvh,640px);
+    background:#06060b; border:1px solid var(--line); box-shadow:0 0 40px #000 inset; overflow:hidden;}
+
+  .screen{position:absolute; inset:0; display:none;}
+  .screen.on{display:block;}
+
+  h1,h2,h3{font-family:"Georgia",serif; letter-spacing:.5px; margin:0;}
+  .title-gold{color:var(--gold2); text-shadow:0 0 12px rgba(240,180,60,.5), 0 2px 0 #000;}
+  button{font-family:inherit; cursor:pointer;}
+  .btn{background:linear-gradient(#23223a,#16162a); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:10px 16px; font-size:15px;}
+  .btn:hover{border-color:var(--gold); color:var(--gold2);}
+  .btn:active{transform:translateY(1px);}
+  .btn.gold{background:linear-gradient(#3a2e10,#221a08); border-color:var(--gold); color:var(--gold2); font-weight:bold;}
+
+  /* ---- Title ---- */
+  #titleScreen{display:none; flex-direction:column; align-items:center; justify-content:center; gap:18px; text-align:center;
+    background:radial-gradient(circle at 50% 30%, #1a1530 0%, #06060b 70%);}
+  #titleScreen.on{display:flex;}
+  #titleScreen .sun{width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,var(--sol2) 30%,var(--sol) 55%,#7a4d00 100%);
+    box-shadow:0 0 60px rgba(244,185,66,.7),0 0 120px rgba(244,185,66,.3); margin-bottom:6px;
+    animation:pulse 4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+  #titleScreen h1{font-size:40px;}
+  #titleScreen .sub{color:var(--dim); font-size:15px; letter-spacing:3px; text-transform:uppercase;}
+  #titleScreen .powers{display:flex; gap:14px; margin:6px 0;}
+  #titleScreen .pw{font-size:12px; letter-spacing:2px; opacity:.8;}
+
+  /* ---- Field map ---- */
+  #fieldScreen{background:#0c1208;}
+  #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
+  #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; pointer-events:none;}
+  .hud-pill{background:rgba(8,8,16,.78); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; pointer-events:auto;}
+  .hud-grp{display:flex; gap:6px; align-items:flex-start; flex-wrap:wrap; justify-content:flex-end;}
+  .audiobtn{cursor:pointer; color:var(--gold2); font:inherit; line-height:1;}
+  .audiobtn:hover{border-color:var(--gold);}
+  #fieldParty{display:flex; gap:6px; flex-wrap:wrap;}
+  #fieldParty .pm{font-size:11px;}
+  #dpad{position:absolute; bottom:14px; left:14px; display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
+  #dpad button{background:rgba(30,28,50,.85); border:1px solid var(--line); border-radius:8px; color:var(--gold2); font-size:18px;}
+  #dpad .sp{visibility:hidden;}
+  #fieldHint{position:absolute; bottom:18px; right:14px; max-width:52%; text-align:right; color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000;}
+  #menuBtns{position:absolute; bottom:70px; right:10px; display:flex; flex-direction:column; gap:6px; align-items:flex-end;}
+  #menuBtns .btn{padding:7px 14px; font-size:14px; min-width:88px; text-align:center;}
+
+  /* ---- Battle ---- */
+  #battleScreen{background:#06060b;}
+  #battleStyleBtn{position:absolute; top:6px; right:6px; z-index:6; font-size:11px; padding:4px 8px; opacity:.82;}
+  #battleField{position:absolute; top:0; left:0; right:0; height:58%; overflow:hidden;}
+  #battleBg{position:absolute; inset:0;}
+  #enemyZone{position:absolute; left:3%; top:8%; bottom:6%; width:46%; display:flex; flex-direction:column; justify-content:space-around;}
+  #partyZone{position:absolute; right:3%; top:10%; bottom:6%; width:42%; display:flex; flex-direction:column; justify-content:space-around;}
+  .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
+  .enemy .spr{font-size:34px; filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
+  .enemy .spr-img{width:72px; height:78px; object-fit:contain; filter:drop-shadow(0 3px 5px #000); image-rendering:auto;}
+  .enemy .ebar{flex:1; min-width:60px;}
+  .enemy.dead{opacity:.18; filter:grayscale(1);}
+  .enemy.targetable{outline:2px dashed var(--gold); outline-offset:4px; border-radius:6px;}
+  .enemy.elite .ename{color:var(--legendary); font-weight:bold;}
+  .enemy.acting{transform:translateX(10px) scale(1.05);}
+  .enemy .ename{font-size:12px;}
+  .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
+  .pchar .spr{font-size:30px; filter:drop-shadow(0 3px 4px #000);}
+  .enemy .spr-img{filter:drop-shadow(0 4px 4px rgba(0,0,0,.6));}
+  /* ── paper-doll: a character is a stack of aligned layers; equipment swaps a layer (ADR 0004) ── */
+  .doll{position:relative; width:62px; height:74px; display:inline-block;}
+  .doll::after{content:""; position:absolute; left:50%; bottom:-3px; width:54px; height:10px; transform:translateX(-50%);
+    background:radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%);}  /* grounding shadow */
+  .doll img.dl-body, .doll img.dl-layer{position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain;
+    filter:drop-shadow(0 4px 4px rgba(0,0,0,.55));}
+  .doll img.dl-wep{position:absolute; height:auto; transform-origin:center center; pointer-events:none;}
+  .pchar.acting .spr, .pchar.acting .doll{animation:bob .5s ease;}
+  @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
+  .pchar.hurt .spr, .pchar.hurt .doll{animation:shake .25s;}
+  @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
+  /* equipped-weapon glow, by rarity */
+  .g-common{filter:drop-shadow(0 0 2px rgba(255,255,255,.4));}
+  .g-uncommon{filter:drop-shadow(0 0 3px var(--uncommon));}
+  .g-rare{filter:drop-shadow(0 0 4px var(--rare));}
+  .g-epic{filter:drop-shadow(0 0 5px var(--epic));}
+  .g-legendary{filter:drop-shadow(0 0 6px var(--legendary));}
+  .g-artifact{filter:drop-shadow(0 0 7px var(--artifact));}
+  .item .ico{width:74px; height:50px; object-fit:contain; border-radius:4px; flex:0 0 auto;}
+
+  .bar{height:9px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden; position:relative;}
+  .bar > i{display:block; height:100%; transition:width .25s;}
+  .bar.hp > i{background:linear-gradient(var(--hp),var(--hpb));}
+  .bar.mp{height:6px;} .bar.mp > i{background:linear-gradient(var(--mp),var(--mpb));}
+  .bar.atb{height:5px;} .bar.atb > i{background:linear-gradient(var(--atb),var(--atbf)); transition:width .08s linear;}
+  .bartxt{position:absolute; right:4px; top:-1px; font-size:8px; color:#fff; text-shadow:0 0 2px #000;}
+
+  #battleUi{position:absolute; bottom:0; left:0; right:0; height:42%; display:flex; border-top:2px solid var(--gold);
+    background:linear-gradient(#10101e,#0a0a14);}
+  #cmdPanel{width:34%; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px;}
+  #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
+  .cmd{background:#191830; border:1px solid var(--line); border-radius:6px; padding:8px 10px; color:var(--ink); font-size:14px; text-align:left;}
+  .cmd:hover{border-color:var(--gold); color:var(--gold2);}
+  .cmd:disabled{opacity:.35; cursor:default;}
+  .cmd .cost{float:right; font-size:11px; color:var(--mp);}
+  #rosterPanel{flex:1; display:flex; flex-direction:column; padding:6px 8px; gap:4px; overflow:hidden;}
+  .prow{display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; font-size:12px;}
+  .prow.turn{background:rgba(244,185,66,.12); outline:1px solid var(--gold);}
+  .prow.downed{opacity:.4;}
+  .prow .pn{width:80px; color:var(--gold2);}
+  .prow .stat{width:64px; color:var(--dim); font-size:11px;}
+  .prow .bars{flex:1; display:flex; flex-direction:column; gap:2px;}
+  .badge{display:inline-block; font-size:9px; padding:0 4px; border-radius:4px; margin-left:3px; vertical-align:middle;}
+  .badge.burn{background:#7a2e0a; color:#ffb27a;} .badge.blind{background:#333; color:#bbb;}
+  .badge.def{background:#1f3a55; color:#9cd1ff;} .badge.regen{background:#2a4d28; color:#aef0a0;}
+  .badge.stun{background:#5a4a00; color:#ffe27a;} .badge.atkup{background:#5a2e00; color:#ffb27a;}
+
+  #log{position:absolute; left:34%; right:0; bottom:42%; height:auto; max-height:64px; overflow:hidden; pointer-events:none;
+    padding:4px 10px; font-size:12px; color:var(--gold2); text-shadow:0 1px 2px #000;}
+  #log div{opacity:.55;} #log div:last-child{opacity:1;}
+
+  .float{position:absolute; font-weight:bold; font-size:18px; pointer-events:none; text-shadow:0 2px 3px #000;
+    animation:floatup 1s ease-out forwards;}
+  @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
+
+  /* ---- Overlays: loot / levelup / menus ---- */
+  .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; padding:18px; text-align:center; z-index:20;}
+  .overlay.on{display:flex;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; max-width:520px; width:100%;}
+  .item{border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:6px 0; background:#0e0e18; text-align:left;}
+  .item .iname{font-weight:bold;}
+  .item .affix{font-size:12px; color:var(--sol2);}
+  .item .meta{font-size:11px; color:var(--dim);}
+  .r-common{color:var(--common);} .r-uncommon{color:var(--uncommon);} .r-rare{color:var(--rare);}
+  .r-epic{color:var(--epic);} .r-legendary{color:var(--legendary);} .r-artifact{color:var(--artifact);}
+  .b-common{border-color:var(--common);} .b-uncommon{border-color:var(--uncommon);} .b-rare{border-color:var(--rare);}
+  .b-epic{border-color:var(--epic);} .b-legendary{border-color:var(--legendary);} .b-artifact{border-color:var(--artifact);}
+  .row{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .small{font-size:12px; color:var(--dim);}
+  .scroll{max-height:300px; overflow-y:auto; width:100%;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .tag{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim);}
+  .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
+  .equip-slot button{font-size:11px; padding:3px 8px;}
+  .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}
+  a.link{color:var(--gold2); cursor:pointer; text-decoration:underline;}
+</style>
+</head>
+<body>
+<div id="app"><div id="stage">
+
+  <!-- TITLE -->
+  <div id="titleScreen" class="screen on">
+    <div class="sun"></div>
+    <h1 class="title-gold">GAIA</h1>
+    <div class="sub">A World of Five Powers</div>
+    <div class="powers">
+      <span class="pw" style="color:var(--sol)">SOL</span>
+      <span class="pw" style="color:#7ad0c0">NOX</span>
+      <span class="pw" style="color:#7ad06b">ANIMA</span>
+      <span class="pw" style="color:#b46bff">QUANTA</span>
+      <span class="pw" style="color:#888">UMBRAXIS</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn gold" onclick="Game.start()">Enter Greenvale</button>
+      <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
+      <button class="btn mutebtn" title="Music on/off" onclick="Music.unlock();Music.toggleMute()">🔊</button>
+      <button class="btn" title="Home music style" onclick="Music.cycleStyle('title')">♪ <span id="st-title">Radiant</span> ▸</button>
+    </div>
+    <div class="small" style="max-width:460px;margin-top:8px">
+      Proof of concept. Four SOL adventurers cut a path through Greenvale to the Bandit Brute.
+      ATB combat, the five-power affinity ring, and Diablo-style loot. ~1 hour slice.
+    </div>
+    <div class="small">Move: arrows / WASD or the on-screen pad. Everything else is tap/click.</div>
+    <div class="small" id="verTag" style="margin-top:8px;opacity:.7;letter-spacing:1px"></div>
+  </div>
+
+  <!-- FIELD -->
+  <div id="fieldScreen" class="screen">
+    <canvas id="fieldCanvas"></canvas>
+    <div id="fieldHud">
+      <div class="hud-pill" id="fieldZone">Greenvale</div>
+      <div class="hud-grp">
+        <div class="hud-pill"><span id="fieldGold">0</span> gold</div>
+        <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
+        <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle('field')">♪ <span id="st-field">Radiant</span></button>
+      </div>
+    </div>
+    <div class="hud-pill" id="fieldPartyWrap" style="position:absolute;top:40px;left:8px;">
+      <div id="fieldParty"></div>
+    </div>
+    <div id="fieldHint"></div>
+    <div id="menuBtns">
+      <button class="btn" onclick="UI.openParty()">Party</button>
+      <button class="btn" onclick="UI.openInventory()">Bag</button>
+      <button class="btn" onclick="Telemetry.show()">Stats</button>
+    </div>
+    <div id="dpad">
+      <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
+      <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
+      <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
+    </div>
+  </div>
+
+  <!-- BATTLE -->
+  <div id="battleScreen" class="screen">
+    <div id="battleField">
+      <div id="battleBg"></div>
+      <div id="enemyZone"></div>
+      <div id="partyZone"></div>
+      <button id="battleStyleBtn" class="btn" title="Battle music style" onclick="Music.cycleStyle(Music.cur)">♪ <span id="st-battle">Radiant</span></button>
+    </div>
+    <div id="log"></div>
+    <div id="battleUi">
+      <div id="cmdPanel"><div class="who" id="cmdWho"></div><div id="cmdList"></div></div>
+      <div id="rosterPanel"></div>
+    </div>
+  </div>
+
+  <!-- OVERLAYS -->
+  <div id="overlay" class="overlay"><div id="overlayInner" class="card"></div></div>
+
+</div></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
