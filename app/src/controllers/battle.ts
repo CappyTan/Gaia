@@ -376,12 +376,16 @@ export const Battle = {
     const bg = $("#battleBg")!;
     const url = assetUrl(`backgrounds/${ENV_BG[this.env] || "plains"}.png`);
     if (url) {
-      // boss fights get a heavier scrim + warm tint for drama
-      const top = this.isBoss ? "rgba(40,8,14,.55)" : "rgba(6,6,11,.28)";
-      const bot = this.isBoss ? "rgba(7,4,6,.78)" : "rgba(6,6,11,.55)";
-      bg.style.backgroundImage = `linear-gradient(${top}, ${bot}), url(${url})`;
+      // boss fights get a heavier scrim + warm tint for drama. The gradient now darkens the lower
+      // "ground" band hard (where the combatants stand) so sprites pop, plus a soft vignette — this
+      // also disguises the upscaled-art softness (Dara's "low-res / lacks contrast" note).
+      const top = this.isBoss ? "rgba(40,8,14,.5)" : "rgba(6,6,11,.26)";
+      const bot = this.isBoss ? "rgba(6,3,5,.94)" : "rgba(5,5,9,.88)";
+      const vignette = "radial-gradient(125% 80% at 50% 16%, transparent 42%, rgba(4,4,10,.5) 100%)";
+      const scrim = `linear-gradient(180deg, ${top} 0%, transparent 34%, ${bot} 100%)`;
+      bg.style.backgroundImage = `${vignette}, ${scrim}, url(${url})`;
       bg.style.backgroundSize = "cover";
-      bg.style.backgroundPosition = "center 30%";
+      bg.style.backgroundPosition = "center 28%";
     } else {
       bg.style.background = this.isBoss
         ? "radial-gradient(120% 95% at 38% 34%, #4a1424 0%, #1a0810 52%, #070406 100%)"
