@@ -13,15 +13,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REF = os.path.join(HERE, "..", "..", "assets", "reference")
 OUT = os.path.join(HERE, "..", "assets", "enemies")
 CANVAS = (199, 300)   # match existing enemy sprites
-TITLE_FRAC = 0.22     # crop the top "(Rare)" caption band
 ALPHA_FLOOR = 16      # knock near-black backdrop fully transparent
 
-RARES = [("rare-metalslime.png", "metalslime"), ("rare-metalbabble.png", "metalbabble")]
+# (source, output key, title-band crop fraction) — the gold "(Rare)" caption sits at different
+# heights per portrait, so the crop is per-entry.
+RARES = [
+    ("rare-metalslime.png", "metalslime", 0.22),
+    ("rare-metalbabble.png", "metalbabble", 0.22),
+    ("rare-warmech.png", "warmech", 0.13),
+]
 
 
-def slice_one(src, key):
+def slice_one(src, key, title_frac):
     im = np.asarray(Image.open(os.path.join(REF, src)).convert("RGB")).astype(np.uint8)
-    im = im[int(im.shape[0] * TITLE_FRAC):, :, :]            # drop the title band
+    im = im[int(im.shape[0] * title_frac):, :, :]            # drop the title band
     alpha = im.max(2).astype(np.uint8)                        # glow/metal bright, bg ~black
     alpha[alpha < ALPHA_FLOOR] = 0
     sprite = Image.fromarray(np.dstack([im, alpha]), "RGBA")
@@ -37,5 +42,5 @@ def slice_one(src, key):
 
 
 if __name__ == "__main__":
-    for src, key in RARES:
-        slice_one(src, key)
+    for src, key, tf in RARES:
+        slice_one(src, key, tf)

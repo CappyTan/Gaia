@@ -31,6 +31,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // unless you crit / hit affinity), fast, weak attackers — pure XP/loot jackpots.
   metalslime: { name: "Metal Slime", spr: "🪙", att: "QUANTA", lvl: 3, hp: 22, atk: 7, spd: 18, armor: 45, mag: 0, xp: 420, gold: [40, 90], ai: "evasive", rare: true },
   metalbabble: { name: "Metal Babble", spr: "🪙", att: "UMBRAXIS", lvl: 7, hp: 38, atk: 13, spd: 20, armor: 65, mag: 0, xp: 900, gold: [100, 240], ai: "evasive", rare: true },
+  // Warmech (FF1 homage): an ancient war-construct — canon home is Titan Prime (future zone); for
+  // now it stalks the Duskmarsh as a genuinely dangerous, tanky, hard-hitting rare with a huge hoard.
+  warmech: { name: "Warmech", spr: "🤖", att: "QUANTA", lvl: 9, hp: 1300, atk: 44, spd: 9, armor: 12, mag: 0, xp: 1500, gold: [220, 420], ai: "basic", rare: true },
 };
 
 // Pool of ultra-rare monsters eligible to crash a random encounter, with the zone index they
@@ -39,6 +42,7 @@ export const RARE_MONSTERS: { key: string; zones: number[] }[] = [
   { key: "hogger", zones: [0] },     // Hogger prowls Greenvale
   { key: "metalslime", zones: [0] }, // Metal Slime — Greenvale
   { key: "metalbabble", zones: [1] }, // Metal Babble — the Drowned Vault (rarer, richer)
+  { key: "warmech", zones: [1] },     // Warmech — Duskmarsh (until Titan Prime exists)
 ];
 // Chance a random (non-boss) encounter is replaced by an eligible ultra-rare monster.
 export const RARE_ENCOUNTER_CHANCE = 0.04;
