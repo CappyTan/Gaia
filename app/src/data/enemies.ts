@@ -14,8 +14,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   archer: { name: "Outlaw Archer", spr: "🏹", att: "QUANTA", lvl: 4, hp: 66, atk: 18, spd: 10, armor: 2, mag: 2, xp: 74, gold: [16, 28], ai: "basic" },
   shade: { name: "Hollow Shade", spr: "👻", att: "UMBRAXIS", lvl: 4, hp: 64, atk: 17, spd: 10, armor: 2, mag: 4, xp: 78, gold: [14, 26], ai: "basic", leech: 35 },
   shaman: { name: "Bandit Shaman", spr: "🧙", att: "ANIMA", lvl: 4, hp: 60, atk: 11, spd: 9, armor: 1, mag: 14, xp: 82, gold: [18, 30], ai: "caster", skills: ["mend"], castChance: 0.55 },
-  captain: { name: "Brigand Captain", spr: "🪖", att: "NOX", lvl: 5, hp: 720, atk: 27, spd: 8, armor: 5, mag: 0, xp: 120, gold: [60, 100], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.4 },
-  brute: { name: "Bandit Brute", spr: "💀", att: "NOX", lvl: 6, hp: 1300, atk: 34, spd: 7, armor: 8, mag: 0, xp: 170, gold: [120, 180], ai: "boss", boss: true },
+  captain: { name: "Brigand Captain", spr: "🪖", att: "NOX", lvl: 5, hp: 560, atk: 29, spd: 8, armor: 5, mag: 0, xp: 120, gold: [60, 100], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.4 },
+  brute: { name: "Bandit Brute", spr: "💀", att: "NOX", lvl: 6, hp: 1000, atk: 37, spd: 7, armor: 8, mag: 0, xp: 170, gold: [120, 180], ai: "boss", boss: true },
   // ── ZONE 2: The Duskmarsh (entered ~Lv 7-8, so higher base stats; no real art yet -> emoji) ──
   serpent: { name: "Mire Serpent", spr: "🐍", att: "ANIMA", lvl: 7, hp: 115, atk: 30, spd: 13, armor: 1, mag: 0, xp: 120, gold: [16, 30], ai: "basic", onHit: { poison: 3 } },
   husk: { name: "Drowned Husk", spr: "🧟", att: "UMBRAXIS", lvl: 7, hp: 155, atk: 26, spd: 6, armor: 3, mag: 0, xp: 130, gold: [20, 38], ai: "basic", leech: 30 },
@@ -30,7 +30,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
 // party's level + gear growth. HP scales HARD (enemies survive the party's burst and keep
 // acting = steady pressure); ATK scales GENTLY (hits chip instead of one-shotting squishies).
 // Base stats are tuned for the zone START. Tuned via app/tools/balance-sim.ts.
-export const HP_DEPTH = 2.4;
-export const ATK_DEPTH = 0.78;
+export const HP_DEPTH = 1.6;
+export const ATK_DEPTH = 1.25;
 export const depthHpScale = (d: number): number => 1 + clamp(d, 0, 1) * HP_DEPTH;
 export const depthAtkScale = (d: number): number => 1 + clamp(d, 0, 1) * ATK_DEPTH;

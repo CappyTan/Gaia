@@ -1,5 +1,19 @@
-import type { Member, MemberDef } from "../types";
+import type { Attunement, Member, MemberDef, Skill } from "../types";
+import { zeroMna } from "../types";
 import { SKILLS } from "../data/skills";
+
+// Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
+// Attunement until the manual allocator ships — see mna-progression.md).
+export const MNA_PER_LEVEL = 1;
+
+/** Output-scaling bonus from an MNA total: up to +60% at 200 MNA (REQUIEM mana mechanic). */
+export const mnaBonus = (mna: number): number => 0.6 * Math.max(0, Math.min(1, mna / 200));
+
+/** Is an ability usable? (its Attunement MNA meets the threshold). */
+export const skillUnlocked = (m: Member, s: Skill): boolean => m.mna[s.att] >= s.mnaReq;
+
+/** The skill keys a member can currently use, in kit order. */
+export const unlockedSkills = (m: Member): string[] => m.skills.filter((k) => SKILLS[k] && skillUnlocked(m, SKILLS[k]));
 
 export function makeMember(d: MemberDef): Member {
   return {
@@ -8,6 +22,7 @@ export function makeMember(d: MemberDef): Member {
     base: { ...d.base },
     equip: { weapon: null, armor: null, trinket: null },
     skills: d.skills,
+    mnaAlloc: zeroMna(), mna: zeroMna(), mnaPoints: 0,
     // live combat fields filled by recalc / battle:
     hp: 0, maxhp: 0, mp: 0, maxmp: 0, atk: 0, spd: 0, armor: 0, mag: 0,
     status: {}, atb: 0, side: "party", alive: true,
@@ -15,7 +30,7 @@ export function makeMember(d: MemberDef): Member {
   };
 }
 
-// effective stats = base + per-level growth + gear (implicit + affixes)
+// effective stats = base + per-level growth + gear (implicit + affixes); MNA = alloc + gear.
 export function recalc(party: Member[]): void {
   party.forEach((m) => {
     const g = m.def.growth,
@@ -29,6 +44,8 @@ export function recalc(party: Member[]): void {
       mag: Math.round(m.base.mag + g.mag * lv),
     };
     const add: Record<string, number> = { atkPct: 0, critPct: 0, spd: 0, hp: 0, solPct: 0, armor: 0, leech: 0, mp: 0 };
+    const mna = zeroMna();
+    (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
     for (const slot of ["weapon", "armor", "trinket"] as const) {
       const it = m.equip[slot];
       if (!it) continue;
@@ -38,16 +55,19 @@ export function recalc(party: Member[]): void {
       s.mp += it.implicit.mp || 0;
       s.mag += it.implicit.mag || 0;
       for (const a of it.affixes) add[a.stat] = (add[a.stat] || 0) + a.value;
+      if (it.mna) (Object.keys(it.mna) as Attunement[]).forEach((a) => (mna[a] += it.mna![a] || 0));
     }
     s.atk = Math.round(s.atk * (1 + add.atkPct / 100));
     s.hp += add.hp;
     s.mp += add.mp;
     s.spd += add.spd;
     s.armor += add.armor;
+    m.mna = mna;
     m.maxhp = s.hp;
     m.maxmp = s.mp;
     m.atk = s.atk;
-    m.spd = Math.max(1, s.spd);
+    // QUANTA MNA scales SPD / turn priority (REQUIEM); other trees scale in combat/heal.
+    m.spd = Math.max(1, Math.round(s.spd * (1 + mnaBonus(mna.QUANTA))));
     m.armor = s.armor;
     m.mag = s.mag;
     m.critPct = 5 + (add.critPct || 0);
@@ -65,7 +85,7 @@ export function recalc(party: Member[]): void {
 }
 
 export function xpForLevel(l: number): number {
-  return Math.round(20 * Math.pow(l, 1.6));
+  return Math.round(26 * Math.pow(l, 1.65));
 }
 
 export interface LevelUp {
@@ -76,20 +96,30 @@ export interface LevelUp {
 
 export function grantXp(party: Member[], xp: number): LevelUp[] {
   const leveled: LevelUp[] = [];
+  // snapshot what's unlocked so we can report newly-opened abilities
+  const before = new Map(party.map((m) => [m.id, new Set(unlockedSkills(m))]));
   party.forEach((m) => {
     m.xp += xp;
+    let gained = 0;
     while (m.xp >= xpForLevel(m.level)) {
       m.xp -= xpForLevel(m.level);
       m.level++;
-      let newSkill: string | null = null;
-      const justUnlocked = m.skills.map((k) => SKILLS[k]).find((sk) => sk.unlock === m.level);
-      if (justUnlocked) newSkill = justUnlocked.name;
-      leveled.push({ name: m.name, level: m.level, newSkill });
+      gained++;
+      m.mnaAlloc[m.att] += MNA_PER_LEVEL; // interim: auto-bank into the hero's own tree
+      leveled.push({ name: m.name, level: m.level, newSkill: null });
     }
+    if (gained) m.mnaPoints += 0; // (no unspent pool while auto-allocating)
   });
   recalc(party);
-  // level-up fully heals (FF-style)
+  // attribute newly-unlocked abilities to the member's last level-up entry
   party.forEach((m) => {
+    const prev = before.get(m.id)!;
+    const opened = unlockedSkills(m).find((k) => !prev.has(k));
+    if (opened) {
+      const entry = [...leveled].reverse().find((l) => l.name === m.name);
+      if (entry) entry.newSkill = SKILLS[opened].name;
+    }
+    // level-up fully heals (FF-style)
     if (leveled.find((l) => l.name === m.name)) {
       m.hp = m.maxhp;
       m.mp = m.maxmp;

@@ -14,14 +14,14 @@ import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ENEMIES } from "../src/data/enemies";
 import { ZONES } from "../src/data/zones";
-import { makeMember, recalc, grantXp } from "../src/systems/progression";
+import { makeMember, recalc, grantXp, skillUnlocked } from "../src/systems/progression";
 import { makeItem, rollDrop, itemScore } from "../src/systems/loot";
 import { makeEnemy, combatDamage } from "../src/systems/combat";
 
 // Field-layout constants the sim traverses (mirror controllers/field.ts).
 const BX = 58, GX = 30, ENC_MIN = 3, ENC_MAX = 6;
 
-const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, name: "", implicit: {}, affixes: [] };
+const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, ilvl: 0, name: "", implicit: {}, affixes: [] };
 
 function freshParty(): Member[] {
   const p = PARTY_DEFS.map(makeMember);
@@ -33,12 +33,12 @@ function affordableDmg(m: Member): Skill | null {
   return (
     m.skills
       .map((k) => SKILLS[k])
-      .filter((s) => s.unlock <= m.level && s.mp <= (m.mp ?? 0) && (s.type === "phys" || s.type === "mag"))
+      .filter((s) => skillUnlocked(m, s) && s.mp <= (m.mp ?? 0) && (s.type === "phys" || s.type === "mag"))
       .sort((a, b) => (b.power ?? 0) * (b.hits || 1) - (a.power ?? 0) * (a.hits || 1))[0] || null
   );
 }
 function affordableHeal(m: Member): Skill | null {
-  return m.skills.map((k) => SKILLS[k]).filter((s) => s.unlock <= m.level && s.mp <= (m.mp ?? 0) && s.type === "heal")[0] || null;
+  return m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s) && s.mp <= (m.mp ?? 0) && s.type === "heal")[0] || null;
 }
 function dot(u: Member | Enemy): void {
   const st = u.status;

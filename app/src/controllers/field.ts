@@ -124,7 +124,8 @@ export const Field = {
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5); // deeper chests = better floor
-    const it = rollItemAtRarity(floor, pick(Game.party).cls);
+    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // and a higher item level
+    const it = rollItemAtRarity(floor, pick(Game.party).cls, ilvl);
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);

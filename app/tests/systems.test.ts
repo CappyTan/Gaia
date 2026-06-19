@@ -5,11 +5,13 @@ import { describe, it, expect } from "vitest";
 import { affinity } from "../src/systems/affinity";
 import { makeItem, itemScore, rollDrop } from "../src/systems/loot";
 import { combatDamage, makeEnemy, damage, heal, applyStatus } from "../src/systems/combat";
-import { makeMember, recalc, grantXp, xpForLevel } from "../src/systems/progression";
+import { makeMember, recalc, grantXp, xpForLevel, skillUnlocked, unlockedSkills } from "../src/systems/progression";
 import { seeded } from "../src/core/rng";
 import { PARTY_DEFS } from "../src/data/party";
+import { SKILLS } from "../src/data/skills";
 import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
+import { zeroMna } from "../src/types";
 import type { Enemy, Member } from "../src/types";
 
 describe("affinity ring", () => {
@@ -97,5 +99,47 @@ describe("progression", () => {
     const leveled = grantXp(party, xpForLevel(1) * 5);
     expect(leveled.length).toBeGreaterThan(0);
     party.forEach((m) => { if (leveled.find((l) => l.name === m.name)) expect(m.hp).toBe(m.maxhp); });
+  });
+});
+
+describe("MNA gating & scaling", () => {
+  it("abilities are gated by MNA threshold in their tree", () => {
+    const m = makeMember(PARTY_DEFS[0]); // Auren, SOL
+    recalc([m]); // no gear, no alloc -> SOL MNA 0
+    expect(skillUnlocked(m, SKILLS.guard)).toBe(true); // req 0
+    expect(skillUnlocked(m, SKILLS.shieldBash)).toBe(false); // req 5
+    m.mnaAlloc.SOL = 10;
+    recalc([m]);
+    expect(skillUnlocked(m, SKILLS.shieldBash)).toBe(true);
+    expect(skillUnlocked(m, SKILLS.radiantSmite)).toBe(false); // req 40
+    expect(skillUnlocked(m, SKILLS.sunbreaker)).toBe(false); // ult, req 100
+  });
+  it("a high-MNA weapon instantly opens a cluster of abilities", () => {
+    const m = makeMember(PARTY_DEFS[0]);
+    recalc([m]);
+    const before = unlockedSkills(m).length;
+    m.equip.weapon = makeItem(m.cls, "weapon", 5, m.cls, 12); // artifact, high ilvl
+    recalc([m]);
+    expect(m.mna.SOL).toBeGreaterThan(60);
+    expect(unlockedSkills(m).length).toBeGreaterThan(before);
+  });
+  it("Archon (100 MNA) is required for the ultimate", () => {
+    const m = makeMember(PARTY_DEFS[1]);
+    m.mnaAlloc.SOL = 100;
+    recalc([m]);
+    const ult = m.skills.map((k) => SKILLS[k]).find((s) => s.ult)!;
+    expect(ult.mnaReq).toBe(100);
+    expect(skillUnlocked(m, ult)).toBe(true);
+    m.mnaAlloc.SOL = 99;
+    recalc([m]);
+    expect(skillUnlocked(m, ult)).toBe(false);
+  });
+  it("SOL MNA scales damage output", () => {
+    const target = makeEnemy("bandit", 0, false, 0); // NOX
+    const lo: Member = { ...makeMember(PARTY_DEFS[1]), atk: 50, att: "SOL", mna: zeroMna() };
+    const hi: Member = { ...lo, mna: { ...zeroMna(), SOL: 200 } };
+    const a = combatDamage(lo, target, {}, seeded(7));
+    const b = combatDamage(hi, target, {}, seeded(7));
+    expect(b.dmg).toBeGreaterThan(a.dmg);
   });
 });

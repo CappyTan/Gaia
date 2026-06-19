@@ -2,6 +2,7 @@ import type { Attunement, CombatAct, DamageResult, Enemy, StatusMap, Unit } from
 import type { Rng } from "../core/rng";
 import { ri, pick } from "../core/rng";
 import { affinity } from "./affinity";
+import { mnaBonus } from "./progression";
 import { ENEMIES, depthHpScale, depthAtkScale } from "../data/enemies";
 import { ELITE_AFFIXES } from "../data/items";
 
@@ -19,11 +20,15 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   const atkAtt: Attunement = s && s.sol ? "SOL" : actor.att;
   const mult = affinity(atkAtt, target.att);
   if (atkAtt === "SOL" && actor.solPct) raw *= 1 + actor.solPct / 100;
+  // MNA scales output: SOL/NOX attunements amplify damage (up to +60% at 200 MNA).
+  if ((atkAtt === "SOL" || atkAtt === "NOX") && actor.mna) raw *= 1 + mnaBonus(actor.mna[atkAtt]);
   raw *= mult;
   const critC = (actor.critPct || 5) + (s && s.crit ? s.crit : 0) + (actor.att === "QUANTA" ? 10 : 0);
   const crit = rng() * 100 < critC;
   if (crit) raw *= 1.8;
   let dmg = Math.max(1, Math.round(raw - target.armor * 0.6 * (isMag ? 0.5 : 1)));
+  // UMBRAXIS MNA scales the defender's damage reduction.
+  if (target.mna && target.mna.UMBRAXIS) dmg = Math.max(1, Math.round(dmg * (1 - mnaBonus(target.mna.UMBRAXIS))));
   if (target.guarding) dmg = Math.round(dmg * 0.5);
   if (target.status.wardArmor) dmg = Math.max(1, dmg - (target.wardAmt || 0));
   return { dmg, crit, mult, miss: false };

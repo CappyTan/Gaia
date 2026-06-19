@@ -8,7 +8,7 @@ import { cap, ri, pick } from "../core/rng";
 import { SKILLS } from "../data/skills";
 import { combatDamage, damage, heal, applyStatus, makeEnemy } from "../systems/combat";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
-import { recalc, grantXp, type LevelUp } from "../systems/progression";
+import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
@@ -92,7 +92,7 @@ export const Battle = {
       list.appendChild(b);
     };
     mk("Attack", 0, () => this.chooseTarget(m, { type: "attack" }));
-    const known = m.skills.map((k) => SKILLS[k]).filter((s) => s.unlock <= m.level);
+    const known = m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s));
     const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, known); list.appendChild(skBtn);
     mk("Defend", 0, () => { m.guarding = true; this.log(`${m.name} braces.`); this.endTurn(m); });
     mk("Flee", 0, () => this.tryFlee(m), this.isBoss);
@@ -150,7 +150,7 @@ export const Battle = {
     this.markActing(actor);
 
     if (s && s.type === "heal") {
-      targets.forEach((t) => { const amt = Math.round(actor.mag * (s.power ?? 0) + 6); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); });
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); });
       this.log(`${actor.name} casts ${s.name}.`);
     } else if (s && s.type === "buff") {
       targets.forEach((t) => {

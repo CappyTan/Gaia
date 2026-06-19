@@ -8,6 +8,11 @@ export type RarityKey =
 /** A status/buff timer keyed by effect name (burn, poison, decay, regen, stun, blind, atkup, wardArmor). */
 export type StatusMap = Record<string, number>;
 
+/** Per-Attunement mana. A threshold that gates abilities AND scales output (REQUIEM). */
+export type MnaPools = Record<Attunement, number>;
+export const ATTUNEMENTS: Attunement[] = ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"];
+export const zeroMna = (): MnaPools => ({ SOL: 0, NOX: 0, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 });
+
 export interface Rarity {
   key: RarityKey;
   mult: number;
@@ -37,8 +42,11 @@ export interface Item {
   cls: string;
   rarity: RarityKey;
   rIx: number;
+  ilvl: number;
   name: string;
   implicit: Implicit;
+  /** Gear MNA grants by Attunement (weapons carry intrinsic MNA in their Attunement). */
+  mna?: Partial<MnaPools>;
   affixes: Affix[];
 }
 
@@ -58,7 +66,12 @@ export interface Skill {
   name: string;
   mp: number;
   target: SkillTarget;
-  unlock: number;
+  /** Attunement tree this ability lives in. */
+  att: Attunement;
+  /** MNA required in `att` to use it (a threshold, not a cast cost). */
+  mnaReq: number;
+  /** Marks the class Ultimate (unlocks at Archon = 100 MNA). */
+  ult?: boolean;
   type: SkillType;
   power?: number;
   hits?: number;
@@ -122,6 +135,8 @@ export interface Unit {
   leech: number;
   mp?: number;
   maxmp?: number;
+  /** Effective MNA pools (members; enemies leave undefined). Drives output scaling in combat. */
+  mna?: MnaPools;
   guarding?: boolean;
   acting?: boolean;
   _hurt?: boolean;
@@ -141,6 +156,12 @@ export interface Member extends Unit {
   base: Stats;
   equip: { weapon: Item | null; armor: Item | null; trinket: Item | null };
   skills: string[];
+  /** Player-assigned intrinsic MNA (from levels). Gear MNA is added on top in recalc. */
+  mnaAlloc: MnaPools;
+  /** Effective MNA = mnaAlloc + gear (computed by recalc; also mirrored to Unit.mna). */
+  mna: MnaPools;
+  /** Unspent intrinsic MNA points awaiting allocation (manual allocator = Phase 2). */
+  mnaPoints: number;
   mp: number;
   maxmp: number;
   acted?: boolean;

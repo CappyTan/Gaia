@@ -112,7 +112,24 @@ Mastery): 100 MNA in a single attunement. **Type II** (Dual Convergence): 100 MN
 attunements at once — a living paradox. **Type III**: intentionally mysterious, the path toward
 the **Sixth Deity**. See
 [`docs/design/requiem/battle-mechanics.md`](docs/design/requiem/battle-mechanics.md).
+Reaching Archon Type I (100 MNA in one tree) is the moment a class's **Ultimate** unlocks.
 _Not yet in the POC._
+
+**MNA** (canon, per REQUIEM):
+Per-Attunement mana — five pools (SOL/NOX/ANIMA/QUANTA/UMBRAXIS) forming a talent tree. MNA is a
+**threshold, not a cast cost**: each ability requires a minimum MNA in its tree to be usable
+(e.g. Solar Strike needs 10 SOL MNA). It also **scales output** (up to +60% at 200). MNA comes
+from **intrinsic points** (~1/level, **player-assigned**, respec-able for gold) plus **gear**
+(items grant MNA in specific trees). Distinct from **MP/RES** (what you spend to cast). See
+[`docs/design/requiem/mna-progression.md`](docs/design/requiem/mna-progression.md).
+_POC: reconciling toward it (MNA-gated abilities + output scaling)._
+
+**Class = equipped weapon** (canon, per REQUIEM):
+A hero's Class (Attunement × Weapon Archetype) is set by the **weapon they wield** — a SOL
+Two-Handed Sword makes them a **Starbreaker**. A weapon's highest MNA tree is its Attunement and
+sets the class flair. Swapping weapons swaps class (and its ability kit). This supersedes the
+POC's fixed-class framing (ADR 0003) for the full game.
+_Avoid_: treating a hero's class as fixed — it's weapon-driven.
 
 **Sixth Deity** (canon, per REQUIEM lore):
 A being or state beyond the five-faction (five-Attunement) framework, reached via the Archon
