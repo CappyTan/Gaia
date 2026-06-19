@@ -4,23 +4,28 @@ import { ri, pick, clamp } from "../core/rng";
 import { RARITY } from "../data/rarity";
 import { ITEM_NAMES, ARMOR_NAMES, TRINKET_NAMES, AFFIXES } from "../data/items";
 
-export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weaponClass?: string | null): Item {
+// Item-level scaling: base stats grow with ilvl (enemy level / zone depth), so gear found
+// deeper into the run is stronger, not just rarer. ilvl 0 = no scaling (starter gear).
+const ilvlMult = (ilvl: number): number => 1 + Math.max(0, ilvl) * 0.07;
+
+export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weaponClass?: string | null, ilvl = 0): Item {
   const R = RARITY[rarityIx];
   const r = rarityIx;
+  const k = ilvlMult(ilvl);
   let name: string;
   const implicit: Implicit = {};
   if (slot === "weapon") {
     const wc = weaponClass || "Dual Swords";
     name = (ITEM_NAMES[wc] || ITEM_NAMES["Dual Swords"])[r];
-    implicit.atk = Math.round(5 + r * 5); // simple legible atk ladder by rung
+    implicit.atk = Math.round((5 + r * 5) * k); // base atk ladder by rung, scaled by ilvl
   } else if (slot === "armor") {
     name = ARMOR_NAMES[r];
-    implicit.hp = Math.round(10 + r * 12);
-    implicit.armor = 1 + r;
+    implicit.hp = Math.round((10 + r * 12) * k);
+    implicit.armor = (1 + r) + Math.floor(ilvl / 4);
   } else {
     name = TRINKET_NAMES[r];
-    implicit.mp = Math.round(4 + r * 5);
-    implicit.mag = Math.round(2 + r * 2);
+    implicit.mp = Math.round((4 + r * 5) * k);
+    implicit.mag = Math.round((2 + r * 2) * k);
   }
   // roll affixes
   const pool = [...AFFIXES];
@@ -30,7 +35,7 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     if (!a) break;
     affixes.push({ key: a.key, stat: a.stat, value: a.roll(r), label: a.label });
   }
-  return { slot, cls: weaponClass || cls || "", rarity: R.key, rIx: r, name, implicit, affixes };
+  return { slot, cls: weaponClass || cls || "", rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, affixes };
 }
 
 // crude power score for comparing/sorting items
@@ -69,11 +74,11 @@ export function rollDrop(enemy: Enemy, weaponClassPreference?: string): Item {
   r = clamp(r, 0, 5);
   const slot = pick<Slot>(["weapon", "weapon", "armor", "trinket"]);
   const wc = slot === "weapon" ? weaponClassPreference || pick(Object.keys(ITEM_NAMES)) : null;
-  return makeItem(null, slot, r, wc);
+  return makeItem(null, slot, r, wc, lvl); // drops scale to the enemy's level
 }
 
-// chest / merchant loot: roll around a target rarity floor
-export function rollItemAtRarity(floor: number, weaponClassPreference?: string): Item {
+// chest / merchant loot: roll around a target rarity floor, scaled to an item level
+export function rollItemAtRarity(floor: number, weaponClassPreference?: string, ilvl = 0): Item {
   let r = clamp(floor, 0, 5);
   for (let i = r; i <= 5; i++) {
     if (Math.random() < 0.4) r = i;
@@ -81,5 +86,5 @@ export function rollItemAtRarity(floor: number, weaponClassPreference?: string):
   }
   const slot = pick<Slot>(["weapon", "weapon", "armor", "trinket"]);
   const wc = slot === "weapon" ? weaponClassPreference || pick(Object.keys(ITEM_NAMES)) : null;
-  return makeItem(null, slot, clamp(r, 0, 5), wc);
+  return makeItem(null, slot, clamp(r, 0, 5), wc, ilvl);
 }

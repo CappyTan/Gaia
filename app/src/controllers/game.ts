@@ -69,8 +69,9 @@ export const Game = {
   openMerchant(): void {
     this._inMerchant = true;
     const floor = clamp(1 + Field.zoneIndex * 2, 0, 5); // deeper zone = better base stock
+    const ilvl = 6 + Field.zoneIndex * 6; // stock the road ahead (gear for the next zone)
     this._stock = [];
-    for (let i = 0; i < 6; i++) this._stock.push(rollItemAtRarity(ri(floor, Math.min(5, floor + 2)), pick(this.party).cls));
+    for (let i = 0; i < 6; i++) this._stock.push(rollItemAtRarity(ri(floor, Math.min(5, floor + 2)), pick(this.party).cls, ilvl));
     this.renderMerchant();
   },
   renderMerchant(): void {

@@ -37,6 +37,7 @@ export interface Item {
   cls: string;
   rarity: RarityKey;
   rIx: number;
+  ilvl: number;
   name: string;
   implicit: Implicit;
   affixes: Affix[];

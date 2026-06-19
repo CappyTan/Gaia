@@ -21,7 +21,7 @@ import { makeEnemy, combatDamage } from "../src/systems/combat";
 // Field-layout constants the sim traverses (mirror controllers/field.ts).
 const BX = 58, GX = 30, ENC_MIN = 3, ENC_MAX = 6;
 
-const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, name: "", implicit: {}, affixes: [] };
+const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, ilvl: 0, name: "", implicit: {}, affixes: [] };
 
 function freshParty(): Member[] {
   const p = PARTY_DEFS.map(makeMember);

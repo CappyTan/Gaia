@@ -65,7 +65,7 @@ export function recalc(party: Member[]): void {
 }
 
 export function xpForLevel(l: number): number {
-  return Math.round(20 * Math.pow(l, 1.6));
+  return Math.round(26 * Math.pow(l, 1.65));
 }
 
 export interface LevelUp {
