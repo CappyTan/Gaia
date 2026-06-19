@@ -3,7 +3,7 @@ import type { Enemy } from "../types";
 import { ATTUNEMENTS } from "../types";
 import { ri, pick, clamp } from "../core/rng";
 import { RARITY } from "../data/rarity";
-import { ITEM_NAMES, ARMOR_NAMES, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
+import { ITEM_NAMES, ARMOR_NOUN, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
 
 // Weapon archetypes that have sliced icon art (one per SOL loot chart). Random drops draw from
 // these so dropped weapons always show a sprite; a hero's own (possibly art-less) archetype is
@@ -13,10 +13,10 @@ const ART_ARCHETYPES = Object.keys(ITEM_NAMES);
 /** Pick a drop attunement: usually matches the party (so loot is equippable), sometimes a
  *  wildcard for cross-attunement reclassing finds. */
 function rollAtt(pref?: Attunement): Attunement {
-  return pref && Math.random() < 0.7 ? pref : pick(ATTUNEMENTS);
+  return pref && Math.random() < 0.55 ? pref : pick(ATTUNEMENTS); // mostly useful, plenty of variety
 }
 function rollWeaponClass(pref?: string): string {
-  return pref && Math.random() < 0.6 ? pref : pick(ART_ARCHETYPES);
+  return pref && Math.random() < 0.5 ? pref : pick(ART_ARCHETYPES);
 }
 
 // Item-level scaling: base stats grow with ilvl (enemy level / zone depth), so gear found
@@ -42,11 +42,13 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     // sets the wielder's class.
     mna = { [att]: Math.round(14 + ilvl * 2.7 + r * 9) };
   } else if (slot === "armor") {
-    name = ARMOR_NAMES[r];
+    // Armor carries an attunement for flavor only (it doesn't set class — weapons do): it picks
+    // the matching per-attunement art + a themed name, e.g. "Wildgrown Cuirass".
+    name = `${ATT_ADJ[att]?.[r] ?? ""} ${ARMOR_NOUN[r]}`.trim();
     implicit.hp = Math.round((10 + r * 12) * k);
     implicit.armor = (1 + r) + Math.floor(ilvl / 4);
   } else {
-    name = TRINKET_NAMES[r];
+    name = TRINKET_NAMES[r]; // attunement-neutral
     implicit.mp = Math.round((4 + r * 5) * k);
     implicit.mag = Math.round((2 + r * 2) * k);
   }
@@ -58,7 +60,8 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     if (!a) break;
     affixes.push({ key: a.key, stat: a.stat, value: a.roll(r), label: a.label });
   }
-  return { slot, cls: weaponClass || cls || "", att: slot === "weapon" ? att : undefined, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, affixes };
+  // weapons + armor carry an attunement (weapon sets class/MNA; armor is art/name flavor); trinkets don't
+  return { slot, cls: weaponClass || cls || "", att: slot === "trinket" ? undefined : att, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, affixes };
 }
 
 // crude power score for comparing/sorting items
