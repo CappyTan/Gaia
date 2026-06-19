@@ -22,12 +22,16 @@ export const Field = {
   chests: [{ x: 8, y: 5 }, { x: 16, y: 13 }, { x: 23, y: 5 }, { x: 41, y: 13 }, { x: 51, y: 5 }],
   ENC_MIN: 3, ENC_MAX: 6,
   zoneIndex: 0,
+  enteredDungeon: false,
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
 
   zone() { return ZONES[this.zoneIndex]; },
   isLastZone(): boolean { return this.zoneIndex >= ZONES.length - 1; },
+  // Past the mini-boss gate you're in the zone's dungeon: tougher, own environment.
+  inDungeon(): boolean { return this.px > this.gate.x; },
   envFor(p: number): string {
+    if (this.inDungeon()) return this.zone().dungeon.env;
     const e = this.zone().envs;
     return e[clamp(Math.floor(p * 4), 0, e.length - 1)];
   },
@@ -36,6 +40,7 @@ export const Field = {
     this.canvas = $<HTMLCanvasElement>("#fieldCanvas");
     this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
     this.zoneIndex = 0;
+    this.enteredDungeon = false;
     this.resize();
     this.px = 1; this.py = 9;
     this.genMap();
@@ -46,7 +51,7 @@ export const Field = {
   },
   // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
   loadZone(i: number): void {
-    this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false;
+    this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false; this.enteredDungeon = false;
     this.px = 1; this.py = 9; this.resize(); this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     Screens.show("field");
@@ -107,6 +112,13 @@ export const Field = {
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
     if (cell === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
+    // crossing the gate the first time = entering the dungeon (one-time beat, no fight this step)
+    if (this.inDungeon() && !this.enteredDungeon) {
+      this.enteredDungeon = true;
+      const z = this.zone();
+      Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+      return;
+    }
     this.stepsToEncounter--;
     if (this.stepsToEncounter <= 0) { this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX); this.rollEncounter(); }
   },
@@ -114,7 +126,9 @@ export const Field = {
     const p = this.progress(), bands = this.zone().bands;
     let band = bands[0];
     for (const e of bands) { if (p >= e.at) band = e; }
-    Battle.begin(pick(band.sets), this.envFor(p), false, false, p);
+    // the dungeon runs ~1-2 levels hotter than the overworld
+    const depth = this.inDungeon() ? clamp(p + 0.25, 0, 1) : p;
+    Battle.begin(pick(band.sets), this.envFor(p), false, false, depth);
   },
   startBoss(): void { Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress()); },
   startMiniBoss(): void {
@@ -134,13 +148,14 @@ export const Field = {
     const p = this.progress(), z = this.zone(), name = z.name;
     const miniNm = ENEMIES[z.mini].name, bossNm = ENEMIES[z.boss].name;
     let msg: string;
-    if (!Game.miniBossDefeated && p >= 0.38) msg = `A ${miniNm} blocks the road ahead.`;
+    if (this.inDungeon()) msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+    else if (!Game.miniBossDefeated && p >= 0.38) msg = `A ${miniNm} guards the way into ${z.dungeon.name}.`;
     else if (p < 0.12) msg = `Head east through ${name}. Search off the path for treasure.`;
-    else if (p > 0.88) msg = `The ${bossNm} lies just ahead.`;
+    else if (p > 0.88) msg = `${z.dungeon.name} lies just ahead.`;
     else msg = `${Math.round(p * 100)}% through ${name}. Keep moving east.`;
     const set = (sel: string, txt: string) => { const e = $(sel); if (e) e.textContent = txt; };
     set("#fieldHint", msg);
-    set("#fieldZone", `${name} · ${Game.encountersWon} cleared`);
+    set("#fieldZone", `${this.inDungeon() ? z.dungeon.name : name} · ${Game.encountersWon} cleared`);
     set("#fieldGold", String(Game.gold));
     const fp = $("#fieldParty");
     if (fp) fp.innerHTML = Game.party.map((m) => `<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
@@ -153,12 +168,14 @@ export const Field = {
     const camx = clamp(this.px - Math.floor(viewW / 2), 0, Math.max(0, this.W - viewW));
     const camy = clamp(this.py - Math.floor(viewH / 2), 0, Math.max(0, this.H - viewH));
     const colors: Record<string, string> = { grass: "#4a7a32", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226" };
+    // dungeon (east of the gate) reads as stone instead of grassland
+    const dungeonColors: Record<string, string> = { grass: "#2a2740", path: "#3a3553", tree: "#171526", bush: "#2f2a48", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226" };
     for (let y = 0; y < viewH + 1; y++)
       for (let x = 0; x < viewW + 1; x++) {
         const mx = camx + x, my = camy + y;
         if (mx >= this.W || my >= this.H) continue;
         const cell = this.map[my][mx];
-        c.fillStyle = colors[cell] || "#4a7a32";
+        c.fillStyle = (mx > this.gate.x ? dungeonColors : colors)[cell] || "#4a7a32";
         const sx = (mx - camx) * t, sy = (my - camy) * t;
         c.fillRect(sx, sy, t, t);
         if (cell === "grass" || cell === "path") { c.fillStyle = "rgba(0,0,0,.06)"; if ((mx + my) % 2) c.fillRect(sx, sy, t, t); }

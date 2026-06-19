@@ -13,6 +13,8 @@ export interface Zone {
   boss: string;
   envs: string[];
   bands: EncounterBand[];
+  /** The dungeon past the mini-boss gate: own name + environment, tougher enemies. */
+  dungeon: { name: string; env: string };
 }
 
 // Greenvale's encounter table by area depth (the further east, the tougher the roll-set).
@@ -29,9 +31,9 @@ export const ENCOUNTERS: EncounterBand[] = [
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "captain", miniAdds: ["bandit", "bandit"], boss: "brute",
-    envs: ["plains", "forest", "desert", "mountains"], bands: ENCOUNTERS },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "hollow" }, bands: ENCOUNTERS },
   { id: "duskmarsh", name: "The Duskmarsh", mini: "fenwarden", miniAdds: ["serpent", "serpent"], boss: "vorn",
-    envs: ["mire", "forest", "mire", "hollow"], bands: [
+    envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "hollow" }, bands: [
       { at: 0.0, sets: [["serpent"], ["husk"], ["serpent", "serpent"]] },
       { at: 0.2, sets: [["husk", "serpent"], ["gloomwisp"], ["knight"]] },
       { at: 0.4, sets: [["knight", "serpent"], ["fenwitch", "husk"], ["gloomwisp", "serpent"]] },

@@ -9,7 +9,7 @@
 //   - wipe rate low (<~10%) under decent play, but non-zero room for bad play
 
 import type { Enemy, Item, Member, Skill } from "../src/types";
-import { ri, pick } from "../src/core/rng";
+import { ri, pick, clamp } from "../src/core/rng";
 import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ENEMIES } from "../src/data/enemies";
@@ -156,8 +156,8 @@ function simRun() {
     let px = 1;
     let toEnc = ri(ENC_MIN, ENC_MAX);
     const prog = () => (px - 1) / (BX - 1);
-    const fight = (keys: string[], kind: string): boolean => {
-      const r = simFight(party, keys, prog());
+    const fight = (keys: string[], kind: string, depth = prog()): boolean => {
+      const r = simFight(party, keys, depth);
       fights.push({ kind, zone: zi, p: prog(), ...r });
       if (!r.win) { wiped = true; return false; }
       let xp = 0;
@@ -175,9 +175,11 @@ function simRun() {
       if (toEnc <= 0) {
         toEnc = ri(ENC_MIN, ENC_MAX);
         const p = prog();
+        const inDungeon = px > GX; // past the gate = the zone's dungeon
         let band = Z.bands[0];
         for (const b of Z.bands) if (p >= b.at) band = b;
-        if (!fight(pick(band.sets), "rand")) break;
+        const depth = inDungeon ? clamp(p + 0.25, 0, 1) : p;
+        if (!fight(pick(band.sets), "rand", depth)) break;
       }
     }
     if (!wiped) fight([Z.boss], zi === ZONES.length - 1 ? "finalboss" : "boss");
