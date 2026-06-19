@@ -54,6 +54,11 @@ ChatGPT Teams. Set `OPENAI_API_KEY` in the environment and ask me to build
 `app/tools/gen-art.py` — it reads the prompts here + the rig spec and generates the layers
 (weaponless bodies, then armor) directly into `app/assets/`.
 
+## Field map (walking around a zone)
+The top-down walkable field is the last placeholder system (Canvas rects + emoji). The asset
+checklist — Greenvale tileset, dungeon floor, markers (chest / gate / entrance / merchant), and a
+top-down player walker — is in **[`field-map-brief.md`](field-map-brief.md)**.
+
 ## The contract the art must meet
 See **[`rig-spec.md`](rig-spec.md)** — shared canvas, feet/hand anchors, slot z-order, file
 naming. And **[`layer-art-brief.md`](layer-art-brief.md)** — per-class prompts + the armor
