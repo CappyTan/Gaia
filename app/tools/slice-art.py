@@ -78,34 +78,41 @@ def save(im, *parts):
 # ---- weapons: Dara's painterly loot sheets. Each is a 5-attunement (cols, SOL..UMBRAXIS) x
 #      6-rarity (rows) grid -> items/{stem}-{att}-{rarity}.png. The SOL column is also saved as
 #      the legacy items/{stem}-{rarity}.png so older lookups still resolve. -------------------
-ROWCY=[160,265,375,486,595,713]   # rarity-row centres, shared by all three painterly sheets
-# stem -> (sheet, [(col-centre, half-width) per attunement], row half-height, kx, ky, areafrac)
+# stem -> (sheet, [(col-centre, half-width) per attunement], [row centres], row half-height,
+#          kx, ky, areafrac). Row centres differ slightly per sheet (taller blades sit higher).
+RC6=[160,265,375,486,595,713]   # shared rarity-row centres for the S&S/staff/spellblade sheets
 WSHEETS={
  "sns":  ("loot-sword-shield-painterly.png",
-          [(283,95),(524,113),(798,113),(1076,119),(1371,121)], 62, 0.86, 0.72, 0.05),
+          [(283,95),(524,113),(798,113),(1076,119),(1371,121)], RC6, 62, 0.86, 0.72, 0.05),
+ "dual": ("loot-dual-swords-painterly.png",
+          [(237,92),(468,88),(692,85),(913,85),(1134,82)],
+          [148,246,349,457,580,704], 58, 0.85, 0.72, 0.05),
  "staff":("loot-staff-painterly.png",
-          [(c,95) for c in (256,467,683,898,1116)], 62, 0.85, 0.82, 0.06),
+          [(c,95) for c in (256,467,683,898,1116)], RC6, 62, 0.85, 0.82, 0.06),
  "spell":("loot-spellblade-painterly.png",
-          [(c,92) for c in (227,435,644,857,1074)], 60, 0.85, 0.82, 0.06),
+          [(c,92) for c in (227,435,644,857,1074)], RC6, 60, 0.85, 0.82, 0.06),
 }
 items={}
-for stem,(fn,cols,hh,kx,ky,af) in WSHEETS.items():
+for stem,(fn,cols,rows,hh,kx,ky,af) in WSHEETS.items():
     im=Image.open(os.path.join(REF,fn)); items[stem]={}
     for ai,(cx,hw) in enumerate(cols):
-        for ri,cy in enumerate(ROWCY):
+        for ri,cy in enumerate(rows):
             c=cell(im,cx,cy,hw,hh,kx,ky,af); c.thumbnail((300,160))
             save(c,"items",f"{stem}-{ATT[ai]}-{RAR[ri]}.png")
             if ai==0: save(c,"items",f"{stem}-{RAR[ri]}.png")   # legacy SOL-keyed fallback
             items[stem][(ATT[ai],ri)]=c
 
-# ---- dual swords: no painterly multi-attunement sheet yet -> keep the SOL slices from the
-#      original loot chart (leftmost column = the drop-table names). -------------------------
-im=Image.open(os.path.join(REF,"loot-sol-dual-swords.jpeg")); X0,Y0,X1,Y1=300,84,1536,1002
-cw=(X1-X0)/3; rh=(Y1-Y0)/6
-for r in range(6):
-    c=im.crop((int(X0)+4,int(Y0+r*rh)+30,int(X0+cw*0.96),int(Y0+(r+1)*rh)-24))
-    c=remove_bg(c); c.thumbnail((300,150))
-    save(c,"items",f"dual-{RAR[r]}.png"); save(c,"items",f"dual-sol-{RAR[r]}.png")
+# ---- armor: the painterly armor-set sheet, same 5-attunement x 6-rarity grid (each cell a
+#      full set; the figures sit left of their caption text, which keep_central discards). ->
+#      items/armor-{att}-{rarity}.png (+ legacy SOL items/armor-{rarity}.png). ----------------
+im=Image.open(os.path.join(REF,"loot-armor-painterly.png"))
+ACOL=[(151,62),(366,62),(581,64),(802,64),(1023,66)]; AROW=[176,288,399,511,623,734]; armor={}
+for ai,(cx,hw) in enumerate(ACOL):
+    for ri,cy in enumerate(AROW):
+        c=cell(im,cx,cy,hw,58,kx=0.7,ky=0.82,af=0.06); c.thumbnail((260,260))
+        save(c,"items",f"armor-{ATT[ai]}-{RAR[ri]}.png")
+        if ai==0: save(c,"items",f"armor-{RAR[ri]}.png")
+        armor[(ATT[ai],ri)]=c
 
 # ---- enemies (Greenvale bestiary, lower figure band) ----
 EB={"bandit":(12,380,300,815),"cutpurse":(312,380,600,815),"marauder":(614,380,902,815),
@@ -114,17 +121,26 @@ im=Image.open(os.path.join(REF,"enemies-greenvale-l1-5.jpeg")); ens={}
 for k,b in EB.items():
     c=remove_bg(im.crop(b)); c.thumbnail((240,300)); save(c,"enemies",f"{k}.png"); ens[k]=c
 
-# ---- heroes: weaponless SOL base bodies from the 45-class base-model grid (row 0 = SOL).
-#      These replace the old pre-equipped portraits, so the paper-doll can overlay the equipped
-#      weapon on a clean hand (ADR 0004). Columns: 0 S&S, 1 Dual, 7 Staff, 8 Spellblade. ------
+# ---- bodies + heroes: weaponless base figures from the 45-class base-model grid (5 attunement
+#      rows x 9 archetype columns). Class = attunement x archetype, so the paper-doll picks the
+#      body matching a hero's CURRENT class — equipping a foreign-attunement weapon swaps the
+#      body to match. Outputs bodies/{att}-{slug}.png for all 45; the four SOL party figures are
+#      also written as heroes/{id}.png (sprite + identity fallback). They're weaponless, so the
+#      rig overlays the equipped weapon on a clean hand (ADR 0004). ---------------------------
 im=Image.open(os.path.join(REF,"class-base-models-45.png"))
-HCOL={"dawnguard":253,"sunblade":386,"lightkeeper":1235,"dawnchaser":1390}; her={}
-for hid,cx in HCOL.items():
-    c=cell(im,cx,145,66,92,kx=0.8,ky=0.92,af=0.04); c.thumbnail((200,240))
-    save(c,"heroes",f"{hid}.png"); her[hid]=c
+BCOL=[253,386,525,663,810,958,1097,1235,1390]   # 9 archetype column centres
+BROW=[132,335,530,721,896]                       # 5 attunement row centres (SOL..UMBRAXIS)
+SLUG=["sword-shield","dual-swords","two-handed","hammer","daggers","pistols","rifle","staff","spellblade"]
+HERO={(0,0):"dawnguard",(0,1):"sunblade",(0,7):"lightkeeper",(0,8):"dawnchaser"}  # (row,col)->id
+bodies={}; her={}
+for ri,cy in enumerate(BROW):
+    for ci,cx in enumerate(BCOL):
+        c=cell(im,cx,cy,66,96,kx=0.78,ky=0.95,af=0.04); c.thumbnail((220,260))
+        save(c,"bodies",f"{ATT[ri]}-{SLUG[ci]}.png"); bodies[(ri,ci)]=c
+        if (ri,ci) in HERO: save(c,"heroes",f"{HERO[(ri,ci)]}.png"); her[HERO[(ri,ci)]]=c
 
-print(f"sliced (transparent): {sum(len(v) for v in items.values())} painterly weapons + 6 dual, "
-      f"{len(ens)} enemies, {len(her)} weaponless heroes")
+print(f"sliced (transparent): {sum(len(v) for v in items.values())} painterly weapons, "
+      f"{len(armor)} armor sets, {len(ens)} enemies, {len(bodies)} class bodies ({len(her)} hero ids)")
 
 if PREVIEW:
     os.makedirs(os.path.join(REF,"_preview"),exist_ok=True)
@@ -140,11 +156,17 @@ if PREVIEW:
     for i,u in enumerate(units):
         uu=u.copy(); uu.thumbnail((200,260)); m.alpha_composite(uu,(230*i+(230-uu.width)//2,(300-uu.height)//2))
     m.convert("RGB").save(os.path.join(REF,"_preview","units_clean.png"))
-    # one montage per archetype: 5 attunement columns x 6 rarity rows
-    for stem in items:
-        g=scene(170*5,120*6)
-        for (att,ri),it in items[stem].items():
-            ii=it.copy(); ii.thumbnail((160,110)); ai=ATT.index(att)
-            g.alpha_composite(ii,(170*ai+(170-ii.width)//2,120*ri+(120-ii.height)//2))
+    # one montage per archetype (+armor): 5 attunement columns x 6 rarity rows
+    for stem,grid in list(items.items())+[("armor",armor)]:
+        g=scene(170*5,150*6)
+        for (att,ri),it in grid.items():
+            ii=it.copy(); ii.thumbnail((160,140)); ai=ATT.index(att)
+            g.alpha_composite(ii,(170*ai+(170-ii.width)//2,150*ri+(150-ii.height)//2))
         g.convert("RGB").save(os.path.join(REF,"_preview",f"items_{stem}.png"))
+    # all 45 bodies: 9 archetype columns x 5 attunement rows
+    g=scene(120*9,210*5)
+    for (ri,ci),b in bodies.items():
+        bb=b.copy(); bb.thumbnail((112,200))
+        g.alpha_composite(bb,(120*ci+(120-bb.width)//2,210*ri+(210-bb.height)//2))
+    g.convert("RGB").save(os.path.join(REF,"_preview","bodies_45.png"))
     print("wrote previews")

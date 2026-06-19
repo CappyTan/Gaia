@@ -24,25 +24,33 @@ the battle paper-doll and (later) loot/equip art.
   layers — body + armor + weapon + fx — and **equipping swaps a layer**.
 - It's **art-gated and falls back safely**: a missing layer degrades to the previous look,
   no code change.
-- **Weaponless SOL bodies are in** (v0.21). The four SOL heroes (`dawnguard`, `sunblade`,
-  `lightkeeper`, `dawnchaser`) are now sliced from the **45-class base-model grid**
-  (`assets/reference/class-base-models-45.png`, SOL row) — empty-handed figures — so the
-  doll overlays the equipped weapon on a clean hand. They replaced the old pre-equipped
-  portraits. (`slice-art.py`, `HCOL`.)
-- **Per-attunement weapon art is in** (v0.21). The painterly loot sheets are sliced to
-  `items/{stem}-{att}-{rarity}.png` (Sword & Shield, Staff, Spellblade × 5 attunements × 6
-  rarities); `ui/render.ts weaponArt()` prefers the attunement match and falls back to the
-  SOL-keyed file. So a NOX blade now shows NOX art instead of borrowing SOL's.
+- **All 45 weaponless class bodies are in** (v0.22). The full base-model grid
+  (`assets/reference/class-base-models-45.png`, 5 attunement rows × 9 archetype columns) is
+  sliced to `bodies/{att}-{slug}.png`. Class = attunement × archetype, so `ui/render.ts
+  classBody()` shows the figure for a hero's **current** class — equipping a foreign-attunement
+  weapon swaps the body to match. The four SOL party figures are also written as
+  `heroes/{id}.png` (sprite + identity fallback). All weaponless, so the rig overlays the
+  equipped weapon on a clean hand. (The "decked" grid, `class-concept-decked-45.png`, is
+  **aspirational reference only** — what a fully-geared class should look like — not a slice
+  source.)
+- **Per-attunement weapon art is in** (v0.21–22). The painterly loot sheets are sliced to
+  `items/{stem}-{att}-{rarity}.png` for **all four** POC archetypes (Sword & Shield, Dual
+  Swords, Staff, Spellblade) × 5 attunements × 6 rarities; `weaponArt()` prefers the
+  attunement match and falls back to the SOL-keyed file. So a NOX blade shows NOX art.
+- **Armor item icons are in** (v0.22). The painterly armor-set sheet is sliced to
+  `items/armor-{att}-{rarity}.png` (+ SOL-keyed fallback); `itemIcon()` renders them for the
+  armour slot. (Armor items are attunement-agnostic today, so they use the SOL set; the
+  per-attunement files are ready for when armour gains an attunement.)
 
 ## What's pending
-- **Weaponless bodies for the other 41 classes** — only the SOL row is sliced today. The
-  remaining four attunement rows of the base-model grid (NOX/ANIMA/QUANTA/UMBRAXIS × 9
-  archetypes) can be sliced the same way when those heroes exist. (The "decked" grid,
-  `class-concept-decked-45.png`, is **aspirational reference only** — what a fully-geared
-  class should look like — not a slice source.)
-- **Dual Swords** has no painterly multi-attunement sheet yet, so it still uses the SOL-only
-  slices from the original loot chart (every attunement falls back to SOL art for now).
-- **Armor layers** — a nice-to-have after bodies, same system.
+- **Per-class hand anchors / hero-sized weapons.** `RIG.hand` is still keyed by the four SOL
+  hero ids; the other archetypes use a default anchor, and weapon `scale` is still tasteful
+  (~0.8–0.95) rather than the over-the-top hero-sized look the directive above calls for.
+- **Armour-over-body layer.** Today armour is an item icon only. A true fitted armour layer
+  drawn over the rig (`ARMOR_LAYER`, per class × rarity) needs art authored on our shared
+  canvas — the loot-sheet figures are standalone mannequins, not body-fitted overlays.
+- **Non-SOL party members.** The bodies for all 45 classes exist; the game still ships the four
+  SOL heroes (who reclass via weapons). New non-SOL party members can drop straight in.
 
 ## How to make them — two paths
 
