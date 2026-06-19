@@ -2,6 +2,7 @@
 // game state mutation — just rendering. Swapping the renderer later means replacing this file.
 
 import type { Attunement, Enemy, Item, Member, Unit } from "../types";
+import { isArmorSlot } from "../types";
 import { cap, clamp } from "../core/rng";
 import { assetUrl } from "../core/assets";
 import { WEAP_IMG, ARCH_SLUG, RIG, DEFAULT_WEAPON, BODY_LAYER, ARMOR_LAYER } from "../data/art";
@@ -24,8 +25,10 @@ export function armorArt(rarity: string, att?: string): string | null {
 }
 
 export function itemIcon(it: Item): string {
+  // Armor-family slots (helmet/chest/gloves/boots) share the armor art set until each gets its
+  // own sliced sprite; weapons use the per-archetype art; trinkets have none yet.
   const url = it.slot === "weapon" ? weaponArt(it.cls, it.rarity, it.att)
-            : it.slot === "armor" ? armorArt(it.rarity, it.att)
+            : isArmorSlot(it.slot) ? armorArt(it.rarity, it.att)
             : null;
   return url ? `<img class="ico" src="${url}" alt="">` : "";
 }
@@ -81,7 +84,7 @@ export function itemHtml(it: Item, actionBtn?: string): string {
   return `<div class="item ${bc}" style="display:flex; gap:10px; align-items:flex-start">
     ${ico}
     <div style="flex:1; min-width:0">
-      <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.att} ${it.cls}` : it.slot === "armor" && it.att ? ` · ${it.att}` : ""}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
+      <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.att} ${it.cls}` : isArmorSlot(it.slot) && it.att ? ` · ${it.att}` : ""}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
       <div class="meta">${imp}</div>${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${aff}${actionBtn || ""}
     </div></div>`;
 }

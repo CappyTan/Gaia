@@ -1,7 +1,12 @@
 // Shared domain types for Gaia. Kept dependency-free so every layer can import them.
 
 export type Attunement = "SOL" | "NOX" | "ANIMA" | "QUANTA" | "UMBRAXIS";
-export type Slot = "weapon" | "armor" | "trinket";
+export type Slot = "weapon" | "helmet" | "armor" | "gloves" | "boots" | "trinket";
+/** Every gear slot a hero can equip, in paper-doll display order. */
+export const EQUIP_SLOTS: Slot[] = ["weapon", "helmet", "armor", "gloves", "boots", "trinket"];
+/** The armor family (defensive body pieces) — share naming/art and the armor stat budget. */
+export const ARMOR_SLOTS: Slot[] = ["helmet", "armor", "gloves", "boots"];
+export const isArmorSlot = (s: Slot): boolean => ARMOR_SLOTS.includes(s);
 export type RarityKey =
   | "common" | "uncommon" | "rare" | "epic" | "legendary" | "artifact";
 
@@ -35,7 +40,7 @@ export interface Affix {
   label: (n: number) => string;
 }
 
-export type Implicit = Partial<Record<"atk" | "hp" | "armor" | "mp" | "mag", number>>;
+export type Implicit = Partial<Record<"atk" | "hp" | "armor" | "mp" | "mag" | "spd", number>>;
 
 export interface Item {
   slot: Slot;
@@ -162,7 +167,7 @@ export interface Member extends Unit {
   level: number;
   xp: number;
   base: Stats;
-  equip: { weapon: Item | null; armor: Item | null; trinket: Item | null };
+  equip: Record<Slot, Item | null>;
   skills: string[];
   /** Player-assigned intrinsic MNA (from levels). Gear MNA is added on top in recalc. */
   mnaAlloc: MnaPools;

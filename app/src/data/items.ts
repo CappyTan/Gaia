@@ -10,9 +10,17 @@ export const ITEM_NAMES: Record<string, string[]> = {
   "Spellblade": ["Soldier's Spellblade", "Verdant Spellblade", "Celestial Spellblade", "Voidlight Spellblade", "Dawnbreaker Spellblade", "Eternal Sol Spellblade"],
 };
 
-// Generic, attunement-neutral names. Armor is named per-attunement at roll time (ATT_ADJ +
-// ARMOR_NOUN, e.g. "Wildgrown Cuirass"); trinkets stay attunement-agnostic.
-export const ARMOR_NOUN = ["Garb", "Mail", "Plate", "Cuirass", "Regalia", "Aegis"];
+// Generic, attunement-neutral names. Each armor-family slot is named per-attunement at roll time
+// (ATT_ADJ + the slot's noun ladder, e.g. "Wildgrown Cuirass", "Rimewrought Greaves"); trinkets
+// stay attunement-agnostic.
+export const ARMOR_NOUN = ["Garb", "Mail", "Plate", "Cuirass", "Regalia", "Aegis"];        // chest
+export const HELM_NOUN = ["Cap", "Hood", "Helm", "Visor", "Crown", "Halo"];               // helmet
+export const GLOVE_NOUN = ["Wraps", "Gloves", "Gauntlets", "Grips", "Handguards", "Talons"]; // gloves
+export const BOOT_NOUN = ["Sandals", "Boots", "Greaves", "Treads", "Striders", "Pathmakers"]; // boots
+// Noun ladder per armor-family slot — picks the right name set for the slot.
+export const ARMOR_SLOT_NOUNS: Record<string, string[]> = {
+  helmet: HELM_NOUN, armor: ARMOR_NOUN, gloves: GLOVE_NOUN, boots: BOOT_NOUN,
+};
 export const TRINKET_NAMES = ["Brass Charm", "Jade Talisman", "Runed Band", "Warded Sigil", "Sovereign Crown", "Origin Relic"];
 
 // Non-SOL weapon naming (SOL uses Dara's named loot charts above). A weapon's name is built

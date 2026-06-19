@@ -113,7 +113,7 @@ Requires Node (≥18) + npm. First time: `npm install`.
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.24)
+## Current state (v0.30)
 
 Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10) — with a **merchant** between
 them. **Party of five** (3 front / 2 back): the front line is targeted first, the back line
@@ -127,7 +127,13 @@ safety fallback. The default is the all-SOL party (Auren/Kaela/Rion front, Sephi
 ATB combat, affinity ring + signature effects, status effects, Diablo loot (per-attunement
 painterly weapon + armor art, ilvl/MNA scaling), **elites + champion packs** (tanky multi-affix
 pack leaders), XP/levels/MNA allocator, mini-boss + zone-boss gates, treasure chests, and a
-procedural chiptune soundtrack are all implemented. Art: all 45 weaponless class bodies + the
+procedural chiptune soundtrack are all implemented. **Six equip slots** — weapon · helmet · armor
+(chest) · gloves · boots · trinket; the four armor-family slots share the armor art/name set and
+each has its own stat lean (chest=HP, helmet=HP/MP, gloves=ATK, boots=SPD). Loot rarity is
+**level-banded** (`rarityBand` in `systems/loot.ts`: ~L10 uncommon/rare→lucky epic, L20 rare/epic→
+lucky legendary, L30+ artifacts appear) with steep **ilvl scaling** so a deep low-rarity piece can
+out-base a shallow high-rarity one (rarity still wins on affix count). The **merchant buys loot
+back** (Bag/Sell, ~40% of asking). Art: all 45 weaponless class bodies + the
 paper-doll with hero-sized weapons; **Greenvale field tileset** (grass/path/tree/bush/rock/chest
 + a top-down player walker). **Still placeholder:** the six newer (Duskmarsh) enemies fall back to
 emoji, dungeon-floor/merchant field markers, armour-over-body layer, save/persistence

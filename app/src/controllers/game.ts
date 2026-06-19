@@ -19,6 +19,10 @@ export function priceOf(it: Item): number {
   const base = [30, 70, 150, 320, 650, 1300][it.rIx] || 30;
   return Math.round(base + itemScore(it) * 2);
 }
+// The merchant buys loot back at a fraction of its asking price (standard RPG sell margin).
+export function sellPriceOf(it: Item): number {
+  return Math.max(5, Math.round(priceOf(it) * 0.4));
+}
 
 export const Game = {
   state: "title",
@@ -91,7 +95,7 @@ export const Game = {
       const price = priceOf(it), afford = this.gold >= price;
       h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${afford ? " gold" : ""}" ${afford ? "" : "disabled"} onclick="Game.buyItem(${idx})">Buy · ${price}g</button></div>`);
     });
-    h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">Party</button><button class="btn" onclick="UI.openInventory()">Bag</button>`;
+    h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">Party</button><button class="btn" onclick="UI.openInventory()">Bag / Sell</button>`;
     h += `<button class="btn gold" onclick="Game.leaveMerchant()">${next ? "Onward to " + next.name + " →" : "Leave →"}</button></div>`;
     Overlay.show(h);
   },
@@ -102,6 +106,15 @@ export const Game = {
     if (this.gold < price) return;
     this.gold -= price; this.inventory.push(it); this._stock.splice(idx, 1);
     this.renderMerchant();
+  },
+  // Sell a bag item to the merchant for gold (only meaningful while shopping). Stays in the Bag
+  // view so the player can clear out several pieces in a row.
+  sellItem(invIdx: number): void {
+    const it = this.inventory[invIdx];
+    if (!it || !this._inMerchant) return;
+    this.gold += sellPriceOf(it);
+    this.inventory.splice(invIdx, 1);
+    window.UI.openInventory(); // UI resolves via the window bridge (avoids a controller import cycle)
   },
   leaveMerchant(): void {
     this._inMerchant = false;

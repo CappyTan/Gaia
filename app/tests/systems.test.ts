@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import { affinity } from "../src/systems/affinity";
-import { makeItem, itemScore, rollDrop } from "../src/systems/loot";
+import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
 import { combatDamage, makeEnemy, damage, heal, applyStatus } from "../src/systems/combat";
 import { makeMember, recalc, grantXp, xpForLevel, skillUnlocked, unlockedSkills } from "../src/systems/progression";
 import { seeded } from "../src/core/rng";
@@ -13,7 +13,7 @@ import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
 import { kitFor, KITS_GENERIC } from "../src/data/classes";
 import { buildDef, ARCHETYPE_KEYS } from "../src/data/party";
-import { zeroMna } from "../src/types";
+import { zeroMna, ARMOR_SLOTS } from "../src/types";
 import type { Enemy, Member } from "../src/types";
 
 describe("affinity ring", () => {
@@ -53,6 +53,33 @@ describe("loot generation", () => {
   it("boss drops are rare-or-better", () => {
     const boss = makeEnemy("brute", 0, true, 0);
     for (let i = 0; i < 50; i++) expect(rollDrop(boss).rIx).toBeGreaterThanOrEqual(3);
+  });
+  it("every armor-family slot makes a valid, defensive piece", () => {
+    for (const slot of ARMOR_SLOTS) {
+      const it = makeItem(null, slot, 3, null, 10, "NOX");
+      expect(it.slot).toBe(slot);
+      expect(it.att).toBe("NOX"); // armor carries an attunement (flavor/art)
+      // each armor piece contributes at least one of HP / armor / atk / spd / mp
+      const total = (it.implicit.hp || 0) + (it.implicit.armor || 0) + (it.implicit.atk || 0) + (it.implicit.spd || 0) + (it.implicit.mp || 0);
+      expect(total).toBeGreaterThan(0);
+    }
+  });
+  it("rarity band climbs with level (Dara's retune) and is monotonic", () => {
+    expect(rarityBand(10)).toEqual({ floor: 1, ceil: 3 }); // L10: uncommon/rare, lucky epic
+    expect(rarityBand(20)).toEqual({ floor: 2, ceil: 4 }); // L20: rare/epic, lucky legendary
+    expect(rarityBand(30).ceil).toBe(5); // L30: artifacts start appearing
+    for (let l = 2; l <= 40; l++) {
+      expect(rarityBand(l).floor).toBeGreaterThanOrEqual(rarityBand(l - 1).floor);
+      expect(rarityBand(l).ceil).toBeGreaterThanOrEqual(rarityBand(l - 1).ceil);
+    }
+  });
+  it("ilvl keeps loot exciting: a high-ilvl rare out-bases a low-ilvl legendary", () => {
+    // base magnitude scales with ilvl, so a deep rare beats a shallow legendary on raw stats +
+    // MNA (rarity still wins on affix COUNT — the trade-off that makes every drop worth a look).
+    const goodRare = makeItem(null, "weapon", 2, "Staff", 30, "SOL"); // rarity 2, deep ilvl
+    const lowLegendary = makeItem(null, "weapon", 4, "Staff", 2, "SOL"); // rarity 4, shallow ilvl
+    expect(goodRare.implicit.atk!).toBeGreaterThan(lowLegendary.implicit.atk!);
+    expect(goodRare.mna!.SOL!).toBeGreaterThan(lowLegendary.mna!.SOL!);
   });
 });
 
