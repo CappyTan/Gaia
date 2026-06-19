@@ -13,6 +13,9 @@ import { Game } from "./game";
 import { Battle } from "./battle";
 import { Telemetry } from "../telemetry/telemetry";
 
+// Per-zone dungeon tileset prefix (east of the gate): Greenvale -> Bandit Warren, Duskmarsh -> Drowned Vault.
+const DUNGEON_SETS = ["warren", "vault"];
+
 export const Field = {
   // PACING KNOBS: W = zone length (steps to boss); ENC_MIN/MAX = steps between random fights.
   W: 60, H: 18, tile: 0, px: 0, py: 0,
@@ -28,10 +31,12 @@ export const Field = {
   ctx: null as CanvasRenderingContext2D | null,
   tiles: {} as Record<string, HTMLImageElement>, // loaded field sprites (empty until ready)
 
-  // Preload the Greenvale tileset; each redraws the map as it lands so art pops in progressively.
+  // Preload the overworld (Greenvale) tileset + both dungeon tilesets; each redraws as it lands.
+  // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
   loadTiles(): void {
-    // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile yet)
-    ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "player"].forEach((nm) => {
+    const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "player"];
+    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
+    names.forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
       const img = new Image();
@@ -202,25 +207,38 @@ export const Field = {
         if (mx >= this.W || my >= this.H) continue;
         const cell = this.map[my][mx];
         const sx = (mx - camx) * t, sy = (my - camy) * t;
-        // ground: chest/boss/miniboss sit ON grass; a stable hash picks a grass variant for texture
-        let ground = cell === "chest" || cell === "miniboss" || cell === "boss" ? "grass" : cell;
-        if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
+        const inDun = mx > this.gate.x; // east of the gate = the zone's dungeon (its own tileset)
+        const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
+        // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale; chest/boss/
+        // miniboss sit on a floor/grass tile; a stable hash mixes in the variant for texture.
+        let ground: string;
+        if (inDun) {
+          const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock" };
+          let base = cell === "chest" || cell === "miniboss" || cell === "boss" ? "floor" : (dm[cell] || "floor");
+          if (base === "floor" && (mx * 7 + my * 13) % 4 === 0 && T[`${dset}-floor2`]) base = "floor2";
+          ground = `${dset}-${base}`;
+        } else {
+          ground = cell === "chest" || cell === "miniboss" || cell === "boss" ? "grass" : cell;
+          if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
+        }
         const gimg = T[ground];
         if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1); // +1px overlap hides hairline seams
-        else { c.fillStyle = colors[ground] || "#4a7a32"; c.fillRect(sx, sy, t, t); if ((mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.06)"; c.fillRect(sx, sy, t, t); } }
-        // dungeon (east of the gate) gets a cold stone tint over the same tiles
-        if (mx > this.gate.x) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); }
+        else {
+          c.fillStyle = (inDun ? "#2a2740" : colors[cell]) || "#4a7a32"; c.fillRect(sx, sy, t, t);
+          if (!inDun && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.06)"; c.fillRect(sx, sy, t, t); }
+          if (inDun) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); } // tint only when art missing
+        }
         // overlays / object sprites (fall back to emoji if art isn't loaded)
         c.font = `${t * 0.82}px serif`;
         const obj = (img: HTMLImageElement | undefined, emoji: string, sc = 0.9) => {
           if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
           else c.fillText(emoji, sx + t / 2, sy + t / 2);
         };
-        if (cell === "chest") obj(T.chest, "📦", 0.8);
+        if (cell === "chest") obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8);
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
-        else if (cell === "boss") c.fillText(Game.bossDefeated ? "🏴" : "⛺", sx + t / 2, sy + t / 2);
-        else if (!gimg && cell === "tree") c.fillText("🌲", sx + t / 2, sy + t / 2);
-        else if (!gimg && cell === "bush") c.fillText("🌿", sx + t / 2, sy + t / 2);
+        else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
+        else if (!gimg && cell === "tree") c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2);
+        else if (!gimg && cell === "bush") c.fillText(inDun ? "🦴" : "🌿", sx + t / 2, sy + t / 2);
       }
     // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback)
     const cx = (this.px - camx) * t + t / 2, cy = (this.py - camy) * t + t / 2;

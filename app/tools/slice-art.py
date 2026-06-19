@@ -134,6 +134,21 @@ for (r,col),name in OBJ.items():
     t=remove_bg(im.crop((FX[col][0],FY[r][0],FX[col][1],FY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}.png")
 p=remove_bg(im.crop((440,720,820,1200))); p.thumbnail((80,104)); save(p,"field","player.png")
 
+# ---- dungeon tilesets (per zone): Bandit Warren (Greenvale dungeon) + Drowned Vault (Duskmarsh
+#      dungeon). Same 4-col grid; floor/wall tiles kept opaque + interior-cropped, chest + entrance
+#      knocked out. Wired in field.ts when east of the gate. -----------------------------------
+DUNGEONS={"warren":"dungeon-bandit-warren.png","vault":"dungeon-drowned-vault.png"}
+DFX=[(40,300),(345,600),(640,895),(940,1195)]; DFY=[(60,300),(330,570),(600,840),(870,1150)]
+DGROUND={(0,0):"floor",(0,1):"floor2",(0,2):"path",(1,0):"wall",(1,2):"rock"}  # opaque ground tiles
+DOBJ={(2,1):"chest",(0,3):"entrance"}                                          # transparent objects
+for name,fn in DUNGEONS.items():
+    dim=Image.open(os.path.join(REF,fn))
+    for (r,c),cn in DGROUND.items():
+        x0,y0,x1,y1=DFX[c][0],DFY[r][0],DFX[c][1],DFY[r][1]
+        save(dim.crop((x0+GIN,y0+GIN,x1-GIN,y1-GIN)).convert("RGBA").resize((64,64)),"field",f"{name}-{cn}.png")
+    for (r,c),cn in DOBJ.items():
+        t=remove_bg(dim.crop((DFX[c][0],DFY[r][0],DFX[c][1],DFY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}-{cn}.png")
+
 # ---- enemies (Greenvale bestiary, lower figure band) ----
 EB={"bandit":(12,380,300,815),"cutpurse":(312,380,600,815),"marauder":(614,380,902,815),
     "archer":(916,380,1204,815),"brute":(1218,380,1524,815)}
