@@ -10,9 +10,10 @@ export const ITEM_NAMES: Record<string, string[]> = {
   "Spellblade": ["Soldier's Spellblade", "Verdant Spellblade", "Celestial Spellblade", "Voidlight Spellblade", "Dawnbreaker Spellblade", "Eternal Sol Spellblade"],
 };
 
-// Generic names for the non-art-backed slots.
-export const ARMOR_NAMES = ["Padded Vestments", "Sunsteel Mail", "Aegis Plate", "Radiant Cuirass", "Solaris Aegis", "Heart of Sol"];
-export const TRINKET_NAMES = ["Brass Charm", "Sun Pendant", "Solar Sigil", "Eclipse Band", "Helios Crown", "Origin Relic"];
+// Generic, attunement-neutral names. Armor is named per-attunement at roll time (ATT_ADJ +
+// ARMOR_NOUN, e.g. "Wildgrown Cuirass"); trinkets stay attunement-agnostic.
+export const ARMOR_NOUN = ["Garb", "Mail", "Plate", "Cuirass", "Regalia", "Aegis"];
+export const TRINKET_NAMES = ["Brass Charm", "Jade Talisman", "Runed Band", "Warded Sigil", "Sovereign Crown", "Origin Relic"];
 
 // Non-SOL weapon naming (SOL uses Dara's named loot charts above). A weapon's name is built
 // from its Attunement's rarity-adjective + the archetype noun, e.g. NOX rare S&S = "Rimewrought

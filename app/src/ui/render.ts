@@ -81,7 +81,7 @@ export function itemHtml(it: Item, actionBtn?: string): string {
   return `<div class="item ${bc}" style="display:flex; gap:10px; align-items:flex-start">
     ${ico}
     <div style="flex:1; min-width:0">
-      <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.att} ${it.cls}` : ""}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
+      <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.att} ${it.cls}` : it.slot === "armor" && it.att ? ` · ${it.att}` : ""}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
       <div class="meta">${imp}</div>${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${aff}${actionBtn || ""}
     </div></div>`;
 }
