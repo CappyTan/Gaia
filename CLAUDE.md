@@ -118,10 +118,11 @@ Requires Node (≥18) + npm. First time: `npm install`.
 Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10) — with a **merchant** between
 them. **Party of five** (3 front / 2 back): the front line is targeted first, the back line
 (casters/ranged) is shielded. At the start the player builds the party in the **Roster picker** —
-each hero's **Attunement × Archetype** (= class) and row. SOL & NOX have full REQUIEM kits; the
-other attunements (and un-built archetypes) use a themed **generic placeholder kit** so any
-attunement is playable (`KITS_GENERIC` — reconcile to canon later). The default is the all-SOL
-party (Auren/Kaela/Rion front, Sephi/Liora back).
+each hero's **Attunement × Archetype** (= class) and row. **All 45 classes have distinct ability
+kits**: the 8 SOL/NOX S&S·Dual·Staff·Spellblade kits are hand-tuned; the other 37 are generated
+from Dara's REQUIEM canon by `docs/design/requiem/gen-kits.cjs` → `data/requiem-kits.ts` (canon
+names, heuristic mechanics — reconcile/balance over time). `KITS_GENERIC` remains only as a
+safety fallback. The default is the all-SOL party (Auren/Kaela/Rion front, Sephi/Liora back).
 
 ATB combat, affinity ring + signature effects, status effects, Diablo loot (per-attunement
 painterly weapon + armor art, ilvl/MNA scaling), **elites + champion packs** (tanky multi-affix

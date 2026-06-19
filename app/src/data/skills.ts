@@ -1,4 +1,5 @@
 import type { Skill } from "../types";
+import { REQUIEM_SKILLS } from "./requiem-kits";
 
 // ATB commands beyond Attack. Abilities are gated by MNA threshold in their Attunement tree
 // (`att` + `mnaReq`) rather than character level (REQUIEM canon — see mna-progression.md).
@@ -82,3 +83,7 @@ export const SKILLS: Record<string, Skill> = {
   umbraWard: { name: "Event Ward", mp: 12, target: "allAllies", att: "UMBRAXIS", mnaReq: 55, type: "buff", buff: { wardArmor: 10, turns: 3 }, desc: "A gravity well shields the party; +10 armor (3 turns)." },
   umbraHorizon: { name: "Event Horizon", mp: 24, target: "allEnemies", att: "UMBRAXIS", mnaReq: 100, ult: true, type: "mag", power: 1.9, status: { decay: 3 }, desc: "ULTIMATE — a collapsing singularity engulfs all foes; Decay." },
 };
+
+// Fold in the canon-generated kits for the 37 classes that aren't hand-authored above
+// (docs/design/requiem/gen-kits.cjs -> requiem-kits.ts). Hand-authored keys win on any overlap.
+Object.assign(SKILLS, { ...REQUIEM_SKILLS, ...SKILLS });
