@@ -419,7 +419,7 @@ export const Battle = {
       const d = el("div", "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : ""));
       d.dataset.mid = m.id;
       const spr = m.alive ? renderDoll(m) : '<div class="spr">💤</div>';
-      d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? "var(--gold2)" : "#666"}">${m.name}${statusBadges(m)}</div></div>${spr}`;
+      d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div></div>${spr}`;
       (m.row === "back" ? back : front).appendChild(d);
     });
   },
@@ -438,7 +438,7 @@ export const Battle = {
       Game.party.forEach((m) => {
         const row = el("div", "prow" + (m === this.current ? " turn" : "") + (m.alive ? "" : " downed"));
         row.dataset.id = m.id;
-        row.innerHTML = `<div class="pn">${m.name}${statusBadges(m)}</div>
+        row.innerHTML = `<div class="pn" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div>
         <div class="bars">
           <div class="bar hp"><i style="width:${pct(m.hp, m.maxhp)}%"></i><span class="bartxt">${Math.max(0, m.hp)}/${m.maxhp}</span></div>
           <div class="bar mp"><i style="width:${pct(m.mp, m.maxmp)}%"></i></div>

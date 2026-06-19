@@ -70,10 +70,11 @@
   /* combatants stand on the lower "ground" band — clear of the sky, bottom-anchored so a lone
      enemy/boss isn't floating mid-air (Dara's note) */
   #enemyZone{position:absolute; left:3%; top:20%; bottom:5%; width:46%; display:flex; flex-direction:column; justify-content:flex-end; gap:6px;}
-  #partyZone{position:absolute; right:2%; top:20%; bottom:5%; width:48%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:flex-end;}
-  /* formation: front line nearer the enemies (left column), back line behind (right, smaller) */
-  .pcol{position:relative; display:flex; flex-direction:column; justify-content:flex-end; gap:6px; flex:1; min-height:0;}
-  .pcol.back{transform:scale(.86); transform-origin:right center; opacity:.8;}
+  /* heroes occupy the same grounded band but in a tidy, evenly-spaced formation (Dara: "more
+     organized and harmonious") — front line forward (left), back line behind (right), staggered up */
+  #partyZone{position:absolute; right:2%; top:18%; bottom:5%; width:48%; display:flex; flex-direction:row; justify-content:flex-end; gap:6px; align-items:stretch;}
+  .pcol{position:relative; display:flex; flex-direction:column; justify-content:space-around; align-items:center; gap:8px; flex:1; min-height:0;}
+  .pcol.back{transform:scale(.84) translateY(-8%); transform-origin:right bottom; opacity:.82;}
   .pcol-cap{position:absolute; top:-2px; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); opacity:.7;}
   .pcol.front .pcol-cap{left:2px;} .pcol.back .pcol-cap{right:2px;}
   .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
