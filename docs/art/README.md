@@ -11,11 +11,10 @@ Two-Handed Sword makes you a Starbreaker. So the weapon must **read instantly an
 silhouette** — render weapons **big, prominent, and over-the-top**, oversized relative to the
 body, the first thing the eye lands on. When in doubt, scale the weapon *up*. This applies to
 the battle paper-doll and (later) loot/equip art.
-- The knob already exists: `RIG.weapon[archetype].scale` in
-  [`app/src/data/art.ts`](../../app/src/data/art.ts) (a fraction of the doll-box width). Today
-  it's a tasteful ~0.8–0.95; the directive is to push it well past 1.0 (hero-sized weapons)
-  once real grip-ready weapon art exists, and to tune per archetype in
-  [`rig-spec.md`](rig-spec.md).
+- Done (v0.23): `RIG.weapon[archetype]` in
+  [`app/src/data/art.ts`](../../app/src/data/art.ts) carries `{x, y, scale, rot}` per archetype,
+  with `scale` now past 1.0 (~1.1–1.3 of the doll-box width) for the hero-sized look. Tune
+  further there.
 - Generated/sliced weapon art should be drawn to be legible and impressive at large scale
   (heavy gold-on-dark, strong rarity glow), not dainty.
 
@@ -42,10 +41,13 @@ the battle paper-doll and (later) loot/equip art.
   armour slot. (Armor items are attunement-agnostic today, so they use the SOL set; the
   per-attunement files are ready for when armour gains an attunement.)
 
+- **Hero-sized weapon placement is in** (v0.23). `RIG.weapon` is now keyed by **archetype**
+  (the body's pose, shared across attunements) and carries `{x, y, scale, rot}`. Weapons are
+  drawn **oversized** (scale ~1.1–1.3, past 1.0 per the directive) so they dominate the
+  silhouette; `DEFAULT_WEAPON` covers archetypes without a tuned entry. Tuned against a
+  faithful offline doll compositor (matches the CSS) since the sandbox can't run a browser.
+
 ## What's pending
-- **Per-class hand anchors / hero-sized weapons.** `RIG.hand` is still keyed by the four SOL
-  hero ids; the other archetypes use a default anchor, and weapon `scale` is still tasteful
-  (~0.8–0.95) rather than the over-the-top hero-sized look the directive above calls for.
 - **Armour-over-body layer.** Today armour is an item icon only. A true fitted armour layer
   drawn over the rig (`ARMOR_LAYER`, per class × rarity) needs art authored on our shared
   canvas — the loot-sheet figures are standalone mannequins, not body-fitted overlays.

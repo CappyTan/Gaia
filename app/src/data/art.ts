@@ -31,20 +31,19 @@ export const ENEMY_IMG: Record<string, number> = {
 };
 
 // PAPER-DOLL RIG: a character renders as a STACK of aligned layers in one box; equipping an
-// item swaps a layer. Anchors are normalized (0..1) on the doll box; weapon scale is a
-// fraction of box width. BODY_LAYER/ARMOR_LAYER are art-gated — empty until that art exists,
-// then the SAME compositor draws them with zero code change. See docs/art/rig-spec.md.
-export interface HandAnchor { x: number; y: number; }
-export interface WeaponXform { scale: number; rot: number; }
+// item swaps a layer. Per Dara's directive the weapon defines the class, so it's drawn BIG and
+// dominant — keyed by ARCHETYPE (the body's pose, shared across attunements). Position (x,y) is
+// normalized on the doll box, scale is a fraction of box width (>1 = oversized/hero-sized), rot
+// is clockwise degrees. BODY_LAYER/ARMOR_LAYER are art-gated. See docs/art/rig-spec.md.
+export interface WeaponXform { x: number; y: number; scale: number; rot: number; }
+export const DEFAULT_WEAPON: WeaponXform = { x: 0.5, y: 0.56, scale: 1.15, rot: -14 };
 
-export const RIG: { hand: Record<string, HandAnchor>; weapon: Record<string, WeaponXform> } = {
-  hand: {
-    dawnguard: { x: 0.34, y: 0.6 }, sunblade: { x: 0.42, y: 0.58 },
-    lightkeeper: { x: 0.3, y: 0.5 }, dawnchaser: { x: 0.42, y: 0.58 },
-  },
+export const RIG: { weapon: Record<string, WeaponXform> } = {
   weapon: {
-    "Sword & Shield": { scale: 0.95, rot: -16 }, "Dual Swords": { scale: 0.95, rot: -20 },
-    "Staff": { scale: 0.8, rot: -72 }, "Spellblade": { scale: 0.95, rot: -18 },
+    "Sword & Shield": { x: 0.48, y: 0.56, scale: 1.12, rot: 18 },
+    "Dual Swords": { x: 0.52, y: 0.60, scale: 1.20, rot: -12 },
+    "Staff": { x: 0.63, y: 0.52, scale: 1.28, rot: -18 },
+    "Spellblade": { x: 0.50, y: 0.56, scale: 1.28, rot: -14 },
   },
 };
 

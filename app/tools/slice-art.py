@@ -65,10 +65,12 @@ def keep_central(im, kx=0.85, ky=0.8, areafrac=0.06):
     im.putalpha(al)
     return im
 
-def cell(im, cx, cy, hw, hh, kx=0.85, ky=0.8, af=0.06):
-    """Crop one grid cell (centre cx,cy; half-size hw,hh), clear the dark bg, drop neighbour
-    bleed, and trim to the artwork."""
-    c=keep_central(remove_bg(im.crop((int(cx-hw),int(cy-hh),int(cx+hw),int(cy+hh)))), kx, ky, af)
+def cell(im, cx, cy, hw, htop, hbot=None, kx=0.85, ky=0.8, af=0.06):
+    """Crop one grid cell (centre cx,cy; half-width hw; htop above / hbot below — asymmetric so
+    a caption baked under the artwork can be trimmed), clear the dark bg, drop neighbour bleed,
+    and trim to the artwork."""
+    if hbot is None: hbot=htop
+    c=keep_central(remove_bg(im.crop((int(cx-hw),int(cy-htop),int(cx+hw),int(cy+hbot)))), kx, ky, af)
     bb=c.getbbox()
     return c.crop(bb) if bb else c
 
@@ -78,26 +80,27 @@ def save(im, *parts):
 # ---- weapons: Dara's painterly loot sheets. Each is a 5-attunement (cols, SOL..UMBRAXIS) x
 #      6-rarity (rows) grid -> items/{stem}-{att}-{rarity}.png. The SOL column is also saved as
 #      the legacy items/{stem}-{rarity}.png so older lookups still resolve. -------------------
-# stem -> (sheet, [(col-centre, half-width) per attunement], [row centres], row half-height,
-#          kx, ky, areafrac). Row centres differ slightly per sheet (taller blades sit higher).
-RC6=[160,265,375,486,595,713]   # shared rarity-row centres for the S&S/staff/spellblade sheets
+# stem -> (sheet, [(col-centre, half-width) per attunement], [row centres], (htop,hbot),
+#          kx, ky, areafrac). Row centres differ slightly per sheet; the spellblade sheet bakes a
+#          name caption under each blade, so it uses a blade-centred asymmetric crop to drop it.
+RC6=[160,265,375,486,595,713]   # shared rarity-row centres for the S&S/staff sheets
 WSHEETS={
  "sns":  ("loot-sword-shield-painterly.png",
-          [(283,95),(524,113),(798,113),(1076,119),(1371,121)], RC6, 62, 0.86, 0.72, 0.05),
+          [(283,95),(524,113),(798,113),(1076,119),(1371,121)], RC6, (62,62), 0.86, 0.72, 0.05),
  "dual": ("loot-dual-swords-painterly.png",
           [(237,92),(468,88),(692,85),(913,85),(1134,82)],
-          [148,246,349,457,580,704], 58, 0.85, 0.72, 0.05),
+          [148,246,349,457,580,704], (58,58), 0.85, 0.72, 0.05),
  "staff":("loot-staff-painterly.png",
-          [(c,95) for c in (256,467,683,898,1116)], RC6, 62, 0.85, 0.82, 0.06),
+          [(c,95) for c in (256,467,683,898,1116)], RC6, (62,62), 0.85, 0.82, 0.06),
  "spell":("loot-spellblade-painterly.png",
-          [(c,92) for c in (227,435,644,857,1074)], RC6, 60, 0.85, 0.82, 0.06),
+          [(c,92) for c in (227,435,644,857,1074)], [151,259,380,490,602,716], (40,28), 0.85, 0.95, 0.05),
 }
 items={}
-for stem,(fn,cols,rows,hh,kx,ky,af) in WSHEETS.items():
+for stem,(fn,cols,rows,(htop,hbot),kx,ky,af) in WSHEETS.items():
     im=Image.open(os.path.join(REF,fn)); items[stem]={}
     for ai,(cx,hw) in enumerate(cols):
         for ri,cy in enumerate(rows):
-            c=cell(im,cx,cy,hw,hh,kx,ky,af); c.thumbnail((300,160))
+            c=cell(im,cx,cy,hw,htop,hbot,kx,ky,af); c.thumbnail((300,160))
             save(c,"items",f"{stem}-{ATT[ai]}-{RAR[ri]}.png")
             if ai==0: save(c,"items",f"{stem}-{RAR[ri]}.png")   # legacy SOL-keyed fallback
             items[stem][(ATT[ai],ri)]=c

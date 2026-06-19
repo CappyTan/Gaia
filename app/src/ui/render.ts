@@ -4,7 +4,7 @@
 import type { Attunement, Enemy, Item, Member, Unit } from "../types";
 import { cap, clamp } from "../core/rng";
 import { assetUrl } from "../core/assets";
-import { WEAP_IMG, ARCH_SLUG, RIG, BODY_LAYER, ARMOR_LAYER } from "../data/art";
+import { WEAP_IMG, ARCH_SLUG, RIG, DEFAULT_WEAPON, BODY_LAYER, ARMOR_LAYER } from "../data/art";
 
 // Resolve a weapon's sprite. Prefers attunement-specific art (items/{stem}-{att}-{rarity}.png,
 // e.g. a NOX blade gets the NOX painterly sprite) and falls back to the legacy SOL-keyed file
@@ -62,10 +62,9 @@ export function renderDoll(m: Member): string {
   }
   const w = m.equip && m.equip.weapon;
   if (w && WEAP_IMG[w.cls]) {
-    const r = RIG.weapon[w.cls] || { scale: 0.9, rot: -16 };
-    const hand = RIG.hand[id] || { x: 0.4, y: 0.58 };
+    const r = RIG.weapon[w.cls] || DEFAULT_WEAPON;
     const url = weaponArt(w.cls, w.rarity, w.att) || "";
-    const st = `left:${(hand.x * 100).toFixed(1)}%;top:${(hand.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
+    const st = `left:${(r.x * 100).toFixed(1)}%;top:${(r.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
     h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="${url}" alt="">`;
   }
   return h + `</div>`;
