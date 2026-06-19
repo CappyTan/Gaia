@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import { affinity } from "../src/systems/affinity";
-import { makeItem, itemScore, rollDrop } from "../src/systems/loot";
+import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
 import { combatDamage, makeEnemy, damage, heal, applyStatus } from "../src/systems/combat";
 import { makeMember, recalc, grantXp, xpForLevel, skillUnlocked, unlockedSkills } from "../src/systems/progression";
 import { seeded } from "../src/core/rng";
@@ -13,7 +13,7 @@ import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
 import { kitFor, KITS_GENERIC } from "../src/data/classes";
 import { buildDef, ARCHETYPE_KEYS } from "../src/data/party";
-import { zeroMna } from "../src/types";
+import { zeroMna, ARMOR_SLOTS } from "../src/types";
 import type { Enemy, Member } from "../src/types";
 
 describe("affinity ring", () => {
@@ -51,21 +51,59 @@ describe("loot generation", () => {
     expect(itemScore(artifact)).toBeGreaterThan(itemScore(common));
   });
   it("boss drops are rare-or-better", () => {
-    const boss = makeEnemy("brute", 0, true, 0);
+    const boss = makeEnemy("kingpin", 0, true, 0);
     for (let i = 0; i < 50; i++) expect(rollDrop(boss).rIx).toBeGreaterThanOrEqual(3);
+  });
+  it("every armor-family slot makes a valid, defensive piece", () => {
+    for (const slot of ARMOR_SLOTS) {
+      const it = makeItem(null, slot, 3, null, 10, "NOX");
+      expect(it.slot).toBe(slot);
+      expect(it.att).toBe("NOX"); // armor carries an attunement (flavor/art)
+      // each armor piece contributes at least one of HP / armor / atk / spd / mp
+      const total = (it.implicit.hp || 0) + (it.implicit.armor || 0) + (it.implicit.atk || 0) + (it.implicit.spd || 0) + (it.implicit.mp || 0);
+      expect(total).toBeGreaterThan(0);
+    }
+  });
+  it("rarity band climbs with level (Dara's retune) and is monotonic", () => {
+    expect(rarityBand(10)).toEqual({ floor: 1, ceil: 3 }); // L10: uncommon/rare, lucky epic
+    expect(rarityBand(20)).toEqual({ floor: 2, ceil: 4 }); // L20: rare/epic, lucky legendary
+    expect(rarityBand(30).ceil).toBe(5); // L30: artifacts start appearing
+    for (let l = 2; l <= 40; l++) {
+      expect(rarityBand(l).floor).toBeGreaterThanOrEqual(rarityBand(l - 1).floor);
+      expect(rarityBand(l).ceil).toBeGreaterThanOrEqual(rarityBand(l - 1).ceil);
+    }
+  });
+  it("ilvl keeps loot exciting: a high-ilvl rare out-bases a low-ilvl legendary", () => {
+    // base magnitude scales with ilvl, so a deep rare beats a shallow legendary on raw stats +
+    // MNA (rarity still wins on affix COUNT — the trade-off that makes every drop worth a look).
+    const goodRare = makeItem(null, "weapon", 2, "Staff", 30, "SOL"); // rarity 2, deep ilvl
+    const lowLegendary = makeItem(null, "weapon", 4, "Staff", 2, "SOL"); // rarity 4, shallow ilvl
+    expect(goodRare.implicit.atk!).toBeGreaterThan(lowLegendary.implicit.atk!);
+    expect(goodRare.mna!.SOL!).toBeGreaterThan(lowLegendary.mna!.SOL!);
   });
 });
 
 describe("champion packs", () => {
   it("a champion is a tankier, multi-affix elite with richer rewards", () => {
-    const normal = makeEnemy("bandit", 0, false, 0, false);
-    const champ = makeEnemy("bandit", 0, false, 0, true);
+    const normal = makeEnemy("gbandit", 0, false, 0, false);
+    const champ = makeEnemy("gbandit", 0, false, 0, true);
     expect(champ.champion).toBe(true);
     expect(champ.elite).toBe(true);
     expect(champ.eliteAffixes!.length).toBe(3);
     expect(champ.maxhp).toBeGreaterThan(normal.maxhp * 1.5); // ~2x base HP (a tanky leader)
     expect(champ.xpReward).toBeGreaterThan(normal.xpReward);
     expect(champ.name).toBe(normal.name); // base name preserved; the "Champion" marker is a render concern
+  });
+});
+
+describe("ultra-rare treasure monsters", () => {
+  it("a rare monster is flagged, not a boss/elite, and always drops epic-or-better loot", () => {
+    const r = makeEnemy("hogger", 0, false, 0);
+    expect(r.rare).toBe(true);
+    expect(r.boss).toBe(false);
+    expect(r.miniboss).toBe(false);
+    expect(r.elite).toBeFalsy(); // rares are their own tier — no random elite roll
+    for (let i = 0; i < 50; i++) expect(rollDrop(r).rIx).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -84,14 +122,14 @@ describe("combat math", () => {
   const mkUnit = (over: Partial<Member>): Member => ({ ...makeMember(PARTY_DEFS[1]), ...over });
   it("is deterministic under a seeded rng", () => {
     const a = mkUnit({ atk: 20, att: "SOL" });
-    const b = makeEnemy("bandit", 0, false, 0); // NOX -> SOL is strong
+    const b = makeEnemy("gbandit", 0, false, 0); // NOX -> SOL is strong
     const r1 = combatDamage(a, b, {}, seeded(42));
     const r2 = combatDamage(a, b, {}, seeded(42));
     expect(r1.dmg).toBe(r2.dmg);
     expect(r1.mult).toBe(1.5);
   });
   it("damage/heal clamp at bounds and flip alive", () => {
-    const e: Enemy = makeEnemy("bandit", 0, false, 0);
+    const e: Enemy = makeEnemy("gbandit", 0, false, 0);
     damage(e, e.hp + 999);
     expect(e.hp).toBe(0);
     expect(e.alive).toBe(false);
@@ -99,7 +137,7 @@ describe("combat math", () => {
     expect(e.hp).toBe(0);
   });
   it("applyStatus keeps the longer duration", () => {
-    const e = makeEnemy("bandit", 0, false, 0);
+    const e = makeEnemy("gbandit", 0, false, 0);
     applyStatus(e, { burn: 2 });
     applyStatus(e, { burn: 1 });
     expect(e.status.burn).toBe(2);
@@ -151,12 +189,12 @@ describe("MNA gating & scaling", () => {
   });
   it("Archon (100 MNA) is required for the ultimate", () => {
     const m = makeMember(PARTY_DEFS[1]);
-    m.mnaAlloc.SOL = 100;
+    m.mnaAlloc[m.att] = 100; // allocate into the hero's own tree (party comp is attunement-diverse)
     recalc([m]);
     const ult = m.skills.map((k) => SKILLS[k]).find((s) => s.ult)!;
     expect(ult.mnaReq).toBe(100);
     expect(skillUnlocked(m, ult)).toBe(true);
-    m.mnaAlloc.SOL = 99;
+    m.mnaAlloc[m.att] = 99;
     recalc([m]);
     expect(skillUnlocked(m, ult)).toBe(false);
   });
@@ -173,7 +211,7 @@ describe("MNA gating & scaling", () => {
     expect(m.mna.SOL).toBe(pts); // no gear -> total equals allocation
   });
   it("equipping a foreign-attunement weapon reclasses the hero (class = weapon)", () => {
-    const m = makeMember(PARTY_DEFS[1]); // Kaela — innate SOL Dual Swords
+    const m = makeMember(buildDef("hero0", "Kael", "SOL", "Dual Swords", "front")); // innate SOL Dual Swords
     recalc([m]);
     expect(m.att).toBe("SOL");
     expect(m.skills).toEqual(kitFor("SOL", "Dual Swords"));
@@ -209,7 +247,7 @@ describe("MNA gating & scaling", () => {
     expect(unlockedSkills(m).length).toBeGreaterThan(0); // has a usable ability
   });
   it("SOL MNA scales damage output", () => {
-    const target = makeEnemy("bandit", 0, false, 0); // NOX
+    const target = makeEnemy("gbandit", 0, false, 0); // NOX
     const lo: Member = { ...makeMember(PARTY_DEFS[1]), atk: 50, att: "SOL", mna: zeroMna() };
     const hi: Member = { ...lo, mna: { ...zeroMna(), SOL: 200 } };
     const a = combatDamage(lo, target, {}, seeded(7));

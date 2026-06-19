@@ -127,7 +127,7 @@ export const Telemetry = {
       h += `<div class="card" style="text-align:left;border-color:var(--gold)">
       <div class="tag">Current session</div>
       <div class="small">Time ${ms(Date.now() - cur.start)} · Steps ${cur.steps} · Encounters ${cur.encounters} (won ${cur.won}, fled ${cur.fled})</div>
-      <div class="small">Dmg dealt ${cur.dmgDealt} · taken ${cur.dmgTaken} · Crit ${pctf(cur.crits, cur.partyHits)} · SOL-bonus hits ${cur.affinityBonus} / resisted ${cur.affinityResist}</div>
+      <div class="small">Dmg dealt ${cur.dmgDealt} · taken ${cur.dmgTaken} · Crit ${pctf(cur.crits, cur.partyHits)} · Affinity hits ${cur.affinityBonus} / resisted ${cur.affinityResist}</div>
       <div class="small">Level-ups ${cur.levelups} · Drops ${cur.dropTotal} · Gold ${Game.gold}</div>
       <div class="small">Drops: ${dropRow(cur.drops)}</div>
       ${cur.timeToBossMs != null ? `<div class="small">Reached boss in ${ms(cur.timeToBossMs)}</div>` : ""}

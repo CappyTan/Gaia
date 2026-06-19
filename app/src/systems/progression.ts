@@ -1,5 +1,5 @@
 import type { Attunement, Member, MemberDef, Skill } from "../types";
-import { zeroMna } from "../types";
+import { zeroMna, EQUIP_SLOTS } from "../types";
 import { SKILLS } from "../data/skills";
 import { kitFor } from "../data/classes";
 
@@ -22,7 +22,7 @@ export function makeMember(d: MemberDef): Member {
     row: d.row ?? "front",
     level: 1, xp: 0,
     base: { ...d.base },
-    equip: { weapon: null, armor: null, trinket: null },
+    equip: { weapon: null, helmet: null, armor: null, gloves: null, boots: null, trinket: null },
     skills: d.skills,
     mnaAlloc: zeroMna(), mna: zeroMna(), mnaPoints: 0,
     // live combat fields filled by recalc / battle:
@@ -53,7 +53,7 @@ export function recalc(party: Member[]): void {
     const add: Record<string, number> = { atkPct: 0, critPct: 0, spd: 0, hp: 0, solPct: 0, armor: 0, leech: 0, mp: 0 };
     const mna = zeroMna();
     (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
-    for (const slot of ["weapon", "armor", "trinket"] as const) {
+    for (const slot of EQUIP_SLOTS) {
       const it = m.equip[slot];
       if (!it) continue;
       s.atk += it.implicit.atk || 0;
@@ -61,6 +61,7 @@ export function recalc(party: Member[]): void {
       s.hp += it.implicit.hp || 0;
       s.mp += it.implicit.mp || 0;
       s.mag += it.implicit.mag || 0;
+      s.spd += it.implicit.spd || 0;
       for (const a of it.affixes) add[a.stat] = (add[a.stat] || 0) + a.value;
       if (it.mna) (Object.keys(it.mna) as Attunement[]).forEach((a) => (mna[a] += it.mna![a] || 0));
     }

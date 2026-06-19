@@ -4,7 +4,7 @@ import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
 import { ZONES } from "../data/zones";
-import { ENEMIES } from "../data/enemies";
+import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
@@ -148,6 +148,13 @@ export const Field = {
     for (const e of bands) { if (p >= e.at) band = e; }
     // the dungeon runs ~1-2 levels hotter than the overworld
     const depth = this.inDungeon() ? clamp(p + 0.25, 0, 1) : p;
+    // ULTRA-RARE: a small chance the encounter is instead a lone treasure monster (Metal-Slime /
+    // Warmech tier) — exceptional loot. Eligible by zone; solo fight, no champion.
+    const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
+    if (rares.length && Math.random() < RARE_ENCOUNTER_CHANCE) {
+      Battle.begin([pick(rares).key], this.envFor(p), false, false, depth, -1);
+      return;
+    }
     const set = pick(band.sets).slice();
     // CHAMPION PACK: past the opening, an encounter can be led by a champion (lead = index 0)
     // with 1-2 extra minions. More common deeper in / in the dungeon.

@@ -83,6 +83,9 @@
   .enemy.elite .ename{color:var(--legendary); font-weight:bold;}
   .enemy.champion .ename{color:var(--gold); font-weight:bold; text-shadow:0 0 7px rgba(244,210,122,.65);}
   .enemy.champion .spr-img, .enemy.champion .spr{transform:scale(1.2); filter:drop-shadow(0 0 6px rgba(244,210,122,.5)) drop-shadow(0 3px 5px #000);}
+  /* ultra-rare treasure monster: a prismatic shimmer so it reads as a special encounter */
+  .enemy.rare .ename{color:#ffe9a8; font-weight:bold; text-shadow:0 0 10px rgba(255,210,120,.9);}
+  .enemy.rare .spr-img, .enemy.rare .spr{filter:drop-shadow(0 0 9px rgba(255,215,130,.85)) drop-shadow(0 0 16px rgba(180,120,255,.45)) drop-shadow(0 3px 5px #000); animation:pulse 1.6s ease-in-out infinite;}
   .enemy.acting{transform:translateX(10px) scale(1.05);}
   .enemy .ename{font-size:12px;}
   .att-tag{font-size:10px; font-weight:bold; letter-spacing:.3px;}
@@ -148,6 +151,14 @@
   .float{position:absolute; font-weight:bold; font-size:18px; pointer-events:none; text-shadow:0 2px 3px #000;
     animation:floatup 1s ease-out forwards;}
   @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
+  /* crit burst: Dara's per-Attunement spark, popped + faded over a struck unit (screen-blended
+     so the knocked-out glow reads as light, not a flat decal) */
+  .crit-fx{position:absolute; width:96px; height:96px; pointer-events:none; z-index:6;
+    transform:translate(-50%,-55%); transform-origin:center; mix-blend-mode:screen;
+    animation:critpop .45s cubic-bezier(.2,.7,.3,1) forwards;}
+  @keyframes critpop{0%{opacity:0; transform:translate(-50%,-55%) scale(.4);}
+    35%{opacity:1; transform:translate(-50%,-55%) scale(1.08);}
+    100%{opacity:0; transform:translate(-50%,-55%) scale(1.25);}}
 
   /* ---- Overlays: loot / levelup / menus ---- */
   .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;
