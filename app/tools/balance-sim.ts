@@ -163,6 +163,8 @@ function simRun() {
       let xp = 0;
       keys.forEach((k) => (xp += ENEMIES[k].xp));
       grantXp(party, xp);
+      // a sensible player banks earned MNA into their own (SOL) tree
+      party.forEach((m) => { m.mnaAlloc[m.att] += m.mnaPoints; m.mnaPoints = 0; });
       gearUp(party, r.enemies);
       return true;
     };

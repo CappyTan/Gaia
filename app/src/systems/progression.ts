@@ -100,15 +100,12 @@ export function grantXp(party: Member[], xp: number): LevelUp[] {
   const before = new Map(party.map((m) => [m.id, new Set(unlockedSkills(m))]));
   party.forEach((m) => {
     m.xp += xp;
-    let gained = 0;
     while (m.xp >= xpForLevel(m.level)) {
       m.xp -= xpForLevel(m.level);
       m.level++;
-      gained++;
-      m.mnaAlloc[m.att] += MNA_PER_LEVEL; // interim: auto-bank into the hero's own tree
+      m.mnaPoints += MNA_PER_LEVEL; // earned, spent by the player in the allocator
       leveled.push({ name: m.name, level: m.level, newSkill: null });
     }
-    if (gained) m.mnaPoints += 0; // (no unspent pool while auto-allocating)
   });
   recalc(party);
   // attribute newly-unlocked abilities to the member's last level-up entry

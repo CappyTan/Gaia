@@ -134,6 +134,18 @@ describe("MNA gating & scaling", () => {
     recalc([m]);
     expect(skillUnlocked(m, ult)).toBe(false);
   });
+  it("leveling grants spendable MNA points; recalc folds allocation into totals", () => {
+    const party = [makeMember(PARTY_DEFS[0])];
+    recalc(party);
+    const m = party[0];
+    expect(m.mnaPoints).toBe(0);
+    grantXp(party, xpForLevel(1) * 4); // a few levels
+    expect(m.mnaPoints).toBeGreaterThan(0);
+    const pts = m.mnaPoints;
+    m.mnaAlloc.SOL += pts; m.mnaPoints = 0; // allocate all into SOL (what UI.allocMna does)
+    recalc(party);
+    expect(m.mna.SOL).toBe(pts); // no gear -> total equals allocation
+  });
   it("SOL MNA scales damage output", () => {
     const target = makeEnemy("bandit", 0, false, 0); // NOX
     const lo: Member = { ...makeMember(PARTY_DEFS[1]), atk: 50, att: "SOL", mna: zeroMna() };
