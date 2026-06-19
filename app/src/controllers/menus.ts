@@ -1,7 +1,7 @@
 // Party / inventory / equip screens, and the universal overlay-close that prevents the
 // post-battle Bag/Party menus from soft-locking the run.
 
-import type { Attunement, Member, Skill } from "../types";
+import type { Attunement, Item, Member, Skill, Slot } from "../types";
 import { cap } from "../core/rng";
 import { ATTUNEMENTS } from "../types";
 import { SKILLS } from "../data/skills";
@@ -137,8 +137,57 @@ export const UI = {
   openInventory(): void {
     let h = `<h2 class="title-gold">Bag</h2><div class="small">${Game.inventory.length} items · ${Game.gold} gold</div><div class="scroll">`;
     if (Game.inventory.length === 0) h += `<p class="small">Empty. Win fights to find loot.</p>`;
-    Game.inventory.slice().sort((a, b) => rarityIx(b.rarity) - rarityIx(a.rarity)).forEach((it) => { h += itemHtml(it); });
+    Game.inventory.slice().sort((a, b) => rarityIx(b.rarity) - rarityIx(a.rarity)).forEach((it) => {
+      const idx = Game.inventory.indexOf(it);
+      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.equipChooser(${idx})">Equip ▸</button></div>`);
+    });
     h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">To Party</button><button class="btn gold" onclick="UI.close()">Close</button></div>`;
     Overlay.show(h);
+  },
+
+  // Effective stats a member WOULD have with `it` equipped (no mutation) — for the equip preview.
+  _equipPreview(m: Member, it: Item): Member {
+    const clone = { ...m, equip: { ...m.equip, [it.slot]: it }, _init: true } as Member;
+    recalc([clone]);
+    return clone;
+  },
+  // Click loot in the bag -> choose which hero to equip it on, with green/red stat deltas (Dara).
+  equipChooser(invIdx: number): void {
+    const it = Game.inventory[invIdx];
+    if (!it) { this.openInventory(); return; }
+    let h = `<h2 class="title-gold">Equip</h2>${itemHtml(it)}<div class="small" style="margin-top:4px">Choose a hero — arrows show stat changes:</div><div class="scroll">`;
+    const stat = (label: string, cur: number, nxt: number) =>
+      cur === nxt ? "" : `<span style="color:${nxt > cur ? "#aef0a0" : "#e8888c"}">${label} ${cur}→${nxt}${nxt > cur ? "↑" : "↓"}</span>`;
+    Game.party.forEach((m) => {
+      const c = this._equipPreview(m, it);
+      const deltas = [
+        stat("HP", m.maxhp, c.maxhp), stat("ATK", m.atk, c.atk), stat("MAG", m.mag, c.mag),
+        stat("DEF", m.armor, c.armor), stat("SPD", m.spd, c.spd), stat("MP", m.maxmp, c.maxmp),
+        stat("Crit", m.critPct, c.critPct),
+        ...ATTUNEMENTS.map((a) => stat(`${a} MNA`, m.mna[a], c.mna[a])),
+      ].filter(Boolean).join(" · ");
+      const reclass = it.slot === "weapon" && (c.att !== m.att || c.cls !== m.cls)
+        ? ` <span class="r-legendary" style="font-size:11px">→ ${className(c.att, c.cls)}</span>` : "";
+      const replaces = m.equip[it.slot] ? `<span class="small" style="opacity:.6"> (replaces ${m.equip[it.slot]!.name})</span>` : "";
+      h += `<div class="card" style="margin:6px 0;text-align:left">
+        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${m.cls}</span>${reclass}${replaces}
+        <div class="small" style="margin-top:4px">${deltas || "no stat change"}</div>
+        <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.doEquipFromBag('${m.id}',${invIdx})">Equip on ${m.name}</button></div>
+      </div>`;
+    });
+    h += `</div><div class="row"><button class="btn" onclick="UI.openInventory()">◂ Bag</button></div>`;
+    Overlay.show(h);
+  },
+  doEquipFromBag(memberId: string, invIdx: number): void {
+    const m = Game.party.find((x) => x.id === memberId);
+    const it = Game.inventory[invIdx];
+    if (!m || !it) { this.openInventory(); return; }
+    const slot = it.slot as Slot;
+    const old = m.equip[slot];
+    m.equip[slot] = it;
+    Game.inventory.splice(invIdx, 1);
+    if (old) Game.inventory.push(old);
+    recalc(Game.party);
+    this.openInventory();
   },
 };
