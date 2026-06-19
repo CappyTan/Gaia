@@ -5,6 +5,7 @@ import type { RarityKey } from "../types";
 import { cap } from "../core/rng";
 import { RARITY } from "../data/rarity";
 import { GAME_VERSION } from "../data/version";
+import { CHANGELOG } from "../data/changelog";
 import { TELEMETRY_ENDPOINT } from "./endpoint";
 import { Overlay } from "../ui/overlay";
 import { Game } from "../controllers/game";
@@ -147,10 +148,25 @@ export const Telemetry = {
       ${canSave ? `<button id="tmSaveBtn" class="btn gold" onclick="Telemetry.saveNow()">Save run → repo</button>` : ""}
       <button id="tmCopyBtn" class="btn${canSave ? "" : " gold"}" onclick="Telemetry.copy()">Copy JSON</button>
       <button class="btn" onclick="Telemetry.download()">Download</button>
+      <button class="btn" onclick="Telemetry.patchNotes()">Patch Notes</button>
       <button class="btn" onclick="Telemetry.reset()">Reset</button>
       <button class="btn" onclick="Overlay.hide()">Close</button></div>
       <div class="small" style="opacity:.7;margin-top:6px">${TELEMETRY_ENDPOINT ? "Finished runs auto-save to the repo; <b>Save run → repo</b> sends the current run mid-way." : "On mobile use <b>Copy JSON</b> (downloads are blocked in-app) — paste into Notes."}</div>`;
     Overlay.show(h);
+  },
+  // In-game patch notes — the full version history, newest first (under Stats).
+  patchNotes(): void {
+    const rows = CHANGELOG.map((c) => {
+      const cur = c.v === GAME_VERSION;
+      return `<div class="card" style="text-align:left;margin:6px 0;${cur ? "border-color:var(--gold)" : ""}">
+        <b class="title-gold">${c.v}</b>${cur ? ` <span class="pill" style="border-color:var(--gold);color:var(--gold2)">you are here</span>` : ""}
+        <div class="small" style="color:var(--ink);margin-top:2px">${c.t}</div>
+      </div>`;
+    }).join("");
+    Overlay.show(`<h2 class="title-gold">Patch Notes</h2>
+      <div class="small" style="opacity:.7;margin-top:-4px">The whole journey — ${CHANGELOG.length} versions, newest first</div>
+      <div class="scroll">${rows}</div>
+      <div class="row"><button class="btn gold" onclick="Telemetry.show()">◂ Back to Stats</button></div>`);
   },
   // Push the IN-PROGRESS run to the repo now (in case the session won't be finished). Marks it
   // reason:"midrun" with the current duration so partial runs are distinguishable.

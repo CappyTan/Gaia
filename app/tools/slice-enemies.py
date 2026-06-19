@@ -99,7 +99,7 @@ def save(im, key):
 # A faint dark halo can survive on the lighter test backdrop but is invisible on the battle scene.
 ROSTER={
  # top row (Greenvale) — y band 165..555
- "slime":   ((40, 175, 210, 555), 30),
+ "slime":   ((50, 178, 205, 338), 30),  # single (largest, top) slime — they appear in GROUPS via encounters
  "kobold":  ((228, 165, 456, 555), 30),
  "gbandit": ((516, 165, 666, 555), 30),
  "gmage":   ((720, 165, 918, 555), 30),
