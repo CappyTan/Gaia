@@ -30,7 +30,8 @@ export const Field = {
 
   // Preload the Greenvale tileset; each redraws the map as it lands so art pops in progressively.
   loadTiles(): void {
-    ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "merchant", "player"].forEach((nm) => {
+    // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile yet)
+    ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "player"].forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
       const img = new Image();
@@ -146,10 +147,11 @@ export const Field = {
     // CHAMPION PACK: past the opening, an encounter can be led by a champion (lead = index 0)
     // with 1-2 extra minions. More common deeper in / in the dungeon.
     let champIdx = -1;
-    const champChance = (this.inDungeon() ? 0.18 : 0.1) + p * 0.08;
+    const champChance = (this.inDungeon() ? 0.15 : 0.09) + p * 0.07;
     if (p > 0.12 && Math.random() < champChance) {
       champIdx = 0;
-      if (set.length < 5) set.push(pick(set)); // one extra minion — the champion is the threat
+      const adds = set.slice(1); // a normal minion (not another champion), the champion is the threat
+      if (set.length < 5) set.push(pick(adds.length ? adds : set));
     }
     Battle.begin(set, this.envFor(p), false, false, depth, champIdx);
   },

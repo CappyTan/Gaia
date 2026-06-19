@@ -89,7 +89,7 @@ export function itemHtml(it: Item, actionBtn?: string): string {
 export function statusBadges(u: Unit): string {
   const m: Record<string, string> = {
     burn: "burn", blind: "blind", regen: "regen", stun: "stun",
-    atkup: "atkup", wardArmor: "def", poison: "regen", decay: "def",
+    atkup: "atkup", wardArmor: "def", poison: "regen", decay: "def", drain: "def",
   };
   let h = "";
   for (const k in u.status) {

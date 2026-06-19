@@ -44,8 +44,9 @@ export const Game = {
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
-    // starting gear: a common weapon each so the loot loop has a baseline to beat
-    this.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls); });
+    // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
+    // weapon (which sets the class) would default to SOL and silently re-class the whole party.
+    this.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att); });
     recalc(this.party);
     Field.init();
     Screens.show("field");

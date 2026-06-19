@@ -71,13 +71,13 @@ function applyAffixes(e: Enemy, n: number): void {
  */
 export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false): Enemy {
   const d = ENEMIES[key];
-  const champHp = champion ? 2.1 : 1;
+  const champHp = champion ? 2.0 : 1;
   const champAtk = champion ? 1.3 : 1;
   const hp = Math.round(d.hp * depthHpScale(depth) * champHp);
   const atk = Math.round(d.atk * depthAtkScale(depth) * champAtk);
   const mag = Math.round((d.mag || 0) * depthAtkScale(depth) * champAtk);
   const e: Enemy = {
-    key, name: champion ? `Champion ${d.name}` : d.name, spr: d.spr, att: d.att, lvl: d.lvl, side: "enemy",
+    key, name: d.name, spr: d.spr, att: d.att, lvl: d.lvl, side: "enemy", // champion marker is a render concern
     maxhp: hp, hp, atk, spd: d.spd, armor: d.armor + (champion ? 2 : 0), mag,
     xpReward: champion ? Math.round(d.xp * 2.2) : d.xp,
     goldRange: champion ? [d.gold[0] * 2, d.gold[1] * 2] : d.gold,

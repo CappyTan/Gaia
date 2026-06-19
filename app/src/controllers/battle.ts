@@ -267,6 +267,7 @@ export const Battle = {
     if (st.burn) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#ffb27a"); st.burn--; if (st.burn <= 0) delete st.burn; delay = 300; }
     if (st.poison) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.06)); damage(u, d); this.float(u, `-${d}`, "#aef0a0"); st.poison--; if (st.poison <= 0) delete st.poison; delay = 300; }
     if (st.decay) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#7ad0c0"); st.decay--; if (st.decay <= 0) delete st.decay; delay = 300; }
+    if (st.drain) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#c4a7ff"); st.drain--; if (st.drain <= 0) delete st.drain; delay = 300; } // UMBRAXIS signature
     if (st.regen) { const h = Math.round((u.maxhp || 40) * 0.08); heal(u, h); this.float(u, `+${h}`, "#aef0a0"); st.regen--; if (st.regen <= 0) delete st.regen; delay = 300; }
     if (st.wardArmor) { st.wardArmor--; if (st.wardArmor <= 0) { delete st.wardArmor; delete u.wardAmt; } }
     if (st.atkup) { st.atkup--; if (st.atkup <= 0) delete st.atkup; }
@@ -387,7 +388,7 @@ export const Battle = {
     this.enemies.forEach((e) => {
       const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
-        <div class="ename">${e.champion ? "★ " : ""}${e.name}${e.eliteAffixes ? ` <span class="badge atkup">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
+        <div class="ename">${e.champion ? "★ Champion " : ""}${e.name}${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       if (targetable && e.alive) d.onclick = () => this.targetClicked(e);
@@ -398,6 +399,8 @@ export const Battle = {
     const z = $("#partyZone")!; z.innerHTML = "";
     // Two-column formation: front line nearer the enemies (left), back line behind (right).
     const front = el("div", "pcol front"), back = el("div", "pcol back");
+    front.innerHTML = `<div class="pcol-cap">Front</div>`;
+    back.innerHTML = `<div class="pcol-cap">Back</div>`;
     z.appendChild(front); z.appendChild(back);
     Game.party.forEach((m) => {
       const d = el("div", "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : ""));

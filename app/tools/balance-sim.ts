@@ -42,7 +42,7 @@ function affordableHeal(m: Member): Skill | null {
 }
 function dot(u: Member | Enemy): void {
   const st = u.status;
-  for (const k of ["burn", "poison", "decay"]) if (st[k]) { u.hp = Math.max(0, u.hp - Math.max(2, Math.round(u.maxhp * 0.05))); if (--st[k] <= 0) delete st[k]; }
+  for (const k of ["burn", "poison", "decay", "drain"]) if (st[k]) { u.hp = Math.max(0, u.hp - Math.max(2, Math.round(u.maxhp * 0.05))); if (--st[k] <= 0) delete st[k]; }
   if (st.regen) { u.hp = Math.min(u.maxhp, u.hp + Math.round(u.maxhp * 0.08)); if (--st.regen <= 0) delete st.regen; }
   for (const k of ["blind", "atkup", "stun", "wardArmor"]) if (st[k] && --st[k] <= 0) delete st[k];
   if (u.hp <= 0) u.alive = false;
@@ -189,9 +189,10 @@ function simRun() {
         // champion pack roll (mirror controllers/field.ts): lead becomes a champion + 1-2 adds
         const set = pick(band.sets).slice();
         let champIdx = -1;
-        if (p > 0.12 && Math.random() < (inDungeon ? 0.18 : 0.1) + p * 0.08) {
+        if (p > 0.12 && Math.random() < (inDungeon ? 0.15 : 0.09) + p * 0.07) {
           champIdx = 0;
-          if (set.length < 5) set.push(pick(set)); // one extra minion (mirror field.ts)
+          const adds = set.slice(1); // mirror field.ts: a normal minion, not another champion
+          if (set.length < 5) set.push(pick(adds.length ? adds : set));
         }
         if (!fight(set, "rand", depth, champIdx)) break;
       }

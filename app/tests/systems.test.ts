@@ -65,7 +65,18 @@ describe("champion packs", () => {
     expect(champ.eliteAffixes!.length).toBe(3);
     expect(champ.maxhp).toBeGreaterThan(normal.maxhp * 2); // ~2.6x base HP
     expect(champ.xpReward).toBeGreaterThan(normal.xpReward);
-    expect(champ.name).toContain("Champion");
+    expect(champ.name).toBe(normal.name); // base name preserved; the "Champion" marker is a render concern
+  });
+});
+
+describe("roster start preserves the chosen attunement", () => {
+  it("a foreign-attunement hero keeps its class after the starting weapon is equipped", () => {
+    // mirror Game.startRun: build def -> equip a common weapon IN THE HERO'S ATTUNEMENT -> recalc
+    const m = makeMember(buildDef("hero0", "Test", "NOX", "Dual Swords", "front"));
+    m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att);
+    recalc([m]);
+    expect(m.att).toBe("NOX"); // NOT silently re-classed to SOL
+    expect(m.skills).toEqual(kitFor("NOX", "Dual Swords"));
   });
 });
 

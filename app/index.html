@@ -70,8 +70,10 @@
   #enemyZone{position:absolute; left:3%; top:8%; bottom:6%; width:46%; display:flex; flex-direction:column; justify-content:space-around;}
   #partyZone{position:absolute; right:2%; top:9%; bottom:6%; width:48%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:stretch;}
   /* formation: front line nearer the enemies (left column), back line behind (right, smaller) */
-  .pcol{display:flex; flex-direction:column; justify-content:space-around; flex:1;}
-  .pcol.back{transform:scale(.86); transform-origin:right center; opacity:.92;}
+  .pcol{position:relative; display:flex; flex-direction:column; justify-content:space-around; flex:1; min-height:0;}
+  .pcol.back{transform:scale(.86); transform-origin:right center; opacity:.8;}
+  .pcol-cap{position:absolute; top:-2px; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); opacity:.7;}
+  .pcol.front .pcol-cap{left:2px;} .pcol.back .pcol-cap{right:2px;}
   .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
   .enemy .spr{font-size:34px; filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
   .enemy .spr-img{width:72px; height:78px; object-fit:contain; filter:drop-shadow(0 3px 5px #000); image-rendering:auto;}
@@ -136,6 +138,7 @@
   .badge.burn{background:#7a2e0a; color:#ffb27a;} .badge.blind{background:#333; color:#bbb;}
   .badge.def{background:#1f3a55; color:#9cd1ff;} .badge.regen{background:#2a4d28; color:#aef0a0;}
   .badge.stun{background:#5a4a00; color:#ffe27a;} .badge.atkup{background:#5a2e00; color:#ffb27a;}
+  .badge.champ{background:rgba(244,210,122,.18); color:var(--gold); border:1px solid var(--gold);} /* champion affixes read as a power tier */
 
   #log{position:absolute; left:34%; right:0; bottom:42%; height:auto; max-height:64px; overflow:hidden; pointer-events:none;
     padding:4px 10px; font-size:12px; color:var(--gold2); text-shadow:0 1px 2px #000;}
@@ -173,10 +176,10 @@
   .rname{font-size:13px; font-weight:bold;}
   .rcls{font-size:11px; font-weight:normal;}
   .rpick{display:flex; align-items:center; gap:6px; font-size:12px;}
-  .rb{min-width:34px; min-height:30px; padding:2px 8px; background:#241d3a; border:1px solid var(--line); color:var(--fg); border-radius:7px; cursor:pointer; font-size:12px;}
-  .rb.wide{width:100%;}
-  .rb.back{background:#1d2a3a; border-color:#3a567a;}
+  .rrole{color:var(--dim);}
+  .rb{min-width:42px; min-height:40px; padding:2px 10px; background:#241d3a; border:1px solid var(--line); color:var(--fg); border-radius:7px; cursor:pointer; font-size:14px; touch-action:manipulation;}
   .rb:active{transform:scale(.96);}
+  .rwarn{color:var(--legendary); font-size:12px; margin:2px 0 4px; padding:5px 8px; background:#2a1d12; border:1px solid #5a3a1a; border-radius:7px;}
   .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
   .equip-slot button{font-size:11px; padding:3px 8px;}
   .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}

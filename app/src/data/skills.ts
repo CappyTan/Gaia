@@ -76,7 +76,7 @@ export const SKILLS: Record<string, Skill> = {
   quantaCascade: { name: "Cascade", mp: 14, target: "allEnemies", att: "QUANTA", mnaReq: 55, type: "mag", power: 1.0, crit: 30, desc: "A cascade of chance across all foes." },
   quantaSingularity: { name: "Singularity", mp: 24, target: "enemy", att: "QUANTA", mnaReq: 100, ult: true, type: "mag", power: 3.4, crit: 50, desc: "ULTIMATE — a near-certain critical detonation on one foe." },
   // UMBRAXIS (gravity / void / entropy — decay + mitigation; UMBRAXIS MNA scales damage reduction):
-  umbraCrush: { name: "Gravity Crush", mp: 4, target: "enemy", att: "UMBRAXIS", mnaReq: 0, type: "phys", power: 1.2, status: { decay: 2 }, desc: "Crushing gravity; Decay." },
+  umbraCrush: { name: "Gravity Crush", mp: 4, target: "enemy", att: "UMBRAXIS", mnaReq: 0, type: "phys", power: 1.2, status: { drain: 2 }, desc: "Crushing gravity; Drain." },
   umbraDrain: { name: "Void Drain", mp: 8, target: "enemy", att: "UMBRAXIS", mnaReq: 10, type: "mag", power: 1.6, status: { decay: 2 }, desc: "Siphon a foe into the void; Decay." },
   umbraEntropy: { name: "Entropy", mp: 12, target: "allEnemies", att: "UMBRAXIS", mnaReq: 30, type: "mag", power: 1.0, status: { decay: 3 }, desc: "Entropy gnaws all foes; Decay." },
   umbraWard: { name: "Event Ward", mp: 12, target: "allAllies", att: "UMBRAXIS", mnaReq: 55, type: "buff", buff: { wardArmor: 10, turns: 3 }, desc: "A gravity well shields the party; +10 armor (3 turns)." },
