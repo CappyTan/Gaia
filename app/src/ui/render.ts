@@ -49,12 +49,14 @@ export function itemHtml(it: Item, actionBtn?: string): string {
     bc = "b-" + it.rarity;
   const aff = it.affixes.map((a) => `<div class="affix">• ${a.label(a.value)}</div>`).join("");
   const imp = Object.entries(it.implicit).map(([k, v]) => `+${v} ${k}`).join("  ");
+  // weapon MNA grant — the main thing that unlocks/scales abilities (and sets the class)
+  const mna = it.mna ? Object.entries(it.mna).filter(([, v]) => v).map(([a, v]) => `+${v} ${a} MNA`).join("  ") : "";
   const ico = itemIcon(it);
   return `<div class="item ${bc}" style="display:flex; gap:10px; align-items:flex-start">
     ${ico}
     <div style="flex:1; min-width:0">
       <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.att} ${it.cls}` : ""}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
-      <div class="meta">${imp}</div>${aff}${actionBtn || ""}
+      <div class="meta">${imp}</div>${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${aff}${actionBtn || ""}
     </div></div>`;
 }
 
