@@ -1,0 +1,8 @@
+name = "gaia-telemetry"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Plain vars (non-secret). Secrets (GH_TOKEN, optional GAIA_KEY) are set with `wrangler secret put`.
+[vars]
+REPO = "CappyTan/Gaia"
+BRANCH = "main"

@@ -5,6 +5,7 @@ import type { RarityKey } from "../types";
 import { cap } from "../core/rng";
 import { RARITY } from "../data/rarity";
 import { GAME_VERSION } from "../data/version";
+import { TELEMETRY_ENDPOINT } from "./endpoint";
 import { Overlay } from "../ui/overlay";
 import { Game } from "../controllers/game";
 import { Music } from "../audio/music";
@@ -80,7 +81,19 @@ export const Telemetry = {
     if (!this.s) return;
     this.s.end = Date.now(); this.s.durationMs = this.s.end - this.s.start;
     this.s.reason = reason; this.s.gold = Game.gold || 0;
+    if (reason !== "restart") this._autosave(this.s); // a real run end (victory/wipe) -> push to repo
     this.all.push(this.s); this.save(); this.s = null;
+  },
+  // Fire-and-forget POST to the telemetry Worker (which commits it to the repo). No-op if no
+  // endpoint is configured; never throws / never blocks gameplay.
+  _autosave(session: Session): void {
+    if (!TELEMETRY_ENDPOINT) return;
+    try {
+      fetch(TELEMETRY_ENDPOINT, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(session), keepalive: true, // keepalive lets it finish during page-close
+      }).catch(() => { /* offline / blocked — ignore */ });
+    } catch { /* ignore */ }
   },
 
   agg() {
