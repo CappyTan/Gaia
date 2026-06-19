@@ -47,6 +47,7 @@ export const Battle = {
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
+    this.lockInput(700); // swallow taps bleeding over from the field D-pad as the screen swaps in
     const lead = this.enemies.find((e) => e.boss) || this.enemies[0];
     this.log(isBoss ? `${lead.name} blocks the path!` : "Enemies ambush the party!");
     this.last = performance.now(); cancelAnimationFrame(this.raf);
@@ -97,8 +98,17 @@ export const Battle = {
     const known = m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s));
     const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, known); list.appendChild(skBtn);
     mk("Defend", 0, () => { m.guarding = true; this.log(`${m.name} braces.`); this.endTurn(m); });
-    mk("Flee", 0, () => this.tryFlee(m), this.isBoss);
+    mk("Flee", 0, () => this.confirmFlee(m), this.isBoss); // confirm so a stray tap never flees
     this.lockInput(350); // stray-tap guard: ignore taps for a beat after the menu opens
+  },
+  // Flee is destructive (you lose the fight's rewards) and sits where the field D-pad was, so it
+  // takes a deliberate second tap — a fat-finger from walking can never exit the battle.
+  confirmFlee(m: Member): void {
+    const list = $("#cmdList")!; list.innerHTML = "";
+    $("#cmdWho")!.textContent = "Flee the battle?";
+    const yes = el("button", "cmd", "Yes — flee"); yes.onclick = () => this.tryFlee(m); list.appendChild(yes);
+    const no = el("button", "cmd", "◂ Keep fighting"); no.onclick = () => this.showCommands(m); list.appendChild(no);
+    this.lockInput(350);
   },
   lockInput(ms: number): void {
     const ids = ["#cmdPanel", "#enemyZone"];
