@@ -34,6 +34,7 @@ frozen at `app/gaia.html` as a reference; see History.)
 | [`CONTEXT.md`](CONTEXT.md) | **Glossary of Gaia's domain language.** Use these exact terms. |
 | [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records (immutable rationale). |
 | [`docs/design/requiem/`](docs/design/requiem/README.md) | **REQUIEM** — Dara's canonical 45-class / 250-ability combat system + battle mechanics (Ascension / Soul Burn / Harmonic Ascension / Archon Types). |
+| [`docs/design/affinity-ring.md`](docs/design/affinity-ring.md) | Ratified affinity-ring design — lore matchups, the **±15%** tuning, and flagged future systems (continent identity, corrupted attunements, raid rotation). |
 | [`docs/art/`](docs/art/README.md) | Art-pipeline resume guide, rig spec, layer brief. |
 | [`assets/reference/`](assets/reference/) | Dara's raw reference art (class grid, loot charts, enemy sheet, maps). Source for `slice-art.py`. |
 

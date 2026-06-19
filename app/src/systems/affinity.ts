@@ -1,8 +1,9 @@
 import type { Attunement } from "../types";
 import { RING, STRONG, WEAK } from "../data/attunements";
 
-// Multiplier for `att` attacking `defAtt`. Each power beats the NEXT in the ring (+50%) and
-// is weak to the PREV (-50%); same/unknown attunement is neutral (x1).
+// Multiplier for `att` attacking `defAtt`. Each power beats the NEXT in the ring (+15%) and
+// is weak to the PREV (-15%); same/unknown attunement is neutral (x1). Modest by design — see
+// STRONG/WEAK in data/attunements.ts.
 export function affinity(att: Attunement | null | undefined, defAtt: Attunement | null | undefined): number {
   if (!att || !defAtt || att === defAtt) return 1;
   const i = RING.indexOf(att), j = RING.indexOf(defAtt);
