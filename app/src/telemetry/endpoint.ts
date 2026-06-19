@@ -3,4 +3,4 @@
 // to telemetry/incoming/ in the repo using a server-side GitHub token), then paste its URL here.
 // See app/tools/telemetry-worker/README.md for the 5-minute setup. The URL is NOT a secret —
 // only the Worker holds the GitHub token.
-export const TELEMETRY_ENDPOINT = "";
+export const TELEMETRY_ENDPOINT = "https://gaia-telemetry.cpollack.workers.dev";
