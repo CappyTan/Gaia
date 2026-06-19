@@ -24,6 +24,15 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   // MNA scales output: SOL/NOX attunements amplify damage (up to +60% at 200 MNA).
   if ((atkAtt === "SOL" || atkAtt === "NOX") && actor.mna) raw *= 1 + mnaBonus(actor.mna[atkAtt]);
   raw *= mult;
+  // FORMATION (party only — enemies have no row): melee hammers the front line but glances off the
+  // back; ranged/magic does the reverse. And a hero fights best in their proper row.
+  const trow = (target as { row?: "front" | "back" }).row;
+  if (target.side === "party" && trow === "back") raw *= isMag ? 1.25 : 0.7;
+  const arow = (actor as { row?: "front" | "back" }).row;
+  if (actor.side === "party" && arow) {
+    if (isMag) raw *= arow === "back" ? 1.1 : 0.95;   // casters/ranged stronger from the back
+    else raw *= arow === "front" ? 1.1 : 0.9;          // melee stronger up front
+  }
   const critC = (actor.critPct || 5) + (s && s.crit ? s.crit : 0) + (actor.att === "QUANTA" ? 10 : 0);
   const crit = rng() * 100 < critC;
   if (crit) raw *= 1.8;
@@ -43,6 +52,12 @@ export function damage(u: Unit, d: number): void {
 export function heal(u: Unit, h: number): void {
   if (!u.alive) return;
   u.hp = Math.min(u.maxhp, u.hp + h);
+}
+
+/** Elites, champions, mini-bosses and bosses shrug off Stun (it was trivializing tough fights). */
+export function stunImmune(u: Unit): boolean {
+  const e = u as Enemy;
+  return u.side === "enemy" && !!(e.boss || e.miniboss || e.elite || e.champion);
 }
 
 export function applyStatus(u: Unit, st: StatusMap): void {

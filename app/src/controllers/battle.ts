@@ -6,7 +6,8 @@ import type { CombatAct, Enemy, Item, Member, Skill, Unit } from "../types";
 import { $, el } from "../core/dom";
 import { cap, ri, pick } from "../core/rng";
 import { SKILLS } from "../data/skills";
-import { combatDamage, damage, heal, applyStatus, makeEnemy } from "../systems/combat";
+import { combatDamage, damage, heal, applyStatus, makeEnemy, stunImmune } from "../systems/combat";
+import { ATT } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
@@ -59,7 +60,7 @@ export const Battle = {
     if (!this.awaiting) {
       const units = this.allLiving();
       for (const u of units) {
-        u.atb += u.spd * dt * 0.012; // SPD drives fill rate
+        u.atb += u.spd * dt * 0.012 * (u.side === "enemy" ? 1.2 : 1); // SPD drives fill; enemies act a touch faster (Dara: enemies too slow)
         if (u.atb >= 100) u.atb = 100;
       }
       const ready = units.filter((u) => u.atb >= 100).sort((a, b) => b.atb - a.atb)[0];
@@ -213,7 +214,11 @@ export const Battle = {
     else if (mult < 1) this.log(`  ${target.name} resists: ${dmg}`);
     if (crit) this.log(`  Critical! ${dmg} to ${target.name}`);
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
-    if (s && s.status) applyStatus(target, s.status);
+    if (s && s.status) {
+      let st = s.status;
+      if (st.stun && stunImmune(target)) { st = { ...st }; delete st.stun; this.float(target, "resist", "#ccc"); }
+      applyStatus(target, st);
+    }
     if (actor.bonusBurn) applyStatus(target, { burn: 2 });
     if (actor.onHitPoison) applyStatus(target, { poison: actor.onHitPoison });
     this.markHurt(target);
@@ -390,7 +395,7 @@ export const Battle = {
     this.enemies.forEach((e) => {
       const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
-        <div class="ename">${e.champion ? "★ Champion " : ""}${e.name}${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
+        <div class="ename">${e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       if (targetable && e.alive) d.onclick = () => this.targetClicked(e);

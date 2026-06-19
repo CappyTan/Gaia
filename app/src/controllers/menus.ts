@@ -7,6 +7,7 @@ import { ATTUNEMENTS } from "../types";
 import { SKILLS } from "../data/skills";
 import { rarityIx } from "../data/rarity";
 import { className } from "../data/classes";
+import { ATT } from "../data/attunements";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills } from "../systems/progression";
 import { itemScore } from "../systems/loot";
 import { itemHtml } from "../ui/render";
@@ -43,7 +44,7 @@ export const UI = {
       const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
       const respec = spent > 0 ? ` <button class="btn" style="padding:9px 12px;font-size:12px;min-height:40px" onclick="UI.respec('${m.id}')">Respec ${respecCost(m)}g</button>` : "";
       h += `<div class="card" style="margin:6px 0;text-align:left">
-        <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill">${cls} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
+        <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill" style="color:${ATT[m.att].color};border-color:${ATT[m.att].color}66">${cls} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
         <div class="small">HP ${m.maxhp} · MP ${m.maxmp} · ATK ${m.atk} · MAG ${m.mag} · SPD ${m.spd} · ARM ${m.armor} · Crit ${m.critPct}%${m.solPct ? ` · +${m.solPct}% Power` : ""}${m.leech ? ` · ${m.leech}% leech` : ""}</div>
         <div class="small" style="margin-top:4px">MNA <span style="opacity:.5">(levels+gear)</span>${m.mnaPoints > 0 ? ` · <b class="r-legendary">${m.mnaPoints} point${m.mnaPoints > 1 ? "s" : ""} to spend</b>` : ""}: ${mnaRow}${respec}</div>
         <div class="small">XP ${m.xp}/${xpForLevel(m.level)}</div>

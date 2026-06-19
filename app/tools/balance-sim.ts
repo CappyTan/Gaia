@@ -73,10 +73,12 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
     minHP = Math.min(minHP, hpPct());
     const us = living();
     if (!us.length) break;
-    // continuous-time ATB: whoever's gauge reaches 100 first acts; advance all proportionally
+    // continuous-time ATB: whoever's gauge reaches 100 first acts; advance all proportionally.
+    // Enemies fill 1.25x faster (mirrors battle.ts — Dara: enemies too slow).
+    const espd = (u: Member | Enemy) => Math.max(1, u.spd) * (u.side === "enemy" ? 1.2 : 1);
     let act: Member | Enemy | null = null, bt = Infinity;
-    for (const u of us) { const t = (100 - u.atb) / Math.max(1, u.spd); if (t < bt) { bt = t; act = u; } }
-    for (const u of us) u.atb += Math.max(1, u.spd) * bt;
+    for (const u of us) { const t = (100 - u.atb) / espd(u); if (t < bt) { bt = t; act = u; } }
+    for (const u of us) u.atb += espd(u) * bt;
     if (!act) break;
     act.atb = 0; actions++;
     dot(act);
