@@ -117,6 +117,19 @@ for ai,(cx,hw) in enumerate(ACOL):
         if ai==0: save(c,"items",f"armor-{RAR[ri]}.png")
         armor[(ATT[ai],ri)]=c
 
+# ---- field tiles (Greenvale): a 4x2 grid of ground tiles + object overlays, plus a top-down
+#      player walker below. Ground tiles are kept opaque (64x64, the canvas scales them); objects
+#      and the walker get the dark bg knocked out so they sit over a ground tile. ---------------
+im=Image.open(os.path.join(REF,"field-tiles-greenvale.png"))
+FX=[(40,300),(345,600),(640,895),(940,1195)]; FY=[(70,330),(450,705)]
+GROUND={(0,0):"grass",(0,1):"grass2",(0,2):"path",(0,3):"tree",(1,0):"bush",(1,1):"rock"}
+OBJ={(1,2):"chest",(1,3):"merchant"}
+for (r,col),name in GROUND.items():
+    save(im.crop((FX[col][0],FY[r][0],FX[col][1],FY[r][1])).convert("RGBA").resize((64,64)),"field",f"{name}.png")
+for (r,col),name in OBJ.items():
+    t=remove_bg(im.crop((FX[col][0],FY[r][0],FX[col][1],FY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}.png")
+p=remove_bg(im.crop((440,720,820,1200))); p.thumbnail((80,104)); save(p,"field","player.png")
+
 # ---- enemies (Greenvale bestiary, lower figure band) ----
 EB={"bandit":(12,380,300,815),"cutpurse":(312,380,600,815),"marauder":(614,380,902,815),
     "archer":(916,380,1204,815),"brute":(1218,380,1524,815)}
@@ -136,9 +149,21 @@ BROW=[132,335,530,721,896]                       # 5 attunement row centres (SOL
 SLUG=["sword-shield","dual-swords","two-handed","hammer","daggers","pistols","rifle","staff","spellblade"]
 HERO={(0,0):"dawnguard",(0,1):"sunblade",(0,7):"lightkeeper",(0,8):"dawnchaser"}  # (row,col)->id
 bodies={}; her={}
+# Normalize every figure onto a FIXED canvas whose aspect matches the doll box (62:74), figure
+# centred horizontally and feet bottom-aligned. This makes all 45 bodies render identically in
+# the box (same scale + position), so the weapon rig coordinates (data/art.ts) map 1:1 to the
+# figure for every class — without this, trim-varying widths drift the held weapon off the body.
+DOLL_W, DOLL_H = 248, 296   # 62:74 * 4
+def fit_body(im, wcap=0.86, hfrac=0.97, bottom=0.99):
+    im=im.convert("RGBA"); iw,ih=im.size
+    r=min(DOLL_H*hfrac/ih, DOLL_W*wcap/iw)
+    fig=im.resize((max(1,int(iw*r)), max(1,int(ih*r))))
+    canvas=Image.new("RGBA",(DOLL_W,DOLL_H),(0,0,0,0))
+    canvas.alpha_composite(fig,((DOLL_W-fig.width)//2, max(0,int(DOLL_H*bottom)-fig.height)))
+    return canvas
 for ri,cy in enumerate(BROW):
     for ci,cx in enumerate(BCOL):
-        c=cell(im,cx,cy,66,96,kx=0.78,ky=0.95,af=0.04); c.thumbnail((220,260))
+        c=fit_body(cell(im,cx,cy,66,96,kx=0.78,ky=0.95,af=0.04))
         save(c,"bodies",f"{ATT[ri]}-{SLUG[ci]}.png"); bodies[(ri,ci)]=c
         if (ri,ci) in HERO: save(c,"heroes",f"{HERO[(ri,ci)]}.png"); her[HERO[(ri,ci)]]=c
 

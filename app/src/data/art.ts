@@ -40,10 +40,10 @@ export const DEFAULT_WEAPON: WeaponXform = { x: 0.5, y: 0.56, scale: 1.15, rot: 
 
 export const RIG: { weapon: Record<string, WeaponXform> } = {
   weapon: {
-    "Sword & Shield": { x: 0.48, y: 0.56, scale: 1.12, rot: 18 },
-    "Dual Swords": { x: 0.52, y: 0.60, scale: 1.20, rot: -12 },
-    "Staff": { x: 0.63, y: 0.52, scale: 1.28, rot: -18 },
-    "Spellblade": { x: 0.50, y: 0.56, scale: 1.28, rot: -14 },
+    "Sword & Shield": { x: 0.46, y: 0.58, scale: 1.08, rot: 12 },
+    "Dual Swords": { x: 0.50, y: 0.60, scale: 1.15, rot: -12 },
+    "Staff": { x: 0.58, y: 0.50, scale: 1.20, rot: -15 },
+    "Spellblade": { x: 0.50, y: 0.56, scale: 1.20, rot: -14 },
   },
 };
 

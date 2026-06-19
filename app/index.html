@@ -68,7 +68,10 @@
   #battleField{position:absolute; top:0; left:0; right:0; height:58%; overflow:hidden;}
   #battleBg{position:absolute; inset:0;}
   #enemyZone{position:absolute; left:3%; top:8%; bottom:6%; width:46%; display:flex; flex-direction:column; justify-content:space-around;}
-  #partyZone{position:absolute; right:3%; top:10%; bottom:6%; width:42%; display:flex; flex-direction:column; justify-content:space-around;}
+  #partyZone{position:absolute; right:2%; top:9%; bottom:6%; width:48%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:stretch;}
+  /* formation: front line nearer the enemies (left column), back line behind (right, smaller) */
+  .pcol{display:flex; flex-direction:column; justify-content:space-around; flex:1;}
+  .pcol.back{transform:scale(.86); transform-origin:right center; opacity:.92;}
   .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
   .enemy .spr{font-size:34px; filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
   .enemy .spr-img{width:72px; height:78px; object-fit:contain; filter:drop-shadow(0 3px 5px #000); image-rendering:auto;}
@@ -76,6 +79,8 @@
   .enemy.dead{opacity:.18; filter:grayscale(1);}
   .enemy.targetable{outline:2px dashed var(--gold); outline-offset:4px; border-radius:6px;}
   .enemy.elite .ename{color:var(--legendary); font-weight:bold;}
+  .enemy.champion .ename{color:var(--gold); font-weight:bold; text-shadow:0 0 7px rgba(244,210,122,.65);}
+  .enemy.champion .spr-img, .enemy.champion .spr{transform:scale(1.2); filter:drop-shadow(0 0 6px rgba(244,210,122,.5)) drop-shadow(0 3px 5px #000);}
   .enemy.acting{transform:translateX(10px) scale(1.05);}
   .enemy .ename{font-size:12px;}
   .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
@@ -158,6 +163,20 @@
   .scroll{max-height:300px; overflow-y:auto; width:100%;}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .tag{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim);}
+  /* ── roster picker ── */
+  .rgrid{display:flex; flex-direction:column; gap:8px; max-height:54vh; overflow-y:auto; width:100%;}
+  .rcard{display:flex; gap:10px; align-items:center; background:#161226; border:1px solid var(--line); border-radius:10px; padding:8px 10px;}
+  .rbody{width:54px; height:64px; flex:none; display:flex; align-items:flex-end; justify-content:center;}
+  .rbody img{max-width:100%; max-height:100%; object-fit:contain; filter:drop-shadow(0 3px 4px #000);}
+  .rbody .spr{font-size:30px;}
+  .rinfo{flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;}
+  .rname{font-size:13px; font-weight:bold;}
+  .rcls{font-size:11px; font-weight:normal;}
+  .rpick{display:flex; align-items:center; gap:6px; font-size:12px;}
+  .rb{min-width:34px; min-height:30px; padding:2px 8px; background:#241d3a; border:1px solid var(--line); color:var(--fg); border-radius:7px; cursor:pointer; font-size:12px;}
+  .rb.wide{width:100%;}
+  .rb.back{background:#1d2a3a; border-color:#3a567a;}
+  .rb:active{transform:scale(.96);}
   .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
   .equip-slot button{font-size:11px; padding:3px 8px;}
   .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}
@@ -180,7 +199,7 @@
       <span class="pw" style="color:#888">UMBRAXIS</span>
     </div>
     <div class="row" style="margin-top:10px">
-      <button class="btn gold" onclick="Game.start()">Enter Greenvale</button>
+      <button class="btn gold" onclick="Roster.open()">Enter Greenvale</button>
       <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
       <button class="btn mutebtn" title="Music on/off" onclick="Music.unlock();Music.toggleMute()">🔊</button>
       <button class="btn" title="Home music style" onclick="Music.cycleStyle('title')">♪ <span id="st-title">Radiant</span> ▸</button>

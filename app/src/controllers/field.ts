@@ -1,6 +1,7 @@
 // Tile field map: grid, camera, movement, random encounters, chokepoint mini-boss + zone boss.
 
 import { $ } from "../core/dom";
+import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
 import { ZONES } from "../data/zones";
 import { ENEMIES } from "../data/enemies";
@@ -25,6 +26,18 @@ export const Field = {
   enteredDungeon: false,
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
+  tiles: {} as Record<string, HTMLImageElement>, // loaded field sprites (empty until ready)
+
+  // Preload the Greenvale tileset; each redraws the map as it lands so art pops in progressively.
+  loadTiles(): void {
+    ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "merchant", "player"].forEach((nm) => {
+      const url = assetUrl(`field/${nm}.png`);
+      if (!url) return;
+      const img = new Image();
+      img.onload = () => { this.tiles[nm] = img; this.draw(); };
+      img.src = url;
+    });
+  },
 
   zone() { return ZONES[this.zoneIndex]; },
   isLastZone(): boolean { return this.zoneIndex >= ZONES.length - 1; },
@@ -42,6 +55,7 @@ export const Field = {
     this.zoneIndex = 0;
     this.enteredDungeon = false;
     this.resize();
+    this.loadTiles();
     this.px = 1; this.py = 9;
     this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
@@ -128,7 +142,17 @@ export const Field = {
     for (const e of bands) { if (p >= e.at) band = e; }
     // the dungeon runs ~1-2 levels hotter than the overworld
     const depth = this.inDungeon() ? clamp(p + 0.25, 0, 1) : p;
-    Battle.begin(pick(band.sets), this.envFor(p), false, false, depth);
+    const set = pick(band.sets).slice();
+    // CHAMPION PACK: past the opening, an encounter can be led by a champion (lead = index 0)
+    // with 1-2 extra minions. More common deeper in / in the dungeon.
+    let champIdx = -1;
+    const champChance = (this.inDungeon() ? 0.18 : 0.1) + p * 0.08;
+    if (p > 0.12 && Math.random() < champChance) {
+      champIdx = 0;
+      const adds = ri(1, 2);
+      for (let i = 0; i < adds && set.length < 5; i++) set.push(pick(set));
+    }
+    Battle.begin(set, this.envFor(p), false, false, depth, champIdx);
   },
   startBoss(): void { Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress()); },
   startMiniBoss(): void {
@@ -167,35 +191,46 @@ export const Field = {
     const viewW = Math.ceil(this.canvas.width / t), viewH = Math.ceil(this.canvas.height / t);
     const camx = clamp(this.px - Math.floor(viewW / 2), 0, Math.max(0, this.W - viewW));
     const camy = clamp(this.py - Math.floor(viewH / 2), 0, Math.max(0, this.H - viewH));
-    const colors: Record<string, string> = { grass: "#4a7a32", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226" };
-    // dungeon (east of the gate) reads as stone instead of grassland
-    const dungeonColors: Record<string, string> = { grass: "#2a2740", path: "#3a3553", tree: "#171526", bush: "#2f2a48", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226" };
+    const colors: Record<string, string> = { grass: "#4a7a32", grass2: "#52823a", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", rock: "#5a5a52", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226" };
+    const T = this.tiles;
+    c.textAlign = "center"; c.textBaseline = "middle";
     for (let y = 0; y < viewH + 1; y++)
       for (let x = 0; x < viewW + 1; x++) {
         const mx = camx + x, my = camy + y;
         if (mx >= this.W || my >= this.H) continue;
         const cell = this.map[my][mx];
-        c.fillStyle = (mx > this.gate.x ? dungeonColors : colors)[cell] || "#4a7a32";
         const sx = (mx - camx) * t, sy = (my - camy) * t;
-        c.fillRect(sx, sy, t, t);
-        if (cell === "grass" || cell === "path") { c.fillStyle = "rgba(0,0,0,.06)"; if ((mx + my) % 2) c.fillRect(sx, sy, t, t); }
-        c.font = `${t * 0.82}px serif`; c.textAlign = "center"; c.textBaseline = "middle";
-        if (cell === "tree") c.fillText("🌲", sx + t / 2, sy + t / 2);
-        else if (cell === "bush") c.fillText("🌿", sx + t / 2, sy + t / 2);
-        else if (cell === "chest") c.fillText("📦", sx + t / 2, sy + t / 2);
-        else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2);
+        // ground: chest/boss/miniboss sit ON grass; a stable hash picks a grass variant for texture
+        let ground = cell === "chest" || cell === "miniboss" || cell === "boss" ? "grass" : cell;
+        if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
+        const gimg = T[ground];
+        if (gimg) c.drawImage(gimg, sx, sy, t, t);
+        else { c.fillStyle = colors[ground] || "#4a7a32"; c.fillRect(sx, sy, t, t); if ((mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.06)"; c.fillRect(sx, sy, t, t); } }
+        // dungeon (east of the gate) gets a cold stone tint over the same tiles
+        if (mx > this.gate.x) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); }
+        // overlays / object sprites (fall back to emoji if art isn't loaded)
+        c.font = `${t * 0.82}px serif`;
+        const obj = (img: HTMLImageElement | undefined, emoji: string, sc = 0.9) => {
+          if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
+          else c.fillText(emoji, sx + t / 2, sy + t / 2);
+        };
+        if (cell === "chest") obj(T.chest, "📦", 0.8);
+        else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") c.fillText(Game.bossDefeated ? "🏴" : "⛺", sx + t / 2, sy + t / 2);
+        else if (!gimg && cell === "tree") c.fillText("🌲", sx + t / 2, sy + t / 2);
+        else if (!gimg && cell === "bush") c.fillText("🌿", sx + t / 2, sy + t / 2);
       }
-    // player marker: glowing disc + ring + sprite
+    // player marker: glowing disc + ring + walker sprite (emoji fallback)
     const cx = (this.px - camx) * t + t / 2, cy = (this.py - camy) * t + t / 2;
     c.save();
-    c.beginPath(); c.arc(cx, cy, t * 0.46, 0, Math.PI * 2); c.fillStyle = "rgba(244,210,122,.18)"; c.fill();
-    c.beginPath(); c.arc(cx, cy, t * 0.36, 0, Math.PI * 2); c.fillStyle = "#1a1330"; c.fill();
-    c.lineWidth = Math.max(2, t * 0.09); c.strokeStyle = "#f4d27a"; c.stroke();
-    c.font = `${t * 0.6}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff";
-    c.fillText("🧝", cx, cy);
-    c.beginPath(); c.moveTo(cx - t * 0.12, cy - t * 0.6); c.lineTo(cx + t * 0.12, cy - t * 0.6); c.lineTo(cx, cy - t * 0.45); c.closePath();
-    c.fillStyle = "#f4d27a"; c.fill();
+    c.beginPath(); c.arc(cx, cy + t * 0.32, t * 0.34, 0, Math.PI * 2); c.fillStyle = "rgba(244,210,122,.20)"; c.fill();
+    c.lineWidth = Math.max(2, t * 0.07); c.strokeStyle = "#f4d27a"; c.stroke();
+    if (T.player) {
+      const pw = t * 1.05, ph = pw * (T.player.height / T.player.width);
+      c.drawImage(T.player, cx - pw / 2, cy + t * 0.4 - ph, pw, ph);
+    } else {
+      c.font = `${t * 0.6}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
+    }
     c.restore();
   },
 };

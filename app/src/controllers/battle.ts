@@ -35,10 +35,10 @@ export const Battle = {
   logLines: [] as string[],
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
 
-  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number): void {
+  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1): void {
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
-    this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp));
+    this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp, i === champIdx));
     if (this.enemies.some((e) => e.elite)) Telemetry.noteElite();
     Telemetry.encounterStart(enemyKeys, env || "plains", !!isBoss);
     Music.play(isBoss ? "boss" : "battle"); Music._renderStyleLabels();
@@ -76,6 +76,15 @@ export const Battle = {
   allLiving(): Unit[] { return this.allUnits().filter((u) => u.alive); },
   livingEnemies(): Enemy[] { return this.enemies.filter((e) => e.alive); },
   livingParty(): Member[] { return Game.party.filter((m) => m.alive); },
+  livingFront(): Member[] { return this.livingParty().filter((m) => m.row !== "back"); },
+  // Who an enemy may strike with a single-target hit: the front line shields the back. Casters and
+  // bosses can reach anyone; a melee foe flanks to the back ~20% of the time, or when the front
+  // line has fallen.
+  reachable(e: Enemy): Member[] {
+    const front = this.livingFront();
+    if (!front.length || e.ai === "boss" || e.ai === "caster" || Math.random() < 0.2) return this.livingParty();
+    return front;
+  },
 
   /* ---- player turn ---- */
   startPlayerTurn(m: Member): void {
@@ -233,9 +242,10 @@ export const Battle = {
       }
       if (!used) {
         let target: Member;
+        const pool = this.reachable(e); // front line shields the back row
         const taunter = party.find((p) => p.status.wardArmor && p.role === "Tank");
-        if (e.ai === "boss") target = Math.random() < 0.5 ? party.slice().sort((a, b) => a.hp - b.hp)[0] : pick(party);
-        else target = pick(party);
+        if (e.ai === "boss") target = Math.random() < 0.5 ? pool.slice().sort((a, b) => a.hp - b.hp)[0] : pick(pool);
+        else target = pick(pool);
         if (taunter && Math.random() < 0.5) target = taunter;
         if (e.boss && Math.random() < 0.2) {
           this.log(`${e.name} unleashes a wild swing!`);
@@ -300,6 +310,7 @@ export const Battle = {
       xp += e.xpReward; gold += ri(e.goldRange[0], e.goldRange[1]);
       const chance = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
       if (Math.random() < chance) drops.push(rollDrop(e, pick(Game.party).cls));
+      if (e.champion) drops.push(rollDrop(e, pick(Game.party).cls)); // a leader's hoard
       if (e.miniboss) drops.push(rollDrop(e, pick(Game.party).cls));
       if (e.boss) { drops.push(rollDrop(e, pick(Game.party).cls)); drops.push(rollDrop(e, pick(Game.party).cls)); }
     }
@@ -374,9 +385,9 @@ export const Battle = {
   renderEnemies(targetable: boolean): void {
     const z = $("#enemyZone")!; z.innerHTML = "";
     this.enemies.forEach((e) => {
-      const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
+      const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
-        <div class="ename">${e.name}${e.eliteAffixes ? ` <span class="badge atkup">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
+        <div class="ename">${e.champion ? "★ " : ""}${e.name}${e.eliteAffixes ? ` <span class="badge atkup">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       if (targetable && e.alive) d.onclick = () => this.targetClicked(e);
@@ -385,11 +396,15 @@ export const Battle = {
   },
   renderParty(): void {
     const z = $("#partyZone")!; z.innerHTML = "";
+    // Two-column formation: front line nearer the enemies (left), back line behind (right).
+    const front = el("div", "pcol front"), back = el("div", "pcol back");
+    z.appendChild(front); z.appendChild(back);
     Game.party.forEach((m) => {
       const d = el("div", "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : ""));
+      d.dataset.mid = m.id;
       const spr = m.alive ? renderDoll(m) : '<div class="spr">💤</div>';
       d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? "var(--gold2)" : "#666"}">${m.name}${statusBadges(m)}</div></div>${spr}`;
-      z.appendChild(d);
+      (m.row === "back" ? back : front).appendChild(d);
     });
   },
   renderBars(): void {
@@ -434,9 +449,9 @@ export const Battle = {
   markActing(u: Unit): void { u.acting = true; this.renderAll(); },
   markHurt(u: Unit): void { u._hurt = true; this.renderAll(); setTimeout(() => { u._hurt = false; }, 260); },
   float(u: Unit, txt: string, color: string): void {
-    let node: Element | undefined;
+    let node: Element | null | undefined;
     if (u.side === "enemy") { const i = (this.enemies as Unit[]).indexOf(u); node = $("#enemyZone")!.children[i]; }
-    else { const i = (Game.party as Unit[]).indexOf(u); node = $("#partyZone")!.children[i]; }
+    else node = $(`#partyZone .pchar[data-mid="${(u as Member).id}"]`);
     if (!node) return;
     const f = el("div", "float", txt); f.style.color = color || "#fff";
     const r = node.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();

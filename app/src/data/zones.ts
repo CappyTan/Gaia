@@ -22,9 +22,9 @@ export interface Zone {
 export const ENCOUNTERS: EncounterBand[] = [
   { at: 0.0, sets: [["bandit"], ["wolf", "wolf"], ["bandit", "wolf"]] },
   { at: 0.18, sets: [["bandit", "bandit"], ["cutpurse"], ["wolf", "wolf", "bandit"], ["wisp"]] },
-  { at: 0.36, sets: [["cutpurse", "bandit"], ["marauder"], ["lurker"], ["wisp", "bandit"]] },
-  { at: 0.54, sets: [["marauder", "bandit"], ["shade"], ["shaman", "bandit"], ["archer"]] },
-  { at: 0.72, sets: [["archer", "cutpurse"], ["shade", "shaman"], ["marauder", "archer"], ["shaman", "bandit", "bandit"]] },
+  { at: 0.36, sets: [["cutpurse", "bandit"], ["marauder"], ["lurker"], ["bandit", "wisp"]] },
+  { at: 0.54, sets: [["marauder", "bandit"], ["shade"], ["bandit", "shaman"], ["archer"]] },
+  { at: 0.72, sets: [["archer", "cutpurse"], ["shade", "shaman"], ["marauder", "archer"], ["bandit", "bandit", "shaman"]] },
 ];
 
 // Zones are ordered. Beating a zone's boss opens a merchant, then the next zone; the LAST
@@ -36,8 +36,8 @@ export const ZONES: Zone[] = [
     envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "hollow" }, bands: [
       { at: 0.0, sets: [["serpent"], ["husk"], ["serpent", "serpent"]] },
       { at: 0.2, sets: [["husk", "serpent"], ["gloomwisp"], ["knight"]] },
-      { at: 0.4, sets: [["knight", "serpent"], ["fenwitch", "husk"], ["gloomwisp", "serpent"]] },
-      { at: 0.6, sets: [["husk", "knight"], ["fenwitch", "gloomwisp"], ["serpent", "serpent", "husk"]] },
-      { at: 0.8, sets: [["knight", "fenwitch"], ["husk", "husk", "serpent"], ["gloomwisp", "knight", "fenwitch"]] },
+      { at: 0.4, sets: [["knight", "serpent"], ["husk", "fenwitch"], ["serpent", "gloomwisp"]] },
+      { at: 0.6, sets: [["husk", "knight"], ["gloomwisp", "fenwitch"], ["serpent", "serpent", "husk"]] },
+      { at: 0.8, sets: [["knight", "fenwitch"], ["husk", "husk", "serpent"], ["knight", "gloomwisp", "fenwitch"]] },
     ] },
 ];

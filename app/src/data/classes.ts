@@ -41,5 +41,18 @@ export const KITS: Partial<Record<Attunement, Record<string, string[]>>> = {
   },
 };
 
-/** The kit a hero wields for a given Attunement × Archetype, or null if none is authored yet. */
-export const kitFor = (att: Attunement, archetype: string): string[] | null => KITS[att]?.[archetype] ?? null;
+// Shared placeholder kit per attunement, used when no archetype-specific kit is authored yet
+// (ANIMA / QUANTA / UMBRAXIS, and any SOL/NOX archetype beyond the four built out). Lets the
+// player pick a hero of ANY attunement and still have a usable, themed ability tree.
+export const KITS_GENERIC: Partial<Record<Attunement, string[]>> = {
+  SOL: ["guard", "shieldBash", "sunfire", "radiantSmite", "supernova"],
+  NOX: ["noxLatticeSlash", "noxFrostSpike", "noxShatterShield", "noxBrittleBrand", "noxRunicRefrigeration"],
+  ANIMA: ["animaThorns", "animaMend", "animaWither", "animaBloom", "animaGenesis"],
+  QUANTA: ["quantaFlux", "quantaHaste", "quantaCollapse", "quantaCascade", "quantaSingularity"],
+  UMBRAXIS: ["umbraCrush", "umbraDrain", "umbraEntropy", "umbraWard", "umbraHorizon"],
+};
+
+/** The kit a hero wields for a given Attunement × Archetype: archetype-specific if authored,
+ *  else the attunement's generic placeholder kit, else null. */
+export const kitFor = (att: Attunement, archetype: string): string[] | null =>
+  KITS[att]?.[archetype] ?? KITS_GENERIC[att] ?? null;
