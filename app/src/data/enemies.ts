@@ -30,7 +30,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
 // party's level + gear growth. HP scales HARD (enemies survive the party's burst and keep
 // acting = steady pressure); ATK scales GENTLY (hits chip instead of one-shotting squishies).
 // Base stats are tuned for the zone START. Tuned via app/tools/balance-sim.ts.
-export const HP_DEPTH = 1.6;
-export const ATK_DEPTH = 1.2;
+export const HP_DEPTH = 1.4;
+export const ATK_DEPTH = 1.25;
 export const depthHpScale = (d: number): number => 1 + clamp(d, 0, 1) * HP_DEPTH;
 export const depthAtkScale = (d: number): number => 1 + clamp(d, 0, 1) * ATK_DEPTH;
