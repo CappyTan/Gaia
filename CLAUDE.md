@@ -113,16 +113,19 @@ Requires Node (≥18) + npm. First time: `npm install`.
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.30)
+## Current state (v0.32)
 
-Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10) — with a **merchant** between
-them. **Party of five** (3 front / 2 back): the front line is targeted first, the back line
-(casters/ranged) is shielded. At the start the player builds the party in the **Roster picker** —
-each hero's **Attunement × Archetype** (= class) and row. **All 45 classes have distinct ability
-kits**: the 8 SOL/NOX S&S·Dual·Staff·Spellblade kits are hand-tuned; the other 37 are generated
-from Dara's REQUIEM canon by `docs/design/requiem/gen-kits.cjs` → `data/requiem-kits.ts` (canon
-names, heuristic mechanics — reconcile/balance over time). `KITS_GENERIC` remains only as a
-safety fallback. The default is the all-SOL party (Auren/Kaela/Rion front, Sephi/Liora back).
+Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10, dungeon = the Drowned Vault) —
+with a **merchant** between them. **Party of five** (3 front / 2 back): the front line is targeted
+first, the back line (casters/ranged) is shielded. At the start the player **builds their own
+party** in the **Roster picker** — each hero's **Attunement × Archetype** (= class) and row.
+**No SOL default / no SOL bias anywhere**: the suggested default party is Attunement-diverse
+(Auren SOL S&S · Kaela NOX Dual · Rion ANIMA Spellblade front, Sephi SOL Staff · Liora QUANTA Staff
+back) and enemy attunements are spread across the ring so any comp gets matchups. **All 45 classes
+have distinct ability kits**: the 8 SOL/NOX S&S·Dual·Staff·Spellblade kits are hand-tuned; the
+other 37 are generated from Dara's REQUIEM canon by `docs/design/requiem/gen-kits.cjs` →
+`data/requiem-kits.ts` (canon names, heuristic mechanics — reconcile/balance over time).
+`KITS_GENERIC` remains only as a safety fallback.
 
 ATB combat, affinity ring + signature effects, status effects, Diablo loot (per-attunement
 painterly weapon + armor art, ilvl/MNA scaling), **elites + champion packs** (tanky multi-affix
@@ -133,12 +136,17 @@ each has its own stat lean (chest=HP, helmet=HP/MP, gloves=ATK, boots=SPD). Loot
 **level-banded** (`rarityBand` in `systems/loot.ts`: ~L10 uncommon/rare→lucky epic, L20 rare/epic→
 lucky legendary, L30+ artifacts appear) with steep **ilvl scaling** so a deep low-rarity piece can
 out-base a shallow high-rarity one (rarity still wins on affix count). The **merchant buys loot
-back** (Bag/Sell, ~40% of asking). Art: all 45 weaponless class bodies + the
-paper-doll with hero-sized weapons; **Greenvale field tileset** (grass/path/tree/bush/rock/chest
-+ a top-down player walker). **Still placeholder:** the six newer (Duskmarsh) enemies fall back to
-emoji, dungeon-floor/merchant field markers, armour-over-body layer, save/persistence
-(`localStorage` autosave planned). Balance is tuned via `balance-sim.ts` (models rows + champion
-packs).
+back** (Bag/Sell, ~40% of asking). **Crit-hit burst VFX** (per-Attunement, sliced from Dara's
+montage, CSS pop-and-fade). **Ultra-rare "treasure" monsters** (Metal-Slime / Warmech tier:
+`rare` flag, ~4% encounter replace, exceptional loot) — first entry **Hogger** in Greenvale
+(`RARE_MONSTERS` in `data/enemies.ts`). The bestiary is now **Dara's canon roster** (Greenvale:
+Green Slime/Kobold/Greenvale Bandit/Mage + Kingpin boss; Drowned Vault: Cave Rat/Spider/Leper +
+Cave Troll boss — both zone bosses **SOL-infused**), with sliced sprites for all of them. Art: all
+45 weaponless class bodies + the paper-doll with hero-sized weapons; **Greenvale field tileset** +
+Bandit Warren / Drowned Vault dungeon tilesets; a top-down player walker. **Still placeholder:**
+helmet/gloves/boots share the chest armor art, dungeon-floor/merchant field markers,
+armour-over-body layer, save/persistence (`localStorage` autosave planned). Balance is tuned via
+`balance-sim.ts` (models rows + champion packs).
 
 ## History
 

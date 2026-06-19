@@ -211,7 +211,7 @@ export const Battle = {
     Telemetry.dmg(actor.side, dmg, crit, mult);
     this.float(target, (crit ? "✦" : "") + dmg, mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff");
     if (crit) this.critFx(target, s && s.sol ? "SOL" : actor.att); // burst in the attacking power's color
-    if (mult > 1) this.log(`  ${target.name}: ${dmg} (SOL surges!)`);
+    if (mult > 1) this.log(`  ${target.name}: ${dmg} (${s && s.sol ? "SOL" : actor.att} surges!)`);
     else if (mult < 1) this.log(`  ${target.name} resists: ${dmg}`);
     if (crit) this.log(`  Critical! ${dmg} to ${target.name}`);
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
@@ -322,6 +322,7 @@ export const Battle = {
       if (e.champion) drops.push(drop()); // a leader's hoard
       if (e.miniboss) drops.push(drop());
       if (e.boss) { drops.push(drop()); drops.push(drop()); }
+      if (e.rare) { drops.push(drop()); drops.push(drop()); drops.push(drop()); } // treasure-monster hoard (epic+)
     }
     Game.gold += gold;
     const leveled = grantXp(Game.party, xp);
@@ -394,9 +395,9 @@ export const Battle = {
   renderEnemies(targetable: boolean): void {
     const z = $("#enemyZone")!; z.innerHTML = "";
     this.enemies.forEach((e) => {
-      const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
+      const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
-        <div class="ename">${e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
+        <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       if (targetable && e.alive) d.onclick = () => this.targetClicked(e);

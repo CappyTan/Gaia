@@ -122,6 +122,7 @@ export function rollDrop(enemy: Enemy, prefCls?: string, prefAtt?: Attunement): 
   let { floor, ceil } = rarityBand(lvl);
   if (enemy.elite) { floor += 1; ceil = Math.min(5, ceil + 1); }
   if (enemy.boss) { floor = Math.max(floor + 1, 3); ceil = 5; }
+  if (enemy.rare) { floor = Math.max(floor, 3); ceil = 5; } // ultra-rare treasure monster: epic-or-better
   floor = clamp(floor, 0, 5);
   ceil = clamp(Math.max(ceil, floor), 0, 5);
   const r = spikeRarity(floor, ceil);

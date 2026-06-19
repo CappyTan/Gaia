@@ -121,6 +121,10 @@ export interface EnemyDef {
   ai: string;
   boss?: boolean;
   miniboss?: boolean;
+  /** Ultra-rare "treasure" monster (Metal-Slime / Warmech tier): very rare spawn, exceptional loot. */
+  rare?: boolean;
+  /** Sprite art key override (defaults to the enemy's own key) — lets variants reuse base art. */
+  art?: string;
   skills?: string[];
   castChance?: number;
   onHit?: { poison?: number };
@@ -196,6 +200,10 @@ export interface Enemy extends Unit {
   eliteAffixes?: string[];
   /** A champion: a tanky, multi-affix pack leader (above elite) with richer rewards. */
   champion?: boolean;
+  /** Ultra-rare treasure monster: very rare spawn, exceptional loot. */
+  rare?: boolean;
+  /** Sprite art key override (defaults to `key`). */
+  art?: string;
 }
 
 /** What a combatant is doing this action — a plain attack, a skill, and/or an AoE sweep. */

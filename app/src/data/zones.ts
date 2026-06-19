@@ -18,26 +18,26 @@ export interface Zone {
 }
 
 // Greenvale's encounter table by area depth (the further east, the tougher the roll-set).
-// The mid-zone chokepoint (Brigand Captain) and the final Brute are NOT in this table.
+// The mid-zone chokepoint (Bandit Brigadier) and the final Kingpin are NOT in this table.
 export const ENCOUNTERS: EncounterBand[] = [
-  { at: 0.0, sets: [["bandit"], ["wolf", "wolf"], ["bandit", "wolf"]] },
-  { at: 0.18, sets: [["bandit", "bandit"], ["cutpurse"], ["wolf", "wolf", "bandit"], ["wisp"]] },
-  { at: 0.36, sets: [["cutpurse", "bandit"], ["marauder"], ["lurker"], ["bandit", "wisp"]] },
-  { at: 0.54, sets: [["marauder", "bandit"], ["shade"], ["bandit", "shaman"], ["archer"]] },
-  { at: 0.72, sets: [["archer", "cutpurse"], ["shade", "shaman"], ["marauder", "archer"], ["bandit", "bandit", "shaman"]] },
+  { at: 0.0, sets: [["slime"], ["kobold", "kobold"], ["slime", "kobold"]] },
+  { at: 0.18, sets: [["gbandit"], ["slime", "slime"], ["kobold", "gbandit"], ["kobold"]] },
+  { at: 0.36, sets: [["gbandit", "kobold"], ["slimebig"], ["gbandit", "gbandit"], ["slime", "kobolde"]] },
+  { at: 0.54, sets: [["slimebig", "kobold"], ["kobolde"], ["gbandit", "gmage"], ["kobolde", "gbandit"]] },
+  { at: 0.72, sets: [["kobolde", "gmage"], ["slimebig", "gmage"], ["gbandit", "kobolde"], ["gbandit", "gbandit", "gmage"]] },
 ];
 
 // Zones are ordered. Beating a zone's boss opens a merchant, then the next zone; the LAST
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
-  { id: "greenvale", name: "Greenvale", mini: "captain", miniAdds: ["bandit", "bandit"], boss: "brute",
+  { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
     envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "hollow" }, bands: ENCOUNTERS },
-  { id: "duskmarsh", name: "The Duskmarsh", mini: "fenwarden", miniAdds: ["serpent", "serpent"], boss: "vorn",
+  { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll",
     envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "hollow" }, bands: [
-      { at: 0.0, sets: [["serpent"], ["husk"], ["serpent", "serpent"]] },
-      { at: 0.2, sets: [["husk", "serpent"], ["gloomwisp"], ["knight"]] },
-      { at: 0.4, sets: [["knight", "serpent"], ["husk", "fenwitch"], ["serpent", "gloomwisp"]] },
-      { at: 0.6, sets: [["husk", "knight"], ["gloomwisp", "fenwitch"], ["serpent", "serpent", "husk"]] },
-      { at: 0.8, sets: [["knight", "fenwitch"], ["husk", "husk", "serpent"], ["knight", "gloomwisp", "fenwitch"]] },
+      { at: 0.0, sets: [["rat"], ["spider"], ["rat", "rat"]] },
+      { at: 0.2, sets: [["rat", "spider"], ["leper"], ["direrat"]] },
+      { at: 0.4, sets: [["leper", "rat"], ["spider", "bonespider"], ["direrat", "spider"]] },
+      { at: 0.6, sets: [["leper", "direrat"], ["bonespider", "spider"], ["rat", "rat", "leper"]] },
+      { at: 0.8, sets: [["bonespider", "leper"], ["direrat", "direrat", "rat"], ["leper", "bonespider", "spider"]] },
     ] },
 ];

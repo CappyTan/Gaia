@@ -49,7 +49,7 @@ export function critFxUrl(att?: Attunement): string | null {
 }
 
 export function enemySprite(e: Enemy): string {
-  const url = assetUrl(`enemies/${e.key}.png`);
+  const url = assetUrl(`enemies/${e.art || e.key}.png`); // variants reuse a base creature's art
   return url ? `<img class="spr-img" src="${url}" alt="">` : `<div class="spr">${e.spr}</div>`;
 }
 
