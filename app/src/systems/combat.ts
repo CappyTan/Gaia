@@ -19,7 +19,8 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   if (act && act.aoe) raw *= 0.6; // sweep hits everyone, but glancing
   const atkAtt: Attunement = s && s.sol ? "SOL" : actor.att;
   const mult = affinity(atkAtt, target.att);
-  if (atkAtt === "SOL" && actor.solPct) raw *= 1 + actor.solPct / 100;
+  // "Power dmg" affix amplifies the wielder's own attunement attacks (any attunement).
+  if (actor.solPct) raw *= 1 + actor.solPct / 100;
   // MNA scales output: SOL/NOX attunements amplify damage (up to +60% at 200 MNA).
   if ((atkAtt === "SOL" || atkAtt === "NOX") && actor.mna) raw *= 1 + mnaBonus(actor.mna[atkAtt]);
   raw *= mult;

@@ -108,7 +108,7 @@ export const Battle = {
     const list = $("#cmdList")!; list.innerHTML = "";
     const back = el("button", "cmd", "◂ Back"); back.onclick = () => this.showCommands(m); list.appendChild(back);
     known.forEach((s) => {
-      const b = el("button", "cmd", `${s.name}<span class="cost">${s.mp} MP</span>`) as HTMLButtonElement;
+      const b = el("button", "cmd", `${s.name}<span class="cost">${s.mp} MP</span><div class="small" style="font-size:10px;opacity:.78;line-height:1.15;margin-top:2px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
       if (m.mp < s.mp) b.disabled = true; else b.onclick = () => this.useSkill(m, s);
       b.title = s.desc; list.appendChild(b);
     });

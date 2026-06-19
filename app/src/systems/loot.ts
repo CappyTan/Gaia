@@ -2,7 +2,7 @@ import type { Affix, Attunement, Implicit, Item, Slot } from "../types";
 import type { Enemy } from "../types";
 import { ri, pick, clamp } from "../core/rng";
 import { RARITY } from "../data/rarity";
-import { ITEM_NAMES, ARMOR_NAMES, TRINKET_NAMES, AFFIXES } from "../data/items";
+import { ITEM_NAMES, ARMOR_NAMES, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
 
 // Item-level scaling: base stats grow with ilvl (enemy level / zone depth), so gear found
 // deeper into the run is stronger, not just rarer. ilvl 0 = no scaling (starter gear).
@@ -17,7 +17,10 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   let mna: Item["mna"];
   if (slot === "weapon") {
     const wc = weaponClass || "Dual Swords";
-    name = (ITEM_NAMES[wc] || ITEM_NAMES["Dual Swords"])[r];
+    // SOL uses Dara's named loot charts; other attunements build a themed name.
+    name = att === "SOL"
+      ? (ITEM_NAMES[wc] || ITEM_NAMES["Dual Swords"])[r]
+      : `${ATT_ADJ[att]?.[r] ?? att} ${ARCH_NOUN[wc] ?? wc}`;
     implicit.atk = Math.round((5 + r * 5) * k); // base atk ladder by rung, scaled by ilvl
     // A weapon carries intrinsic MNA in its own Attunement — the main MNA source, and what
     // sets the wielder's class.

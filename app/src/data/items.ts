@@ -14,13 +14,26 @@ export const ITEM_NAMES: Record<string, string[]> = {
 export const ARMOR_NAMES = ["Padded Vestments", "Sunsteel Mail", "Aegis Plate", "Radiant Cuirass", "Solaris Aegis", "Heart of Sol"];
 export const TRINKET_NAMES = ["Brass Charm", "Sun Pendant", "Solar Sigil", "Eclipse Band", "Helios Crown", "Origin Relic"];
 
+// Non-SOL weapon naming (SOL uses Dara's named loot charts above). A weapon's name is built
+// from its Attunement's rarity-adjective + the archetype noun, e.g. NOX rare S&S = "Rimewrought
+// Bulwark". Tables fill out per attunement as Dara's loot charts arrive.
+import type { Attunement } from "../types";
+export const ARCH_NOUN: Record<string, string> = {
+  "Sword & Shield": "Bulwark", "Dual Swords": "Fangs", "Two-Handed Sword": "Greatblade",
+  "Hammer": "Crusher", "Dual Daggers": "Shivs", "Dual Pistols": "Irons", "Rifle": "Longarm",
+  "Staff": "Scepter", "Spellblade": "Runeblade",
+};
+export const ATT_ADJ: Partial<Record<Attunement, string[]>> = {
+  NOX: ["Chilled", "Frostbitten", "Rimewrought", "Glacial", "Permafrost", "Absolute-Zero"],
+};
+
 // Affix pool: rolled onto items.
 export const AFFIXES: AffixDef[] = [
   { key: "atk", label: (n) => `+${n}% ATK`, roll: (r) => ri(6 + r * 2, 12 + r * 4), stat: "atkPct" },
   { key: "crit", label: (n) => `+${n}% Crit`, roll: (r) => ri(4 + r, 8 + r * 2), stat: "critPct" },
   { key: "spd", label: (n) => `+${n} SPD`, roll: (r) => ri(1, 2 + r), stat: "spd" },
   { key: "hp", label: (n) => `+${n} HP`, roll: (r) => ri(8 + r * 4, 16 + r * 8), stat: "hp" },
-  { key: "sol", label: (n) => `+${n}% SOL dmg`, roll: (r) => ri(6 + r * 2, 12 + r * 4), stat: "solPct" },
+  { key: "sol", label: (n) => `+${n}% Power dmg`, roll: (r) => ri(6 + r * 2, 12 + r * 4), stat: "solPct" },
   { key: "armor", label: (n) => `+${n} Armor`, roll: (r) => ri(1, 2 + r), stat: "armor" },
   { key: "leech", label: (n) => `${n}% Lifesteal`, roll: (r) => ri(3 + r, 6 + r * 2), stat: "leech" },
   { key: "mp", label: (n) => `+${n} MP`, roll: (r) => ri(4 + r * 2, 8 + r * 3), stat: "mp" },
