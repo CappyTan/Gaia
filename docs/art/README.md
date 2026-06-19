@@ -3,6 +3,22 @@
 Read this when you come back to finish the character art. Everything you need to flip
 "clean equip" on is here; the detailed contracts are in the two linked docs.
 
+## Design directive — the weapon IS the character (Dara)
+
+**Class is determined by the equipped weapon** (REQUIEM canon — see
+[`docs/design/requiem/mna-progression.md`](../design/requiem/mna-progression.md)): a SOL
+Two-Handed Sword makes you a Starbreaker. So the weapon must **read instantly and dominate the
+silhouette** — render weapons **big, prominent, and over-the-top**, oversized relative to the
+body, the first thing the eye lands on. When in doubt, scale the weapon *up*. This applies to
+the battle paper-doll and (later) loot/equip art.
+- The knob already exists: `RIG.weapon[archetype].scale` in
+  [`app/src/data/art.ts`](../../app/src/data/art.ts) (a fraction of the doll-box width). Today
+  it's a tasteful ~0.8–0.95; the directive is to push it well past 1.0 (hero-sized weapons)
+  once real grip-ready weapon art exists, and to tune per archetype in
+  [`rig-spec.md`](rig-spec.md).
+- Generated/sliced weapon art should be drawn to be legible and impressive at large scale
+  (heavy gold-on-dark, strong rarity glow), not dainty.
+
 ## What's already done (no action needed)
 - The **paper-doll engine** is built and live (ADR 0004): characters render as stacked
   layers — body + armor + weapon + fx — and **equipping swaps a layer**.
@@ -42,8 +58,8 @@ ChatGPT Teams. Set `OPENAI_API_KEY` in the environment and ask me to build
 See **[`rig-spec.md`](rig-spec.md)** — shared canvas, feet/hand anchors, slot z-order, file
 naming. And **[`layer-art-brief.md`](layer-art-brief.md)** — per-class prompts + the armor
 recipe. Files land at:
-- `app/assets/bodies/{id}.png` — weaponless body (register in `BODY_LAYER` in `gaia.html`)
-- `app/assets/armor/{id}/{rarity}.png` — armor over-body (register in `ARMOR_LAYER`)
+- `app/assets/bodies/{id}.png` — weaponless body (register in `BODY_LAYER` in `app/src/data/art.ts`)
+- `app/assets/armor/{id}/{rarity}.png` — armor over-body (register in `ARMOR_LAYER`, same file)
 
 ## Armor (later, same model)
 Once bodies exist, armor is just another layer drawn over the body on the same canvas.
