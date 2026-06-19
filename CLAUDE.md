@@ -113,7 +113,7 @@ Requires Node (≥18) + npm. First time: `npm install`.
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.32)
+## Current state (v0.33)
 
 Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10, dungeon = the Drowned Vault) —
 with a **merchant** between them. **Party of five** (3 front / 2 back): the front line is targeted
@@ -141,7 +141,7 @@ montage, CSS pop-and-fade). **Ultra-rare "treasure" monsters** (Metal-Slime / Wa
 `rare` flag, ~4% encounter replace, exceptional loot) — first entry **Hogger** in Greenvale
 (`RARE_MONSTERS` in `data/enemies.ts`). The bestiary is now **Dara's canon roster** (Greenvale:
 Green Slime/Kobold/Greenvale Bandit/Mage + Kingpin boss; Drowned Vault: Cave Rat/Spider/Leper +
-Cave Troll boss — both zone bosses **SOL-infused**), with sliced sprites for all of them. Art: all
+Cave Troll boss — Kingpin **SOL-infused**, Troll **NOX-infused** for a final-fight matchup), with sliced sprites for all of them. Art: all
 45 weaponless class bodies + the paper-doll with hero-sized weapons; **Greenvale field tileset** +
 Bandit Warren / Drowned Vault dungeon tilesets; a top-down player walker. **Still placeholder:**
 helmet/gloves/boots share the chest armor art, dungeon-floor/merchant field markers,

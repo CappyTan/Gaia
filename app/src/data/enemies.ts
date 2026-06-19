@@ -2,9 +2,10 @@ import type { EnemyDef } from "../types";
 import { clamp } from "../core/rng";
 
 // Bestiary across both zones (Dara's canon roster). Attunements are spread across the ring so
-// ANY party composition (the player builds their own — no SOL default) gets strong/weak
-// matchups; the two zone bosses are SOL-infused per Dara's art. Variants reuse a base creature's
-// sprite via `art`. Stat magnitudes follow the tuned difficulty curve (validated by balance-sim).
+// ANY party composition (the player builds their own — no SOL default) gets strong/weak matchups.
+// Bosses are infused: the Greenvale Kingpin is SOL (per Dara's art); the Cave Troll is NOX (a
+// deliberate variety pick so the final fight has a real affinity matchup vs most comps). Variants
+// reuse a base creature's sprite via `art`. Stat magnitudes follow the tuned curve (balance-sim).
 export const ENEMIES: Record<string, EnemyDef> = {
   // ── ZONE 1: Greenvale (levels 1-6) ──
   slime: { name: "Green Slime", spr: "🟢", att: "ANIMA", lvl: 1, hp: 44, atk: 10, spd: 6, armor: 1, mag: 0, xp: 40, gold: [4, 10], ai: "basic", onHit: { poison: 2 } },
@@ -22,7 +23,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   direrat: { name: "Dire Rat", spr: "🐀", att: "QUANTA", lvl: 8, hp: 135, atk: 27, spd: 13, armor: 2, mag: 0, xp: 185, gold: [18, 32], ai: "basic", art: "rat" },
   bonespider: { name: "Bone Spider", spr: "🕷️", att: "NOX", lvl: 9, hp: 178, atk: 30, spd: 9, armor: 5, mag: 0, xp: 200, gold: [24, 42], ai: "basic", onHit: { poison: 4 }, art: "spider" },
   broodmother: { name: "Vault Broodmother", spr: "🕷️", att: "UMBRAXIS", lvl: 9, hp: 1120, atk: 40, spd: 8, armor: 7, mag: 0, xp: 320, gold: [120, 200], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.4, art: "spider" },
-  troll: { name: "Cave Troll", spr: "👹", att: "SOL", lvl: 10, hp: 2400, atk: 52, spd: 7, armor: 10, mag: 6, xp: 420, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.35 },
+  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 10, hp: 2400, atk: 52, spd: 7, armor: 10, mag: 6, xp: 420, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.35 },
   // ── ULTRA-RARE treasure monsters (Metal-Slime / Warmech tier): very rare spawns, exceptional
   //    loot. Tough but beatable, with outsized XP/gold. ──
   hogger: { name: "Hogger", spr: "🐗", att: "ANIMA", lvl: 4, hp: 440, atk: 24, spd: 10, armor: 6, mag: 0, xp: 620, gold: [90, 170], ai: "basic", rare: true },
