@@ -50,9 +50,9 @@ export const Roster = {
       ${warn}
       <div class="tag">⚔ Front line</div><div class="rgrid">${front}</div>
       <div class="tag" style="margin-top:8px">↩ Back line</div><div class="rgrid">${back}</div>
-      <div class="row" style="margin-top:10px">
+      <div class="rfoot row">
         <button class="btn" onclick="Overlay.hide();Screens.show('title')">← Title</button>
-        <button class="btn" onclick="Roster.useDefault()">Default SOL party</button>
+        <button class="btn" onclick="Roster.useDefault()">Default</button>
         <button class="btn gold" onclick="Roster.begin()">Begin →</button>
       </div>`);
   },
