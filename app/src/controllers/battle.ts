@@ -11,6 +11,7 @@ import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml } from "../ui/render";
+import { assetUrl } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
 import { Telemetry } from "../telemetry/telemetry";
@@ -329,7 +330,11 @@ export const Battle = {
 
   /* ---- rendering ---- */
   renderBg(): void {
-    const bgs: Record<string, string> = {
+    // Painterly terrain backgrounds (sliced from Dara's terrain sheet). Game env -> bg slug;
+    // a dark scrim keeps sprites + bars legible over the bright art. Falls back to the original
+    // CSS gradient if the image isn't present.
+    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave" };
+    const fallback: Record<string, string> = {
       plains: "radial-gradient(130% 95% at 50% 22%, #34465a 0%, #131a26 50%, #06090f 100%)",
       forest: "radial-gradient(130% 95% at 50% 22%, #243a2a 0%, #0d1611 50%, #060a07 100%)",
       desert: "radial-gradient(130% 95% at 50% 22%, #4a3a22 0%, #1b1308 50%, #0a0704 100%)",
@@ -338,8 +343,19 @@ export const Battle = {
       hollow: "radial-gradient(130% 95% at 50% 22%, #2a2440 0%, #120e22 50%, #07050e 100%)",
     };
     const bg = $("#battleBg")!;
-    bg.style.background = bgs[this.env] || bgs.plains;
-    if (this.isBoss) bg.style.background = "radial-gradient(120% 95% at 38% 34%, #4a1424 0%, #1a0810 52%, #070406 100%)";
+    const url = assetUrl(`backgrounds/${ENV_BG[this.env] || "plains"}.png`);
+    if (url) {
+      // boss fights get a heavier scrim + warm tint for drama
+      const top = this.isBoss ? "rgba(40,8,14,.55)" : "rgba(6,6,11,.28)";
+      const bot = this.isBoss ? "rgba(7,4,6,.78)" : "rgba(6,6,11,.55)";
+      bg.style.backgroundImage = `linear-gradient(${top}, ${bot}), url(${url})`;
+      bg.style.backgroundSize = "cover";
+      bg.style.backgroundPosition = "center 30%";
+    } else {
+      bg.style.background = this.isBoss
+        ? "radial-gradient(120% 95% at 38% 34%, #4a1424 0%, #1a0810 52%, #070406 100%)"
+        : fallback[this.env] || fallback.plains;
+    }
   },
   renderAll(): void {
     this.renderEnemies(!!this.selecting && this.selecting.kind === "enemy");
