@@ -106,16 +106,19 @@
   .bar.hp > i{background:linear-gradient(var(--hp),var(--hpb));}
   .bar.mp{height:6px;} .bar.mp > i{background:linear-gradient(var(--mp),var(--mpb));}
   .bar.atb{height:5px;} .bar.atb > i{background:linear-gradient(var(--atb),var(--atbf)); transition:width .08s linear;}
-  .bartxt{position:absolute; right:4px; top:-1px; font-size:8px; color:#fff; text-shadow:0 0 2px #000;}
+  .bartxt{position:absolute; right:4px; top:-3px; font-size:11px; color:#fff; text-shadow:0 0 3px #000, 0 1px 2px #000; font-weight:bold;}
 
   #battleUi{position:absolute; bottom:0; left:0; right:0; height:42%; display:flex; border-top:2px solid var(--gold);
     background:linear-gradient(#10101e,#0a0a14);}
-  #cmdPanel{width:34%; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px;}
+  #cmdPanel{width:34%; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px; transition:width .15s;}
+  #cmdPanel.cmd-wide{width:62%;}  /* widen while choosing a skill so descriptions are readable */
   #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
-  #cmdList{flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:5px;}
+  #cmdList{flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:5px;
+    -webkit-mask-image:linear-gradient(#000 calc(100% - 14px), transparent);}  /* fade hints at more */
   .cmd{background:#191830; border:1px solid var(--line); border-radius:6px; padding:8px 10px; color:var(--ink); font-size:14px; text-align:left;}
   .cmd:hover{border-color:var(--gold); color:var(--gold2);}
-  .cmd:disabled{opacity:.35; cursor:default;}
+  .cmd:disabled{opacity:.55; cursor:default;}
+  .cmd .cost.low{color:#e87a7a;}
   .cmd .cost{float:right; font-size:11px; color:var(--mp);}
   #rosterPanel{flex:1; display:flex; flex-direction:column; padding:6px 8px; gap:4px; overflow:hidden;}
   .prow{display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; font-size:12px;}
