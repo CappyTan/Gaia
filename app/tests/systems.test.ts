@@ -18,8 +18,8 @@ import type { Enemy, Member } from "../src/types";
 
 describe("affinity ring", () => {
   it("each power beats the next and is weak to the previous", () => {
-    expect(affinity("SOL", "NOX")).toBe(1.5); // SOL beats NOX
-    expect(affinity("SOL", "UMBRAXIS")).toBe(0.5); // SOL weak to UMBRAXIS (prev)
+    expect(affinity("SOL", "NOX")).toBe(1.15); // SOL beats NOX (modest +15%)
+    expect(affinity("SOL", "UMBRAXIS")).toBe(0.85); // SOL weak to UMBRAXIS (prev, -15%)
     expect(affinity("SOL", "ANIMA")).toBe(1); // neutral
     expect(affinity("SOL", "SOL")).toBe(1); // same = neutral
     expect(affinity(null, "NOX")).toBe(1); // unknown = neutral
@@ -27,8 +27,8 @@ describe("affinity ring", () => {
   it("the whole ring is internally consistent", () => {
     const ring = ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"] as const;
     ring.forEach((a, i) => {
-      expect(affinity(a, ring[(i + 1) % 5])).toBe(1.5);
-      expect(affinity(a, ring[(i + 4) % 5])).toBe(0.5);
+      expect(affinity(a, ring[(i + 1) % 5])).toBe(1.15);
+      expect(affinity(a, ring[(i + 4) % 5])).toBe(0.85);
     });
   });
 });
@@ -126,7 +126,7 @@ describe("combat math", () => {
     const r1 = combatDamage(a, b, {}, seeded(42));
     const r2 = combatDamage(a, b, {}, seeded(42));
     expect(r1.dmg).toBe(r2.dmg);
-    expect(r1.mult).toBe(1.5);
+    expect(r1.mult).toBe(1.15);
   });
   it("damage/heal clamp at bounds and flip alive", () => {
     const e: Enemy = makeEnemy("gbandit", 0, false, 0);
