@@ -4,6 +4,7 @@
 import { $ } from "./core/dom";
 import { GAME_VERSION } from "./data/version";
 import { Game } from "./controllers/game";
+import { Roster } from "./controllers/roster";
 import { UI } from "./controllers/menus";
 import { Battle } from "./controllers/battle";
 import { Field } from "./controllers/field";
@@ -13,7 +14,7 @@ import { Music } from "./audio/music";
 import { Telemetry } from "./telemetry/telemetry";
 
 // Publish controllers for the HTML's inline onclick handlers.
-Object.assign(window, { Game, UI, Battle, Field, Screens, Overlay, Music, Telemetry });
+Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, Overlay, Music, Telemetry });
 
 // Keyboard movement on the field.
 window.addEventListener("keydown", (e) => {

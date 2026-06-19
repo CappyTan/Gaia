@@ -11,7 +11,8 @@ import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
-import { kitFor } from "../src/data/classes";
+import { kitFor, KITS_GENERIC } from "../src/data/classes";
+import { buildDef, ARCHETYPE_KEYS } from "../src/data/party";
 import { zeroMna } from "../src/types";
 import type { Enemy, Member } from "../src/types";
 
@@ -52,6 +53,30 @@ describe("loot generation", () => {
   it("boss drops are rare-or-better", () => {
     const boss = makeEnemy("brute", 0, true, 0);
     for (let i = 0; i < 50; i++) expect(rollDrop(boss).rIx).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("champion packs", () => {
+  it("a champion is a tankier, multi-affix elite with richer rewards", () => {
+    const normal = makeEnemy("bandit", 0, false, 0, false);
+    const champ = makeEnemy("bandit", 0, false, 0, true);
+    expect(champ.champion).toBe(true);
+    expect(champ.elite).toBe(true);
+    expect(champ.eliteAffixes!.length).toBe(3);
+    expect(champ.maxhp).toBeGreaterThan(normal.maxhp * 2); // ~2.6x base HP
+    expect(champ.xpReward).toBeGreaterThan(normal.xpReward);
+    expect(champ.name).toBe(normal.name); // base name preserved; the "Champion" marker is a render concern
+  });
+});
+
+describe("roster start preserves the chosen attunement", () => {
+  it("a foreign-attunement hero keeps its class after the starting weapon is equipped", () => {
+    // mirror Game.startRun: build def -> equip a common weapon IN THE HERO'S ATTUNEMENT -> recalc
+    const m = makeMember(buildDef("hero0", "Test", "NOX", "Dual Swords", "front"));
+    m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att);
+    recalc([m]);
+    expect(m.att).toBe("NOX"); // NOT silently re-classed to SOL
+    expect(m.skills).toEqual(kitFor("NOX", "Dual Swords"));
   });
 });
 
@@ -158,6 +183,25 @@ describe("MNA gating & scaling", () => {
     expect(m.mna.NOX).toBeGreaterThan(0); // gear MNA flows to NOX
     expect(m.skills).toEqual(kitFor("NOX", "Dual Swords")); // NOX kit (Rimewalker)
     expect(skillUnlocked(m, SKILLS.noxFrostLace)).toBe(true); // low NOX ability usable
+  });
+  it("any attunement is playable: every archetype resolves to a usable kit", () => {
+    for (const att of ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"] as const)
+      for (const arch of ARCHETYPE_KEYS) {
+        const kit = kitFor(att, arch);
+        expect(kit && kit.length).toBeGreaterThan(0);
+        kit!.forEach((k) => expect(SKILLS[k]).toBeTruthy()); // every kit key is a real skill
+      }
+    // attunements without authored archetype kits fall back to the generic tree
+    expect(kitFor("ANIMA", "Staff")).toEqual(KITS_GENERIC.ANIMA);
+    expect(kitFor("SOL", "Hammer")).toEqual(KITS_GENERIC.SOL); // SOL archetype with no specific kit
+  });
+  it("buildDef makes a playable hero of a chosen attunement × archetype", () => {
+    const m = makeMember(buildDef("hero0", "Test", "QUANTA", "Rifle", "back"));
+    m.mnaAlloc.QUANTA = 10; recalc([m]);
+    expect(m.att).toBe("QUANTA");
+    expect(m.row).toBe("back");
+    expect(m.skills).toEqual(kitFor("QUANTA", "Rifle"));
+    expect(unlockedSkills(m).length).toBeGreaterThan(0); // has a usable ability
   });
   it("SOL MNA scales damage output", () => {
     const target = makeEnemy("bandit", 0, false, 0); // NOX

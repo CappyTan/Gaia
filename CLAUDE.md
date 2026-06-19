@@ -99,7 +99,8 @@ Requires Node (≥18) + npm. First time: `npm install`.
   - **Attunement** (SOL/NOX/ANIMA/QUANTA/UMBRAXIS), not "element" or "school".
   - **Weapon Archetype** (9 of them), not "weapon class". **Class** = Attunement × Archetype (45).
   - **Rarity** for loot quality (Common→Artifact), never "tier" or "grade".
-  - **Elite** = affixed normal enemy; the **boss** is the Bandit Brute (don't conflate).
+  - **Elite** = affixed normal enemy; **Champion** = a tankier multi-affix *pack leader* (a tier
+    above elite); the **boss** is the Bandit Brute (don't conflate the three).
 - **REQUIEM is canon; the POC is a slice.** `docs/design/requiem/` is Dara's authoritative
   design (per-attunement mana, per-class resources, full kits, Ascension/Soul Burn/Archon). The
   game ships an *invented placeholder* (a damage affinity ring + one signature effect per
@@ -112,19 +113,25 @@ Requires Node (≥18) + npm. First time: `npm install`.
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.12)
+## Current state (v0.24)
 
 Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10) — with a **merchant** between
-them. Fixed all-SOL party of four: **Auren** (S&S, tank), **Kaela** (Dual Swords, DPS), **Sephi**
-(Staff, caster/heal), **Rion** (Spellblade, hybrid). ATB combat, affinity ring + signature
-effects, status effects, Diablo loot with affixes, elites, XP/levels/skill unlocks, mini-boss +
-zone-boss gates, treasure chests, and a procedural chiptune soundtrack are all implemented.
+them. **Party of five** (3 front / 2 back): the front line is targeted first, the back line
+(casters/ranged) is shielded. At the start the player builds the party in the **Roster picker** —
+each hero's **Attunement × Archetype** (= class) and row. SOL & NOX have full REQUIEM kits; the
+other attunements (and un-built archetypes) use a themed **generic placeholder kit** so any
+attunement is playable (`KITS_GENERIC` — reconcile to canon later). The default is the all-SOL
+party (Auren/Kaela/Rion front, Sephi/Liora back).
 
-**v0.12 is an architecture pass:** the single-file POC was migrated to the modular TS + Vite
-codebase above (gameplay unchanged). Greenvale's five bandits use real sliced art; other enemies
-fall back to emoji. **Still placeholder:** field-map tiles + walking marker, six newer enemies,
-save/persistence (`localStorage` autosave is planned). Balance is first-pass — `balance-sim.ts`
-is the tuning loop.
+ATB combat, affinity ring + signature effects, status effects, Diablo loot (per-attunement
+painterly weapon + armor art, ilvl/MNA scaling), **elites + champion packs** (tanky multi-affix
+pack leaders), XP/levels/MNA allocator, mini-boss + zone-boss gates, treasure chests, and a
+procedural chiptune soundtrack are all implemented. Art: all 45 weaponless class bodies + the
+paper-doll with hero-sized weapons; **Greenvale field tileset** (grass/path/tree/bush/rock/chest
++ a top-down player walker). **Still placeholder:** the six newer (Duskmarsh) enemies fall back to
+emoji, dungeon-floor/merchant field markers, armour-over-body layer, save/persistence
+(`localStorage` autosave planned). Balance is tuned via `balance-sim.ts` (models rows + champion
+packs).
 
 ## History
 

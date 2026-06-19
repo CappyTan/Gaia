@@ -3,7 +3,7 @@
 // Cross-controller calls that appear only in inline HTML handlers (UI.*, Game.*) resolve via
 // the window bridge set up in main.ts, so they aren't imported here (keeps the cycle small).
 
-import type { Attunement, Item, Member } from "../types";
+import type { Attunement, Item, Member, MemberDef } from "../types";
 import { clamp, ri, pick } from "../core/rng";
 import { PARTY_DEFS } from "../data/party";
 import { ZONES } from "../data/zones";
@@ -32,14 +32,21 @@ export const Game = {
   continueAfterBattle: null as (() => void) | null,
   _inMerchant: false,
   _stock: [] as Item[],
+  _lastDefs: null as MemberDef[] | null,
 
-  start(): void {
+  // Restart with the most recently chosen party (or the default) — used by retry/play-again.
+  start(): void { this.startRun(this._lastDefs ?? PARTY_DEFS); },
+
+  // Begin a fresh run with a specific party composition (from the Roster picker or default).
+  startRun(defs: MemberDef[]): void {
+    this._lastDefs = defs;
     this.gold = 0; this.inventory = []; this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false;
     Telemetry.load(); Telemetry.startSession();
-    this.party = PARTY_DEFS.map((d) => makeMember(d));
-    // starting gear: a common weapon each so the loot loop has a baseline to beat
-    this.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls); });
+    this.party = defs.map((d) => makeMember(d));
+    // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
+    // weapon (which sets the class) would default to SOL and silently re-class the whole party.
+    this.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att); });
     recalc(this.party);
     Field.init();
     Screens.show("field");

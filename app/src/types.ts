@@ -85,6 +85,8 @@ export interface Skill {
   desc: string;
 }
 
+export type Row = "front" | "back";
+
 export interface MemberDef {
   id: string;
   name: string;
@@ -92,6 +94,8 @@ export interface MemberDef {
   att: Attunement;
   role: string;
   spr: string;
+  /** Formation row: front line is targeted first; back line (casters/ranged) is shielded. */
+  row?: Row;
   base: Stats;
   growth: Stats;
   skills: string[];
@@ -153,6 +157,8 @@ export interface Member extends Unit {
   cls: string;
   role: string;
   spr: string;
+  /** Formation row (front targeted first; back shielded). */
+  row: Row;
   level: number;
   xp: number;
   base: Stats;
@@ -183,6 +189,8 @@ export interface Enemy extends Unit {
   castChance: number;
   elite?: boolean;
   eliteAffixes?: string[];
+  /** A champion: a tanky, multi-affix pack leader (above elite) with richer rewards. */
+  champion?: boolean;
 }
 
 /** What a combatant is doing this action — a plain attack, a skill, and/or an AoE sweep. */

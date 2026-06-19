@@ -19,6 +19,7 @@ export const unlockedSkills = (m: Member): string[] => m.skills.filter((k) => SK
 export function makeMember(d: MemberDef): Member {
   return {
     def: d, id: d.id, name: d.name, cls: d.cls, att: d.att, role: d.role, spr: d.spr,
+    row: d.row ?? "front",
     level: 1, xp: 0,
     base: { ...d.base },
     equip: { weapon: null, armor: null, trinket: null },

@@ -59,4 +59,26 @@ export const SKILLS: Record<string, Skill> = {
   noxShatterShield: { name: "Shatter-Burst Shield", mp: 8, target: "self", att: "NOX", mnaReq: 35, type: "buff", buff: { wardArmor: 10, turns: 3 }, desc: "Frost barrier; +10 armor (3 turns)." },
   noxBrittleBrand: { name: "Brittle Brand", mp: 16, target: "enemy", att: "NOX", mnaReq: 65, type: "mag", power: 2.2, status: { decay: 3 }, desc: "Brand a foe brittle; heavy cold and Decay." },
   noxRunicRefrigeration: { name: "Runic Refrigeration", mp: 24, target: "allEnemies", att: "NOX", mnaReq: 100, ult: true, type: "mag", power: 1.7, status: { decay: 3 }, desc: "ULTIMATE — freeze the battlefield lattice; cold to all, Decay." },
+
+  // ── PLACEHOLDER generic kits for the not-yet-authored attunements (ANIMA / QUANTA / UMBRAXIS).
+  // One shared 5-ability tree per attunement (req 0/10/30/55/100), themed to that power's
+  // signature so any class is playable until REQUIEM kits land. Reconcile to canon later.
+  // ANIMA (life / growth / vitality — heals + nature damage; ANIMA MNA scales healing):
+  animaThorns: { name: "Thornlash", mp: 4, target: "enemy", att: "ANIMA", mnaReq: 0, type: "phys", power: 1.1, status: { poison: 3 }, desc: "Barbed vines lash a foe; Poison." },
+  animaMend: { name: "Mend", mp: 5, target: "ally", att: "ANIMA", mnaReq: 10, type: "heal", power: 1.4, desc: "Channel life into one ally." },
+  animaWither: { name: "Wither", mp: 9, target: "enemy", att: "ANIMA", mnaReq: 30, type: "mag", power: 1.7, status: { poison: 3 }, desc: "Rot a foe from within; Poison." },
+  animaBloom: { name: "Bloom", mp: 14, target: "allAllies", att: "ANIMA", mnaReq: 55, type: "heal", power: 1.0, status: { regen: 3 }, desc: "Heal the party; grant Regen." },
+  animaGenesis: { name: "Genesis", mp: 22, target: "allAllies", att: "ANIMA", mnaReq: 100, ult: true, type: "heal", power: 1.7, status: { regen: 4 }, desc: "ULTIMATE — life floods the party; big heal + lasting Regen." },
+  // QUANTA (probability / time — high crit, speed; QUANTA grants +crit and MNA scales SPD):
+  quantaFlux: { name: "Flux Bolt", mp: 4, target: "enemy", att: "QUANTA", mnaReq: 0, type: "mag", power: 1.3, crit: 20, desc: "An uncertain bolt; high crit." },
+  quantaHaste: { name: "Acceleration", mp: 6, target: "self", att: "QUANTA", mnaReq: 10, type: "buff", buff: { atkup: 1, turns: 3 }, desc: "Bend time: +50% ATK for 3 turns." },
+  quantaCollapse: { name: "Probability Collapse", mp: 12, target: "enemy", att: "QUANTA", mnaReq: 30, type: "phys", power: 2.4, crit: 40, desc: "Collapse the odds onto one foe; very high crit." },
+  quantaCascade: { name: "Cascade", mp: 14, target: "allEnemies", att: "QUANTA", mnaReq: 55, type: "mag", power: 1.0, crit: 30, desc: "A cascade of chance across all foes." },
+  quantaSingularity: { name: "Singularity", mp: 24, target: "enemy", att: "QUANTA", mnaReq: 100, ult: true, type: "mag", power: 3.4, crit: 50, desc: "ULTIMATE — a near-certain critical detonation on one foe." },
+  // UMBRAXIS (gravity / void / entropy — decay + mitigation; UMBRAXIS MNA scales damage reduction):
+  umbraCrush: { name: "Gravity Crush", mp: 4, target: "enemy", att: "UMBRAXIS", mnaReq: 0, type: "phys", power: 1.2, status: { drain: 2 }, desc: "Crushing gravity; Drain." },
+  umbraDrain: { name: "Void Drain", mp: 8, target: "enemy", att: "UMBRAXIS", mnaReq: 10, type: "mag", power: 1.6, status: { decay: 2 }, desc: "Siphon a foe into the void; Decay." },
+  umbraEntropy: { name: "Entropy", mp: 12, target: "allEnemies", att: "UMBRAXIS", mnaReq: 30, type: "mag", power: 1.0, status: { decay: 3 }, desc: "Entropy gnaws all foes; Decay." },
+  umbraWard: { name: "Event Ward", mp: 12, target: "allAllies", att: "UMBRAXIS", mnaReq: 55, type: "buff", buff: { wardArmor: 10, turns: 3 }, desc: "A gravity well shields the party; +10 armor (3 turns)." },
+  umbraHorizon: { name: "Event Horizon", mp: 24, target: "allEnemies", att: "UMBRAXIS", mnaReq: 100, ult: true, type: "mag", power: 1.9, status: { decay: 3 }, desc: "ULTIMATE — a collapsing singularity engulfs all foes; Decay." },
 };

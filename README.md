@@ -28,15 +28,20 @@ file as a frozen reference — see [ADR 0005](docs/adr/0005-modular-ts-vite.md).
 
 Two zones — **Greenvale** → **The Duskmarsh** — with a merchant between them:
 
-- A fixed party of four **SOL**-attunement adventurers: Auren (Sword & Shield, tank),
-  Kaela (Dual Swords, DPS), Sephi (Staff, caster/healer), Rion (Spellblade, hybrid).
-- Tile field maps with random encounters → a mid-zone **mini-boss** gate → the **zone boss**.
-  Beat the boss, **shop at the merchant** with your gold, then press on to the next zone.
+- A **party of five** you build at the start (3 front / 2 back) — pick each hero's
+  **Attunement × Weapon Archetype** (their class) and formation row; the front line is
+  targeted first, the back line is shielded. The default is the all-SOL band: Auren
+  (Sword & Shield, tank), Kaela (Dual Swords, DPS), Rion (Spellblade, hybrid) up front,
+  Sephi & Liora (Staff casters) behind.
+- Tile field maps (real Greenvale tileset + a walking marker) with random encounters → a
+  mid-zone **mini-boss** gate → the **zone boss**. Beat the boss, **shop at the merchant**
+  with your gold, then press on to the next zone.
 - **ATB** battle screen (party right, enemies left, command menu) — see the FF reference.
 - **The Five Powers** as an affinity ring (SOL strong vs NOX, weak vs UMBRAXIS, …) plus a
   signature status effect per power. Enemy attunements make the ring matter in every fight.
 - **Diablo loot:** Dara's named items are the rarity rungs (Common → Artifact) with random
-  affixes rolled on top. **Elite** enemies carry affixes and drop better gear.
+  affixes rolled on top. **Elite** enemies carry affixes; **Champion packs** are led by a
+  tanky multi-affix leader and drop richer gear.
 - Leveling, stat growth, and skill unlocks (~Lv 1 → 8).
 
 ## Repo layout

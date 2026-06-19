@@ -3,6 +3,7 @@
 // (Transitional: a future pass can replace inline handlers with delegated listeners — see ADR 0005.)
 
 import type { Game } from "./controllers/game";
+import type { Roster } from "./controllers/roster";
 import type { UI } from "./controllers/menus";
 import type { Battle } from "./controllers/battle";
 import type { Field } from "./controllers/field";
@@ -14,6 +15,7 @@ import type { Telemetry } from "./telemetry/telemetry";
 declare global {
   interface Window {
     Game: typeof Game;
+    Roster: typeof Roster;
     UI: typeof UI;
     Battle: typeof Battle;
     Field: typeof Field;

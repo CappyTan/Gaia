@@ -42,7 +42,7 @@ function affordableHeal(m: Member): Skill | null {
 }
 function dot(u: Member | Enemy): void {
   const st = u.status;
-  for (const k of ["burn", "poison", "decay"]) if (st[k]) { u.hp = Math.max(0, u.hp - Math.max(2, Math.round(u.maxhp * 0.05))); if (--st[k] <= 0) delete st[k]; }
+  for (const k of ["burn", "poison", "decay", "drain"]) if (st[k]) { u.hp = Math.max(0, u.hp - Math.max(2, Math.round(u.maxhp * 0.05))); if (--st[k] <= 0) delete st[k]; }
   if (st.regen) { u.hp = Math.min(u.maxhp, u.hp + Math.round(u.maxhp * 0.08)); if (--st.regen <= 0) delete st.regen; }
   for (const k of ["blind", "atkup", "stun", "wardArmor"]) if (st[k] && --st[k] <= 0) delete st[k];
   if (u.hp <= 0) u.alive = false;
@@ -54,8 +54,15 @@ interface FightResult {
   enemies: Enemy[]; eActs: number; pdph: number; partyMax: number;
 }
 
-function simFight(party: Member[], keys: string[], depth: number): FightResult {
-  const enemies = keys.map((k, i) => makeEnemy(k, i, false, depth || 0));
+// Front line shields the back row (mirror controllers/battle.ts reachable()).
+function reachable(e: Enemy, foes: Member[]): Member[] {
+  const front = foes.filter((m) => m.row !== "back");
+  if (!front.length || e.ai === "boss" || e.ai === "caster" || Math.random() < 0.2) return foes;
+  return front;
+}
+
+function simFight(party: Member[], keys: string[], depth: number, champIdx = -1): FightResult {
+  const enemies = keys.map((k, i) => makeEnemy(k, i, false, depth || 0, i === champIdx));
   party.forEach((m) => { m.atb = ri(0, 30); m.status = {}; m.guarding = false; });
   enemies.forEach((e) => (e.atb = ri(0, 20)));
   const living = (): (Member | Enemy)[] => [...party.filter((m) => m.alive), ...enemies.filter((e) => e.alive)];
@@ -108,7 +115,7 @@ function simFight(party: Member[], keys: string[], depth: number): FightResult {
       }
       if (!used) {
         const aoe = e.boss && Math.random() < 0.2;
-        const targs = aoe ? foes : [pick(foes)];
+        const targs = aoe ? foes : [pick(reachable(e, foes))];
         targs.forEach((t) => {
           const r = combatDamage(e, t, aoe ? { aoe: true } : {});
           if (!r.miss) {
@@ -132,6 +139,7 @@ function gearUp(party: Member[], enemies: Enemy[]): void {
   enemies.forEach((e) => {
     const ch = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
     if (Math.random() < ch) drops.push(rollDrop(e, pick(party).cls));
+    if (e.champion) drops.push(rollDrop(e, pick(party).cls));
     if (e.miniboss) drops.push(rollDrop(e, pick(party).cls));
     if (e.boss) { drops.push(rollDrop(e, pick(party).cls)); drops.push(rollDrop(e, pick(party).cls)); }
   });
@@ -156,12 +164,11 @@ function simRun() {
     let px = 1;
     let toEnc = ri(ENC_MIN, ENC_MAX);
     const prog = () => (px - 1) / (BX - 1);
-    const fight = (keys: string[], kind: string, depth = prog()): boolean => {
-      const r = simFight(party, keys, depth);
+    const fight = (keys: string[], kind: string, depth = prog(), champIdx = -1): boolean => {
+      const r = simFight(party, keys, depth, champIdx);
       fights.push({ kind, zone: zi, p: prog(), ...r });
       if (!r.win) { wiped = true; return false; }
-      let xp = 0;
-      keys.forEach((k) => (xp += ENEMIES[k].xp));
+      const xp = r.enemies.reduce((a, e) => a + e.xpReward, 0); // champions/elites carry their own reward
       grantXp(party, xp);
       // a sensible player banks earned MNA into their own (SOL) tree
       party.forEach((m) => { m.mnaAlloc[m.att] += m.mnaPoints; m.mnaPoints = 0; });
@@ -179,12 +186,20 @@ function simRun() {
         let band = Z.bands[0];
         for (const b of Z.bands) if (p >= b.at) band = b;
         const depth = inDungeon ? clamp(p + 0.25, 0, 1) : p;
-        if (!fight(pick(band.sets), "rand", depth)) break;
+        // champion pack roll (mirror controllers/field.ts): lead becomes a champion + 1-2 adds
+        const set = pick(band.sets).slice();
+        let champIdx = -1;
+        if (p > 0.12 && Math.random() < (inDungeon ? 0.15 : 0.09) + p * 0.07) {
+          champIdx = 0;
+          const adds = set.slice(1); // mirror field.ts: a normal minion, not another champion
+          if (set.length < 5) set.push(pick(adds.length ? adds : set));
+        }
+        if (!fight(set, "rand", depth, champIdx)) break;
       }
     }
     if (!wiped) fight([Z.boss], zi === ZONES.length - 1 ? "finalboss" : "boss");
   }
-  return { fights, wiped, lvl: party.reduce((a, m) => a + m.level, 0) / 4 };
+  return { fights, wiped, lvl: party.reduce((a, m) => a + m.level, 0) / party.length };
 }
 
 const N = parseInt(process.argv[2] || "60", 10);
