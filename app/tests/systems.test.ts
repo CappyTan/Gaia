@@ -11,6 +11,7 @@ import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
+import { kitFor } from "../src/data/classes";
 import { zeroMna } from "../src/types";
 import type { Enemy, Member } from "../src/types";
 
@@ -145,6 +146,18 @@ describe("MNA gating & scaling", () => {
     m.mnaAlloc.SOL += pts; m.mnaPoints = 0; // allocate all into SOL (what UI.allocMna does)
     recalc(party);
     expect(m.mna.SOL).toBe(pts); // no gear -> total equals allocation
+  });
+  it("equipping a foreign-attunement weapon reclasses the hero (class = weapon)", () => {
+    const m = makeMember(PARTY_DEFS[1]); // Kaela — innate SOL Dual Swords
+    recalc([m]);
+    expect(m.att).toBe("SOL");
+    expect(m.skills).toEqual(kitFor("SOL", "Dual Swords"));
+    m.equip.weapon = makeItem(m.cls, "weapon", 3, "Dual Swords", 10, "NOX"); // a NOX blade
+    recalc([m]);
+    expect(m.att).toBe("NOX"); // reclassed
+    expect(m.mna.NOX).toBeGreaterThan(0); // gear MNA flows to NOX
+    expect(m.skills).toEqual(kitFor("NOX", "Dual Swords")); // NOX kit (Rimewalker)
+    expect(skillUnlocked(m, SKILLS.noxFrostLace)).toBe(true); // low NOX ability usable
   });
   it("SOL MNA scales damage output", () => {
     const target = makeEnemy("bandit", 0, false, 0); // NOX
