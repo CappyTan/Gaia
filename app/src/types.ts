@@ -40,6 +40,8 @@ export type Implicit = Partial<Record<"atk" | "hp" | "armor" | "mp" | "mag", num
 export interface Item {
   slot: Slot;
   cls: string;
+  /** Weapon Attunement — a weapon sets the wielder's class (Attunement × Archetype). */
+  att?: Attunement;
   rarity: RarityKey;
   rIx: number;
   ilvl: number;

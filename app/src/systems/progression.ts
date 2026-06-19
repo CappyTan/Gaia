@@ -1,6 +1,7 @@
 import type { Attunement, Member, MemberDef, Skill } from "../types";
 import { zeroMna } from "../types";
 import { SKILLS } from "../data/skills";
+import { kitFor } from "../data/classes";
 
 // Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
 // Attunement until the manual allocator ships — see mna-progression.md).
@@ -33,6 +34,11 @@ export function makeMember(d: MemberDef): Member {
 // effective stats = base + per-level growth + gear (implicit + affixes); MNA = alloc + gear.
 export function recalc(party: Member[]): void {
   party.forEach((m) => {
+    // Class = equipped weapon's (Attunement × Archetype); falls back to the hero's innate class.
+    const w = m.equip.weapon;
+    m.att = w?.att ?? m.def.att;
+    m.cls = w?.cls ?? m.def.cls;
+    m.skills = kitFor(m.att, m.cls) ?? m.def.skills;
     const g = m.def.growth,
       lv = m.level - 1;
     const s = {

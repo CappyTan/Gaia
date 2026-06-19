@@ -3,7 +3,7 @@
 // Cross-controller calls that appear only in inline HTML handlers (UI.*, Game.*) resolve via
 // the window bridge set up in main.ts, so they aren't imported here (keeps the cycle small).
 
-import type { Item, Member } from "../types";
+import type { Attunement, Item, Member } from "../types";
 import { clamp, ri, pick } from "../core/rng";
 import { PARTY_DEFS } from "../data/party";
 import { ZONES } from "../data/zones";
@@ -70,8 +70,11 @@ export const Game = {
     this._inMerchant = true;
     const floor = clamp(1 + Field.zoneIndex * 2, 0, 5); // deeper zone = better base stock
     const ilvl = 6 + Field.zoneIndex * 6; // stock the road ahead (gear for the next zone)
+    // The merchant deals in foreign attunements too — a weapon of another power reclasses
+    // the hero who wields it (class = weapon). Kitted attunements only, for now.
+    const atts: Attunement[] = ["SOL", "SOL", "NOX"];
     this._stock = [];
-    for (let i = 0; i < 6; i++) this._stock.push(rollItemAtRarity(ri(floor, Math.min(5, floor + 2)), pick(this.party).cls, ilvl));
+    for (let i = 0; i < 6; i++) this._stock.push(rollItemAtRarity(ri(floor, Math.min(5, floor + 2)), pick(this.party).cls, ilvl, pick(atts)));
     this.renderMerchant();
   },
   renderMerchant(): void {
