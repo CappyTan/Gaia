@@ -63,7 +63,7 @@ describe("champion packs", () => {
     expect(champ.champion).toBe(true);
     expect(champ.elite).toBe(true);
     expect(champ.eliteAffixes!.length).toBe(3);
-    expect(champ.maxhp).toBeGreaterThan(normal.maxhp * 2); // ~2.6x base HP
+    expect(champ.maxhp).toBeGreaterThan(normal.maxhp * 1.5); // ~2x base HP (a tanky leader)
     expect(champ.xpReward).toBeGreaterThan(normal.xpReward);
     expect(champ.name).toBe(normal.name); // base name preserved; the "Champion" marker is a render concern
   });

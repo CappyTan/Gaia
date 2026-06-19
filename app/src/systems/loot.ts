@@ -1,8 +1,23 @@
 import type { Affix, Attunement, Implicit, Item, Slot } from "../types";
 import type { Enemy } from "../types";
+import { ATTUNEMENTS } from "../types";
 import { ri, pick, clamp } from "../core/rng";
 import { RARITY } from "../data/rarity";
 import { ITEM_NAMES, ARMOR_NAMES, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
+
+// Weapon archetypes that have sliced icon art (one per SOL loot chart). Random drops draw from
+// these so dropped weapons always show a sprite; a hero's own (possibly art-less) archetype is
+// still honored when it's the drop preference.
+const ART_ARCHETYPES = Object.keys(ITEM_NAMES);
+
+/** Pick a drop attunement: usually matches the party (so loot is equippable), sometimes a
+ *  wildcard for cross-attunement reclassing finds. */
+function rollAtt(pref?: Attunement): Attunement {
+  return pref && Math.random() < 0.7 ? pref : pick(ATTUNEMENTS);
+}
+function rollWeaponClass(pref?: string): string {
+  return pref && Math.random() < 0.6 ? pref : pick(ART_ARCHETYPES);
+}
 
 // Item-level scaling: base stats grow with ilvl (enemy level / zone depth), so gear found
 // deeper into the run is stronger, not just rarer. ilvl 0 = no scaling (starter gear).
@@ -17,9 +32,10 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   let mna: Item["mna"];
   if (slot === "weapon") {
     const wc = weaponClass || "Dual Swords";
-    // SOL uses Dara's named loot charts; other attunements build a themed name.
-    name = att === "SOL"
-      ? (ITEM_NAMES[wc] || ITEM_NAMES["Dual Swords"])[r]
+    // SOL's four art-charted archetypes use Dara's named loot charts; every other
+    // attunement/archetype builds a themed name from the attunement adjective + archetype noun.
+    name = att === "SOL" && ITEM_NAMES[wc]
+      ? ITEM_NAMES[wc][r]
       : `${ATT_ADJ[att]?.[r] ?? att} ${ARCH_NOUN[wc] ?? wc}`;
     implicit.atk = Math.round((5 + r * 5) * k); // base atk ladder by rung, scaled by ilvl
     // A weapon carries intrinsic MNA in its own Attunement — the main MNA source, and what
@@ -60,8 +76,10 @@ export function itemScore(it: Item): number {
   return Math.round(s + it.rIx * 4);
 }
 
-// drop: rarity weighted by enemy level + boss/elite bonus
-export function rollDrop(enemy: Enemy, weaponClassPreference?: string): Item {
+// drop: rarity weighted by enemy level + boss/elite bonus. prefCls/prefAtt bias the drop toward
+// a party member's class/attunement (so it's useful) while a slice of drops roll wild (variety +
+// cross-attunement reclassing). Weapons span all five attunements — not SOL-only.
+export function rollDrop(enemy: Enemy, prefCls?: string, prefAtt?: Attunement): Item {
   const lvl = enemy.lvl || 1;
   let floor = 0,
     ceil = 2 + Math.floor(lvl / 2);
@@ -81,18 +99,18 @@ export function rollDrop(enemy: Enemy, weaponClassPreference?: string): Item {
   }
   r = clamp(r, 0, 5);
   const slot = pick<Slot>(["weapon", "weapon", "armor", "trinket"]);
-  const wc = slot === "weapon" ? weaponClassPreference || pick(Object.keys(ITEM_NAMES)) : null;
-  return makeItem(null, slot, r, wc, lvl); // drops scale to the enemy's level
+  const wc = slot === "weapon" ? rollWeaponClass(prefCls) : null;
+  return makeItem(null, slot, r, wc, lvl, rollAtt(prefAtt)); // drops scale to the enemy's level
 }
 
 // chest / merchant loot: roll around a target rarity floor, scaled to an item level
-export function rollItemAtRarity(floor: number, weaponClassPreference?: string, ilvl = 0, att: Attunement = "SOL"): Item {
+export function rollItemAtRarity(floor: number, prefCls?: string, ilvl = 0, prefAtt?: Attunement): Item {
   let r = clamp(floor, 0, 5);
   for (let i = r; i <= 5; i++) {
     if (Math.random() < 0.4) r = i;
     else break;
   }
   const slot = pick<Slot>(["weapon", "weapon", "armor", "trinket"]);
-  const wc = slot === "weapon" ? weaponClassPreference || pick(Object.keys(ITEM_NAMES)) : null;
-  return makeItem(null, slot, clamp(r, 0, 5), wc, ilvl, att);
+  const wc = slot === "weapon" ? rollWeaponClass(prefCls) : null;
+  return makeItem(null, slot, clamp(r, 0, 5), wc, ilvl, rollAtt(prefAtt));
 }

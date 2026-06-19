@@ -138,12 +138,14 @@ function gearUp(party: Member[], enemies: Enemy[]): void {
   const drops: Item[] = [];
   enemies.forEach((e) => {
     const ch = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
-    if (Math.random() < ch) drops.push(rollDrop(e, pick(party).cls));
-    if (e.champion) drops.push(rollDrop(e, pick(party).cls));
-    if (e.miniboss) drops.push(rollDrop(e, pick(party).cls));
-    if (e.boss) { drops.push(rollDrop(e, pick(party).cls)); drops.push(rollDrop(e, pick(party).cls)); }
+    const drop = () => { const m = pick(party); return rollDrop(e, m.cls, m.att); };
+    if (Math.random() < ch) drops.push(drop());
+    if (e.champion) drops.push(drop());
+    if (e.miniboss) drops.push(drop());
+    if (e.boss) { drops.push(drop()); drops.push(drop()); }
   });
   drops.forEach((it) => {
+    // a weapon equips on a same-archetype hero only if it's an upgrade (it may reclass them)
     if (it.slot === "weapon") { const m = party.find((x) => x.cls === it.cls); if (m && (!m.equip.weapon || itemScore(it) > itemScore(m.equip.weapon))) m.equip.weapon = it; }
     else {
       const m = party.slice().sort((a, b) => itemScore(a.equip[it.slot] || ZERO) - itemScore(b.equip[it.slot] || ZERO))[0];

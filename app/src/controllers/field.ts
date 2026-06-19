@@ -164,7 +164,8 @@ export const Field = {
     this.map[y][x] = "path";
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5); // deeper chests = better floor
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // and a higher item level
-    const it = rollItemAtRarity(floor, pick(Game.party).cls, ilvl);
+    const m = pick(Game.party);
+    const it = rollItemAtRarity(floor, m.cls, ilvl, m.att);
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
@@ -205,7 +206,7 @@ export const Field = {
         let ground = cell === "chest" || cell === "miniboss" || cell === "boss" ? "grass" : cell;
         if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
         const gimg = T[ground];
-        if (gimg) c.drawImage(gimg, sx, sy, t, t);
+        if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1); // +1px overlap hides hairline seams
         else { c.fillStyle = colors[ground] || "#4a7a32"; c.fillRect(sx, sy, t, t); if ((mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.06)"; c.fillRect(sx, sy, t, t); } }
         // dungeon (east of the gate) gets a cold stone tint over the same tiles
         if (mx > this.gate.x) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); }
@@ -221,16 +222,18 @@ export const Field = {
         else if (!gimg && cell === "tree") c.fillText("🌲", sx + t / 2, sy + t / 2);
         else if (!gimg && cell === "bush") c.fillText("🌿", sx + t / 2, sy + t / 2);
       }
-    // player marker: glowing disc + ring + walker sprite (emoji fallback)
+    // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback)
     const cx = (this.px - camx) * t + t / 2, cy = (this.py - camy) * t + t / 2;
     c.save();
-    c.beginPath(); c.arc(cx, cy + t * 0.32, t * 0.34, 0, Math.PI * 2); c.fillStyle = "rgba(244,210,122,.20)"; c.fill();
-    c.lineWidth = Math.max(2, t * 0.07); c.strokeStyle = "#f4d27a"; c.stroke();
+    c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.3, t * 0.13, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.42)"; c.fill();
+    c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
     if (T.player) {
-      const pw = t * 1.05, ph = pw * (T.player.height / T.player.width);
-      c.drawImage(T.player, cx - pw / 2, cy + t * 0.4 - ph, pw, ph);
+      const ph = t * 1.55, pw = ph * (T.player.width / T.player.height);
+      c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
+      c.drawImage(T.player, cx - pw / 2, cy + t * 0.46 - ph, pw, ph);
+      c.shadowBlur = 0;
     } else {
-      c.font = `${t * 0.6}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
+      c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
     }
     c.restore();
   },
