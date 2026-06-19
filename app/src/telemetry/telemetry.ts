@@ -130,13 +130,32 @@ export const Telemetry = {
       <div class="small">Boss wins ${A.bossWins} · Avg time-to-boss ${ms(avg(A.timeToBoss))}</div>
     </div>`;
     h += `<div class="row">
-      <button class="btn" onclick="Telemetry.download()">Download JSON</button>
+      <button id="tmCopyBtn" class="btn gold" onclick="Telemetry.copy()">Copy JSON</button>
+      <button class="btn" onclick="Telemetry.download()">Download</button>
       <button class="btn" onclick="Telemetry.reset()">Reset</button>
-      <button class="btn gold" onclick="Overlay.hide()">Close</button></div>`;
+      <button class="btn" onclick="Overlay.hide()">Close</button></div>
+      <div class="small" style="opacity:.7;margin-top:6px">On mobile use <b>Copy JSON</b> (downloads are blocked in-app) — paste into Notes or a message.</div>`;
     Overlay.show(h);
   },
+  _exportJson(): string {
+    return JSON.stringify({ exported: Date.now(), sessions: this.all, current: this.s }, null, 2);
+  },
+  // Copy works on iOS Safari where a programmatic <a download> is silently blocked.
+  copy(): void {
+    const json = this._exportJson();
+    const done = () => { const b = document.getElementById("tmCopyBtn"); if (b) b.textContent = "Copied ✓"; };
+    const fallback = () => {
+      const t = document.createElement("textarea");
+      t.value = json; t.style.position = "fixed"; t.style.top = "0"; t.style.opacity = "0";
+      document.body.appendChild(t); t.focus(); t.select();
+      try { document.execCommand("copy"); done(); } catch { /* ignore */ }
+      t.remove();
+    };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(json).then(done).catch(fallback);
+    else fallback();
+  },
   download(): void {
-    const blob = new Blob([JSON.stringify({ exported: Date.now(), sessions: this.all, current: this.s }, null, 2)], { type: "application/json" });
+    const blob = new Blob([this._exportJson()], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "gaia-telemetry.json";

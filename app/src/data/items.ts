@@ -24,7 +24,11 @@ export const ARCH_NOUN: Record<string, string> = {
   "Staff": "Scepter", "Spellblade": "Runeblade",
 };
 export const ATT_ADJ: Partial<Record<Attunement, string[]>> = {
+  SOL: ["Burnished", "Sunlit", "Radiant", "Solar", "Solaris", "Eternal-Sun"],
   NOX: ["Chilled", "Frostbitten", "Rimewrought", "Glacial", "Permafrost", "Absolute-Zero"],
+  ANIMA: ["Verdant", "Thornclad", "Bloomforged", "Wildgrown", "Primeval", "World-Tree"],
+  QUANTA: ["Flickering", "Phased", "Probable", "Entangled", "Quantum", "Singular"],
+  UMBRAXIS: ["Dim", "Shadowed", "Umbral", "Void-Touched", "Gravebound", "Event-Horizon"],
 };
 
 // Affix pool: rolled onto items.

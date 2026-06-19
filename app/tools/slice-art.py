@@ -124,8 +124,12 @@ im=Image.open(os.path.join(REF,"field-tiles-greenvale.png"))
 FX=[(40,300),(345,600),(640,895),(940,1195)]; FY=[(70,330),(450,705)]
 GROUND={(0,0):"grass",(0,1):"grass2",(0,2):"path",(0,3):"tree",(1,0):"bush",(1,1):"rock"}
 OBJ={(1,2):"chest",(1,3):"merchant"}
+# Ground tiles are cropped from the BRIGHT INTERIOR of each cell (skip the painted vignette/border)
+# so they tile edge-to-edge without a dark grid showing between cells.
+GIN=36
 for (r,col),name in GROUND.items():
-    save(im.crop((FX[col][0],FY[r][0],FX[col][1],FY[r][1])).convert("RGBA").resize((64,64)),"field",f"{name}.png")
+    x0,y0,x1,y1=FX[col][0],FY[r][0],FX[col][1],FY[r][1]
+    save(im.crop((x0+GIN,y0+GIN,x1-GIN,y1-GIN)).convert("RGBA").resize((64,64)),"field",f"{name}.png")
 for (r,col),name in OBJ.items():
     t=remove_bg(im.crop((FX[col][0],FY[r][0],FX[col][1],FY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}.png")
 p=remove_bg(im.crop((440,720,820,1200))); p.thumbnail((80,104)); save(p,"field","player.png")

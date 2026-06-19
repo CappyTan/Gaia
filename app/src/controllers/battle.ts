@@ -309,11 +309,13 @@ export const Battle = {
     const drops: Item[] = [];
     for (const e of this.enemies) {
       xp += e.xpReward; gold += ri(e.goldRange[0], e.goldRange[1]);
+      // drops bias toward a random party member's class+attunement (useful), with built-in variety
+      const drop = () => { const m = pick(Game.party); return rollDrop(e, m.cls, m.att); };
       const chance = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
-      if (Math.random() < chance) drops.push(rollDrop(e, pick(Game.party).cls));
-      if (e.champion) drops.push(rollDrop(e, pick(Game.party).cls)); // a leader's hoard
-      if (e.miniboss) drops.push(rollDrop(e, pick(Game.party).cls));
-      if (e.boss) { drops.push(rollDrop(e, pick(Game.party).cls)); drops.push(rollDrop(e, pick(Game.party).cls)); }
+      if (Math.random() < chance) drops.push(drop());
+      if (e.champion) drops.push(drop()); // a leader's hoard
+      if (e.miniboss) drops.push(drop());
+      if (e.boss) { drops.push(drop()); drops.push(drop()); }
     }
     Game.gold += gold;
     const leveled = grantXp(Game.party, xp);
