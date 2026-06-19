@@ -149,8 +149,7 @@ export const Field = {
     const champChance = (this.inDungeon() ? 0.18 : 0.1) + p * 0.08;
     if (p > 0.12 && Math.random() < champChance) {
       champIdx = 0;
-      const adds = ri(1, 2);
-      for (let i = 0; i < adds && set.length < 5; i++) set.push(pick(set));
+      if (set.length < 5) set.push(pick(set)); // one extra minion — the champion is the threat
     }
     Battle.begin(set, this.envFor(p), false, false, depth, champIdx);
   },

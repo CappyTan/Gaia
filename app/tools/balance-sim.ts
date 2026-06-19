@@ -191,8 +191,7 @@ function simRun() {
         let champIdx = -1;
         if (p > 0.12 && Math.random() < (inDungeon ? 0.18 : 0.1) + p * 0.08) {
           champIdx = 0;
-          const adds = ri(1, 2);
-          for (let i = 0; i < adds && set.length < 5; i++) set.push(pick(set));
+          if (set.length < 5) set.push(pick(set)); // one extra minion (mirror field.ts)
         }
         if (!fight(set, "rand", depth, champIdx)) break;
       }
