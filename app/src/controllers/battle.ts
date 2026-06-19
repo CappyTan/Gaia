@@ -306,7 +306,8 @@ export const Battle = {
     let h = `<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +${gold} gold</p>`;
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
-      leveled.forEach((l) => { h += `<div class="small">${l.name} → Lv ${l.level}${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`; });
+      leveled.forEach((l) => { h += `<div class="small">${l.name} → Lv ${l.level} · +1 MNA point${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`; });
+      h += `<div class="small" style="opacity:.8">Spend MNA points in the Party screen.</div>`;
       h += "</div>";
     }
     if (drops.length) {

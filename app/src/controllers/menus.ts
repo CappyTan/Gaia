@@ -1,6 +1,7 @@
 // Party / inventory / equip screens, and the universal overlay-close that prevents the
 // post-battle Bag/Party menus from soft-locking the run.
 
+import type { Attunement, Member } from "../types";
 import { cap } from "../core/rng";
 import { ATTUNEMENTS } from "../types";
 import { SKILLS } from "../data/skills";
@@ -11,6 +12,8 @@ import { itemScore } from "../systems/loot";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Game } from "./game";
+
+const respecCost = (m: Member): number => 20 + m.level * 5;
 
 export const UI = {
   // Universal overlay close. Outside post-battle it just hides; after a victory it fires
@@ -25,13 +28,20 @@ export const UI = {
     Game.party.forEach((m) => {
       const arch = m.equip.weapon?.cls || m.cls;
       const cls = className(m.att, arch);
-      const mnaStr = ATTUNEMENTS.filter((a) => m.mna[a] > 0)
-        .map((a) => `${a} ${m.mna[a]}${m.mna[a] >= 100 ? " ⭐" : ""}`)
-        .join(" · ") || "—";
+      // MNA allocator: show each tree's total (with a +button to spend points), plus respec.
+      const showTree = (a: typeof ATTUNEMENTS[number]) => m.mna[a] > 0 || m.mnaPoints > 0 || a === m.att;
+      const mnaRow = ATTUNEMENTS.filter(showTree).map((a) => {
+        const tot = m.mna[a], fromGear = tot - m.mnaAlloc[a];
+        const plus = m.mnaPoints > 0 ? ` <button class="btn" style="padding:0 6px;font-size:11px" onclick="UI.allocMna('${m.id}','${a}')">+</button>` : "";
+        const archon = tot >= 100 ? " ⭐" : "";
+        return `<span class="pill" title="${m.mnaAlloc[a]} from levels + ${fromGear} from gear">${a} <b>${tot}</b>${archon}${plus}</span>`;
+      }).join(" ");
+      const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
+      const respec = spent > 0 ? ` <button class="btn" style="padding:0 6px;font-size:11px" onclick="UI.respec('${m.id}')">Respec ${respecCost(m)}g</button>` : "";
       h += `<div class="card" style="margin:6px 0;text-align:left">
         <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill">${cls} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
         <div class="small">HP ${m.maxhp} · MP ${m.maxmp} · ATK ${m.atk} · MAG ${m.mag} · SPD ${m.spd} · ARM ${m.armor} · Crit ${m.critPct}%${m.solPct ? ` · +${m.solPct}% SOL` : ""}${m.leech ? ` · ${m.leech}% leech` : ""}</div>
-        <div class="small">MNA: ${mnaStr}${ATTUNEMENTS.some((a) => m.mna[a] >= 100) ? ` <span class="r-legendary">Archon</span>` : ""}</div>
+        <div class="small" style="margin-top:4px">MNA${m.mnaPoints > 0 ? ` · <b class="r-legendary">${m.mnaPoints} point${m.mnaPoints > 1 ? "s" : ""} to spend</b>` : ""}: ${mnaRow}${respec}</div>
         <div class="small">XP ${m.xp}/${xpForLevel(m.level)}</div>
         <div class="grid2" style="margin-top:6px">${(["weapon", "armor", "trinket"] as const).map((slot) => {
         const it = m.equip[slot];
@@ -69,6 +79,29 @@ export const UI = {
     if (old) Game.inventory.push(old);
     recalc(Game.party);
     this.equipPicker(memberId, slot);
+  },
+  // Spend one earned MNA point into an Attunement tree (manual allocation).
+  allocMna(memberId: string, att: Attunement): void {
+    const m = Game.party.find((x) => x.id === memberId);
+    if (!m || m.mnaPoints <= 0) return;
+    m.mnaAlloc[att] += 1;
+    m.mnaPoints -= 1;
+    recalc(Game.party);
+    this.openParty();
+  },
+  // Refund all allocated points (back to the spend pool) for a gold fee.
+  respec(memberId: string): void {
+    const m = Game.party.find((x) => x.id === memberId);
+    if (!m) return;
+    const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
+    if (spent <= 0) return;
+    const cost = respecCost(m);
+    if (Game.gold < cost) return;
+    Game.gold -= cost;
+    m.mnaPoints += spent;
+    ATTUNEMENTS.forEach((a) => (m.mnaAlloc[a] = 0));
+    recalc(Game.party);
+    this.openParty();
   },
   openInventory(): void {
     let h = `<h2 class="title-gold">Bag</h2><div class="small">${Game.inventory.length} items · ${Game.gold} gold</div><div class="scroll">`;
