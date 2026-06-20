@@ -169,6 +169,59 @@ const GREENVALE_LAYOUT: ZoneLayout = {
   scatter: 0.06,
 };
 
+// ── Greenvale's PLAYABLE Areas (ADR 0009 exemplar — Area = finest identity, realized at play scale) ─
+// world.ts paints Greenvale's five Areas as world-scale ORGANIC POLYGONS; here we realize the SAME
+// arrangement over the 64×24 PLAYABLE grid (rects, since the playable grid is small + the renderer
+// samples per-tile every frame — cheap point-in-rect beats a ray-cast). The five regions TILE the
+// overworld portion (west of the gate wall at x=40) with NO gaps, so EVERY playable overworld tile
+// resolves to an Area, and each Area realizes its world.ts identity at this scale:
+//   • gv-commons         — Hearthford Commons (plains)   : the WEST spawn lobe (spawn green + west hub).
+//   • gv-orchard         — Orchard Ridge (orchard)       : the NORTH band (orchard road, NE thicket).
+//   • gv-fields          — Bandit Fields (meadow)        : the SOUTH band (meadow road).
+//   • gv-grove           — The Hidden Grove (forest)     : the SE pocket (Hogger's lair) — FINEST, it
+//                          sits ON TOP of the south band, so the grove wins where it overlaps Fields.
+//   • gv-warren-approach — Warren Approach (plains)      : the CENTRAL hub + the EAST lobe to the mouth.
+// EAST of the gate wall (the Bandit Warren dungeon) is its OWN discrete grid — no Areas there.
+// Identity resolves FINEST-FIRST (smallest rect wins at an overlap), mirroring world.ts §regionAt, with
+// a Zone fallback (gv-warren-approach is the default — the central spine — so no tile is ever Area-less).
+export type GreenvaleAreaId =
+  | "gv-commons" | "gv-orchard" | "gv-fields" | "gv-grove" | "gv-warren-approach";
+
+interface GreenvaleAreaRegion { area: GreenvaleAreaId; rects: Rect[]; }
+
+// Authored over the overworld portion x∈[0,40), matching the layout's roads: the NORTH orchard road
+// (orchard clearing + NE thicket, y<9, from x≈9 east) is Orchard Ridge; the SOUTH meadow road
+// (y≥16, from x≈9 east) is Bandit Fields; the hidden grove pocket (SE) is small so it WINS over
+// Fields; the WEST spawn lobe near the entrance is Hearthford Commons; the CENTRAL hub band + the
+// EAST run-up to the dungeon mouth are the Warren Approach.
+export const GREENVALE_AREAS: GreenvaleAreaRegion[] = [
+  { area: "gv-commons", rects: [{ x: 0, y: 0, w: 10, h: 24 }] },            // WEST spawn lobe (the entrance + west hub)
+  { area: "gv-orchard", rects: [{ x: 9, y: 0, w: 25, h: 9 }] },            // NORTH orchard road band
+  { area: "gv-fields", rects: [{ x: 9, y: 16, w: 25, h: 8 }] },           // SOUTH meadow road band
+  { area: "gv-grove", rects: [{ x: 22, y: 16, w: 11, h: 8 }] },           // SE grove pocket (FINEST — wins over Fields)
+  { area: "gv-warren-approach", rects: [{ x: 9, y: 9, w: 55, h: 7 }, { x: 34, y: 0, w: 30, h: 24 }] }, // central hub + EAST lobe to the mouth
+];
+
+/**
+ * Which Greenvale Area a PLAYABLE OVERWORLD tile sits in (ADR 0009 §4 — finest-first). Pure: a point
+ * lands in the SMALLEST-area region whose rect contains it (so the grove pocket beats the broad south
+ * Fields band where they overlap), with gv-warren-approach as the spine fallback so no tile is
+ * Area-less. Used by the field controller to dress the ground + lean the encounter by Area. Returns
+ * undefined only for an out-of-overworld coord (the dungeon east of the gate carries no Area).
+ */
+export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undefined {
+  let best: GreenvaleAreaId | undefined;
+  let bestSize = Infinity;
+  for (const r of GREENVALE_AREAS) {
+    for (const rc of r.rects) {
+      if (px < rc.x || py < rc.y || px >= rc.x + rc.w || py >= rc.y + rc.h) continue;
+      const sz = rc.w * rc.h;
+      if (sz < bestSize) { best = r.area; bestSize = sz; }
+    }
+  }
+  return best;
+}
+
 // The Bandit Warren as its OWN grid (ADR 0008 Stage 2): the old Greenvale dungeon (everything east
 // of the gate wall at x=40), x rebased by -gateWallX so the gate stub at world-x 41 becomes local
 // x=1 (a clean west border at x=0). Width = 64-40 = 24; height carries over (24). The combined
