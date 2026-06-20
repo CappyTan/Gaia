@@ -5,6 +5,12 @@ name: Build & Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # Telemetry runs commit themselves to the repo via the Cloudflare Worker (#29). Those
+    # commits touch only telemetry/** and shouldn't trigger a full rebuild + Pages deploy —
+    # so a flood of runs can't burn Actions minutes or churn deploys. (Repo-side half of the
+    # fix; the Worker-side move to an off-main branch is the other half.)
+    paths-ignore:
+      - 'telemetry/**'
   pull_request:
   workflow_dispatch:
 

@@ -23,7 +23,7 @@ export const UI = {
   // Game.continueAfterBattle so the player can never get stranded in the Bag/Party menus.
   close(): void {
     if (Game._inMerchant) { Game.renderMerchant(); return; } // Party/Bag from the shop return to the shop
-    if (Game._inTown) { Game.renderTown(); return; }          // Party/Bag from the town hub return to the hub
+    if (Game._inTown) { Game.backToTown(); return; }          // Party/Bag in town return to the town field
     Overlay.hide();
     if (Game.continueAfterBattle) { const fn = Game.continueAfterBattle; Game.continueAfterBattle = null; fn(); }
   },
