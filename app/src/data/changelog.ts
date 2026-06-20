@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.36", t: "High-res hero backgrounds — a proper Greenvale grassland plus distinct backdrops for the Bandit Warren (warm) and Drowned Vault (cold), each dungeon now its own scene." },
   { v: "v0.35", t: "Affinity ring ratified + tuned to a modest ±15% (was ±50%) so gear and skill matter more than matchup; enemies rebalanced to suit." },
   { v: "v0.34", t: "Battle visual pass — crisp sprite outlines + contrast, formations grounded out of the sky, higher-fidelity re-sliced backgrounds, hero names colored by Attunement; Warmech ultra-rare added." },
   { v: "v0.33", t: "Cave Troll boss re-tuned to NOX so the final fight has a real affinity matchup." },

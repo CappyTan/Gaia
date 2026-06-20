@@ -31,9 +31,9 @@ export const ENCOUNTERS: EncounterBand[] = [
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "hollow" }, bands: ENCOUNTERS },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren" }, bands: ENCOUNTERS },
   { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll",
-    envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "hollow" }, bands: [
+    envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "vault" }, bands: [
       { at: 0.0, sets: [["rat"], ["spider"], ["rat", "rat"]] },
       { at: 0.2, sets: [["rat", "spider"], ["leper"], ["direrat"]] },
       { at: 0.4, sets: [["leper", "rat"], ["spider", "bonespider"], ["direrat", "spider"]] },
