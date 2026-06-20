@@ -30,6 +30,7 @@ window.addEventListener("keydown", (e) => {
 
 // Boot.
 applyCurrent(); // apply any persisted content edits (Data screen editor) onto live data first
+Telemetry.load(); // recover + auto-send a run a prior crash left behind (before any new run starts)
 Music.load();
 // Web Audio needs a user gesture to start (esp. iOS) — unlock on first interaction.
 (["pointerdown", "touchstart", "keydown"] as const).forEach((ev) =>
