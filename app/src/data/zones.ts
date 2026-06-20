@@ -89,183 +89,190 @@ export const ENCOUNTERS: EncounterBand[] = [
   { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage"]] },
 ];
 
-// ── Greenvale overworld + Bandit Warren (greenfield, ADR 0006) ──────────────────────────────
-// The shire's first road. A readable EAST-bound critical path (spawn → winding clearings → the
-// Brigadier's gate), with branches that PAY OFF: a north orchard pocket and a south meadow pocket
-// each hold a chest, a far-NE thicket hides a chest behind a tighter approach, and a tree-walled
-// southern GROVE hides Hogger's lair (the rare-monster reward for the explorer). East of the gate
-// wall the Bandit Warren: an entry hall forking into two corridors — the south one dead-ends on the
-// warren's richest chest (reward the brave), the north one winds past a guard chamber to the
-// Kingpin's arena. genMap carves these + flood-fills to guarantee the boss and every chest are
-// reachable (anti-soft-lock).
+// ── Greenvale overworld + Bandit Warren (greenfield, OPEN-WORLD rework — Dara 2026-06-20) ─────
+// NO LONGER a west→east spine with up/down spurs. The shire is an OPEN MESH: spawn feeds a WEST HUB
+// clearing, from which THREE parallel roads run to a CENTRAL HUB — a north ORCHARD-RIDGE road (over
+// the orchard & NE thicket), a fast exposed MIDDLE road, and a south MEADOW road (through the meadow
+// & grove). The three rejoin at the central hub (two big loops), so exploring is a CIRCUIT, not an
+// out-and-back: you pick a road, and cross-links knit the orchard/meadow/thicket pockets back to the
+// hubs. Treasure sits on routes you CHOOSE BETWEEN (orchard chest on the north road, meadow chest on
+// the south road, thicket chest on the north ridge crest); Hogger's lair hangs off the south loop in
+// the hidden grove. From the central hub a shared staging green leads to the Brigadier's gate.
+//   East of the gate the BANDIT WARREN is a connected room-network, not dead-end cells: the entry
+// hall forks into a north GUARD CHAMBER and a south STORE ROOM that BOTH rejoin at an antechamber hub
+// before the Kingpin's arena — a loop, so you can circle through either room (each holds a chest) and
+// come back. genMap carves these + flood-fills to GUARANTEE boss + every chest/lair reachable
+// (anti-soft-lock); the loops mean you can never be walled into a pocket.
 const GREENVALE_LAYOUT: ZoneLayout = {
-  w: 64, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 34, y: 11 }, gateWallX: 34, boss: { x: 60, y: 11 },
+  w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 12 }, gateWallX: 40, boss: { x: 60, y: 11 },
   fieldRects: [
-    { x: 1, y: 9, w: 8, h: 6 },     // start clearing (village road mouth)
-    { x: 12, y: 3, w: 8, h: 6 },    // north orchard pocket (chest)
-    { x: 11, y: 14, w: 8, h: 6 },   // south meadow pocket (chest)
-    { x: 21, y: 8, w: 7, h: 7 },    // central crossroads clearing
-    { x: 24, y: 2, w: 7, h: 5 },    // NE thicket (chest, tighter approach)
-    { x: 23, y: 16, w: 8, h: 5 },   // the hidden grove (Hogger's lair)
-    { x: 30, y: 9, w: 4, h: 5 },    // pre-gate staging clearing
+    { x: 1, y: 10, w: 7, h: 6 },    // spawn green (the village road mouth)
+    { x: 10, y: 8, w: 7, h: 8 },    // WEST HUB — the first crossroads, three roads leave it
+    { x: 12, y: 2, w: 8, h: 5 },    // north orchard (chest)
+    { x: 11, y: 17, w: 9, h: 5 },   // south meadow (chest)
+    { x: 24, y: 8, w: 8, h: 8 },    // CENTRAL HUB — the three roads rejoin here
+    { x: 24, y: 2, w: 8, h: 5 },    // NE thicket (chest, on the north ridge)
+    { x: 23, y: 17, w: 9, h: 5 },   // the hidden grove (Hogger's lair, off the south loop)
+    { x: 34, y: 9, w: 5, h: 6 },    // east staging green before the gate
   ],
   fieldPaths: [
-    [{ x: 2, y: 11 }, { x: 10, y: 11 }, { x: 16, y: 11 }, { x: 24, y: 11 }, { x: 33, y: 11 }], // the road east
-    [{ x: 15, y: 11 }, { x: 15, y: 6 }],   // fork up to the orchard
-    [{ x: 14, y: 11 }, { x: 14, y: 16 }],  // fork down to the meadow
-    [{ x: 24, y: 9 }, { x: 27, y: 4 }],    // fork up to the NE thicket
-    [{ x: 26, y: 14 }, { x: 26, y: 18 }],  // fork down toward the grove
+    [{ x: 5, y: 12 }, { x: 13, y: 12 }],                                   // spawn → west hub
+    [{ x: 13, y: 10 }, { x: 15, y: 4 }, { x: 27, y: 4 }, { x: 27, y: 9 }], // NORTH road: hub → orchard → NE thicket → central
+    [{ x: 16, y: 12 }, { x: 24, y: 12 }],                                  // MIDDLE road: hub → central (fast, exposed)
+    [{ x: 13, y: 14 }, { x: 15, y: 19 }, { x: 27, y: 19 }, { x: 27, y: 15 }], // SOUTH road: hub → meadow → grove → central
+    [{ x: 31, y: 12 }, { x: 36, y: 12 }, { x: 39, y: 12 }],                // central → staging → gate
+    [{ x: 16, y: 4 }, { x: 16, y: 9 }],   // cross-link: orchard ↔ west hub
+    [{ x: 15, y: 17 }, { x: 15, y: 15 }], // cross-link: meadow ↔ west hub
+    [{ x: 27, y: 6 }, { x: 27, y: 9 }],   // cross-link: NE thicket ↔ central hub
   ],
   dunRects: [
-    { x: 36, y: 8, w: 6, h: 7 },    // warren entry hall
-    { x: 44, y: 3, w: 7, h: 5 },    // north guard chamber
-    { x: 44, y: 15, w: 6, h: 5 },   // south store room (dead-end, richest chest)
-    { x: 52, y: 6, w: 5, h: 6 },    // antechamber before the arena
-    { x: 56, y: 8, w: 7, h: 7 },    // the Kingpin's arena
+    { x: 42, y: 8, w: 6, h: 8 },    // warren entry hall (the fork)
+    { x: 50, y: 3, w: 7, h: 5 },    // north guard chamber (chest, on the loop)
+    { x: 50, y: 16, w: 7, h: 5 },   // south store room (chest, on the loop)
+    { x: 54, y: 8, w: 5, h: 7 },    // antechamber hub (the loop rejoins here)
+    { x: 57, y: 8, w: 6, h: 6 },    // the Kingpin's arena
   ],
   dunPaths: [
-    [{ x: 35, y: 11 }, { x: 40, y: 11 }],               // gate → entry hall
-    [{ x: 41, y: 10 }, { x: 47, y: 10 }, { x: 47, y: 6 }], // hall → north guard chamber
-    [{ x: 41, y: 13 }, { x: 47, y: 13 }, { x: 47, y: 17 }],// hall → south store room
-    [{ x: 47, y: 5 }, { x: 54, y: 5 }, { x: 54, y: 9 }],   // guard chamber → antechamber
-    [{ x: 54, y: 10 }, { x: 59, y: 10 }, { x: 59, y: 11 }],// antechamber → arena (boss)
+    [{ x: 41, y: 12 }, { x: 45, y: 12 }],                          // gate → entry hall
+    [{ x: 45, y: 10 }, { x: 53, y: 5 }, { x: 56, y: 9 }],          // hall → north chamber → antechamber
+    [{ x: 45, y: 14 }, { x: 53, y: 18 }, { x: 56, y: 13 }],        // hall → south store → antechamber (the LOOP)
+    [{ x: 56, y: 11 }, { x: 59, y: 11 }],                          // antechamber → arena (boss)
   ],
   chests: [
-    { x: 15, y: 4 },   // orchard pocket
-    { x: 13, y: 18 },  // meadow pocket
-    { x: 27, y: 3 },   // NE thicket (off the safe path)
-    { x: 47, y: 17 },  // warren store room (best — deep dead-end)
-    { x: 47, y: 4 },   // guard chamber (on the boss route, a breather reward)
+    { x: 15, y: 3 },   // orchard (north road)
+    { x: 14, y: 20 },  // meadow (south road)
+    { x: 27, y: 3 },   // NE thicket (north ridge crest, off the safe road)
+    { x: 53, y: 18 },  // south store room (dungeon loop, richest)
+    { x: 53, y: 4 },   // north guard chamber (dungeon loop, breather reward)
   ],
-  lair: { x: 26, y: 18 }, // Hogger, deep in the southern grove
+  lair: { x: 27, y: 20 }, // Hogger, deep in the southern grove off the south loop
   scatter: 0.06,
 };
 
-// ── Silverwood, the Ancient Forest + the Sunless Grove (greenfield, ADR 0006) ───────────────
+// ── Silverwood, the Ancient Forest + the Sunless Grove (OPEN-WORLD rework — Dara 2026-06-20) ──
 // Region #2 of Aurelion (world-atlas): the deep, old, hushed old-growth forest, inserted BETWEEN
-// Greenvale and the Duskmarsh. It reads DENSER and DARKER than Greenvale's open shire — the canvas
-// of ancient trees presses close, the road is a narrow ROOT-WORN trail that winds (no straight
-// shot east), and the carved clearings are small, hidden hollows rather than open meadows. The
-// renderer dresses the overworld as a grove (mossy ground, towering old trees, fern/mushroom
-// scatter) when the zone's overworld env leads with "forest" (the isForest() pass, sibling to the
-// marsh's isMire()).
-//
-// THE OVERWORLD CRITICAL PATH winds EAST from the spawn glade through three linked hollows to the
-// Elder Treant's gate. Branches that PAY OFF, all OFF the trail behind a tighter approach:
-//  - a NORTH fern hollow hides a chest (the first easy detour, teaches "search the trees");
-//  - a SOUTH sunken-root hollow hides a chest;
-//  - a far-NE canopy nook hides a chest behind a longer spur;
-//  - a deep SOUTHERN mossbed — walled in old trees — hides the Mossback Tortoise's lair (the rare
-//    reward for the explorer who pushes into the dark).
-//
-// EAST of the Elder Treant's gate, THE SUNLESS GROVE is a hollowed-out heartwood dungeon with GATED
-// progression (a small puzzle, not a straight line): the root-hall entry forks two ways. The short
-// NORTH fork dead-ends on a hollow bole with the grove's first chest (a breather reward) but does
-// NOT reach the deep arena; you must take the longer SOUTH fork down through a fungal gallery (its
-// own rich chest) and back up a root-stair into the Hollow King's heartwood arena. The richest hoard
-// sits deepest, by the arena threshold (reward the brave). genMap carves + flood-fills to GUARANTEE
-// the boss/chests/lair stay reachable (anti-soft-lock).
+// Greenvale and the Duskmarsh. It reads DENSER and DARKER than Greenvale's open shire — small hidden
+// HOLLOWS pressed in by ancient trees, linked by narrow ROOT-WORN trails — but it is the SAME open
+// MESH, not a winding line with spurs. Spawn feeds a WEST HOLLOW hub, from which THREE root-trails run
+// to a CENTRAL crossing hub: a north trail (fern hollow → NE canopy nook), a winding middle trail,
+// and a south trail (sunken-root hollow → mossbed). The three rejoin at the central hub (two loops),
+// so the forest is a CIRCUIT you roam, not an out-and-back. Chests sit on routes you choose between
+// (fern chest north, sunken chest south, canopy chest on the north crest); the Mossback Tortoise's
+// lair dens deep in the southern mossbed off the south loop.
+//   East of the Elder Treant's gate, THE SUNLESS GROVE is a connected heartwood room-network: the
+// root-hall forks into a north HOLLOW BOLE and a south FUNGAL GALLERY that BOTH rejoin at a root-stair
+// antechamber before the Hollow King's arena — a loop (each room holds a chest), so you circle through
+// and come back, never dead-end. genMap carves + flood-fills to GUARANTEE boss + every chest/lair
+// reachable (anti-soft-lock); the loops mean no pocket can wall you in.
 const SILVERWOOD_LAYOUT: ZoneLayout = {
-  w: 60, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 32, y: 11 }, gateWallX: 32, boss: { x: 56, y: 11 },
+  w: 60, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 36, y: 12 }, gateWallX: 36, boss: { x: 56, y: 11 },
   fieldRects: [
-    { x: 1, y: 9, w: 7, h: 6 },     // spawn glade (the forest road mouth)
+    { x: 1, y: 10, w: 6, h: 6 },    // spawn glade (the forest road mouth)
+    { x: 9, y: 9, w: 6, h: 7 },     // WEST HOLLOW hub — three trails leave it
     { x: 11, y: 3, w: 7, h: 5 },    // north fern hollow (chest)
-    { x: 10, y: 15, w: 7, h: 5 },   // south sunken-root hollow (chest)
-    { x: 18, y: 8, w: 7, h: 7 },    // central crossing hollow
-    { x: 23, y: 2, w: 6, h: 5 },    // NE canopy nook (chest, longer spur)
-    { x: 21, y: 16, w: 8, h: 5 },   // deep southern mossbed (Mossback's lair)
-    { x: 28, y: 9, w: 4, h: 5 },    // pre-gate staging hollow before the Elder Treant
+    { x: 10, y: 17, w: 8, h: 5 },   // south sunken-root hollow (chest)
+    { x: 21, y: 9, w: 7, h: 7 },    // CENTRAL crossing hollow hub — the three trails rejoin
+    { x: 22, y: 3, w: 7, h: 5 },    // NE canopy nook (chest, on the north crest)
+    { x: 20, y: 17, w: 9, h: 5 },   // deep mossbed (Mossback's lair, off the south loop)
+    { x: 30, y: 10, w: 5, h: 5 },   // pre-gate hollow before the Elder Treant
   ],
   fieldPaths: [
-    [{ x: 2, y: 11 }, { x: 8, y: 11 }, { x: 14, y: 12 }, { x: 21, y: 11 }, { x: 31, y: 11 }], // the winding trail east
-    [{ x: 13, y: 11 }, { x: 13, y: 6 }],   // spur up to the fern hollow
-    [{ x: 12, y: 12 }, { x: 12, y: 17 }],  // spur down to the sunken-root hollow
-    [{ x: 22, y: 9 }, { x: 25, y: 4 }],    // spur up to the NE canopy nook
-    [{ x: 24, y: 14 }, { x: 24, y: 18 }],  // spur down into the deep mossbed
+    [{ x: 4, y: 12 }, { x: 11, y: 12 }],                                    // spawn → west hollow
+    [{ x: 12, y: 10 }, { x: 14, y: 5 }, { x: 24, y: 5 }, { x: 24, y: 10 }], // NORTH trail: hub → fern → NE canopy → central
+    [{ x: 14, y: 12 }, { x: 17, y: 13 }, { x: 21, y: 12 }],                 // MIDDLE trail: hub → central (winds)
+    [{ x: 12, y: 14 }, { x: 13, y: 19 }, { x: 24, y: 19 }, { x: 24, y: 15 }], // SOUTH trail: hub → sunken → mossbed → central
+    [{ x: 27, y: 12 }, { x: 32, y: 12 }, { x: 35, y: 12 }],                 // central → pre-gate → gate
+    [{ x: 14, y: 5 }, { x: 14, y: 10 }],   // cross-link: fern hollow ↔ west hub
+    [{ x: 13, y: 17 }, { x: 13, y: 15 }],  // cross-link: sunken hollow ↔ west hub
+    [{ x: 24, y: 7 }, { x: 24, y: 10 }],   // cross-link: NE canopy ↔ central hub
   ],
   dunRects: [
-    { x: 34, y: 8, w: 6, h: 7 },    // grove root-hall (the fork)
-    { x: 42, y: 3, w: 6, h: 5 },    // north hollow bole (dead-end, breather chest)
-    { x: 41, y: 15, w: 7, h: 5 },   // south fungal gallery (rich chest, on the boss route)
-    { x: 48, y: 6, w: 5, h: 6 },    // root-stair antechamber
-    { x: 52, y: 8, w: 7, h: 7 },    // the Hollow King's heartwood arena
+    { x: 38, y: 8, w: 6, h: 8 },    // grove root-hall (the fork)
+    { x: 46, y: 3, w: 6, h: 5 },    // north hollow bole (chest, on the loop)
+    { x: 45, y: 16, w: 7, h: 5 },   // south fungal gallery (chest, on the loop)
+    { x: 50, y: 8, w: 5, h: 7 },    // root-stair antechamber hub (the loop rejoins)
+    { x: 53, y: 8, w: 6, h: 6 },    // the Hollow King's heartwood arena
   ],
   dunPaths: [
-    [{ x: 33, y: 11 }, { x: 38, y: 11 }],                          // gate → root-hall
-    [{ x: 39, y: 9 }, { x: 45, y: 9 }, { x: 45, y: 5 }],           // hall → north bole (dead-end)
-    [{ x: 39, y: 13 }, { x: 44, y: 13 }, { x: 44, y: 17 }],        // hall → south fungal gallery
-    [{ x: 45, y: 16 }, { x: 50, y: 16 }, { x: 50, y: 9 }],         // gallery → root-stair antechamber
-    [{ x: 50, y: 10 }, { x: 55, y: 10 }, { x: 55, y: 11 }],        // antechamber → arena (boss)
+    [{ x: 37, y: 12 }, { x: 41, y: 12 }],                          // gate → root-hall
+    [{ x: 41, y: 10 }, { x: 49, y: 5 }, { x: 52, y: 9 }],          // hall → north bole → antechamber
+    [{ x: 41, y: 14 }, { x: 48, y: 18 }, { x: 52, y: 13 }],        // hall → south gallery → antechamber (the LOOP)
+    [{ x: 52, y: 11 }, { x: 55, y: 11 }],                          // antechamber → arena (boss)
   ],
   chests: [
-    { x: 14, y: 4 },   // north fern hollow (overworld branch)
-    { x: 13, y: 18 },  // south sunken-root hollow (overworld branch)
-    { x: 25, y: 3 },   // NE canopy nook (off the safe path, longer spur)
-    { x: 45, y: 4 },   // north hollow bole (breather, dead-end)
-    { x: 54, y: 12 },  // deepest — by the arena threshold (richest, rewards the brave)
+    { x: 14, y: 4 },   // north fern hollow (north trail)
+    { x: 13, y: 20 },  // south sunken-root hollow (south trail)
+    { x: 25, y: 4 },   // NE canopy nook (north crest, off the safe trail)
+    { x: 48, y: 18 },  // south fungal gallery (dungeon loop, rich)
+    { x: 49, y: 4 },   // north hollow bole (dungeon loop, breather)
   ],
-  lair: { x: 24, y: 18 }, // the Mossback Tortoise dens deep in the southern mossbed
+  lair: { x: 24, y: 20 }, // the Mossback Tortoise dens deep in the southern mossbed off the south loop
   scatter: 0.09,          // denser scatter than the shire: ferns/mushrooms thick on the floor
 };
 
-// ── The Duskmarsh + Drowned Vault (greenfield, ADR 0006) ────────────────────────────────────
-// The early "dark detour" — grimmer and TIGHTER than Greenvale's open shire. The road is a narrow
-// causeway threading EAST between flooded hollows: standing water (hard wall) pinches the route to
-// a few tiles wide so the mire feels close and dangerous, and reed/bog scatter dresses the banks.
-// Two paying branches lie OFF the safe causeway: a fog-bound NORTH bog pocket hides a chest, and a
-// drowned SUNKEN RUIN to the south hides a chest AND the rare lair (a Metal Babble denning in the
-// flooded stones — the explorer's prize), each behind its own spur that the water frames.
-//
-// East of the Broodmother's gate, the DROWNED VAULT is a real flooded crawl with GATED progression
-// (a small puzzle, not a straight line): the entry hall forks two ways across a flooded sump. The
-// short SOUTH fork dead-ends on a drowned cell with the vault's first chest (a breather reward) but
-// does NOT reach the deep arena — you must take the longer NORTH fork up through a drowned gallery
-// (its own rich chest), then back down a sunken stair into the Cave Troll's deep arena. The richest
-// hoard sits deepest, by the arena threshold, rewarding the brave. genMap carves + stamps water +
-// flood-fills to GUARANTEE the boss/chests/lair stay reachable (anti-soft-lock).
+// ── The Duskmarsh + Drowned Vault (OPEN-WORLD rework — Dara 2026-06-20) ──────────────────────
+// The early "dark detour" — grimmer and TIGHTER than the shire, but NO LONGER a single pinched
+// causeway with two spurs. It's a water-framed MESH: from the mire-head hub a fork splits into a
+// NORTH causeway (the high road, over the fog bog pocket) and a SOUTH causeway (the low road, past
+// the sunken ruin), and the two LOOP around a big CENTRAL LAGOON before rejoining at the central
+// crossing hub — so the mire is a circuit, not a thread. Standing water (hard wall) sits in the
+// WEDGES between the roads and as the central lagoon, framing the routes without severing them, so
+// the mire feels close and dangerous yet stays a real choice of paths. Chests sit on the two roads
+// you pick between (bog chest north, ruin chest south); the rare Metal-Babble lair dens in the
+// flooded ruin stones off the south road.
+//   East of the Broodmother's gate, the DROWNED VAULT is a connected flooded room-network: the entry
+// hall forks into a north drowned GALLERY and a south drowned CELL that BOTH rejoin at a sunken-stair
+// antechamber before the Cave Troll's arena — a loop (each room holds a chest), so you circle through
+// and back, never dead-end. The richest hoard sits deepest by the arena threshold. genMap carves +
+// stamps water + flood-fills to GUARANTEE boss + every chest/lair reachable (anti-soft-lock); the
+// loops mean the water can never wall you into a pocket.
 const DUSKMARSH_LAYOUT: ZoneLayout = {
-  w: 56, h: 20, spawn: { x: 2, y: 10 }, gate: { x: 30, y: 10 }, gateWallX: 30, boss: { x: 52, y: 10 },
+  w: 56, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 32, y: 11 }, gateWallX: 32, boss: { x: 52, y: 10 },
   fieldRects: [
-    { x: 1, y: 8, w: 6, h: 5 },     // mire mouth (causeway head)
-    { x: 11, y: 2, w: 7, h: 5 },    // north bog pocket (chest, fog-bound)
-    { x: 10, y: 14, w: 8, h: 5 },   // the sunken ruin (chest + the rare lair)
-    { x: 19, y: 7, w: 7, h: 6 },    // central drowned hollow (the causeway crossing)
-    { x: 26, y: 8, w: 4, h: 5 },    // pre-gate landing before the Broodmother's gate
+    { x: 1, y: 9, w: 6, h: 5 },     // mire head hub (the causeway mouth / fork)
+    { x: 9, y: 2, w: 7, h: 5 },     // north bog pocket (chest, fog-bound)
+    { x: 9, y: 15, w: 8, h: 5 },    // the sunken ruin (chest + the rare lair)
+    { x: 20, y: 8, w: 7, h: 7 },    // CENTRAL crossing hub (the two causeways rejoin)
+    { x: 27, y: 9, w: 5, h: 5 },    // pre-gate landing before the Broodmother's gate
   ],
   fieldPaths: [
-    [{ x: 2, y: 10 }, { x: 9, y: 10 }, { x: 16, y: 10 }, { x: 22, y: 10 }, { x: 29, y: 10 }], // the causeway east
-    [{ x: 14, y: 10 }, { x: 14, y: 4 }],   // spur up to the north bog pocket
-    [{ x: 13, y: 11 }, { x: 13, y: 16 }],  // spur down into the sunken ruin
+    [{ x: 4, y: 11 }, { x: 7, y: 11 }],                            // mire head → fork node
+    // NORTH causeway: fork → up the west bank → across the top (over the bog pocket) → down into central
+    [{ x: 7, y: 11 }, { x: 7, y: 4 }, { x: 12, y: 4 }, { x: 18, y: 4 }, { x: 23, y: 5 }, { x: 23, y: 8 }],
+    // SOUTH causeway: fork → down the west bank → across the bottom (past the ruin) → up into central
+    [{ x: 7, y: 11 }, { x: 7, y: 18 }, { x: 12, y: 18 }, { x: 18, y: 18 }, { x: 23, y: 17 }, { x: 23, y: 15 }],
+    [{ x: 26, y: 11 }, { x: 29, y: 11 }, { x: 31, y: 11 }],        // central → pre-gate → gate
+    [{ x: 23, y: 11 }, { x: 28, y: 11 }],                          // central → pre-gate connector
   ],
-  // Standing water pinches the causeway to a thread and frames the branch spurs (hard wall).
+  // Standing water sits in the WEDGES between the two roads — a big central lagoon they loop around,
+  // plus bank pools framing the head fork — so it pinches/frames the routes without severing them.
   water: [
-    { x: 8, y: 2, w: 4, h: 6 },     // northwest pool (narrows the head of the causeway)
-    { x: 7, y: 13, w: 4, h: 6 },    // southwest pool (frames the ruin spur)
-    { x: 16, y: 2, w: 4, h: 6 },    // north fen (isolates the bog pocket to its spur)
-    { x: 17, y: 14, w: 3, h: 5 },   // south fen
-    { x: 22, y: 2, w: 5, h: 5 },    // upper crossing pool (pinches the central hollow)
-    { x: 22, y: 14, w: 6, h: 5 },   // lower crossing pool
+    { x: 10, y: 8, w: 8, h: 6 },    // central lagoon (the two causeways loop around it)
+    { x: 4, y: 2, w: 2, h: 7 },     // NW bank pool
+    { x: 4, y: 13, w: 2, h: 7 },    // SW bank pool
+    { x: 17, y: 9, w: 2, h: 4 },    // east-of-lagoon pinch
   ],
   dunRects: [
-    { x: 32, y: 7, w: 6, h: 7 },    // vault entry hall (the flooded sump fork)
-    { x: 40, y: 13, w: 5, h: 5 },   // south drowned cell (dead-end, breather chest)
-    { x: 39, y: 3, w: 7, h: 5 },    // north drowned gallery (rich chest, on the boss route)
-    { x: 46, y: 7, w: 8, h: 7 },    // the Cave Troll's deep arena
+    { x: 34, y: 7, w: 6, h: 8 },    // vault entry hall (the flooded sump fork)
+    { x: 42, y: 2, w: 6, h: 5 },    // north drowned gallery (chest, on the loop)
+    { x: 41, y: 15, w: 6, h: 5 },   // south drowned cell (chest, on the loop)
+    { x: 46, y: 7, w: 5, h: 7 },    // sunken-stair antechamber hub (the loop rejoins)
+    { x: 49, y: 7, w: 6, h: 6 },    // the Cave Troll's deep arena
   ],
   dunPaths: [
-    [{ x: 31, y: 10 }, { x: 36, y: 10 }],                          // gate → entry hall
-    [{ x: 37, y: 12 }, { x: 42, y: 12 }, { x: 42, y: 15 }],        // hall → south cell (dead-end)
-    [{ x: 37, y: 8 }, { x: 42, y: 8 }, { x: 42, y: 5 }],           // hall → north gallery
-    [{ x: 45, y: 5 }, { x: 49, y: 5 }, { x: 49, y: 10 }, { x: 51, y: 10 }], // gallery → sunken stair → arena (boss)
+    [{ x: 33, y: 11 }, { x: 37, y: 11 }],                          // gate → entry hall
+    [{ x: 37, y: 9 }, { x: 45, y: 4 }, { x: 48, y: 8 }],           // hall → north gallery → antechamber
+    [{ x: 37, y: 13 }, { x: 44, y: 17 }, { x: 48, y: 12 }],        // hall → south cell → antechamber (the LOOP)
+    [{ x: 48, y: 10 }, { x: 51, y: 10 }],                          // antechamber → arena (boss)
   ],
   chests: [
-    { x: 14, y: 3 },   // north bog pocket (overworld branch)
-    { x: 16, y: 17 },  // sunken ruin (off the safe path, shares the ruin with the lair)
-    { x: 42, y: 15 },  // south drowned cell (breather, dead-end)
-    { x: 41, y: 4 },   // north drowned gallery (rich, on the boss route)
-    { x: 49, y: 12 },  // deepest — by the arena threshold (richest, rewards the brave)
+    { x: 12, y: 3 },   // north bog pocket (north causeway)
+    { x: 13, y: 18 },  // sunken ruin (south causeway, shares the ruin with the lair)
+    { x: 44, y: 3 },   // north drowned gallery (dungeon loop)
+    { x: 44, y: 18 },  // south drowned cell (dungeon loop)
+    { x: 48, y: 12 },  // deepest — by the arena threshold (richest, rewards the brave)
   ],
-  lair: { x: 12, y: 17 }, // the rare beast dens in the flooded ruin stones
+  lair: { x: 11, y: 18 }, // the rare beast dens in the flooded ruin stones off the south road
   scatter: 0.07,
 };
 
