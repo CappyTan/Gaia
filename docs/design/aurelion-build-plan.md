@@ -19,6 +19,28 @@ G4), `app/src/data/zones.ts` (current 2-zone structure), and the REQUIEM tone.
 
 ---
 
+## 0 · Dara's build directives (LOCKED — this session)
+
+These override the "start with Goldmeadow" recommendation in §2/§4 and set how we build:
+
+1. **Rebuild the existing zones greenfield.** Greenvale and the Duskmarsh were proofs of concept —
+   **don't be anchored to their current shapes.** Reuse what's good, scrap the rest, and let the
+   level designer build them fresh. *(See [ADR 0006](../adr/0006-explorable-settlements-greenfield-zones.md).)*
+2. **Real cities and towns — walk around and interact, NPCs, not modal interludes.** Settlements
+   become explorable places (a starting village; Riverhearth as a real city), not the current
+   walk-on-a-building-→-modal plaza. **Work hard here.**
+3. **Missing assets → flag, don't block.** Use labelled placeholders and log every gap in
+   [`asset-gaps.md`](asset-gaps.md) — Dara feeds that list to the art creator afterward.
+4. **Creative Director owns progression.** Full authority over **level bands, the bestiary, and
+   encounters** to make a smooth, enjoyable curve true to canon (REQUIEM) and the core design;
+   `balance-tuner` validates the numbers.
+
+**Revised first build:** the greenfield **Greenvale** slice — a real walkable starting **village** +
+the rebuilt overworld zone + the Bandit Warren dungeon — proving ADR 0006, then the Duskmarsh, then
+Riverhearth as the first true **city**.
+
+---
+
 ## 1 · Aurelion World Brief — the shared creative anchor
 
 This is the one contract the whole continent's build hangs on, per the skill's Step 1. Every
