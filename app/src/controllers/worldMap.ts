@@ -1,8 +1,8 @@
 // In-app WORLD MAP view ("the World Map screen", ADR 0009 §7): a read-only design/dev view that
-// renders the world hierarchy — the 250×250 surface (or underworld) coordinate space with the
-// painted Continent / Zone / Area boundaries drawn as ORGANIC POLYGONS (filled + stroked, labeled,
-// draft regions hatched) — so the designer can SEE the world and watch it fill in. Empty map space
-// reads as "to build" (the backlog made visible). The shapes match Dara's overworld map.
+// renders the world hierarchy — the non-square 960×640 (3:2) surface (or underworld) coordinate
+// space with the painted Continent / Zone / Area boundaries drawn as ORGANIC POLYGONS (filled +
+// stroked, labeled, draft regions hatched) — so the designer can SEE the world and watch it fill in.
+// Empty map space reads as "to build"/ocean (the backlog made visible). Shapes match Dara's canon map.
 //
 // PRESENTATION ONLY (ADR 0005): reads data/world.ts; no game-state mutation, no DB writes. Canvas
 // (matching controllers/field.ts) scaled-to-fit the stage since the map is big. Wired to the title
@@ -76,16 +76,18 @@ export const WorldMapView = {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Fit the square map into the available width (capped so it stays mobile-legible without scroll).
-    const css = Math.max(220, Math.min(canvas.parentElement?.clientWidth || 480, 480));
+    // FIT-TO-VIEW the (non-square, 3:2) map into the available width, preserving its aspect ratio so
+    // the world isn't distorted. One uniform scale maps tiles → CSS px on both axes.
+    const cssW = Math.max(280, Math.min(canvas.parentElement?.clientWidth || 640, 640));
+    const s = cssW / map.width;     // tiles → CSS px (uniform; height follows the aspect ratio)
+    const cssH = map.height * s;
     const dpr = window.devicePixelRatio || 1;
-    canvas.style.width = css + "px";
-    canvas.style.height = css + "px";
-    canvas.width = Math.round(css * dpr);
-    canvas.height = Math.round(css * dpr);
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const s = css / map.width; // tiles → CSS px
     const px = (n: number) => n * s;
 
     // Trace a polygon's path in CSS px (caller fills/strokes). Returns its bbox in CSS px for labels.
@@ -95,16 +97,18 @@ export const WorldMapView = {
       ctx.closePath();
     };
 
-    // Backdrop = ocean / empty / backlog.
+    // Backdrop = ocean / empty / backlog (the Great Expanse and named seas).
     ctx.fillStyle = C.empty;
-    ctx.fillRect(0, 0, css, css);
+    ctx.fillRect(0, 0, cssW, cssH);
 
-    // Faint coordinate grid (every 50 tiles) so the empty ocean reads as scaled space, not a void.
+    // Faint coordinate grid (every 80 tiles) so the empty ocean reads as scaled space, not a void.
     ctx.strokeStyle = C.grid;
     ctx.lineWidth = 1;
-    for (let g = 50; g < map.width; g += 50) {
-      ctx.beginPath(); ctx.moveTo(px(g), 0); ctx.lineTo(px(g), css); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, px(g)); ctx.lineTo(css, px(g)); ctx.stroke();
+    for (let g = 80; g < map.width; g += 80) {
+      ctx.beginPath(); ctx.moveTo(px(g), 0); ctx.lineTo(px(g), cssH); ctx.stroke();
+    }
+    for (let g = 80; g < map.height; g += 80) {
+      ctx.beginPath(); ctx.moveTo(0, px(g)); ctx.lineTo(cssW, px(g)); ctx.stroke();
     }
 
     const continents = CONTINENTS.filter((c) => c.map === map.id);

@@ -163,93 +163,232 @@ export function pointInPolygon(poly: Polygon, x: number, y: number): boolean {
   return inside;
 }
 
-// ── The maps (ADR 0009 §1 — overworld + underworld are 250×250 seamless coordinate spaces) ──────
+// ── The maps (ADR 0009 §1 — overworld + underworld are seamless coordinate spaces) ──────────────
+// THE OVERWORLD IS NOT SQUARE. It is sized to the proportions of Dara's canon overworld map
+// (`assets/reference/map-gaia-overworld.png`, 1536×1024 px = 3:2). We use a 3:2 world of
+// 960 × 640 TILES so the whole overworld fits at a consistent, playable scale.
+//
+// SCALE PEG (map-px → world-tile) — everything below is traced from the canon map through this peg:
+//   • map is 1536 × 1024 px;  world is 960 × 640 tiles.
+//   • 960 / 1536 = 0.625 world-tiles per map-px  (⇔ 1.6 map-px per world-tile).
+//   • one 10% grid cell of the map = 96 tiles wide × 64 tall.
+//   • a region traced as map-fraction (fx, fy) sits at tile (fx·960, fy·640).
+// At this scale a typical region is ~70–110 tiles across — real play-space (a built zone ≈ 60 tiles
+// across, ADR target), four continents ringing the central Great Expanse with room between them.
 export const OVERWORLD_ID = "overworld";
 export const UNDERWORLD_ID = "underworld";
-const WORLD_SIZE = 250;
+export const OVERWORLD_W = 960;
+export const OVERWORLD_H = 640;
 
 export const MAPS: WorldMap[] = [
-  { id: OVERWORLD_ID, kind: "overworld", name: "Gaia — Surface", width: WORLD_SIZE, height: WORLD_SIZE },
+  { id: OVERWORLD_ID, kind: "overworld", name: "Gaia — Surface", width: OVERWORLD_W, height: OVERWORLD_H },
   // The underworld is the second seamless space (atlas §2). Painted later; declared so the registry
-  // models both coordinate spaces from the start. No regions yet = entirely backlog.
-  { id: UNDERWORLD_ID, kind: "underworld", name: "Gaia — Underworld", width: WORLD_SIZE, height: WORLD_SIZE },
+  // models both coordinate spaces from the start. No regions yet = entirely backlog. Same 3:2 frame.
+  { id: UNDERWORLD_ID, kind: "underworld", name: "Gaia — Underworld", width: OVERWORLD_W, height: OVERWORLD_H },
 ];
 
 // Tiny helper so the polygon literals below read as natural coordinate pairs, not `{x,y}` noise.
 const ring = (...pts: [number, number][]): Polygon => pts.map(([x, y]) => ({ x, y }));
 
-// ── Continents (ADR 0009 §1) ────────────────────────────────────────────────────────────────────
-// Only AURELION is painted (the starting continent — the current game lives here). It is one ORGANIC
-// landmass with a real coastline traced from the overworld map (top-left continent); Varkhaz /
-// Myr'Thalas / the Sundering are the rest of the 250×250 (ocean + backlog the dev view renders
-// blank). The coastline is irregular: a broad NW body, a western Storm-Coast bulge, an eastern
-// Frostpeak/Whisper arm across a bay, and a tapering southern Sunbridge peninsula.
+// ── Continents (ADR 0009 §1) — ALL FOUR landmasses traced from the canon map ───────────────────────
+// A rough-but-faithful placement pass: every continent is one ORGANIC landmass (irregular coastline)
+// in its canon quadrant, sized + positioned per the overworld map through the scale peg above. The
+// central Great Expanse and the named seas are the NEGATIVE SPACE between them (no polygon — ocean is
+// "no continent"). This frames the whole world so we can confirm it FITS before filling regions in.
+//
+//   Aurelion    — NW  (The Heartland; broad rounded landmass, the starting continent).
+//   Varkhaz     — NE  (The Untamed Frontier; widest continent, lush west → volcanic east).
+//   Myr'Thalas  — SW  (The Ancient Continent; smaller, fragmented, sinking).
+//   The Sundering — S/SE (The Scars; a large broken archipelago, Anima reaching W toward Myr'Thalas).
 export const AURELION_ID = "aurelion";
+export const VARKHAZ_ID = "varkhaz";
+export const MYRTHALAS_ID = "myrthalas";
+export const SUNDERING_ID = "sundering";
 
+// AURELION (NW): broad rounded heartland. Map frac x≈0.10–0.47, y≈0.03–0.46. A western Storm-Coast
+// bulge, a northern Greenvale/Silverwood shoulder, an eastern Frostpeak arm, a tapering S Sunbridge
+// peninsula toward the Coral Archipelago.
 const AURELION_COAST = ring(
-  [8, 18], [20, 10], [34, 7], [48, 8], [58, 12], [70, 9], [84, 8], [96, 11], [104, 9],
-  [112, 14], [120, 12], [126, 20], [124, 30], [130, 40], [128, 52], [134, 58], [132, 68],
-  [126, 74], [130, 82], [127, 92], [120, 100], [112, 100], [106, 98], [100, 96],
-  [92, 102], [86, 110], [80, 118], [72, 126], [64, 124], [58, 116], [54, 108],
-  [48, 108], [40, 104], [32, 102], [26, 96], [22, 88], [15, 84], [10, 76],
-  [4, 68], [2, 58], [8, 50], [2, 40], [6, 30], [2, 22],
+  [104, 38], [150, 18], [196, 14], [240, 20], [286, 16], [326, 26], [360, 20], [398, 30],
+  [434, 46], [456, 78], [460, 112], [470, 142], [460, 170], [472, 200], [456, 230],
+  [438, 262], [430, 290], [408, 308], [380, 304], [358, 296], [336, 316], [306, 322], [280, 308],
+  [264, 284], [240, 290], [216, 306], [196, 314], [172, 304], [156, 282], [134, 276],
+  [112, 282], [90, 266], [78, 238], [84, 210], [68, 186], [80, 156], [64, 128],
+  [76, 102], [62, 76], [78, 54],
+);
+
+// VARKHAZ (NE): the widest continent. Map frac x≈0.52–0.97, y≈0.03–0.41. Lush green west (Emerald
+// Basin/waterfalls) → volcanic red east (Ashfang). A jagged coast with a southern Kraal cape.
+const VARKHAZ_COAST = ring(
+  [512, 56], [560, 32], [604, 24], [648, 30], [690, 20], [730, 28], [772, 18], [814, 26],
+  [856, 20], [898, 30], [930, 54], [940, 86], [930, 118], [940, 148], [924, 174],
+  [936, 200], [914, 226], [886, 246], [854, 254], [826, 248], [802, 266], [780, 282],
+  [754, 276], [732, 258], [708, 270], [684, 280], [660, 274], [636, 262], [612, 246],
+  [588, 254], [566, 242], [544, 250], [522, 234], [504, 206], [514, 176], [498, 150],
+  [512, 120], [496, 92],
+);
+
+// MYR'THALAS (SW): smaller, fragmented ancient land. Map frac x≈0.05–0.40, y≈0.47–0.81. Ragged,
+// half-sunk coast — many bays and a long western Celestial-Reach arm.
+const MYRTHALAS_COAST = ring(
+  [54, 338], [96, 322], [136, 318], [176, 326], [212, 320], [248, 330], [284, 348],
+  [306, 374], [310, 402], [300, 428], [312, 456], [296, 484], [268, 506], [236, 516],
+  [206, 510], [180, 522], [154, 516], [132, 526], [108, 514], [84, 490], [80, 464],
+  [70, 442], [88, 416], [66, 394], [82, 368], [62, 350],
+);
+
+// THE SUNDERING (S/SE): a large BROKEN landmass / archipelago. Map frac x≈0.36–0.85, y≈0.47–0.92.
+// Anima (#23) reaches WEST toward Myr'Thalas; Sol/Nox north; Quanta the central void; Umbraxis SE
+// floating isles. Drawn as one ragged outer shell (the scars are the inner regions).
+const SUNDERING_COAST = ring(
+  [344, 388], [392, 362], [436, 354], [480, 344], [524, 350], [568, 342], [612, 350],
+  [656, 344], [700, 354], [740, 346], [782, 368], [810, 398], [820, 432], [810, 466],
+  [822, 500], [802, 532], [776, 560], [742, 576], [704, 584], [666, 576], [634, 588],
+  [598, 592], [560, 584], [524, 592], [488, 584], [452, 570], [424, 550], [402, 524],
+  [382, 534], [356, 522], [336, 496], [346, 466], [324, 440], [338, 412],
 );
 
 export const CONTINENTS: Continent[] = [
   { id: AURELION_ID, name: "Aurelion", map: OVERWORLD_ID, shape: AURELION_COAST },
+  { id: VARKHAZ_ID, name: "Varkhaz", map: OVERWORLD_ID, shape: VARKHAZ_COAST },
+  { id: MYRTHALAS_ID, name: "Myr'Thalas", map: OVERWORLD_ID, shape: MYRTHALAS_COAST },
+  { id: SUNDERING_ID, name: "The Sundering", map: OVERWORLD_ID, shape: SUNDERING_COAST },
 ];
 
-// ── Zones (ADR 0009 §1) — ORGANIC polygons traced from the overworld map ──────────────────────────
-// BUILT zones (link a playable Zone via `zone`) are highlighted; BACKLOG regions (`draft`, no `zone`)
-// are the other named Aurelion regions from the map (#3–#9), painted so the continent reads real and
-// the build backlog is visible. Positions/shapes match Dara's map (see the per-region notes); the
-// drifted Stage-1 rect grid is superseded.
+// ── Zones (ADR 0009 §1) — ALL 25 named regions as ROUGH ORGANIC polygons traced from the map ───────
+// A rough-but-faithful placement of every numbered region (atlas §1) in its map-correct spot, sized
+// at a consistent scale so we can confirm the world FITS before filling in. BUILT zones (link a
+// playable Zone via `zone`) are highlighted; everything else is BACKLOG (`draft`, no `zone`) — named
+// on the map, not yet built. Positions follow Dara's map (per-region map-position noted); "rough is
+// the point" — relative position/size over fine vertices.
 //
-// Built-zone shapes (north→south, matching the map):
-//   • Greenvale  (#1, Shirelands)  — NW upland, temperate farmland/forest. Map: top-LEFT.
-//   • Silverwood (#2, Ancient Forest) — N, EAST of Greenvale (slightly higher latitude). Map: top-center/right.
-//   • The Duskmarsh — NOT drawn on the map (Dara's "it's in Aurelion" ruling). Placed in a low wet
-//     basin in the west-center (south of Greenvale, between Storm Coast and Goldmeadow) as a sensible
-//     organic spot for a water-framed mire. FLAGGED for Dara (see foot of section).
+// Region numbering (atlas §1): Aurelion #1–9, Varkhaz #10–15, Myr'Thalas #16–20, the Sundering #21–25.
 export const ZONE_REGIONS: ZoneRegion[] = [
+  // ══ AURELION (#1–9) — The Heartland (NW) ══════════════════════════════════════════════════════
   // ── BUILT ──
+  // #1 Greenvale (Shirelands) — top-LEFT (NW) of the continent.
   { id: "greenvale", name: "Greenvale", continent: AURELION_ID, zone: "greenvale",
-    shape: ring([14, 16], [26, 12], [38, 13], [48, 18], [52, 26], [50, 34], [44, 40], [36, 42],
-                [28, 40], [20, 42], [14, 38], [11, 30], [10, 22]) },
+    shape: ring([116, 52], [150, 40], [188, 44], [206, 64], [202, 92], [180, 108], [150, 110],
+                [124, 98], [110, 76]) },
+  // #2 Silverwood (Ancient Forest) — top-CENTER (N), EAST of Greenvale, ~same latitude.
   { id: "silverwood", name: "Silverwood", continent: AURELION_ID, zone: "silverwood",
-    shape: ring([60, 14], [72, 11], [84, 12], [96, 16], [104, 22], [102, 30], [96, 36], [86, 38],
-                [76, 36], [66, 34], [58, 28], [56, 20]) },
+    shape: ring([244, 44], [286, 36], [326, 44], [350, 64], [344, 92], [318, 106], [284, 106],
+                [256, 92], [240, 68]) },
+  // The Duskmarsh — NOT on the canon map (Dara's "it's in Aurelion" ruling). Placed as a low wet
+  // basin SOUTH of Greenvale (between Storm Coast and Goldmeadow). FLAGGED for Dara (foot of section).
   { id: "duskmarsh", name: "The Duskmarsh", continent: AURELION_ID, zone: "duskmarsh",
-    shape: ring([26, 46], [36, 44], [44, 48], [48, 55], [45, 63], [38, 67], [30, 66], [24, 60], [23, 52]) },
+    shape: ring([150, 124], [188, 120], [212, 138], [212, 166], [190, 182], [160, 180], [140, 162],
+                [138, 138]) },
 
-  // ── BACKLOG (named on the map, not yet built — draft; flagged for Dara) ──
+  // ── BACKLOG (named on the map; draft) ──
+  // #3 Goldmeadow Plains (Breadbasket) — center, S of Silverwood.
   { id: "goldmeadow", name: "Goldmeadow Plains", continent: AURELION_ID, draft: true,
-    shape: ring([50, 40], [62, 38], [74, 40], [82, 46], [84, 54], [78, 60], [68, 62], [58, 60], [50, 54], [48, 46]) },
+    shape: ring([248, 122], [300, 114], [344, 128], [360, 152], [348, 176], [312, 186], [272, 178],
+                [246, 160], [240, 140]) },
+  // #4 Storm Coast (Seafarer's Rest) — WEST coast, mid-latitude.
   { id: "stormcoast", name: "Storm Coast", continent: AURELION_ID, draft: true,
-    shape: ring([9, 57], [16, 55], [22, 60], [24, 68], [20, 76], [12, 77], [8, 71], [7, 63]) },
+    shape: ring([100, 178], [136, 170], [156, 188], [158, 216], [138, 234], [110, 230], [96, 208],
+                [94, 192]) },
+  // #5 Riverhearth (Trade Capital) — CENTER hub of the continent.
   { id: "riverhearth", name: "Riverhearth", continent: AURELION_ID, draft: true,
-    shape: ring([60, 64], [72, 62], [82, 66], [86, 74], [82, 82], [72, 84], [62, 80], [57, 72]) },
+    shape: ring([264, 206], [308, 198], [344, 210], [356, 232], [342, 254], [306, 264], [272, 254],
+                [254, 230]) },
+  // #6 Frostpeak Highlands (Dwarven Strongholds) — EAST arm, mid-latitude.
   { id: "frostpeak", name: "Frostpeak Highlands", continent: AURELION_ID, draft: true,
-    shape: ring([100, 50], [112, 46], [124, 52], [130, 62], [126, 72], [116, 74], [106, 68], [100, 60]) },
+    shape: ring([388, 152], [428, 146], [452, 166], [452, 196], [430, 214], [398, 210], [380, 188],
+                [378, 168]) },
+  // #7 Dawnfall Hold (Frontier Watch) — SW.
   { id: "dawnfall", name: "Dawnfall Hold", continent: AURELION_ID, draft: true,
-    shape: ring([28, 84], [40, 82], [50, 86], [52, 94], [46, 100], [34, 100], [26, 94]) },
+    shape: ring([150, 246], [188, 242], [214, 258], [212, 282], [190, 292], [162, 288], [144, 270]) },
+  // #8 Whisper Hills (Monastery Land) — SE.
   { id: "whisperhills", name: "Whisper Hills", continent: AURELION_ID, draft: true,
-    shape: ring([100, 78], [112, 76], [122, 82], [124, 92], [115, 97], [104, 95], [98, 88]) },
+    shape: ring([366, 256], [398, 254], [418, 268], [414, 288], [392, 296], [366, 290], [352, 274]) },
+  // #9 Sunbridge (Port City) — S-center, southernmost (toward the Coral Archipelago).
   { id: "sunbridge", name: "Sunbridge", continent: AURELION_ID, draft: true,
-    shape: ring([58, 98], [68, 96], [78, 100], [80, 108], [74, 116], [66, 120], [60, 112], [56, 106]) },
+    shape: ring([268, 270], [304, 266], [326, 282], [324, 296], [302, 298], [288, 290], [272, 286]) },
+
+  // ══ VARKHAZ (#10–15) — The Untamed Frontier (NE) ══════════════════════════════════════════════
+  // #10 Dunes of Khar (Shifting Sands) — top-center/NW of the continent.
+  { id: "dunes-of-khar", name: "Dunes of Khar", continent: VARKHAZ_ID, draft: true,
+    shape: ring([576, 56], [624, 48], [664, 60], [676, 86], [664, 110], [628, 120], [592, 112],
+                [568, 90], [564, 70]) },
+  // #11 Emerald Basin (Jungle of Giants) — WEST (lush, waterfalls).
+  { id: "emerald-basin", name: "Emerald Basin", continent: VARKHAZ_ID, draft: true,
+    shape: ring([544, 132], [592, 124], [628, 140], [636, 170], [620, 198], [584, 210], [552, 200],
+                [532, 174], [532, 150]) },
+  // #12 Bloodstone Mesa (Thunderplateau) — CENTER (red-rock plateau).
+  { id: "bloodstone-mesa", name: "Bloodstone Mesa", continent: VARKHAZ_ID, draft: true,
+    shape: ring([668, 148], [712, 140], [748, 154], [758, 182], [742, 206], [704, 216], [672, 204],
+                [654, 178]) },
+  // #13 Ashfang Wastes (Volcanic Badlands) — NE/EAST (volcanic red).
+  { id: "ashfang-wastes", name: "Ashfang Wastes", continent: VARKHAZ_ID, draft: true,
+    shape: ring([788, 76], [836, 68], [884, 80], [908, 108], [908, 144], [884, 168], [844, 174],
+                [806, 160], [784, 132], [776, 102]) },
+  // #14 Thornwood (Savage Wilds) — S-center.
+  { id: "thornwood", name: "Thornwood", continent: VARKHAZ_ID, draft: true,
+    shape: ring([632, 220], [676, 214], [708, 228], [716, 250], [700, 264], [664, 268], [636, 254],
+                [624, 236]) },
+  // #15 Kraal of the Sand Kings (Ancient Ruins) — SE cape (desert ruins).
+  { id: "kraal-sand-kings", name: "Kraal of the Sand Kings", continent: VARKHAZ_ID, draft: true,
+    shape: ring([788, 184], [828, 178], [858, 194], [864, 220], [846, 236], [810, 238], [784, 222],
+                [776, 202]) },
+
+  // ══ MYR'THALAS (#16–20) — The Ancient Continent (SW) ═══════════════════════════════════════════
+  // #16 Crystal Expanse (Arcane Wastes) — top-center/N.
+  { id: "crystal-expanse", name: "Crystal Expanse", continent: MYRTHALAS_ID, draft: true,
+    shape: ring([152, 332], [192, 324], [228, 338], [240, 358], [226, 378], [190, 386], [160, 376],
+                [142, 356]) },
+  // #17 The Whispering Marsh (Haunted Wetlands) — W/NW.
+  { id: "whispering-marsh", name: "The Whispering Marsh", continent: MYRTHALAS_ID, draft: true,
+    shape: ring([86, 372], [124, 364], [152, 380], [156, 404], [138, 424], [104, 426], [82, 408],
+                [78, 388]) },
+  // #18 Titanfall Basin (Ruins of the Titans) — CENTER.
+  { id: "titanfall-basin", name: "Titanfall Basin", continent: MYRTHALAS_ID, draft: true,
+    shape: ring([200, 392], [242, 386], [274, 400], [282, 420], [268, 438], [234, 446], [204, 436],
+                [190, 414]) },
+  // #19 Celestial Reach (Sky Observatories) — far SW (lower-left).
+  { id: "celestial-reach", name: "Celestial Reach", continent: MYRTHALAS_ID, draft: true,
+    shape: ring([92, 432], [124, 426], [150, 442], [152, 466], [132, 482], [104, 480], [90, 460]) },
+  // #20 The Sunken Vaults (Lost Civilization) — S-center (half-drowned).
+  { id: "sunken-vaults", name: "The Sunken Vaults", continent: MYRTHALAS_ID, draft: true,
+    shape: ring([180, 458], [220, 452], [250, 466], [256, 486], [238, 500], [202, 502], [176, 488],
+                [168, 470]) },
+
+  // ══ THE SUNDERING (#21–25) — The Scars of the Calamity (S/SE, ENDGAME) ═════════════════════════
+  // #21 Sol Scar (The Radiant Expanse) — N/NW of the Sundering (golden, upper-left).
+  { id: "sol-scar", name: "Sol Scar", continent: SUNDERING_ID, draft: true,
+    shape: ring([396, 392], [444, 384], [484, 398], [496, 426], [480, 452], [440, 462], [404, 450],
+                [384, 422]) },
+  // #22 Nox Scar (Eternal Dusk) — NE of the Sundering (dark, upper-right).
+  { id: "nox-scar", name: "Nox Scar", continent: SUNDERING_ID, draft: true,
+    shape: ring([656, 392], [704, 384], [744, 398], [756, 426], [740, 452], [700, 462], [664, 450],
+                [644, 422]) },
+  // #23 Anima Scar (The Verdant Heart) — far W of the Sundering, reaching toward Myr'Thalas.
+  { id: "anima-scar", name: "Anima Scar", continent: SUNDERING_ID, draft: true,
+    shape: ring([356, 456], [394, 450], [420, 466], [424, 494], [404, 514], [372, 514], [350, 494],
+                [344, 472]) },
+  // #24 Quanta Scar (The Fractured Continuum) — CENTER (the void portal).
+  { id: "quanta-scar", name: "Quanta Scar", continent: SUNDERING_ID, draft: true,
+    shape: ring([520, 444], [568, 436], [608, 450], [620, 478], [604, 504], [564, 514], [528, 502],
+                [508, 474]) },
+  // #25 Umbraxis Scar (The Gravity Maw) — SE of the Sundering (floating isles, lower-right).
+  { id: "umbraxis-scar", name: "Umbraxis Scar", continent: SUNDERING_ID, draft: true,
+    shape: ring([684, 470], [728, 464], [760, 480], [766, 508], [748, 530], [710, 536], [680, 520],
+                [668, 494]) },
 ];
 
-// FLAGS FOR DARA (geography the map leaves open — see also the §4 flags in zones.ts):
-//   • THE DUSKMARSH IS NOT ON YOUR MAP. It's a built zone by your "it's in Aurelion" ruling, so I
-//     placed it in a low west-center basin (centroid ≈ world (35,56)) — a believable spot for a
-//     water-framed mire, south of Greenvale and tucked between Storm Coast and Goldmeadow/Riverhearth.
-//     Confirm or tell me where on the map the marsh actually sits and I'll re-trace it.
-//   • SILVERWOOD SITS EAST OF GREENVALE (roughly the same latitude, a touch higher) — read straight
-//     off the map (#1 top-left, #2 top-center). The old data already had E/W right, but had the whole
-//     continent crammed into a tiny stitched grid; the shapes + spacing are now map-accurate.
-//   • BACKLOG REGION SHAPES (#3–#9) are agent traces of your coastline/region positions, drawn so the
-//     continent reads real. Names are yours (from the map); the exact outlines are mine to refine —
-//     adjust any that read wrong and I'll re-trace.
+// FLAGS FOR DARA (geography the canon map leaves open or this rough pass had to infer):
+//   • THE DUSKMARSH IS NOT ON YOUR MAP. Built zone by your "it's in Aurelion" ruling; placed as a low
+//     wet basin SOUTH of Greenvale (centroid ≈ world (178,150)), between Storm Coast and Goldmeadow.
+//     Tell me where the marsh actually sits and I'll re-trace it.
+//   • ALL 25 REGION OUTLINES are ROUGH traces of your map's region positions at a consistent scale —
+//     correct relative position/size, not final coastlines. Names/epithets are yours (from the map).
+//     Adjust any that read wrong and I'll re-trace.
+//   • A FEW POSITIONS ARE INFERENCES where labels sit near a continent edge / over water: Sunbridge
+//     (#9) hugs Aurelion's S tip toward the Coral Archipelago; Anima Scar (#23) straddles the
+//     Myr'Thalas↔Sundering gap (drawn inside the Sundering shell). Confirm if you want them moved.
+//   • CONNECTION GRAPH (region↔region trade/sea/underground routes, atlas G7) is still OPEN — this
+//     pass locks WHERE regions are, not yet HOW they link.
 
 // ── Areas (ADR 0009 §1, §4) — the finest identity unit, FIRST-PASS SKELETON, FLAGGED FOR DARA ─────
 // Each Area is an ORGANIC sub-shape nested within its zone's polygon, inferred from the zone's
@@ -264,52 +403,52 @@ export const AREAS: Area[] = [
   // ── Greenvale (the Shirelands) — temperate farmland/forest. Spawn commons, the north orchard
   //    ridge, the south meadow "bandit fields", the hidden grove (Hogger), the warren-mouth green. ──
   { id: "gv-commons", name: "Hearthford Commons", zone: "greenvale", draft: true,
-    shape: ring([18, 20], [26, 18], [30, 24], [28, 30], [22, 32], [17, 28]),
+    shape: ring([124, 56], [148, 50], [160, 64], [154, 82], [134, 88], [120, 74]),
     identity: { biome: "plains", tileset: "shire", encounterLean: "low-slime-kobold", music: "field" } },
   { id: "gv-orchard", name: "Orchard Ridge", zone: "greenvale", draft: true,
-    shape: ring([30, 15], [40, 15], [46, 20], [44, 26], [36, 27], [30, 22]),
+    shape: ring([154, 48], [184, 46], [200, 62], [194, 80], [168, 82], [152, 66]),
     identity: { biome: "orchard", tileset: "shire", encounterLean: "kobold-bandit", music: "field" } },
   { id: "gv-fields", name: "Bandit Fields", zone: "greenvale", draft: true,
-    shape: ring([22, 32], [34, 32], [40, 36], [36, 40], [26, 40], [20, 37]),
+    shape: ring([130, 86], [166, 84], [186, 96], [176, 106], [148, 106], [128, 96]),
     identity: { biome: "meadow", tileset: "shire", encounterLean: "bandit-mage", music: "field" } },
   { id: "gv-grove", name: "The Hidden Grove", zone: "greenvale", draft: true,
-    shape: ring([40, 28], [47, 28], [48, 33], [44, 37], [39, 34]),
+    shape: ring([176, 70], [198, 72], [200, 88], [184, 98], [170, 86]),
     identity: { biome: "forest", tileset: "shire", encounterLean: "rare-lair", music: "field" } },
   { id: "gv-warren-approach", name: "Warren Approach", zone: "greenvale", draft: true,
-    shape: ring([44, 22], [50, 24], [50, 30], [45, 30], [43, 26]),
+    shape: ring([158, 84], [180, 88], [180, 102], [160, 102], [152, 92]),
     identity: { biome: "plains", tileset: "shire", encounterLean: "miniboss-gate", music: "field" } },
 
   // ── Silverwood (the Ancient Forest) — denser/darker old-growth. Fern hollows, heartwood crossing,
   //    the canopy nook, the deep mossbed, and the Sunless-Grove-mouth approach. ──
   { id: "sw-fern-hollows", name: "Fern Hollows", zone: "silverwood", draft: true,
-    shape: ring([60, 18], [68, 16], [72, 22], [70, 30], [63, 30], [58, 24]),
+    shape: ring([252, 56], [282, 50], [292, 66], [286, 84], [262, 86], [248, 70]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "wolf-thornling", music: "forest" } },
   { id: "sw-heartwood", name: "Heartwood Crossing", zone: "silverwood", draft: true,
-    shape: ring([74, 18], [82, 18], [86, 24], [82, 30], [75, 28], [72, 22]),
+    shape: ring([288, 54], [316, 56], [328, 72], [316, 88], [292, 84], [282, 68]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "archer-wisp", music: "forest" } },
   { id: "sw-canopy", name: "Canopy Nook", zone: "silverwood", draft: true,
-    shape: ring([84, 16], [94, 17], [98, 22], [94, 27], [86, 25], [83, 20]),
+    shape: ring([318, 50], [340, 56], [342, 74], [322, 84], [310, 66]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "archer", music: "forest" } },
   { id: "sw-mossbed", name: "Deep Mossbed", zone: "silverwood", draft: true,
-    shape: ring([76, 30], [86, 30], [90, 33], [85, 36], [77, 34]),
+    shape: ring([270, 88], [300, 88], [310, 96], [296, 102], [272, 98]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "rare-lair", music: "forest" } },
   { id: "sw-grove-approach", name: "Sunless-Grove Approach", zone: "silverwood", draft: true,
-    shape: ring([94, 24], [101, 26], [100, 31], [94, 32], [92, 28]),
+    shape: ring([300, 70], [322, 76], [320, 92], [300, 94], [292, 80]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "miniboss-gate", music: "forest" } },
 
   // ── The Duskmarsh — water-framed mire. Mire-head causeways, the central lagoon they loop around,
   //    the sunken ruin (rare lair), and the Drowned-Vault-mouth landing. ──
   { id: "dm-causeways", name: "The Causeways", zone: "duskmarsh", draft: true,
-    shape: ring([27, 48], [35, 46], [40, 50], [38, 56], [30, 58], [25, 53]),
+    shape: ring([150, 130], [178, 126], [192, 140], [186, 156], [160, 160], [146, 144]),
     identity: { biome: "mire", tileset: "mire", encounterLean: "rat-spider", music: "field" } },
   { id: "dm-lagoon", name: "The Central Lagoon", zone: "duskmarsh", draft: true,
-    shape: ring([33, 52], [42, 52], [44, 57], [39, 62], [32, 60], [30, 56]),
+    shape: ring([172, 140], [200, 142], [206, 158], [190, 172], [166, 166], [160, 150]),
     identity: { biome: "water", tileset: "mire", encounterLean: "spider-leper", music: "field" } },
   { id: "dm-sunken-ruin", name: "The Sunken Ruin", zone: "duskmarsh", draft: true,
-    shape: ring([28, 58], [35, 58], [37, 62], [32, 65], [27, 62]),
+    shape: ring([150, 158], [174, 158], [180, 170], [162, 176], [146, 166]),
     identity: { biome: "ruin", tileset: "mire", encounterLean: "rare-lair", music: "field" } },
   { id: "dm-vault-approach", name: "Drowned-Vault Approach", zone: "duskmarsh", draft: true,
-    shape: ring([40, 55], [46, 56], [45, 61], [40, 61], [38, 58]),
+    shape: ring([186, 150], [206, 154], [204, 170], [186, 172], [180, 158]),
     identity: { biome: "mire", tileset: "mire", encounterLean: "miniboss-gate", music: "field" } },
 ];
 
