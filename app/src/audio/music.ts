@@ -39,7 +39,7 @@ export const Music = {
   _timer: undefined as ReturnType<typeof setInterval> | undefined,
   LOOKAHEAD: 0.12,
   TICK: 25,
-  styleByState: { title: "radiant", field: "radiant", village: "radiant", mire: "orchestral", marsh: "orchestral", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
+  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", mire: "orchestral", marsh: "orchestral", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
   STYLE_ORDER: ["radiant", "orchestral", "heroic"],
 
   SONGS: {
@@ -102,6 +102,29 @@ export const Music = {
       lead: [["A4", 8], ["G4", 4], ["F4", 12], ["r", 8], ["F4", 6], ["Eb4", 2], ["D4", 8], ["r", 16],
              ["Bb4", 8], ["A4", 8], ["G4", 4], ["F4", 12], ["Eb4", 8], ["D4", 12], ["r", 4], ["D4", 8], ["r", 8]],
     } },
+    // Riverhearth / city theme — grand, bustling, prosperous trade-capital cue. The warm `village`'s
+    // big-city cousin: brighter (C major, no Lydian wink — just confident, open major), faster (112
+    // BPM vs the village's relaxed 92) and fuller — the only town theme with drums (a soft, swung
+    // kick+hat market-pulse, never a battle beat). 16-bar loop in two stately 8-bar halves: A struts
+    // a proud I–vi–IV–V (C·Am·F·G), B answers and lands home (C·F·G·C). A confident singable lead over
+    // a warm sustained pad and a *walking* root-fifth bass (commerce on the move); a fast, flowing
+    // 16th-note arp under it all = the river current and the chatter of crowds. Upbeat, civic, warm —
+    // unmistakably a thriving city, distinct from cozy `village`, cold `marsh`, restless `field`.
+    city: { bpm: 112, roles: {
+      bass: [["C2", 4], ["G2", 4], ["A1", 4], ["E2", 4], ["F2", 4], ["C2", 4], ["G2", 4], ["B1", 4],
+             ["C2", 4], ["G2", 4], ["F2", 4], ["C2", 4], ["F2", 4], ["G2", 4], ["C2", 4], ["G1", 4]],
+      pad: [["E3", 8], ["C3", 8], ["A3", 8], ["E3", 8], ["A3", 8], ["F3", 8], ["B3", 8], ["G3", 8],
+            ["E3", 8], ["C3", 8], ["A3", 8], ["F3", 8], ["A3", 8], ["F3", 8], ["G3", 8], ["G3", 8]],
+      arp: [["C4", 2], ["E4", 2], ["G4", 2], ["E4", 2], ["A3", 2], ["C4", 2], ["E4", 2], ["C4", 2],
+            ["F3", 2], ["A3", 2], ["C4", 2], ["A3", 2], ["G3", 2], ["B3", 2], ["D4", 2], ["B3", 2],
+            ["C4", 2], ["E4", 2], ["G4", 2], ["E4", 2], ["F3", 2], ["A3", 2], ["C4", 2], ["A3", 2],
+            ["G3", 2], ["B3", 2], ["D4", 2], ["B3", 2], ["C4", 2], ["G4", 2], ["E4", 2], ["G4", 2]],
+      drums: [["K", 4], ["H", 2], ["H", 2], ["S", 4], ["H", 2], ["K", 2], ["K", 4], ["H", 2], ["H", 2], ["S", 4], ["H", 2], ["H", 2]],
+      lead: [["G4", 4], ["C5", 4], ["E5", 6], ["D5", 2], ["C5", 4], ["E5", 4], ["A4", 6], ["C5", 2],
+             ["F5", 4], ["E5", 4], ["D5", 4], ["B4", 4], ["C5", 8], ["G4", 4], ["E4", 4],
+             ["G4", 4], ["C5", 4], ["E5", 6], ["G5", 2], ["F5", 4], ["E5", 4], ["D5", 6], ["C5", 2],
+             ["E5", 4], ["G5", 4], ["F5", 4], ["D5", 4], ["C5", 12], ["r", 4]],
+    } },
     battle: { bpm: 152, roles: {
       bass: [["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["G2", 2], ["G2", 2], ["G2", 2], ["G2", 2]],
       drums: [["K", 2], ["H", 2], ["S", 2], ["H", 2], ["K", 2], ["H", 2], ["S", 2], ["H", 2], ["K", 2], ["H", 2], ["S", 2], ["H", 2], ["K", 2], ["H", 2], ["S", 2], ["H", 2]],
@@ -162,7 +185,7 @@ export const Music = {
     set("#st-title", "title");
     // The field HUD's style pill reflects whichever overworld track is playing — the open-field /
     // grim-mire zone theme, or the village / fog-bound-outpost theme while in a settlement.
-    set("#st-field", (["village", "mire", "marsh"].includes(this.cur || "") ? this.cur : "field") as string);
+    set("#st-field", (["village", "city", "mire", "marsh"].includes(this.cur || "") ? this.cur : "field") as string);
     set("#st-battle", this.cur === "boss" || this.cur === "battle" ? this.cur : "battle");
   },
   unlock(): void {

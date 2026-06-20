@@ -335,7 +335,7 @@ export const Battle = {
     Game.continueAfterBattle = wasZoneBoss
       ? wasFinal
         ? () => Game.victory()
-        : () => Game.openTown()
+        : () => Game.enterNextHubChain() // walk the next zone's hub chain (e.g. Riverhearth → Miregard)
       : () => Screens.show("field");
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal), 500);
   },

@@ -7,7 +7,7 @@ import { validateContent } from "../src/data/validate";
 import { ARCHETYPE_KEYS } from "../src/data/party";
 import { ATTUNEMENTS } from "../src/types";
 import { ZONES, type ZoneLayout, type Pt } from "../src/data/zones";
-import { SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF } from "../src/data/towns";
+import { SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, settlement } from "../src/data/towns";
 
 // Mirror of controllers/field.genMap's carve (WITHOUT the repair pass) so the test proves each
 // authored zone layout is ALREADY soft-lock-free by design — the boss + every chest/lair reachable
@@ -140,7 +140,84 @@ describe("settlements (ADR 0006 — walkable, anti-soft-lock)", () => {
           const adj = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[n.y + dy]?.[n.x + dx]);
           expect(adj).toBe(true);
         }
+        // all four services exist (a real settlement offers inn + shop + smith + revive)
+        const kinds = new Set<string>();
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (POI_OF[map[y][x]]) kinds.add(POI_OF[map[y][x]]!);
+        for (const svc of ["inn", "shop", "smith", "revive", "exit"]) expect(kinds.has(svc)).toBe(true);
       });
     });
   }
+});
+
+// Riverhearth (ADR 0006) — Gaia's first true CITY: a large, dense, multi-district capital with a
+// river crossed by bridges. These assertions go beyond generic traversability to prove it reads as a
+// city (scale + density) and that the river/bridge can't wall off a bank from the spawn.
+describe("Riverhearth — the Trade Capital (city)", () => {
+  const s = SETTLEMENTS.riverhearth;
+  const map = s.layout.map((row) => Array.from(row, (ch) => TOWN_GLYPHS[ch] ?? "town-cobble"));
+  const H = map.length, W = map[0].length;
+  const spawn = s.spawn!;
+  const npcAt = new Set(s.npcs.map((n) => `${n.x},${n.y}`));
+  const open = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < W && y < H && !TOWN_BLOCKERS.has(map[y][x]) && !npcAt.has(`${x},${y}`);
+  const flood = (): boolean[][] => {
+    const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
+    if (!open(spawn.x, spawn.y)) return seen;
+    const q: Pt[] = [spawn]; seen[spawn.y][spawn.x] = true;
+    while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }
+    return seen;
+  };
+
+  it("is a CITY in scale (a large map the camera scrolls), not a village", () => {
+    expect(W).toBeGreaterThanOrEqual(40);
+    expect(H).toBeGreaterThanOrEqual(24);
+    expect(s.theme).toBe("city");
+    expect(s.npcs.length).toBeGreaterThanOrEqual(8); // a bustling capital cast
+  });
+
+  it("reads as multiple districts (grand buildings, townhouses, market stalls all present)", () => {
+    const has = (kind: string) => map.some((row) => row.includes(kind));
+    expect(has("t-grand")).toBe(true);      // docks warehouses + civic/keep
+    expect(has("t-townhouse")).toBe(true);  // residential quarter
+    expect(has("t-stall")).toBe(true);      // market square
+    expect(has("town-dock")).toBe(true);    // riverfront wharves
+    expect(has("town-avenue")).toBe(true);  // the city's paved spine
+  });
+
+  it("has a real river crossed by bridges that keep BOTH banks reachable (no district walled off)", () => {
+    const hasRiver = map.some((row) => row.includes("town-river"));
+    const hasBridge = map.some((row) => row.includes("town-bridge"));
+    expect(hasRiver).toBe(true);
+    expect(hasBridge).toBe(true);
+    const seen = flood();
+    // sample reachable tiles strictly west and strictly east of the river — both banks must connect.
+    let west = false, east = false;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!seen[y][x] || map[y][x] === "town-river") continue;
+      if (x < 18) west = true; else if (x > 28) east = true;
+    }
+    expect(west).toBe(true);  // west bank reachable from spawn
+    expect(east).toBe(true);  // east bank reachable from spawn (only possible across a bridge)
+  });
+});
+
+// The between-zones HUB CHAIN (ADR 0006): beating Greenvale's boss should route the player through
+// Riverhearth → Miregard before the Duskmarsh loads, and every settlement in every zone's chain must
+// exist and be walkable — so the new flow can't strand the player mid-journey.
+describe("zone hub chains (flow can't strand the player)", () => {
+  const hubsFor = (z: typeof ZONES[number]) => (z.hubs && z.hubs.length ? z.hubs : [z.hub ?? "hearthford"]);
+
+  it("Greenvale → Riverhearth → Miregard → the Duskmarsh, in that order", () => {
+    // The starting zone's chain is its opening village.
+    expect(hubsFor(ZONES[0])).toEqual(["hearthford"]);
+    // Inbound to the Duskmarsh you pass through the capital then the marsh outpost.
+    expect(hubsFor(ZONES[1])).toEqual(["riverhearth", "miregard"]);
+  });
+
+  it("every settlement named in any chain exists in the registry", () => {
+    for (const z of ZONES) for (const id of hubsFor(z)) {
+      expect(SETTLEMENTS[id]).toBeTruthy();
+      expect(settlement(id).id).toBe(id); // resolves to itself, not the Hearthford fallback
+    }
+  });
 });
