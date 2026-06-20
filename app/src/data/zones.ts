@@ -276,6 +276,168 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
   scatter: 0.07,
 };
 
+// ── World-space placement + region graph (ADR 0008, Stage 1 — world-cartographer) ────────────
+// SEAMLESS CONTINUOUS OVERWORLD foundation. Today the engine treats each zone as an isolated grid
+// reached by a linear hub chain (`hubs` above) + `loadZone` (controllers/field.ts). ADR 0008's
+// target is ONE continuous world the player roams across borders (incl. diagonally) with no load.
+// Stage 1 is PURE DATA only: it places every existing region as a rectangle in a single shared
+// world-coordinate frame, contiguous + border-aligned + 8-way adjacent, with a consistency test
+// (app/tests/worldmap.test.ts). It changes NOTHING the player sees and the engine doesn't consume
+// it yet — Stage 2+ (the world-space camera, neighbor streaming, seam blending, position-derived
+// region/biome/music/encounters) is an engine build that will read these structures.
+//
+// WORLD-SPACE CONVENTION. World coords share each zone's local tile grid: a zone occupies the
+// rectangle [origin.wx, origin.wx + layout.w) × [origin.wy, origin.wy + layout.h). A tile's world
+// position = origin + its local (x,y). Neighbors sit EDGE-TO-EDGE: an eastern neighbor's wx equals
+// this zone's (wx + w); a southern neighbor's wy equals this zone's (wy + h). +x = EAST, +y = SOUTH
+// (screen convention), so N decreases world-y, E increases world-x.
+//
+// THE WORLD WE LAID OUT (Aurelion — see docs/design/world-atlas.md):
+//   Greenvale (#1, the Shirelands) is the western start. Silverwood (#2, the Ancient Forest) sits
+//   EAST of it — you press on through the old forest. The Duskmarsh (Aurelion per Dara's ruling G3,
+//   the grim "dark detour") sits SOUTH of Silverwood, low marsh ground. Greenvale and the Duskmarsh
+//   meet only at a diagonal CORNER (SE), honoring the "came up the dry road from Greenvale" line
+//   (Miregard) without forcing a full shared edge the atlas doesn't dictate.
+//
+//        x→  0        64        124
+//      y    ┌─────────┬──────────┐
+//      0    │ Green-  │ Silver-  │
+//           │ vale    │ wood     │
+//           │ 64×24   │ 60×24    │
+//      24   ├─────────┼──────────┤
+//           (corner)  │ Dusk-    │
+//           │  · · · ·│ marsh    │
+//           │         │ 56×22    │
+//      46            88└──────────┘ (Duskmarsh: x[64,120], y[24,46])
+//
+//   Adjacency (8-way, reciprocal):
+//     Greenvale  —E →  Silverwood     Silverwood —W →  Greenvale
+//     Silverwood —S →  Duskmarsh      Duskmarsh  —N →  Silverwood
+//     Greenvale  —SE→  Duskmarsh      Duskmarsh  —NW→  Greenvale   (corner-touch only)
+//
+// FLAGS FOR DARA (geography the atlas leaves open — §4 G6/G7):
+//   • Silverwood-EAST-of-Greenvale and Duskmarsh-SOUTH-of-Silverwood are agent inferences (the atlas
+//     fixes neither exact compass adjacency). They match the journey + biome logic but are not yet
+//     drawn on Dara's map — confirm or re-orient.
+//   • Settlements (Hearthford/Riverhearth/Miregard) are NOT placed as world cells here — see
+//     WORLD_SETTLEMENT_NOTE below for the recommendation + open design decision.
+
+/** A zone's top-left world-coordinate (the origin its local tile grid is offset by). */
+export interface WorldOrigin { wx: number; wy: number; }
+
+/** 8-way compass directions used by the region graph. */
+export type Dir = "N" | "S" | "E" | "W" | "NE" | "NW" | "SE" | "SW";
+
+/** The reciprocal (opposite) of each direction — used to assert mirror-consistency. */
+export const OPPOSITE: Record<Dir, Dir> = {
+  N: "S", S: "N", E: "W", W: "E", NE: "SW", SW: "NE", NW: "SE", SE: "NW",
+};
+
+/** The unit (dx,dy) a direction implies in world-space (+x=E, +y=S). */
+export const DIR_DELTA: Record<Dir, { dx: number; dy: number }> = {
+  N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, W: { dx: -1, dy: 0 },
+  NE: { dx: 1, dy: -1 }, NW: { dx: -1, dy: -1 }, SE: { dx: 1, dy: 1 }, SW: { dx: -1, dy: 1 },
+};
+
+/**
+ * One directional adjacency from a region to a neighbor, with the SHARED-BORDER alignment the
+ * seamless engine (Stage 2+) and the level-designer need to stitch the seam:
+ *  - `dir`    the compass direction to the neighbor (must agree with the two origins' world delta).
+ *  - `to`     the neighbor zone id (must be a real ZONES entry).
+ *  - `border` the world-space span where the two regions touch. For an E/W edge it's a vertical
+ *             segment at a shared world-x (`axis:"x"`, `at`=that x, `from`..`to` the world-y range);
+ *             for N/S a horizontal segment at a shared world-y. Diagonal (corner-only) adjacencies
+ *             touch at a single world POINT, encoded as a zero-length span (`from === to`).
+ *  - `cross`  the recommended world point where a ROAD/PATH should cross the seam (so the
+ *             level-designer aligns each side's road to the same coordinate and the crossing is
+ *             continuous). Omitted for corner-only diagonals.
+ */
+export interface WorldEdge {
+  dir: Dir;
+  to: string;
+  border: { axis: "x" | "y"; at: number; from: number; to: number };
+  cross?: { wx: number; wy: number };
+}
+
+/** A region placed in world-space: its origin + its outward directional edges. */
+export interface WorldRegion {
+  id: string;                 // matches a ZONES id
+  origin: WorldOrigin;        // top-left world coord; rect = [wx,wx+w) × [wy,wy+h) using layout.w/h
+  edges: WorldEdge[];
+}
+
+// The placement + 8-way region graph. Rects are derived from each zone's layout w/h + origin, so a
+// direction is DERIVABLE from the two origins (the test asserts every `dir` agrees with the delta).
+// Greenvale at (0,0); Silverwood east at (64,0); Duskmarsh south of Silverwood at (64,24).
+export const WORLD_REGIONS: WorldRegion[] = [
+  {
+    id: "greenvale", origin: { wx: 0, wy: 0 },
+    edges: [
+      // East edge (world-x = 0+64 = 64) meets Silverwood's west edge over the full shared height.
+      { dir: "E", to: "silverwood", border: { axis: "x", at: 64, from: 0, to: 24 }, cross: { wx: 64, wy: 12 } },
+      // SE diagonal: Greenvale's SE corner (64,24) is the Duskmarsh's NW corner — corner-touch only.
+      { dir: "SE", to: "duskmarsh", border: { axis: "x", at: 64, from: 24, to: 24 } },
+    ],
+  },
+  {
+    id: "silverwood", origin: { wx: 64, wy: 0 },
+    edges: [
+      // West edge (world-x = 64) meets Greenvale's east edge (reciprocal of Greenvale —E→).
+      { dir: "W", to: "greenvale", border: { axis: "x", at: 64, from: 0, to: 24 }, cross: { wx: 64, wy: 12 } },
+      // South edge (world-y = 0+24 = 24) meets the Duskmarsh's north edge over the shared width.
+      { dir: "S", to: "duskmarsh", border: { axis: "y", at: 24, from: 64, to: 120 }, cross: { wx: 88, wy: 24 } },
+    ],
+  },
+  {
+    id: "duskmarsh", origin: { wx: 64, wy: 24 },
+    edges: [
+      // North edge (world-y = 24) meets Silverwood's south edge (reciprocal of Silverwood —S→).
+      { dir: "N", to: "silverwood", border: { axis: "y", at: 24, from: 64, to: 120 }, cross: { wx: 88, wy: 24 } },
+      // NW diagonal: the Duskmarsh's NW corner (64,24) is Greenvale's SE corner — corner-touch only.
+      { dir: "NW", to: "greenvale", border: { axis: "x", at: 64, from: 24, to: 24 } },
+    ],
+  },
+];
+
+/** Look up a region's world placement by zone id. */
+export function worldRegion(id: string): WorldRegion | undefined {
+  return WORLD_REGIONS.find((r) => r.id === id);
+}
+
+/** A region's world-space rectangle (origin + its zone layout's w/h). */
+export function worldRect(id: string): { x0: number; y0: number; x1: number; y1: number } | undefined {
+  const r = worldRegion(id);
+  const z = ZONES.find((zz) => zz.id === id);
+  if (!r || !z) return undefined;
+  return { x0: r.origin.wx, y0: r.origin.wy, x1: r.origin.wx + z.layout.w, y1: r.origin.wy + z.layout.h };
+}
+
+/**
+ * SETTLEMENT PLACEMENT — recommendation + OPEN DESIGN DECISION for Dara (ADR 0008 §5).
+ *
+ * ADR 0008 makes the OVERWORLD seamless but keeps DUNGEONS (and, by the same logic, ENTERED
+ * settlements) as discrete spaces with a deliberate threshold — you walk up to a door/gate and step
+ * into a bespoke interior map. So Hearthford, Riverhearth and Miregard do NOT need their own
+ * world-space cells: they read most naturally as POIs that LIVE INSIDE a region's rectangle (a town
+ * marker on the seamless overworld you step into), not as separate tiles of the world grid.
+ *
+ * Recommended homes (each fronts the zone that already references it via `hub`/`hubs`):
+ *   • Hearthford  → a POI inside GREENVALE  (its starting village; today the zone's opening hub).
+ *   • Riverhearth → a POI inside SILVERWOOD (the trade capital the player reaches inbound; atlas #5).
+ *   • Miregard    → a POI inside the DUSKMARSH (its grim marsh-edge doorstep).
+ *
+ * OPEN for Dara: (a) Riverhearth is Aurelion's CAPITAL (atlas #5) and a multi-region trade hub — it
+ * may deserve its OWN world cell/region rather than sitting inside Silverwood, once more of Aurelion
+ * exists to branch from. (b) Whether entered-settlements stay discrete interiors or are eventually
+ * stitched into the seamless overworld too. Both are design calls — flag, don't invent. This Stage-1
+ * data deliberately does NOT place settlement cells; it records the recommendation only.
+ */
+export const WORLD_SETTLEMENT_NOTE = {
+  hearthford: "greenvale",
+  riverhearth: "silverwood",
+  miregard: "duskmarsh",
+} as const;
+
 // Zones are ordered. Beating a zone's boss opens a merchant, then the next zone; the LAST
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
