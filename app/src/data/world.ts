@@ -390,65 +390,85 @@ const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
 //   • CONNECTION GRAPH (region↔region trade/sea/underground routes, atlas G7) is still OPEN — this
 //     pass locks WHERE regions are, not yet HOW they link.
 
-// ── Areas (ADR 0009 §1, §4) — the finest identity unit, FIRST-PASS SKELETON, FLAGGED FOR DARA ─────
-// Each Area is an ORGANIC sub-shape nested within its zone's polygon, inferred from the zone's
-// open-world layout (named clearings/hollows/causeways + dungeon-mouth approach in zones.ts). Shapes
-// are irregular (a hollow, a ridge, a lagoon — not boxes). Names/biomes/leans are an AGENT FIRST PASS
-// (draft:true) — lore + final names are Dara's.
+// ── Areas (ADR 0009 §1, §4) — the finest identity unit, ORGANIC TILING, FLAGGED FOR DARA ──────────
+// REFINED PASS (world-cartographer, 2026-06-20). Each built zone's Areas are now ORGANIC POLYGONS that
+// TILE THE ZONE — together they cover the zone's polygon with no gaps and no overlap (verified in
+// app/tests/world.test.ts to ~100% interior coverage / 0% mutual overlap), so EVERY point in a built
+// zone resolves to an Area (not just the special pockets). The boundaries between Areas are SHARED
+// organic seams (a ridge line, a root-trail, a bank, the lagoon shore) traced from each zone's
+// open-world layout in zones.ts — not boxes. Each Area's perimeter follows the zone's coastline (a hair
+// of overshoot keeps the rim fully covered) and meets its neighbors on a common interior polyline, so
+// adjacent Areas are contiguous and the zone reads as one connected network (the open-world rule at the
+// finest grain). Names/biomes/leans/music are an AGENT FIRST PASS (draft:true) — Dara blesses them.
 //
-// Identity resolves FINEST-FIRST (ADR 0009 §4): a tile inside an Area gets that Area's biome/music/
-// lean; a zone tile outside every Area falls back to the zone (and the zone to the continent). So we
-// do NOT need to tile the whole zone with Areas — gaps fall back to the zone's own envs/bands.
+// Identity resolves FINEST-FIRST (ADR 0009 §4): a tile gets its Area's biome/tileset/lean/music, with
+// Zone→Continent fallback. The small SPECIAL POCKETS (the Hidden Grove, the Central Lagoon) are painted
+// so the FINEST (smallest) overlapping shape wins — but here they're carved as clean tiles too, so the
+// tiling is exact rather than relying on the priority rule.
+//
+// THE DUNGEON-MOUTH AREA is, in every zone, the EASTERN lobe — because each zone's `mouth`/`gate` sits
+// at the east of its playable grid (Greenvale x=40/64, Silverwood x=36/60, Duskmarsh x=32/56). So the
+// level-designer puts the dungeon entrance inside: gv-warren (→ Bandit Warren), sw-grove-approach
+// (→ Sunless Grove), dm-vault-approach (→ Drowned Vault). encounterLean "miniboss-gate" marks them.
+//
+// ENCOUNTER-LEAN respects Dara's no-surface-Attunement ruling (ADR 0009 §4): leans are CREATURE/TERRAIN
+// flavor (which beasts, how dangerous, what ground), never an Attunement theme.
 export const AREAS: Area[] = [
-  // ── Greenvale (the Shirelands) — temperate farmland/forest. Spawn commons, the north orchard
-  //    ridge, the south meadow "bandit fields", the hidden grove (Hogger), the warren-mouth green. ──
+  // ── Greenvale (the Shirelands) — temperate farmland/forest, an open shire mesh. The west spawn
+  //    Commons, the north Orchard Ridge, the south meadow Bandit Fields, the hidden Grove pocket on the
+  //    south loop (Hogger's lair), and the east Warren Approach (the Bandit Warren mouth). They tile
+  //    the shire blob; seams are the orchard ridge-line (N) and the central staging green (E). ──
   { id: "gv-commons", name: "Hearthford Commons", zone: "greenvale", draft: true,
-    shape: ring([124, 56], [148, 50], [160, 64], [154, 82], [134, 88], [120, 74]),
+    shape: ring([108, 76], [115, 51], [140, 56], [148, 64], [150, 86], [122, 99]),
     identity: { biome: "plains", tileset: "shire", encounterLean: "low-slime-kobold", music: "field" } },
   { id: "gv-orchard", name: "Orchard Ridge", zone: "greenvale", draft: true,
-    shape: ring([154, 48], [184, 46], [200, 62], [194, 80], [168, 82], [152, 66]),
+    shape: ring([115, 51], [150, 38], [189, 43], [182, 60], [148, 64], [140, 56]),
     identity: { biome: "orchard", tileset: "shire", encounterLean: "kobold-bandit", music: "field" } },
   { id: "gv-fields", name: "Bandit Fields", zone: "greenvale", draft: true,
-    shape: ring([130, 86], [166, 84], [186, 96], [176, 106], [148, 106], [128, 96]),
+    shape: ring([122, 99], [150, 86], [178, 78], [166, 100], [150, 111]),
     identity: { biome: "meadow", tileset: "shire", encounterLean: "bandit-mage", music: "field" } },
   { id: "gv-grove", name: "The Hidden Grove", zone: "greenvale", draft: true,
-    shape: ring([176, 70], [198, 72], [200, 88], [184, 98], [170, 86]),
+    shape: ring([150, 111], [166, 100], [178, 78], [182, 92], [182, 108]),
     identity: { biome: "forest", tileset: "shire", encounterLean: "rare-lair", music: "field" } },
   { id: "gv-warren-approach", name: "Warren Approach", zone: "greenvale", draft: true,
-    shape: ring([158, 84], [180, 88], [180, 102], [160, 102], [152, 92]),
+    shape: ring([189, 43], [208, 64], [204, 92], [182, 108], [182, 92], [178, 78], [150, 86], [148, 64], [182, 60]),
     identity: { biome: "plains", tileset: "shire", encounterLean: "miniboss-gate", music: "field" } },
 
-  // ── Silverwood (the Ancient Forest) — denser/darker old-growth. Fern hollows, heartwood crossing,
-  //    the canopy nook, the deep mossbed, and the Sunless-Grove-mouth approach. ──
-  { id: "sw-fern-hollows", name: "Fern Hollows", zone: "silverwood", draft: true,
-    shape: ring([252, 56], [282, 50], [292, 66], [286, 84], [262, 86], [248, 70]),
-    identity: { biome: "forest", tileset: "grove", encounterLean: "wolf-thornling", music: "forest" } },
+  // ── Silverwood (the Ancient Forest) — denser/darker old-growth, the same open mesh hushed by trees.
+  //    The west Heartwood Crossing (spawn + central crossing), the north Fern Hollows, the NE Canopy
+  //    Nook crest, the south Deep Mossbed (Mossback's lair), and the east Sunless-Grove Approach (the
+  //    Sunless Grove mouth). Tiled; seams are root-trails + the deep mossbed front. ──
   { id: "sw-heartwood", name: "Heartwood Crossing", zone: "silverwood", draft: true,
-    shape: ring([288, 54], [316, 56], [328, 72], [316, 88], [292, 84], [282, 68]),
+    shape: ring([238, 68], [244, 42], [284, 52], [282, 68], [274, 82], [256, 86]),
+    identity: { biome: "forest", tileset: "grove", encounterLean: "wolf-thornling", music: "forest" } },
+  { id: "sw-fern-hollows", name: "Fern Hollows", zone: "silverwood", draft: true,
+    shape: ring([244, 42], [286, 34], [318, 42], [306, 72], [282, 68], [284, 52]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "archer-wisp", music: "forest" } },
   { id: "sw-canopy", name: "Canopy Nook", zone: "silverwood", draft: true,
-    shape: ring([318, 50], [340, 56], [342, 74], [322, 84], [310, 66]),
+    shape: ring([318, 42], [328, 42], [352, 64], [324, 80], [306, 72]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "archer", music: "forest" } },
   { id: "sw-mossbed", name: "Deep Mossbed", zone: "silverwood", draft: true,
-    shape: ring([270, 88], [300, 88], [310, 96], [296, 102], [272, 98]),
+    shape: ring([238, 68], [256, 86], [274, 82], [290, 88], [316, 90], [319, 108], [284, 108], [254, 92]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "rare-lair", music: "forest" } },
   { id: "sw-grove-approach", name: "Sunless-Grove Approach", zone: "silverwood", draft: true,
-    shape: ring([300, 70], [322, 76], [320, 92], [300, 94], [292, 80]),
+    shape: ring([352, 64], [346, 92], [319, 108], [316, 90], [290, 88], [274, 82], [282, 68], [306, 72], [324, 80]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "miniboss-gate", music: "forest" } },
 
-  // ── The Duskmarsh — water-framed mire. Mire-head causeways, the central lagoon they loop around,
-  //    the sunken ruin (rare lair), and the Drowned-Vault-mouth landing. ──
+  // ── The Duskmarsh — water-framed mire. The west mire-head Causeways (spawn/fork, wrapping the north
+  //    & west banks), the Central Lagoon they loop around (open water, the finest pocket), the south
+  //    Sunken Ruin (the flooded ruin + rare Metal-Babble lair), and the east Drowned-Vault Approach
+  //    (the Drowned Vault mouth). Tiled; seams are the lagoon shore + the causeway banks. ──
   { id: "dm-causeways", name: "The Causeways", zone: "duskmarsh", draft: true,
-    shape: ring([150, 130], [178, 126], [192, 140], [186, 156], [160, 160], [146, 144]),
+    shape: ring([136, 138], [150, 122], [189, 119], [196, 134], [174, 138], [166, 160], [152, 166], [139, 163]),
     identity: { biome: "mire", tileset: "mire", encounterLean: "rat-spider", music: "field" } },
   { id: "dm-lagoon", name: "The Central Lagoon", zone: "duskmarsh", draft: true,
-    shape: ring([172, 140], [200, 142], [206, 158], [190, 172], [166, 166], [160, 150]),
+    shape: ring([174, 138], [192, 144], [188, 162], [166, 160]),
     identity: { biome: "water", tileset: "mire", encounterLean: "spider-leper", music: "field" } },
   { id: "dm-sunken-ruin", name: "The Sunken Ruin", zone: "duskmarsh", draft: true,
-    shape: ring([150, 158], [174, 158], [180, 170], [162, 176], [146, 166]),
+    shape: ring([139, 163], [152, 166], [166, 160], [188, 162], [176, 182], [160, 181]),
     identity: { biome: "ruin", tileset: "mire", encounterLean: "rare-lair", music: "field" } },
   { id: "dm-vault-approach", name: "Drowned-Vault Approach", zone: "duskmarsh", draft: true,
-    shape: ring([186, 150], [206, 154], [204, 170], [186, 172], [180, 158]),
+    shape: ring([189, 119], [213, 138], [213, 166], [191, 183], [176, 182], [188, 162], [192, 144], [174, 138], [196, 134]),
     identity: { biome: "mire", tileset: "mire", encounterLean: "miniboss-gate", music: "field" } },
 ];
 
