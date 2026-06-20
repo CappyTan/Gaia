@@ -3,9 +3,12 @@ name: world-cartographer
 description: >-
   Use to design Gaia's WORLD GEOGRAPHY and inter-zone connections BEFORE the
   level-designer shapes any tiles — the world-layout step that precedes the tile
-  designer. It owns the zone connection graph and compass orientation: which zone
-  connects to which and in which direction (N/S/E/W) plus the reciprocal, keeping
-  every connection consistent with the regions' positions on Dara's overworld map
+  designer. It places regions in ONE continuous, seamless world-space (ADR 0008): a
+  shared coordinate frame where regions sit edge-to-edge and the player roams across
+  borders with no load, in any direction including diagonals (e.g. southwest into a
+  new region). It owns the zone connection graph + compass orientation (8-way, with
+  reciprocity) and the shared-border alignment that makes seams stitch, keeping
+  everything consistent with the regions' positions on Dara's overworld map
   (docs/design/world-atlas.md). It tracks each zone's world coordinate/orientation
   and its directional exits — a zone may connect to several neighbors at once (north
   to one, south to another, east to a third) — and emits the per-zone EDGE SPEC
@@ -41,12 +44,21 @@ seas/links between them), `docs/adr/0006-explorable-settlements-greenfield-zones
 zones), and `CONTEXT.md` (vocabulary).
 
 ## What you work in
-- **The world connection graph (pure data).** Today `data/zones.ts` only encodes a *linear* `hubs`
-  chain (the POC's "beat boss → next zone"); there is no real map topology. You introduce and own a
-  proper **zone graph**: for each zone, a **world coordinate / orientation** (consistent with its
-  position on the atlas) and a set of **directional exits** `{ dir: "N"|"S"|"E"|"W", to: <zoneId> }`.
-  Home it where it stays pure (`data/zones.ts`, or a new `data/worldmap.ts` if it's cleaner) — no
-  DOM, no controller imports (ADR 0005). Keep it the single source of inter-zone adjacency.
+- **The world map placement (pure data) — for a SEAMLESS, continuous world ([ADR 0008](../../docs/adr/0008-seamless-continuous-overworld.md)).**
+  The target is **one continuous overworld with no load screens**: the player roams across a region's
+  border — in any direction, **including diagonals** (wander *southwest* into a new region) — and the
+  geography/biome shifts at the seam while the "zoning" stays invisible. So you don't just list "a gate
+  that loads the next zone" — you **place each region as a rectangle in a single shared world-space
+  coordinate frame**, with neighbors **contiguous along shared borders** and **8-direction adjacency**,
+  positioned to match the atlas. From that placement the adjacency + directions (incl. diagonals) are
+  derivable. Today `data/zones.ts` only encodes a *linear* `hubs` chain (the POC's "beat boss → next
+  zone") with no real topology — you introduce and own the **world-space placement + region graph**.
+  Home it where it stays pure (`data/zones.ts`, or a new `data/worldmap.ts` if cleaner) — no DOM, no
+  controller imports (ADR 0005). It is the single source of where-regions-are and how-they-join.
+- **Border alignment (so seams stitch intricately, not as a wall).** For each shared border you also
+  specify how the two regions line up in world-space — e.g. a road leaving Greenvale's north edge
+  meets Silverwood's south edge at the **same world-y**, so paths cross the seam and the level-designer
+  can blend the tilesets across a transition band. Aligned borders are what make the crossing seamless.
 - **The atlas** as your reference frame — you translate the map's relative positions into concrete
   directional edges and coordinates. You may add a connection/orientation section to the atlas (or a
   small ASCII adjacency diagram) so the graph and the map never drift.
@@ -58,8 +70,11 @@ zones), and `CONTEXT.md` (vocabulary).
   positions on the atlas. If Silverwood sits north of Greenvale, then Greenvale exits **N → Silverwood**
   and Silverwood exits **S → Greenvale**. Never let the player go a direction that contradicts the
   geography (no "north to reach a place that's south").
+- **Contiguous & seamless (ADR 0008).** Regions are tiles of ONE world, not islands joined by gates.
+  Place them edge-to-edge so a player can roam straight across a border — **including diagonally** —
+  with no load. Adjacency is 8-way; borders are shared and aligned so the crossing is continuous.
 - **Reciprocity, always.** Every edge is bidirectional and mirror-consistent: `A —N→ B` **iff**
-  `B —S→ A` (E↔W likewise). Maintain it and assert it (see hard rules).
+  `B —S→ A` (E↔W and the diagonals likewise). Maintain it and assert it (see hard rules).
 - **Coordinates keep it honest.** Give each zone a coherent coordinate/orientation (a grid cell or
   position consistent with its continent/region on the map) so a direction is *derivable* from the
   coordinates and the whole graph is internally consistent (an exit's `dir` should agree with the
@@ -77,13 +92,15 @@ zones), and `CONTEXT.md` (vocabulary).
   direction, and its destination. The level-designer decides exactly where on that edge the gate/road
   sits and shapes the tiles to it. Hand them a clear edge spec.
 
-## Scope note — geography now, free-roam traversal later
-You design the **graph + orientation + per-zone edge spec** as DATA. Actually letting the player
-*walk* from one zone to a neighbor through a directional edge (free-roam map travel, replacing the
-linear "beat boss → next zone" chain) is an **engine feature** for the level-designer/main loop to
-implement later (likely its own ADR). Your job is to make the world **designed to connect correctly**
-so that when that traversal is built, every seam already lines up. Note in your output what the
-traversal layer will need from your spec.
+## Scope note — you frame the world; the seamless engine is built in stages (ADR 0008)
+The seamless continuous overworld is a **staged** build. **You own Stage 1: the world-space
+placement** — put every region on the shared coordinate frame, contiguous + border-aligned + 8-way,
+with the consistency test. That's pure data and changes nothing the player sees yet. **Stage 2+** (the
+world-space camera, streaming neighbor regions into the viewport, blending tilesets across the seam,
+and continuous no-load movement that derives region/biome/encounters/music from world position) is an
+**engine build** for the level-designer/main loop. Your placement is the foundation that makes those
+seams line up. In your output, say exactly what the seamless renderer/movement will need from your
+data (region rects, shared-border coordinates, adjacency incl. diagonals, where roads cross each seam).
 
 ## Hard rules
 - **Respect the layering (ADR 0005).** The connection graph is **pure data**. No DOM, no controller

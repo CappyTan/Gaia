@@ -11,3 +11,5 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0004](0004-paper-doll-composition.md) | Layered paper-doll character composition (equip = swap a layer) |
 | [0005](0005-modular-ts-vite.md) | Modular TypeScript + Vite architecture (supersedes 0002's single-file build) |
 | [0006](0006-explorable-settlements-greenfield-zones.md) | Explorable settlements (real towns/cities with NPCs) & bespoke greenfield zones |
+| [0007](0007-versioned-save-resume.md) | Version-tolerant save & resume (autosave + Continue; id-based, graceful migration) |
+| [0008](0008-seamless-continuous-overworld.md) | Seamless continuous overworld — no-load region roaming (staged) |
