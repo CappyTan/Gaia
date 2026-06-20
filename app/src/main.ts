@@ -10,6 +10,7 @@ import { Battle } from "./controllers/battle";
 import { Field } from "./controllers/field";
 import { Screens } from "./controllers/screens";
 import { DataBrowser } from "./controllers/dataBrowser";
+import { WorldMapView } from "./controllers/worldMap";
 import { applyCurrent } from "./data/overrides";
 import { Overlay } from "./ui/overlay";
 import { Dialogue } from "./ui/dialogue";
@@ -18,7 +19,7 @@ import { Telemetry } from "./telemetry/telemetry";
 import { Save } from "./systems/save";
 
 // Publish controllers for the HTML's inline onclick handlers.
-Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, Overlay, Dialogue, Music, Telemetry, Save });
+Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, WorldMapView, Overlay, Dialogue, Music, Telemetry, Save });
 
 // Keyboard on the field: while a conversation is open, any movement/confirm key advances it;
 // otherwise the keys walk the map.

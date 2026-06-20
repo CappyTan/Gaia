@@ -54,10 +54,18 @@ Give each agent the **World Brief** + the prior step's output. Respect the estab
 each stage builds on a stable base. Launch genuinely independent agents **in parallel** (one message,
 multiple Agent calls); keep dependent stages sequential.
 
+**Phase A0 — Geography (where it sits + how it connects), FIRST:**
+- **`world-cartographer`** — set the macro geography before any tiles: place the region on the world
+  map (coordinate/orientation consistent with `world-atlas.md`), define its **connections to
+  neighbors** (which sides exit, in which compass direction — N/S/E/W — and to which zone, with
+  reciprocity; a region can connect to several), and emit the per-zone **edge spec** the level-designer
+  must honor. Pure data (the zone graph); verifies reciprocity + atlas-consistency. Do this before
+  Phase A so the space is shaped into a world that actually joins up.
+
 **Phase A — Foundation (space + skin), in parallel pairing:**
-- **`level-designer`** — shape the zone/dungeon: layout, tile composition, paths, gates, POIs,
-  treasure, soft-lock-free flow (`data/zones.ts`, `controllers/field.ts`). Defines any new tile
-  *kinds* and flags the sprites needed.
+- **`level-designer`** — shape the zone/dungeon **to the cartographer's edge spec** (exits/gate/spawn
+  on the specified edges): layout, tile composition, paths, gates, POIs, treasure, soft-lock-free flow
+  (`data/zones.ts`, `controllers/field.ts`). Defines any new tile *kinds* and flags the sprites needed.
 - **`art-integrator`** — paint/wire those tile kinds + any new sprites from Dara's reference sheets
   (palette + style consistency). Works alongside level-designer (kinds vs. pixels).
 

@@ -5,7 +5,7 @@ description: >-
   oversees the specialist agents so gameplay, sound, visuals, and lore all land in
   sync. It follows the `world-builder` skill (.claude/skills/world-builder/SKILL.md):
   writes one shared World Brief, dispatches the design/art/audio/narrative agents in
-  pipeline order (level-designer + art-integrator → encounter-designer →
+  pipeline order (world-cartographer → level-designer + art-integrator → encounter-designer →
   class/itemization-designer → requiem-canon-keeper → narrative-writer →
   audio-composer → balance-tuner), runs the canon/UX/code-review sync gates,
   integrates everything the specialists hand back, verifies (typecheck/test/build/
@@ -39,7 +39,8 @@ than commit — *you* are the one who assembles, verifies, and ships. So:
   agent is dispatched against it. No brief, no dispatch.
 - **Dispatch in pipeline order**, launching genuinely independent agents in parallel (one message,
   multiple Agent calls) and keeping dependent stages sequential:
-  `level-designer` (+`art-integrator`) → `encounter-designer` → `class-designer`/`itemization-designer`
+  `world-cartographer` (geography + zone connections/orientation) → `level-designer` (+`art-integrator`,
+  honoring the cartographer's edge spec) → `encounter-designer` → `class-designer`/`itemization-designer`
   (if the region needs them) → `requiem-canon-keeper` → `narrative-writer` → `audio-composer` →
   `balance-tuner`; with `ux-designer` and `code-reviewer` as the final quality gates.
 - **Run the sync gates between phases.** After each phase, check the work still honors the Brief —

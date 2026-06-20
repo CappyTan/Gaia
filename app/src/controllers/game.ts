@@ -132,7 +132,12 @@ export const Game = {
       Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
     } else {
       Field.enteredDungeon = r.enteredDungeon;
-      Field.resize(); Field.genMap();  // genMap sets px/py to the zone spawn
+      Field.resize();
+      // ADR 0008 Stage 2: a new-model zone saved INSIDE its dungeon rebuilds the dungeon grid;
+      // otherwise build the overworld (the mouth is enterable again if the mini was beaten). Legacy
+      // zones go through genMap → the combined grid as before.
+      if (Field.usesNewModel() && r.enteredDungeon) Field.genDungeon(Field.zoneIndex);
+      else Field.genMap();             // sets px/py to the spawn (overworld) / mode="overworld"
       Field.stepsToEncounter = ri(Field.ENC_MIN, Field.ENC_MAX);
       this.placePlayer(r.px, r.py);
       Screens.show("field"); Field.draw(); Field.hint();

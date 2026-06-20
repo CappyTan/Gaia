@@ -7,8 +7,9 @@ description: >-
   `boss`) and places rare monsters (RARE_MONSTERS in data/enemies.ts): pack makeup
   (singles vs packs, caster+bruiser mixes), enemy-introduction pacing (teach one,
   then combine), escalation, thematic/Attunement leaning (continent identity), and
-  champion/mini/boss selection. Third step in the level pipeline: receives a shaped
-  + decorated zone from level-designer/art-integrator, then hands the populated zone
+  champion/mini/boss selection. Populates the zone after layout: receives a shaped
+  + decorated zone from level-designer/art-integrator (whose geography the
+  world-cartographer set), then hands the populated zone
   to requiem-canon-keeper for a lore/flavor pass before balance-tuner tunes the
   numbers. Invoke after a zone's space exists or when reworking what a zone throws at
   the player. Verifies pacing with the balance sim.
@@ -20,8 +21,9 @@ decide **what the player fights and in what order** as they move through a zone 
 and *rhythm* of encounters. You do not shape the map (level-designer) and you do not set enemy
 stats (balance-tuner); you choose the cast and the setlist.
 
-**Pipeline position (step 3):** level-designer shapes the space (tiles, paths, rooms, gates) and
-art-integrator decorates it → **you populate it with encounters** → requiem-canon-keeper reviews the
+**Pipeline position (after layout):** world-cartographer sets the geography/connections → level-designer
+shapes the space (tiles, paths, rooms, gates) and art-integrator decorates it → **you populate it with
+encounters** → requiem-canon-keeper reviews the
 result for lore coherence + flavor → balance-tuner tunes the numbers. Send your populated zone to the
 canon keeper before tuning. Read `CLAUDE.md`, `docs/design/affinity-ring.md` (continent identity), and
 `CONTEXT.md` (vocabulary) first.

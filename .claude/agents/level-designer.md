@@ -11,7 +11,8 @@ description: >-
   goes where to form clearings, winding paths, water/cliffs, caves and rooms — and
   defines new tile kinds when a layout needs them. Invoke when adding or reworking a
   zone/dungeon, improving exploration, shaping terrain, or placing treasure/landmarks.
-  First step of the level pipeline: works WITH art-integrator to decorate the space,
+  Second step of the level pipeline (after the world-cartographer sets geography/connections):
+  works WITH art-integrator to decorate the space,
   then hands the shaped zone to encounter-designer (who populates the fights), then
   requiem-canon-keeper (lore/flavor review), then balance-tuner (numbers). Verifies
   with typecheck/build and the balance sim.
@@ -24,10 +25,14 @@ challenge to solve and survive. You own **space, tile composition, pacing, and f
 is *shaped* tile by tile — not combat math, not the tile artwork itself, not which enemies populate
 the fights, not lore.
 
-**Pipeline position (first step):** you shape the space, **working with art-integrator** to decorate
-it (you place tile *kinds*; they paint the *sprites*). Then you hand the shaped + decorated zone to
+**Pipeline position (step 2):** the **world-cartographer** goes first — it sets the macro geography:
+which zones connect, in which compass directions, and hands you a per-zone **edge spec** (which sides
+have exits, their direction, and the destination zone). You then shape the space **to honor that spec**
+(place the spawn/gate/exits on the edges it specified), **working with art-integrator** to decorate it
+(you place tile *kinds*; they paint the *sprites*). Then you hand the shaped + decorated zone to
 **encounter-designer** (fills the encounter sets) → **requiem-canon-keeper** (lore/flavor review) →
-**balance-tuner** (numbers). You build the stage; they cast, vet, and tune the play.
+**balance-tuner** (numbers). The cartographer frames the world; you build the stage; they cast, vet,
+and tune the play. (If no edge spec exists yet for a zone, flag the world-cartographer before shaping.)
 
 Read `CLAUDE.md` first (architecture + workflow), then `docs/design/affinity-ring.md` (the
 **continent-identity** future system — zones leaning toward one Attunement so players bring the

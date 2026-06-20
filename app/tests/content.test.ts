@@ -6,29 +6,76 @@ import { DB } from "../src/data/db";
 import { validateContent } from "../src/data/validate";
 import { ARCHETYPE_KEYS } from "../src/data/party";
 import { ATTUNEMENTS } from "../src/types";
-import { ZONES, type ZoneLayout, type Pt } from "../src/data/zones";
+import { ZONES, type Zone, type ZoneLayout, type DungeonLayout, type Pt } from "../src/data/zones";
 import { SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, settlement } from "../src/data/towns";
 
+// ── COMBINED-GRID carve (legacy genMap path) ─────────────────────────────────────────────────
 // Mirror of controllers/field.genMap's carve (WITHOUT the repair pass) so the test proves each
-// authored zone layout is ALREADY soft-lock-free by design — the boss + every chest/lair reachable
-// from spawn — not just rescued by the runtime flood-fill repair. (ADR 0006 anti-soft-lock rule.)
-function carveZone(L: ZoneLayout): string[][] {
+// authored zone is ALREADY soft-lock-free by design — boss + every chest/lair reachable from spawn
+// — not just rescued by the runtime flood-fill repair. (ADR 0006 anti-soft-lock rule.) After ADR
+// 0008 Stage 2 the dungeon is its own grid (`z.dungeon.layout`, x rebased to 0); this reconstructs
+// the SAME combined grid genMap still builds by stamping the dungeon east of gateWallX (dx0).
+function carveZone(z: Zone): string[][] {
+  const L: ZoneLayout = z.layout, D: DungeonLayout = z.dungeon.layout;
+  const dx0 = L.gateWallX;
+  const offPt = (q: Pt): Pt => ({ x: q.x + dx0, y: q.y });
+  const offR = (r: { x: number; y: number; w: number; h: number }) => ({ ...r, x: r.x + dx0 });
   const map = Array.from({ length: L.h }, () => Array.from({ length: L.w }, () => "tree"));
   const inB = (x: number, y: number) => x > 0 && y > 0 && x < L.w - 1 && y < L.h - 1;
   const c = (x: number, y: number, k: string) => { if (inB(x, y)) map[y][x] = k; };
   const rect = (r: { x: number; y: number; w: number; h: number }) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) c(x, y, "grass"); };
-  L.fieldRects.forEach(rect); L.dunRects.forEach(rect);
+  L.fieldRects.forEach(rect); L.dunRects.forEach(rect); D.rooms.map(offR).forEach(rect);
   const seg = (a: Pt, b: Pt) => { let x = a.x, y = a.y; c(x, y, "path"); while (x !== b.x) { x += Math.sign(b.x - x); c(x, y, "path"); } while (y !== b.y) { y += Math.sign(b.y - y); c(x, y, "path"); } };
   const path = (p: Pt[]) => { for (let i = 1; i < p.length; i++) seg(p[i - 1], p[i]); };
-  L.fieldPaths.forEach(path); L.dunPaths.forEach(path);
+  L.fieldPaths.forEach(path); L.dunPaths.forEach(path); D.paths.map((p) => p.map(offPt)).forEach(path);
   for (let y = 1; y < L.h - 1; y++) map[y][L.gateWallX] = "tree";
   c(L.gateWallX - 1, L.gate.y, "path"); c(L.gateWallX + 1, L.gate.y, "path"); map[L.gate.y][L.gateWallX] = "miniboss";
   // hard-blocking water pools stamped over carved ground (marsh) — mirrors genMap step 5b.
   if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y) && map[y][x] !== "miniboss") map[y][x] = "water";
+  const chests = [...L.chests, ...D.chests.map(offPt)];
+  const boss = offPt(D.boss);
+  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && (map[yy][xx] === "tree" || map[yy][xx] === "water")) map[yy][xx] = "grass"; } };
+  chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
+  if (L.lair) { halo(L.lair); c(L.lair.x, L.lair.y, "lair"); }
+  c(boss.x, boss.y, "boss"); c(L.spawn.x, L.spawn.y, "path");
+  return map;
+}
+
+// ── OVERWORLD-ONLY carve (ADR 0008 Stage 2, step 3 — Greenvale's genOverworld) ────────────────
+// The decoupled overworld grid: field rects/paths, the dungeon MOUTH POI (no gate wall east of it),
+// chests + lair. Proves the overworld alone reaches the mouth + every overworld chest/lair.
+function carveOverworld(L: ZoneLayout): string[][] {
+  const map = Array.from({ length: L.h }, () => Array.from({ length: L.w }, () => "tree"));
+  const inB = (x: number, y: number) => x > 0 && y > 0 && x < L.w - 1 && y < L.h - 1;
+  const c = (x: number, y: number, k: string) => { if (inB(x, y)) map[y][x] = k; };
+  const rect = (r: { x: number; y: number; w: number; h: number }) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) c(x, y, "grass"); };
+  L.fieldRects.forEach(rect);
+  const seg = (a: Pt, b: Pt) => { let x = a.x, y = a.y; c(x, y, "path"); while (x !== b.x) { x += Math.sign(b.x - x); c(x, y, "path"); } while (y !== b.y) { y += Math.sign(b.y - y); c(x, y, "path"); } };
+  const path = (p: Pt[]) => { for (let i = 1; i < p.length; i++) seg(p[i - 1], p[i]); };
+  L.fieldPaths.forEach(path);
+  if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y)) map[y][x] = "water";
   const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && (map[yy][xx] === "tree" || map[yy][xx] === "water")) map[yy][xx] = "grass"; } };
   L.chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
   if (L.lair) { halo(L.lair); c(L.lair.x, L.lair.y, "lair"); }
-  c(L.boss.x, L.boss.y, "boss"); c(L.spawn.x, L.spawn.y, "path");
+  halo(L.mouth); c(L.mouth.x, L.mouth.y, "miniboss"); c(L.spawn.x, L.spawn.y, "path");
+  return map;
+}
+
+// ── DUNGEON-ONLY carve (ADR 0008 Stage 2, step 3 — Greenvale's genDungeon) ────────────────────
+// The decoupled dungeon grid: rooms/paths from the dungeon's own coords (x from 0), boss + chests.
+// Proves the dungeon alone reaches its boss + every dungeon chest from the entry.
+function carveDungeon(D: DungeonLayout): string[][] {
+  const map = Array.from({ length: D.h }, () => Array.from({ length: D.w }, () => "tree"));
+  const inB = (x: number, y: number) => x > 0 && y > 0 && x < D.w - 1 && y < D.h - 1;
+  const c = (x: number, y: number, k: string) => { if (inB(x, y)) map[y][x] = k; };
+  const rect = (r: { x: number; y: number; w: number; h: number }) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) c(x, y, "grass"); };
+  D.rooms.forEach(rect);
+  const seg = (a: Pt, b: Pt) => { let x = a.x, y = a.y; c(x, y, "path"); while (x !== b.x) { x += Math.sign(b.x - x); c(x, y, "path"); } while (y !== b.y) { y += Math.sign(b.y - y); c(x, y, "path"); } };
+  const path = (p: Pt[]) => { for (let i = 1; i < p.length; i++) seg(p[i - 1], p[i]); };
+  D.paths.forEach(path);
+  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && map[yy][xx] === "tree") map[yy][xx] = "grass"; } };
+  D.chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
+  c(D.boss.x, D.boss.y, "boss"); c(D.entry.x, D.entry.y, "path");
   return map;
 }
 function reachable(map: string[][], start: Pt): boolean[][] {
@@ -77,43 +124,75 @@ describe("DB registry", () => {
   });
 });
 
-describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock)", () => {
+describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock; ADR 0008 — dungeon decoupled)", () => {
   for (const z of ZONES) {
     describe(z.name, () => {
-      const L = z.layout;
+      const L = z.layout, D = z.dungeon.layout;
+      const dx0 = L.gateWallX; // rebase offset: dungeon-local x → combined-grid x
+      // The COMBINED-grid coords of the dungeon boss + all chests (for the legacy genMap path tests).
+      const combinedBoss = { x: D.boss.x + dx0, y: D.boss.y };
+      const combinedChests = [...L.chests, ...D.chests.map((c) => ({ x: c.x + dx0, y: c.y }))];
       it("has a layout with in-bounds, sensibly-sided anchors", () => {
         expect(L).toBeTruthy();
         const inb = (p: Pt) => p.x > 0 && p.y > 0 && p.x < L.w - 1 && p.y < L.h - 1;
         expect(inb(L.spawn)).toBe(true);
-        expect(inb(L.boss)).toBe(true);
-        expect(L.chests.every(inb)).toBe(true);
-        expect(L.spawn.x).toBeLessThan(L.gateWallX);   // start is in the overworld
-        expect(L.boss.x).toBeGreaterThan(L.gateWallX);  // boss is in the dungeon
+        expect(L.chests.every(inb)).toBe(true);              // overworld chests in-bounds
+        expect(L.spawn.x).toBeLessThan(L.gateWallX);         // start is in the overworld
         expect(L.gate.x).toBe(L.gateWallX);
+        expect(L.mouth).toEqual(L.gate);                     // the dungeon mouth == the old gate tile
+        // dungeon grid: its own anchors in-bounds (x rebased to 0)
+        const dinb = (p: Pt) => p.x > 0 && p.y > 0 && p.x < D.w - 1 && p.y < D.h - 1;
+        expect(dinb(D.boss)).toBe(true);
+        expect(D.chests.every(dinb)).toBe(true);
+        expect(dinb(D.entry)).toBe(true);                    // entry is an in-bounds walkable tile (just inside the mouth)
+        expect(D.entry.x).toBe(1);                           // on the dungeon's west edge (the mouth's inside)
       });
-      it("is fully traversable — boss + every chest/lair reachable from spawn (no soft-lock)", () => {
-        const map = carveZone(L);
+      it("LEGACY combined grid is fully traversable — boss + every chest/lair reachable from spawn", () => {
+        const map = carveZone(z);
         const seen = reachable(map, L.spawn);
-        expect(seen[L.boss.y][L.boss.x]).toBe(true);
-        for (const ch of L.chests) expect(seen[ch.y][ch.x]).toBe(true);
+        expect(seen[combinedBoss.y][combinedBoss.x]).toBe(true);
+        for (const ch of combinedChests) expect(seen[ch.y][ch.x]).toBe(true);
         if (L.lair) expect(seen[L.lair.y][L.lair.x]).toBe(true);
       });
       // OPEN-WORLD (Dara 2026-06-20): a zone must be a NETWORK with loops, not a spine. Prove it by
       // counting REDUNDANT through-routes — paths whose individual removal still leaves the boss
       // reachable. A pure spine/tree has ZERO redundant carriers (cut any link → severed); a mesh
-      // with loops has several. Require ≥2 redundant carriers on BOTH sides of the gate (overworld
-      // and dungeon), i.e. genuine alternate routes that rejoin — "could you draw it as one trunk? no".
-      const reachWithoutPath = (which: "fieldPaths" | "dunPaths", idx: number): boolean => {
-        const clone: ZoneLayout = JSON.parse(JSON.stringify(L));
-        clone[which].splice(idx, 1);
-        const seen = reachable(carveZone(clone), clone.spawn);
-        return !!seen[L.boss.y]?.[L.boss.x];
+      // with loops has several. Require ≥2 redundant carriers on BOTH sides of the gate.
+      const reachCombinedWithout = (side: "field" | "dun", idx: number): boolean => {
+        const zc: Zone = JSON.parse(JSON.stringify(z));
+        if (side === "field") zc.layout.fieldPaths.splice(idx, 1);
+        else zc.dungeon.layout.paths.splice(idx, 1);
+        const seen = reachable(carveZone(zc), zc.layout.spawn);
+        return !!seen[combinedBoss.y]?.[combinedBoss.x];
       };
-      const redundant = (which: "fieldPaths" | "dunPaths") =>
-        L[which].reduce((n, _p, i) => n + (reachWithoutPath(which, i) ? 1 : 0), 0);
+      const redundant = (side: "field" | "dun") =>
+        (side === "field" ? L.fieldPaths : D.paths).reduce((n, _p, i) => n + (reachCombinedWithout(side, i) ? 1 : 0), 0);
       it("is an OPEN-WORLD network — multiple loop-redundant routes overworld AND dungeon (not a spine)", () => {
-        expect(redundant("fieldPaths")).toBeGreaterThanOrEqual(2); // ≥2 alternate overworld routes
-        expect(redundant("dunPaths")).toBeGreaterThanOrEqual(2);   // ≥2 alternate dungeon arms
+        expect(redundant("field")).toBeGreaterThanOrEqual(2); // ≥2 alternate overworld routes
+        expect(redundant("dun")).toBeGreaterThanOrEqual(2);   // ≥2 alternate dungeon arms
+      });
+    });
+  }
+});
+
+// ── ADR 0008 Stage 2 (GREENVALE-first): the decoupled overworld + dungeon each stand alone with no
+// soft-lock. Greenvale runs the new genOverworld/genDungeon path; the model is uniform for all zones
+// (Silverwood/Duskmarsh stay on the legacy combined path until Chunk B), so we assert the split for
+// every zone's data while the runtime only USES it for Greenvale.
+describe("ADR 0008 — decoupled overworld + dungeon (no soft-lock)", () => {
+  for (const z of ZONES) {
+    describe(z.name, () => {
+      const L = z.layout, D = z.dungeon.layout;
+      it("overworld alone reaches the dungeon MOUTH + every overworld chest/lair from spawn", () => {
+        const seen = reachable(carveOverworld(L), L.spawn);
+        expect(seen[L.mouth.y][L.mouth.x], "mouth reachable").toBe(true);
+        for (const ch of L.chests) expect(seen[ch.y][ch.x]).toBe(true);
+        if (L.lair) expect(seen[L.lair.y][L.lair.x]).toBe(true);
+      });
+      it("dungeon alone reaches its BOSS + every dungeon chest from the entry", () => {
+        const seen = reachable(carveDungeon(D), D.entry);
+        expect(seen[D.boss.y][D.boss.x], "boss reachable").toBe(true);
+        for (const ch of D.chests) expect(seen[ch.y][ch.x]).toBe(true);
       });
     });
   }
