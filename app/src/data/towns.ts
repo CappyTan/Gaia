@@ -143,10 +143,10 @@ const MIREGARD: Settlement = {
   name: "Miregard",
   theme: "marsh",
   intro:
-    "Miregard clings to the edge of the Duskmarsh on rotting stilts — plank walks over black water, " +
-    "lanterns guttering against a fog that never quite lifts. Folk here speak low and lock their " +
-    "doors at dusk. Rest, trade, gird yourself. Beyond the east gate the marsh is waiting, and it " +
-    "is patient.",
+    "Miregard hangs on rotting stilts at the lip of the Duskmarsh — plank walks over black water, " +
+    "lanterns guttering in a fog that never lifts. The folk who stayed speak low and bar their " +
+    "doors at dusk. Rest while there's a roof; trade while there's coin; mend at the shrine. " +
+    "Past the east gate the marsh is waiting. It has nowhere else to be.",
   // 25 wide × 16 tall. Dead-timber palisade rings it; 'E' is the EAST gate onto the marsh. Plank
   // boardwalks ('=') run an H over black bog ('~'); the four services sit on the cross-walks; stilt-
   // houses ('h'), lantern posts ('L') and dead trees ('t') dress the water. NPCs stand at the water's
@@ -174,26 +174,26 @@ const MIREGARD: Settlement = {
   npcs: [
     { id: "warden", name: "Marsh-Warden Coll", spr: "🪖", x: 10, y: 7,
       lines: [
-        "You came up the dry road from Greenvale, then. Wish I had better news for the welcome.",
-        "The marsh has been wrong of late. The water rises where it shouldn't, and things move under it that didn't used to. We've lost three patrols to the Drowned Vault.",
-        "If you mean to go east — and I see that you do — keep to the causeway. Step off the planks into the bog and the Duskmarsh keeps you.",
+        "Came up the dry road from Greenvale, did you. Welcome to the wet end of nowhere.",
+        "The marsh has turned wrong this season. Water climbs where it never climbed, and things stir under it that ought to stay still. Three patrols I sent toward the Drowned Vault. I'm still waiting on all three.",
+        "You're set on going east — I know the look. Then heed me: keep to the planks. Step off the causeway into that bog, and the Duskmarsh doesn't give you back.",
       ] },
     { id: "healer", name: "Old Mother Sedge", spr: "🧙", x: 18, y: 11,
       lines: [
-        "Come close, child, into the lantern-light. The fog likes to take faces it doesn't know.",
-        "I tend what the marsh leaves behind — fever, rot, the slow grey sickness the lepers carry. The shrine there will mend your fallen better than these old hands can.",
-        "There's a Broodmother spinning in the dark before the Vault. And under her, the troll. Old as the mire, and twice as hateful. Go heavy, or don't go.",
+        "Come into the lantern-light where I can see you, child. The fog's fond of faces it hasn't learned yet. Don't give it yours.",
+        "I tend what the marsh leaves on my step — fever, rot, the slow grey sickness the lepers carry up from the water. Your fallen? Lay them at the shrine. It works deeper than these old hands.",
+        "There's a Broodmother out there, spinning the dark before the Vault. And below her, the troll — old as the mire and twice as spiteful. Go heavy, or go home. Sedge has buried braver than you.",
       ] },
     { id: "trader", name: "Stranded Jeb", spr: "🧑‍🌾", x: 18, y: 2,
       lines: [
-        "Marooned, that's what I am. Came to sell to the marsh-folk and now the only road out runs through THAT.",
-        "Tell you what — my loss is your luck. I'll part with my stock cheap as I dare, just so it's not rotting in my cart when the water comes for it.",
-        "You hear singing out on the water at night, you don't answer it. That's the one rule of Miregard. The other is: pay your tab at the inn.",
+        "Marooned, that's the word for me. Rolled in to sell to the marsh-folk, and now the only road out runs straight through THAT. Should've trusted the fog when it told me to turn around.",
+        "Here's the bright side, friend — my misfortune's your bargain. I'll let the stock go cheap as I dare, sooner than watch it rot in the cart when the water comes up for it.",
+        "Two rules in Miregard. One: you hear singing on the water after dark, you do not answer it. Two: settle your tab at the inn. Both'll keep you breathing, in their way.",
       ] },
     { id: "fisher", name: "Wynn the Bog-Fisher", spr: "🧓", x: 13, y: 8,
       lines: [
-        "Pulled something up in my nets last week weren't no fish. Threw it back fast as I could. Some catches you don't keep.",
-        "There's good steel rusting out in the ruins, they say — the old sunken stones south of the causeway. Brave soul might come back rich. Braver one might not come back.",
+        "Hauled up my nets last week. What was in them weren't fish. Cut the line and let it sink. Some catches you leave to the water.",
+        "Good steel's down there, rusting in the dark — sunken stones south of the causeway, the marsh swallowed whole. A bold soul comes back rich off it. Bolder one don't come back. I fish where it's shallow.",
       ] },
   ],
 };
