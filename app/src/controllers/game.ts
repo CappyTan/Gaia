@@ -10,6 +10,8 @@ import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtRarity, itemScore } from "../systems/loot";
+import { Save } from "../systems/save";
+import { GAME_VERSION } from "../data/version";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Screens } from "./screens";
@@ -79,7 +81,89 @@ export const Game = {
     this._hubChain = hubsFor(ZONES[0]); this._hubIx = 0;
     this.openTown(this._hubChain[0] ?? "hearthford"); // the starting zone's own front-door village
   },
+
+  // ── SAVE & RESUME (ADR 0007) ───────────────────────────────────────────────────────────────
+  // Autosave the live run to the single localStorage slot. Called on meaningful transitions
+  // (battle resolved, enter/leave town, zone change, equip change). Cheap + silent; the pure
+  // serialize/validate lives in systems/save.ts. Never saves the title screen / a dead run.
+  saveNow(): void {
+    if (this.state === "title" || !this.party.length) return;
+    Save.save({
+      gold: this.gold, steps: this.steps, encountersWon: this.encountersWon,
+      bossDefeated: this.bossDefeated, miniBossDefeated: this.miniBossDefeated,
+      party: this.party, inventory: this.inventory, defs: this._lastDefs,
+      inTown: this._inTown, startVillage: this._startVillage,
+      hubChain: this._hubChain, hubIx: this._hubIx,
+      zoneIndex: Field.zoneIndex,
+      townId: this._inTown ? (Field.town?.id ?? this._hubChain[this._hubIx] ?? null) : null,
+      px: Field.px, py: Field.py, enteredDungeon: Field.enteredDungeon,
+    }, GAME_VERSION);
+  },
+  // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
+  // run state, then drops the player back on the field / in town (NEVER mid-battle, ADR 0007 §5).
+  // If the save can't be salvaged, falls back to a fresh roster with a notice.
+  continueRun(): void {
+    const r = Save.load();
+    if (!r) {
+      Save.clear();
+      Overlay.show(`<h2 class="title-gold">No run to resume</h2>
+        <p class="small">Your saved run couldn't be loaded — starting fresh.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide();Roster.open()">Build a party</button>
+          <button class="btn" onclick="Overlay.hide()">Home</button></div>`);
+      return;
+    }
+    // install run state
+    this._lastDefs = r.defs;
+    this.gold = r.gold; this.steps = r.steps; this.encountersWon = r.encountersWon;
+    this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
+    this.party = r.party; this.inventory = r.inventory;
+    this.continueAfterBattle = null; this._inMerchant = false;
+    this._inTown = r.inTown; this._startVillage = r.startVillage;
+    this._hubChain = r.hubChain; this._hubIx = r.hubIx;
+    recalc(this.party); // refold gear/MNA (hp/mp/alive already restored, _init guards the refill)
+    Telemetry.load(); Telemetry.startSession();
+    // build the field for the saved zone, then place the player.
+    Field.init();                      // canvas + tiles + zone 0 baseline
+    Field.zoneIndex = r.zoneIndex;
+    if (r.inTown && r.townId) {
+      this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
+      Field.genTown(r.townId);
+      this.placePlayer(r.px, r.py);
+      Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
+    } else {
+      Field.enteredDungeon = r.enteredDungeon;
+      Field.resize(); Field.genMap();  // genMap sets px/py to the zone spawn
+      Field.stepsToEncounter = ri(Field.ENC_MIN, Field.ENC_MAX);
+      this.placePlayer(r.px, r.py);
+      Screens.show("field"); Field.draw(); Field.hint();
+    }
+    const noteHtml = r.notes.length ? `<p class="small" style="opacity:.8">${r.notes.join("<br>")}</p>` : "";
+    Overlay.show(`<h2 class="title-gold">Welcome back</h2>
+      <p class="small">Your run resumes — party, gear, and gold intact.</p>${noteHtml}
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Continue</button></div>`);
+  },
+  // Place the player at the saved tile IF it's passable on the (possibly changed) map; otherwise
+  // leave them at the zone/town spawn genMap/genTown already set — never strand them in a wall.
+  placePlayer(px: number, py: number): void {
+    if ((px || py) && Field.passable(px, py)) { Field.px = px; Field.py = py; }
+  },
+  // Start a NEW run from the title — opens the Roster picker. Confirms first if a resumable run
+  // exists (so the player doesn't accidentally overwrite their save), then clears the slot.
+  newGame(): void {
+    if (Save.hasSave()) {
+      Overlay.show(`<h2 class="title-gold">Start a new run?</h2>
+        <p class="small">You have a saved run in progress. Starting fresh will overwrite it.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide();Save.clear();Roster.open()">New run</button>
+          <button class="btn" onclick="Overlay.hide();Game.continueRun()">Resume instead</button>
+          <button class="btn" onclick="Overlay.hide()">Cancel</button></div>`);
+      return;
+    }
+    window.Roster.open();
+  },
+  // Whether the title screen should offer Continue (a valid save exists).
+  hasSave(): boolean { return Save.hasSave(); },
   gameOver(): void {
+    Save.clear(); // the run is over — don't offer a dead party to resume
     Telemetry.endSession("wipe");
     Screens.show("title");
     Overlay.show(`
@@ -89,6 +173,7 @@ export const Game = {
       <button class="btn" onclick="Overlay.hide()">Home</button></div>`);
   },
   victory(): void {
+    Save.clear(); // run complete — nothing to resume
     this.bossDefeated = true; this._inMerchant = false; this._inTown = false;
     Telemetry.boss("win"); Telemetry.endSession("victory");
     Screens.show("title");
@@ -110,6 +195,7 @@ export const Game = {
     this._inTown = true; this._inMerchant = false;
     this.rollMerchantStock(); // stock is rolled once per town visit (no reroll by re-entering the shop)
     Field.enterTown(id);
+    this.saveNow(); // autosave on entering a settlement (ADR 0007)
   },
   // After a zone boss falls (battle.ts), begin walking the NEXT zone's hub chain — the ordered
   // settlements the player passes through before that zone loads (e.g. Riverhearth → Miregard before
@@ -221,12 +307,12 @@ export const Game = {
   leaveTown(): void {
     this._inTown = false; this._inMerchant = false; Field.townMode = false;
     Overlay.hide();
-    if (this._startVillage) { this._startVillage = false; Field.enterZoneFromVillage(); return; }
+    if (this._startVillage) { this._startVillage = false; Field.enterZoneFromVillage(); this.saveNow(); return; }
     // Advance the hub chain: if another settlement remains, walk into it; else load the next zone.
     const nextHub = this._hubChain[this._hubIx + 1];
-    if (nextHub) { this._hubIx++; this.openTown(nextHub); Field.draw(); return; }
+    if (nextHub) { this._hubIx++; this.openTown(nextHub); Field.draw(); return; } // openTown saves
     if (Field.isLastZone()) this.victory();
-    else Field.loadZone(Field.zoneIndex + 1);
+    else { Field.loadZone(Field.zoneIndex + 1); this.saveNow(); } // autosave on zone change (ADR 0007)
   },
   restartFromTown(): void {
     this._inTown = false; this._inMerchant = false; Field.townMode = false;

@@ -259,7 +259,8 @@
       <span class="pw" style="color:#888">UMBRAXIS</span>
     </div>
     <div class="row" style="margin-top:10px">
-      <button class="btn gold" onclick="Roster.open()">Enter Greenvale</button>
+      <button class="btn gold" id="continueBtn" style="display:none" onclick="Game.continueRun()">Continue</button>
+      <button class="btn gold" onclick="Game.newGame()">Enter Greenvale</button>
       <button class="btn" onclick="DataBrowser.show()">Data</button>
       <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
       <button class="btn mutebtn" title="Music on/off" onclick="Music.unlock();Music.toggleMute()">🔊</button>
