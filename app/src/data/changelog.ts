@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.44", t: "Crash-proof telemetry — your in-progress run is now mirrored as you play, so a crash or closed tab no longer loses it: the next time you open the game it quietly recovers that run and sends it to the repo. Finished runs still auto-save as before." },
   { v: "v0.43", t: "Battle-screen layout pass — bigger battlefield, slimmer command/roster bar (70/30 split); hero bars sit flush at the bottom edge; heroes clustered closer together; names removed from the field sprites and the roster reordered (Auren · Sephi · Kaela · Liora · Rion); fresh Greenvale plains backdrop." },
   { v: "v0.42", t: "The Greenvale Outpost is now a real, walkable town — you roam a cobbled plaza and step up to each building to use it: the Inn (free rest), the Merchant (Supplies), the Smith, and the Revive shrine, then the south gate to head on. Replaces the menu-style hub." },
   { v: "v0.41", t: "First town — the Greenvale Outpost hub now sits between zones (in place of the bare merchant): Rest & Recover (free full heal), Visit Merchant, Revive Fallen, Character Status, Head Back Out, Start Over — plus a Smith placeholder for crafting to come." },

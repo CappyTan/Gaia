@@ -25,17 +25,46 @@ interface Session {
 
 export const Telemetry = {
   key: "gaia_telemetry_v1",
+  liveKey: "gaia_telemetry_live_v1", // the IN-PROGRESS run, mirrored here so a crash doesn't lose it
   s: null as Session | null,
   all: [] as Session[],
   _encStart: 0,
   _encBoss: false,
   _eliteThisFight: false,
+  _lastPersist: 0,
 
   load(): void {
     try { this.all = JSON.parse(localStorage.getItem(this.key) || "[]") || []; } catch { this.all = []; }
+    this._recoverLive(); // rescue + auto-send a run a crash left behind
   },
   save(): void {
     try { localStorage.setItem(this.key, JSON.stringify(this.all.slice(-50))); } catch { /* ignore */ }
+  },
+  // Mirror the live session to localStorage. Throttled (high-frequency callers pass nothing; an
+  // event worth capturing exactly passes force=true) so a mid-run crash leaves a recent snapshot.
+  _persist(force = false): void {
+    if (!this.s) return;
+    const now = Date.now();
+    if (!force && now - this._lastPersist < 2000) return;
+    this._lastPersist = now;
+    try { localStorage.setItem(this.liveKey, JSON.stringify(this.s)); } catch { /* ignore */ }
+  },
+  _clearLive(): void { try { localStorage.removeItem(this.liveKey); } catch { /* ignore */ } },
+  // On load, if a live session was left mirrored (a crash/abandoned tab — no clean endSession ran),
+  // close it as reason:"recovered", record it, and fire it to the repo so the run isn't lost.
+  _recoverLive(): void {
+    if (this.s) return; // an active run owns the live slot
+    let live: Session | null = null;
+    try { const raw = localStorage.getItem(this.liveKey); live = raw ? JSON.parse(raw) : null; } catch { live = null; }
+    if (!live) return;
+    this._clearLive();
+    if (this.all.some((x) => x.id === live!.id)) return;       // already recorded
+    if ((live.encounters || 0) === 0 && (live.steps || 0) < 3) return; // trivial — ignore
+    live.end = live.end || Date.now();
+    live.durationMs = (live.end as number) - live.start;
+    live.reason = "recovered";
+    this.all.push(live); this.save();
+    this._autosave(live); // send the rescued run to the repo (one POST — crash-safe, not flooding)
   },
   startSession(): void {
     this.endSession("restart"); // close any dangling session
@@ -45,13 +74,15 @@ export const Telemetry = {
       dmgDealt: 0, dmgTaken: 0, partyHits: 0, crits: 0, affinityBonus: 0, affinityResist: 0,
       drops: zeroDrops(), dropTotal: 0, levelups: 0, gold: 0, bossResult: null, timeToBossMs: null, encMs: [],
     };
+    this._persist(true);
   },
-  step(): void { if (this.s) this.s.steps++; },
+  step(): void { if (this.s) { this.s.steps++; this._persist(); } },
   encounterStart(set: string[], _env: string, boss: boolean): void {
     if (!this.s) return;
     this.s.encounters++; this._encStart = Date.now(); this._encBoss = boss;
     if (set.length && this._eliteThisFight) this.s.eliteFights++;
     this._eliteThisFight = false;
+    this._persist(true);
   },
   noteElite(): void { if (this.s) this._eliteThisFight = true; },
   encounterEnd(result: "won" | "fled" | "wipe"): void {
@@ -61,6 +92,7 @@ export const Telemetry = {
     if (result === "won") this.s.won++;
     else if (result === "fled") this.s.fled++;
     else if (result === "wipe") this.s.wipes++;
+    this._persist(true);
   },
   dmg(fromSide: "party" | "enemy", amt: number, crit: boolean, mult: number): void {
     if (!this.s) return;
@@ -70,13 +102,14 @@ export const Telemetry = {
       if (mult > 1) this.s.affinityBonus++;
       else if (mult < 1) this.s.affinityResist++;
     } else this.s.dmgTaken += amt;
+    this._persist();
   },
   drop(rarity: RarityKey): void {
-    if (this.s && this.s.drops[rarity] != null) { this.s.drops[rarity]++; this.s.dropTotal++; }
+    if (this.s && this.s.drops[rarity] != null) { this.s.drops[rarity]++; this.s.dropTotal++; this._persist(true); }
   },
-  levelup(n: number): void { if (this.s) this.s.levelups += n; },
+  levelup(n: number): void { if (this.s) { this.s.levelups += n; this._persist(true); } },
   boss(result: string): void {
-    if (this.s) { this.s.bossResult = result; if (this.s.timeToBossMs == null) this.s.timeToBossMs = Date.now() - this.s.start; }
+    if (this.s) { this.s.bossResult = result; if (this.s.timeToBossMs == null) this.s.timeToBossMs = Date.now() - this.s.start; this._persist(true); }
   },
   endSession(reason: string): void {
     if (!this.s) return;
@@ -84,6 +117,7 @@ export const Telemetry = {
     this.s.reason = reason; this.s.gold = Game.gold || 0;
     if (reason !== "restart") this._autosave(this.s); // a real run end (victory/wipe) -> push to repo
     this.all.push(this.s); this.save(); this.s = null;
+    this._clearLive(); // the run is now in `all`; drop the crash-recovery mirror
   },
   // Fire-and-forget POST to the telemetry Worker (which commits it to the repo). No-op if no
   // endpoint is configured; never throws / never blocks gameplay.
