@@ -39,7 +39,7 @@ export const Music = {
   _timer: undefined as ReturnType<typeof setInterval> | undefined,
   LOOKAHEAD: 0.12,
   TICK: 25,
-  styleByState: { title: "radiant", field: "radiant", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
+  styleByState: { title: "radiant", field: "radiant", village: "radiant", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
   STYLE_ORDER: ["radiant", "orchestral", "heroic"],
 
   SONGS: {
@@ -54,6 +54,23 @@ export const Music = {
       pad: [["E3", 8], ["D3", 8], ["C3", 8], ["B2", 8]],
       arp: [["A3", 2], ["C4", 2], ["E4", 2], ["C4", 2], ["G3", 2], ["B3", 2], ["D4", 2], ["B3", 2], ["F3", 2], ["A3", 2], ["C4", 2], ["A3", 2], ["E3", 2], ["G#3", 2], ["B3", 2], ["G#3", 2]],
       lead: [["A4", 2], ["C5", 2], ["E5", 2], ["C5", 2], ["B4", 2], ["D5", 2], ["G4", 2], ["B4", 2], ["A4", 2], ["C5", 2], ["F4", 2], ["A4", 2], ["G#4", 2], ["B4", 2], ["E4", 2], ["B4", 2]],
+    } },
+    // Hearthford / village theme — warm folk-pastoral "home" tune for any settlement (town mode).
+    // F major with a Lydian lift (B-natural over the C/G bars), relaxed 92 BPM, no drums. Two 4-bar
+    // phrases over an 8-bar loop: A settles at home (F·Dm·Bb·C), B lifts and resolves (F·C·Bb·F).
+    // A singable lead over a soft sustained pad, a gentle root-fifth bass, and a light plucked
+    // open-interval arp = the "folk strum". Sibling to `field` (same A-minor-ish family voicing) but
+    // brighter, slower, and consonant where the field is restless.
+    village: { bpm: 92, roles: {
+      bass: [["F2", 4], ["C3", 4], ["D2", 4], ["A2", 4], ["Bb1", 4], ["F2", 4], ["C2", 4], ["G2", 4],
+             ["F2", 4], ["C3", 4], ["C2", 4], ["G2", 4], ["Bb1", 4], ["F2", 4], ["C2", 4], ["C3", 4]],
+      pad: [["A3", 8], ["F3", 8], ["F3", 8], ["A3", 8], ["D4", 8], ["A3", 8], ["E4", 8], ["C4", 8]],
+      arp: [["F3", 2], ["A3", 2], ["C4", 2], ["A3", 2], ["A3", 2], ["C4", 2], ["F4", 2], ["C4", 2],
+            ["Bb3", 2], ["D4", 2], ["F4", 2], ["D4", 2], ["C4", 2], ["E4", 2], ["G4", 2], ["E4", 2]],
+      lead: [["F4", 4], ["A4", 4], ["C5", 6], ["A4", 2], ["D5", 4], ["C5", 4], ["A4", 6], ["F4", 2],
+             ["Bb4", 4], ["A4", 2], ["G4", 2], ["F4", 4], ["G4", 4], ["A4", 8], ["G4", 4], ["F4", 4],
+             ["F4", 4], ["A4", 4], ["C5", 6], ["E5", 2], ["G5", 4], ["E5", 4], ["C5", 6], ["A4", 2],
+             ["Bb4", 4], ["C5", 4], ["A4", 4], ["G4", 4], ["F4", 12], ["r", 4]],
     } },
     battle: { bpm: 152, roles: {
       bass: [["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["G2", 2], ["G2", 2], ["G2", 2], ["G2", 2]],
@@ -113,7 +130,9 @@ export const Music = {
       if (e) e.textContent = capf(this.styleByState[state] || "radiant");
     };
     set("#st-title", "title");
-    set("#st-field", "field");
+    // The field HUD's style pill reflects whichever overworld track is playing — the field theme,
+    // or the village theme while in a settlement (town mode).
+    set("#st-field", this.cur === "village" ? "village" : "field");
     set("#st-battle", this.cur === "boss" || this.cur === "battle" ? this.cur : "battle");
   },
   unlock(): void {
