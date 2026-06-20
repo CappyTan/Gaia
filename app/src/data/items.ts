@@ -63,5 +63,5 @@ export const ELITE_AFFIXES: EliteAffix[] = [
   { key: "Ironhide", apply: (u) => { u.armor += 5; } },
   { key: "Vampiric", apply: (u) => { u.leech = 20; } },
   { key: "Scorched", apply: (u) => { u.bonusBurn = true; } },
-  { key: "Hulking", apply: (u) => { u.maxhp = Math.round(u.maxhp * 1.6); } },
+  { key: "Hulking", apply: (u) => { u.maxhp = Math.round(u.maxhp * 1.45); } },
 ];
