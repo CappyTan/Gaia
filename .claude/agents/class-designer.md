@@ -51,8 +51,10 @@ vetted for canon and tuned for power.
 - **Design mechanics & identity, not power tuning.** Choose what an ability *does* (type, target,
   status, hits, role); leave the magnitude (`power`, `mp` cost, exact `mnaReq` balance) for
   **balance-tuner** to finalize — give sane starting values and say what you intend.
-- **REQUIEM is canon.** Ability *names* and *fantasy* come from Dara's compendium; route new/changed
-  kits through **requiem-canon-keeper** for canon + flavor before tuning. Don't invent off-canon names.
+- **REQUIEM is canon; Dara resolves it.** Fill genuine gaps and reconcile toward canon — but
+  **never override Dara's existing class/ability design.** Route new/changed kits through
+  **requiem-canon-keeper**, and where your design conflicts with canon, **flag it for Dara to decide**
+  rather than overruling. Don't invent off-canon names or mechanics; abilities he's authored are his.
 - **Respect the layering + generator.** `data/`/`systems/` stay pure. Hand-authored overrides in
   `skills.ts`/`classes.ts`; generator changes in `gen-kits.cjs` (then regenerate). Keep everything
   `Skill`-typed (`strict` is on).
