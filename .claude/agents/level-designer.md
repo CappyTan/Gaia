@@ -66,11 +66,25 @@ counter — is squarely your lever) and `DESIGN.md` for the locked decisions.
   forward") and never a shape that hides the only route. Beauty serves wayfinding.
 
 **Overworld (roam + discover):**
-- A **readable critical path** to the boss, with **optional branches** that reward detours — the
-  current map is one straight corridor; bend it, add pockets and dead-ends that *pay off* (treasure,
-  a rare-monster lair, a cave/town entrance), never dead-ends that just waste steps.
+- **OPEN-WORLD, NOT A CORRIDOR — Dara's directive (2026-06-20), the top rule.** A zone must NOT read
+  as a single west→east spine with up/down spurs you poke into to grab a chest (that is the old
+  corridor with extra steps — exactly what we're moving away from). Build **interconnected, branching
+  space**: *multiple* viable routes to the objective, **loops that rejoin the main flow** (so
+  exploring is a circuit, not an out-and-back dead-end), lateral connections and **backtrack-friendly**
+  links between areas, optional regions hung off the network, and **shortcuts that open up** (a gate
+  you unlock from the far side, a one-way drop that loops you back). The player should make real
+  **navigation choices** and feel they're *roaming a place*, not following a hallway. Think
+  **hub-and-spoke or a small mesh** of clearings/rooms joined by several paths — a graph, not a line.
+  Movement off the "main" axis must change *where you can go*, not just decorate a straight run. When
+  you finish a zone, ask: "could I draw this as a tree with one trunk?" If yes, it's still too linear
+  — add cross-links and loops until it's a network.
+- A **readable but non-linear route** to the boss — there's always a sense of "forward," but **more
+  than one way through**, and branches that **interconnect and loop back**, not just dead-end at a
+  chest. Treasure/POIs sit along **alternate routes you choose between**, rewarding exploration of a
+  network. (Bend the path, yes — but bending a single line isn't enough; it must branch and rejoin.)
 - **Landmarks & legibility** — the player should always sense which way is "forward" and what's
-  worth investigating. Use environment bands (`envs`) to mark progress and theme.
+  worth investigating, *even in an open layout*. Use environment bands (`envs`), distinct landmarks
+  at junctions, and sightlines so a branching map stays readable rather than a confusing maze.
 - **Risk/reward** — the juiciest treasure and the **rare monsters** (`RARE_MONSTERS`) sit off the
   safe path or behind a tougher pocket. Exploration should feel chosen, not chored.
 - **Points of interest** — caves, dungeon mouths, towns/merchants, shrines. New POI = a new tile
@@ -79,9 +93,14 @@ counter — is squarely your lever) and `DESIGN.md` for the locked decisions.
   swaps in the counter-power (see the affinity doc). This is the endgame hook; use it deliberately.
 
 **Dungeons/caves (challenge + solve):**
+- **Interconnected, not a branching dead-end tree** — the open-world rule applies here too: dungeons
+  should be a small **network of rooms with loops and shortcuts** (a beaten room that opens a door
+  back to an earlier hall, a one-way drop that rejoins the spine, a locked route you circle back to),
+  not a hall that forks into dead-end cells. The player should re-route and recognize they've looped,
+  not just pick which spur has the chest.
 - **Gated progression** — the mini-boss chokepoint is the seed; build on it with key/switch/locked
-  routes, one-way drops, or a beaten-mini-boss opening the way. Progression should be a small puzzle,
-  not just "walk east."
+  routes, one-way drops, or a beaten-mini-boss opening the way. Progression should be a small puzzle
+  of a connected space, not just "walk east."
 - **Escalating threat → a setpiece boss** — danger and reward climb with depth (`depth` already runs
   hotter past the gate); end on a memorable arena.
 - **Breather beats** — space encounters so tension has rhythm; give safe moments (a cleared room, a

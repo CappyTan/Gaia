@@ -223,6 +223,11 @@ export const Field = {
   enterTown(id = "hearthford"): void {
     this.genTown(id);
     Screens.show("field");
+    // Re-sync the canvas to the live stage size (as init/loadZone/enterZoneFromVillage do). Entering a
+    // town from the hub chain comes straight off the battle screen, so without this the field canvas
+    // keeps stale state and the first draw can drop the player sprite (the gold marker shows, the body
+    // doesn't) until something else forces a redraw. Resizing also resets the backing store cleanly.
+    this.resize();
     this.draw(); this.hint();
     const s = this.town!;
     Overlay.show(`<h2 class="title-gold">${s.name}</h2><p class="small">${s.intro}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Enter town</button></div>`);
@@ -531,8 +536,12 @@ export const Field = {
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
     if (T.player) {
       const ph = t * 1.55, pw = ph * (T.player.width / T.player.height);
+      // The walker is tall (≈1.55× tile) and anchored at the feet, so at a y≈1 spawn on a tall,
+      // camera-scrolled map (e.g. the city) its head would clip above the canvas. Clamp the top edge
+      // so the body always stays on-screen rather than vanishing past the top.
+      const py = Math.max(2, cy + t * 0.46 - ph);
       c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
-      c.drawImage(T.player, cx - pw / 2, cy + t * 0.46 - ph, pw, ph);
+      c.drawImage(T.player, cx - pw / 2, py, pw, ph);
       c.shadowBlur = 0;
     } else {
       c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
