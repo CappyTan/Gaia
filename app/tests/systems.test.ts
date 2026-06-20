@@ -1,7 +1,7 @@
 // Headless unit tests for the pure systems (no DOM). These replace the old inline node
 // "logic harness" — run with `npm test`.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { affinity } from "../src/systems/affinity";
 import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
 import { combatDamage, makeEnemy, damage, heal, applyStatus } from "../src/systems/combat";
@@ -85,8 +85,12 @@ describe("loot generation", () => {
 
 describe("champion packs", () => {
   it("a champion is a tankier, multi-affix elite with richer rewards", () => {
+    // makeEnemy uses global Math.random for the 22% elite roll; pin it high so the plain `normal`
+    // baseline never randomly rolls Elite (an HP affix would inflate its maxhp and flake this test).
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.99);
     const normal = makeEnemy("gbandit", 0, false, 0, false);
     const champ = makeEnemy("gbandit", 0, false, 0, true);
+    rnd.mockRestore();
     expect(champ.champion).toBe(true);
     expect(champ.elite).toBe(true);
     expect(champ.eliteAffixes!.length).toBe(3);
