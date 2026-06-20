@@ -8,6 +8,7 @@ import type { UI } from "./controllers/menus";
 import type { Battle } from "./controllers/battle";
 import type { Field } from "./controllers/field";
 import type { Screens } from "./controllers/screens";
+import type { DataBrowser } from "./controllers/dataBrowser";
 import type { Overlay } from "./ui/overlay";
 import type { Music } from "./audio/music";
 import type { Telemetry } from "./telemetry/telemetry";
@@ -20,6 +21,7 @@ declare global {
     Battle: typeof Battle;
     Field: typeof Field;
     Screens: typeof Screens;
+    DataBrowser: typeof DataBrowser;
     Overlay: typeof Overlay;
     Music: typeof Music;
     Telemetry: typeof Telemetry;
