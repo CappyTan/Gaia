@@ -217,6 +217,17 @@ The world *fits* at one consistent scale; these are the judgment calls flagged f
 - **G17 — Silverwood naming (from v0.50).** Still-open canon flags: **The Hollow King** (boss + its
   QUANTA justification), **The Sunless Grove** (dungeon), **Spriggan** (generic name + its SOL+leech
   typing). Keep or rename.
+- **G18 — Underworld realm name + hierarchy (from v0.59).** The 13 complexes are modeled as one
+  "continent" named **"The Forgotten Civilization"** (the map's title) with the complexes as its
+  zones. Keep that, or split the deep into broad districts (Upper/Core/Deep) as the continent layer?
+- **G19 — Surface↔underworld alignment (extends G8).** Only 3 of 13 complexes are named "under" a
+  surface continent (Aurelion Access Shafts→NW, Anima Deep Halls→NE, Myr'Thalas Gateways→SW); placed
+  accordingly. The other 10 have no named surface continent above them, and no under-Sundering /
+  under-Great-Expanse entrance is named. Should the deep mirror the surface quadrants (which complex
+  under which), or stay its own independent city?
+- **G20 — Underworld transit/conduit graph (G7 sibling).** The maglev/conduit lines + Nexus Gate
+  Network linking the complexes are the underworld's connection graph — still open (this pass locked
+  *where* complexes are, not *how* they link).
 
 ---
 

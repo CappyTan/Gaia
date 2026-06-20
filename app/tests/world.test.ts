@@ -11,6 +11,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, OVERWORLD_W, OVERWORLD_H,
+  UNDERWORLD_ID, FORGOTTEN_ID,
   AURELION_ID, VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID,
   regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, bbox,
   type Polygon,
@@ -82,15 +83,20 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
     expect(s.x, "the Sundering is east of Myr'Thalas").toBeGreaterThan(m.x);
   });
 
-  it("no two continents overlap (each is its own landmass across the central sea)", () => {
+  it("no two continents on the SAME map overlap (each is its own landmass across the central sea)", () => {
+    // Scoped per-map: the surface and underworld share the 960×640 coordinate space, so the
+    // underworld cavern shell intentionally sits over the surface continents — different maps.
     for (let i = 0; i < CONTINENTS.length; i++)
-      for (let j = i + 1; j < CONTINENTS.length; j++)
+      for (let j = i + 1; j < CONTINENTS.length; j++) {
+        if (CONTINENTS[i].map !== CONTINENTS[j].map) continue;
         expect(polyOverlap(CONTINENTS[i].shape, CONTINENTS[j].shape),
           `${CONTINENTS[i].id} and ${CONTINENTS[j].id} must not overlap`).toBe(false);
+      }
   });
 
-  it("all 25 canon regions are painted, distributed across the four continents", () => {
-    expect(ZONE_REGIONS.length).toBe(26); // 25 map regions + the off-map Duskmarsh (Dara's ruling)
+  it("all 25 canon SURFACE regions are painted, distributed across the four continents", () => {
+    const surfaceZones = ZONE_REGIONS.filter((z) => z.continent !== FORGOTTEN_ID);
+    expect(surfaceZones.length).toBe(26); // 25 map regions + the off-map Duskmarsh (Dara's ruling)
     expect(zonesOf(AURELION_ID).length).toBe(10);   // #1–9 + Duskmarsh
     expect(zonesOf(VARKHAZ_ID).length).toBe(6);     // #10–15
     expect(zonesOf(MYRTHALAS_ID).length).toBe(5);   // #16–20
@@ -227,7 +233,8 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
     expect(off.continent).toBeUndefined();
     expect(off.zone).toBeUndefined();
 
-    // A wrong/empty map id resolves to nothing (the underworld has no painted regions yet).
+    // The overworld lookups never bleed into the underworld map and vice versa: an underworld
+    // corner (10,10) is outside the underworld cavern shell → nothing; a bad map id → nothing.
     expect(regionAt("underworld", 10, 10)).toEqual({});
     expect(regionAt("nope", 10, 10)).toEqual({});
   });
@@ -244,5 +251,102 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
       for (const a of areasOf(z.id)) expect(a.zone).toBe(z.id);
     // every BUILT zone has at least one skeleton area; backlog regions have none yet
     for (const z of builtZonesOf(AURELION_ID)) expect(areasOf(z.id).length).toBeGreaterThan(0);
+  });
+});
+
+// ── The underworld — *The Forgotten Civilization* (atlas §2; rough fit pass) ──────────────────────
+describe("underworld registry (The Forgotten Civilization — 13 complexes)", () => {
+  const uwMap = () => worldMap(UNDERWORLD_ID)!;
+  const uwContinents = () => CONTINENTS.filter((c) => c.map === UNDERWORLD_ID);
+  const shell = () => uwContinents()[0].shape;
+  const complexes = () => ZONE_REGIONS.filter((z) => z.continent === FORGOTTEN_ID);
+
+  it("the underworld is its own 960×640 seamless coordinate space", () => {
+    const m = uwMap();
+    expect(m.kind).toBe("underworld");
+    expect(m.width).toBe(OVERWORLD_W);
+    expect(m.height).toBe(OVERWORLD_H);
+  });
+
+  it("the underworld is ONE continent — The Forgotten Civilization — within its map", () => {
+    const cs = uwContinents();
+    expect(cs.length).toBe(1);
+    expect(cs[0].id).toBe(FORGOTTEN_ID);
+    const m = uwMap();
+    const b = bbox(cs[0].shape);
+    expect(b.minX >= 0 && b.minY >= 0 && b.maxX <= m.width && b.maxY <= m.height,
+      "the realm shell must lie within the underworld map").toBe(true);
+  });
+
+  it("all 13 canon complexes are painted as draft zone-regions of the realm", () => {
+    const cx = complexes();
+    expect(cx.length).toBe(13);
+    for (const z of cx) {
+      expect(z.draft, `${z.id} must be draft (nothing playable underground yet)`).toBe(true);
+      expect(z.zone, `${z.id} must not link a built Zone yet`).toBeUndefined();
+    }
+    // The canon set (atlas §2 table).
+    expect(cx.map((z) => z.id).sort()).toEqual([
+      "uw-abyssal-conduit", "uw-anima-halls", "uw-aurelion-shafts", "uw-biosphere",
+      "uw-celestial-archive", "uw-forge-cities", "uw-infinite-foundries", "uw-myrthalas-gateways",
+      "uw-silent-vaults", "uw-titan-core", "uw-transit-nexus", "uw-varkhaz-mines", "uw-worldroot",
+    ].sort());
+  });
+
+  it("every complex nests within the realm shell and none overlap", () => {
+    const s = shell();
+    const cx = complexes();
+    for (const z of cx)
+      expect(polyContains(s, z.shape), `${z.id} must nest within the realm shell`).toBe(true);
+    for (let i = 0; i < cx.length; i++)
+      for (let j = i + 1; j < cx.length; j++)
+        expect(polyOverlap(cx[i].shape, cx[j].shape),
+          `${cx[i].id} and ${cx[j].id} must not overlap`).toBe(false);
+  });
+
+  it("the realm reads coherently against the canon map — Worldroot is the central heart, the three named gateways sit in their surface quadrants", () => {
+    const cen = (id: string) => centroid(complexes().find((z) => z.id === id)!.shape);
+    const midX = OVERWORLD_W / 2, midY = OVERWORLD_H / 2;
+    const root = cen("uw-worldroot");
+    // Worldroot is the largest footprint (the heart) and sits in the upper-central band.
+    const sizes = complexes().map((z) => polyArea2(z.shape));
+    expect(polyArea2(complexes().find((z) => z.id === "uw-worldroot")!.shape),
+      "Worldroot is the largest complex").toBe(Math.max(...sizes));
+    expect(Math.abs(root.x - midX), "Worldroot is roughly central in x").toBeLessThan(140);
+    expect(root.y, "Worldroot is in the upper band").toBeLessThan(midY);
+    // Surface↔underworld alignment (atlas §2): the three named "under" complexes match the surface
+    // quadrants — Aurelion Access Shafts NW, Anima Deep Halls NE, Myr'Thalas Gateways SW.
+    const shafts = cen("uw-aurelion-shafts"), anima = cen("uw-anima-halls"), gates = cen("uw-myrthalas-gateways");
+    expect(shafts.x, "Aurelion Access Shafts in the west").toBeLessThan(midX);
+    expect(shafts.y, "Aurelion Access Shafts in the north").toBeLessThan(midY);
+    expect(anima.x, "Anima Deep Halls in the east").toBeGreaterThan(midX);
+    expect(anima.y, "Anima Deep Halls in the north").toBeLessThan(midY);
+    expect(gates.x, "Myr'Thalas Gateways in the west").toBeLessThan(midX);
+    expect(gates.y, "Myr'Thalas Gateways in the south half").toBeGreaterThan(shafts.y);
+  });
+
+  it("regionAt resolves underworld points: inside each complex, empty-in-shell, and off-shell", () => {
+    for (const z of complexes()) {
+      const c = centroid(z.shape);
+      const res = regionAt(UNDERWORLD_ID, c.x, c.y);
+      expect(res.continent?.id, `${z.id} centroid is in the realm`).toBe(FORGOTTEN_ID);
+      expect(res.zone?.id, `${z.id} centroid resolves to ${z.id}`).toBe(z.id);
+      expect(res.area, "complexes have no painted areas yet").toBeUndefined();
+    }
+    // Inside the cavern shell but outside every complex → realm only (verified gap point).
+    const gap = regionAt(UNDERWORLD_ID, 340, 130);
+    expect(gap.continent?.id, "empty-in-shell resolves to the realm").toBe(FORGOTTEN_ID);
+    expect(gap.zone, "empty-in-shell has no complex").toBeUndefined();
+    // Off the shell (a map corner) → nothing.
+    const off = regionAt(UNDERWORLD_ID, 5, 5);
+    expect(off.continent).toBeUndefined();
+    expect(off.zone).toBeUndefined();
+  });
+
+  it("underworld zone ids are unique and disjoint from surface zone ids", () => {
+    const ids = complexes().map((z) => z.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const surfaceIds = new Set(ZONE_REGIONS.filter((z) => z.continent !== FORGOTTEN_ID).map((z) => z.id));
+    for (const id of ids) expect(surfaceIds.has(id), `${id} must not collide with a surface zone`).toBe(false);
   });
 });
