@@ -435,6 +435,13 @@ export interface WorldRegion {
 // The placement + 8-way region graph. Rects are derived from each zone's layout w/h + origin, so a
 // direction is DERIVABLE from the two origins (the test asserts every `dir` agrees with the delta).
 // Greenvale at (0,0); Silverwood east at (64,0); Duskmarsh south of Silverwood at (64,24).
+//
+// SUPERSEDED FOR GEOGRAPHY (ADR 0009). This rect grid was the Stage-1 stitched-grid SKELETON. The
+// authoritative GEOGRAPHY (continent/zone/area shapes + map-correct positions) now lives in
+// `data/world.ts` as ORGANIC POLYGONS traced from Dara's overworld map — that is the source of truth
+// for where regions are. These rects are kept only as the Stage-2 seam-blend ENGINE math scaffolding
+// (the `seamBlendBand`/`regionAtWorld`/`localOf`/`worldOf` helpers + worldspace/worldmap tests still
+// exercise them); they no longer drive the hierarchy and intentionally don't match the world.ts shapes.
 export const WORLD_REGIONS: WorldRegion[] = [
   {
     id: "greenvale", origin: { wx: 0, wy: 0 },
