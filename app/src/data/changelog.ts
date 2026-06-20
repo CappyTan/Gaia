@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.37", t: "Difficulty + pacing retune — fights now actually cost HP and bosses bite, tuned against a 'skilled' player model in the sim; steeper XP so you reach the boss around level 10 instead of out-leveling it." },
   { v: "v0.36", t: "High-res hero backgrounds — a proper Greenvale grassland plus distinct backdrops for the Bandit Warren (warm) and Drowned Vault (cold), each dungeon now its own scene." },
   { v: "v0.35", t: "Affinity ring ratified + tuned to a modest ±15% (was ±50%) so gear and skill matter more than matchup; enemies rebalanced to suit." },
   { v: "v0.34", t: "Battle visual pass — crisp sprite outlines + contrast, formations grounded out of the sky, higher-fidelity re-sliced backgrounds, hero names colored by Attunement; Warmech ultra-rare added." },
