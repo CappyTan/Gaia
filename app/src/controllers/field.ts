@@ -3,7 +3,7 @@
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
-import { ZONES } from "../data/zones";
+import { ZONES, type ZoneLayout, type Pt } from "../data/zones";
 import { settlement, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
@@ -19,13 +19,15 @@ import { Telemetry } from "../telemetry/telemetry";
 const DUNGEON_SETS = ["warren", "vault"];
 
 export const Field = {
-  // PACING KNOBS: W = zone length (steps to boss); ENC_MIN/MAX = steps between random fights.
+  // PACING KNOBS: ENC_MIN/MAX = steps between random fights. Map size + the gate/boss/chest anchors
+  // are now BESPOKE PER ZONE (ADR 0006) — supplied by `zone().layout`, applied in genMap.
   W: 60, H: 18, tile: 0, px: 0, py: 0,
   map: [] as string[][],
-  boss: { x: 58, y: 9 },
+  boss: { x: 58, y: 9 } as Pt,    // set from the zone layout in genMap
   stepsToEncounter: 0,
-  gate: { x: 30, y: 9 }, // mid-zone chokepoint — the zone's mini-boss
-  chests: [{ x: 8, y: 5 }, { x: 16, y: 13 }, { x: 23, y: 5 }, { x: 41, y: 13 }, { x: 51, y: 5 }],
+  gate: { x: 30, y: 9 } as Pt,    // mid-zone chokepoint — set from the zone layout in genMap
+  chests: [] as Pt[],            // set from the zone layout in genMap
+  lairAt: null as Pt | null,     // rare-monster lair (Greenvale: Hogger), set from the zone layout
   ENC_MIN: 3, ENC_MAX: 6,
   zoneIndex: 0,
   enteredDungeon: false,
@@ -41,7 +43,7 @@ export const Field = {
   // Preload the overworld (Greenvale) tileset + both dungeon tilesets; each redraws as it lands.
   // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
   loadTiles(): void {
-    const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "player"];
+    const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "lair", "player"];
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
@@ -71,8 +73,7 @@ export const Field = {
     this.enteredDungeon = false;
     this.resize();
     this.loadTiles();
-    this.px = 1; this.py = 9;
-    this.genMap();
+    this.genMap(); // sets spawn (px/py) from the zone layout
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.hint();
     this.draw();
@@ -81,7 +82,7 @@ export const Field = {
   // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
   loadZone(i: number): void {
     this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false; this.enteredDungeon = false;
-    this.px = 1; this.py = 9; this.resize(); this.genMap();
+    this.resize(); this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     Screens.show("field");
     Overlay.show(`<h2 class="title-gold">${this.zone().name}</h2><p class="small">A new road, new dangers. Your gear and levels carry over.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Enter</button></div>`);
@@ -94,37 +95,97 @@ export const Field = {
     if (this.canvas) { this.canvas.width = w; this.canvas.height = h; }
     this.tile = Math.max(28, Math.floor(Math.min(w / 13, h / 9))); // never 0 (would blank the map)
   },
+  // Build the bespoke zone map from the zone's `layout` (ADR 0006). A tree-filled canvas with
+  // walkable space carved out as clearings/rooms (rects) + winding roads/corridors (paths), an
+  // anchored gate chokepoint, boss, chests, and an optional rare-monster lair — then flood-filled
+  // to GUARANTEE the boss and every chest are reachable from spawn (anti-soft-lock).
   genMap(): void {
-    this.townMode = false; this.W = 60; this.H = 18; // a zone map (restore dims if leaving a town)
-    this.map = [];
-    for (let y = 0; y < this.H; y++) {
-      const row: string[] = [];
-      for (let x = 0; x < this.W; x++) {
-        let t = "grass";
-        if (x === 0 || y === 0 || x === this.W - 1 || y === this.H - 1) t = "tree";
-        else if (Math.random() < 0.1) t = "tree";
-        else if (Math.random() < 0.05) t = "bush";
-        row.push(t);
-      }
-      this.map.push(row);
-    }
-    // guaranteed-walkable central band (rows 8-10) so the road east is never blocked
-    for (let x = 1; x < this.W - 1; x++) { this.map[8][x] = "grass"; this.map[9][x] = "path"; this.map[10][x] = "grass"; }
-    // mid-zone CHOKEPOINT: a full-height tree wall with one gap holding the mini-boss tile
-    const gx = this.gate.x;
+    this.townMode = false;
+    const L = this.zone().layout;
+    this.W = L.w; this.H = L.h;
+    this.gate = { ...L.gate }; this.boss = { ...L.boss };
+    this.chests = L.chests.map((c) => ({ ...c }));
+    this.lairAt = L.lair ? { ...L.lair } : null;
+    this.px = L.spawn.x; this.py = L.spawn.y;
+
+    // 1. fill everything with tree (overworld = forest wall, dungeon = rock wall via the draw map)
+    this.map = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => "tree"));
+    const inB = (x: number, y: number) => x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1;
+    const carve = (x: number, y: number, kind: string) => { if (inB(x, y)) this.map[y][x] = kind; };
+
+    // 2. carve walkable rects (clearings/rooms)
+    const carveRect = (r: { x: number; y: number; w: number; h: number }) => {
+      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, "grass");
+    };
+    L.fieldRects.forEach(carveRect); L.dunRects.forEach(carveRect);
+
+    // 3. carve paths (L-shaped segments between consecutive points), drawn as the intended route
+    const carveSeg = (a: Pt, b: Pt) => {
+      let cx = a.x, cy = a.y; carve(cx, cy, "path");
+      while (cx !== b.x) { cx += Math.sign(b.x - cx); carve(cx, cy, "path"); }
+      while (cy !== b.y) { cy += Math.sign(b.y - cy); carve(cx, cy, "path"); }
+    };
+    const carvePath = (p: Pt[]) => { for (let i = 1; i < p.length; i++) carveSeg(p[i - 1], p[i]); };
+    L.fieldPaths.forEach(carvePath); L.dunPaths.forEach(carvePath);
+
+    // 4. the CHOKEPOINT: a full-height tree wall at gateWallX with one gap = the mini-boss gate.
+    const gx = L.gateWallX;
     for (let y = 1; y < this.H - 1; y++) this.map[y][gx] = "tree";
-    this.map[this.gate.y][gx] = "miniboss";
-    // treasure chests, each with a cleared halo so they're reachable off the path
-    this.chests.forEach((c) => {
-      for (let dy = -1; dy <= 1; dy++)
-        for (let dx = -1; dx <= 1; dx++) {
-          const xx = c.x + dx, yy = c.y + dy;
-          if (xx > 0 && yy > 0 && xx < this.W - 1 && yy < this.H - 1 && this.map[yy][xx] === "tree") this.map[yy][xx] = "grass";
-        }
-      this.map[c.y][c.x] = "chest";
-    });
-    this.map[this.boss.y][this.boss.x] = "boss";
-    this.map[9][1] = "path";
+    // a one-tile path stub on each side so the gate connects field ↔ dungeon
+    carve(gx - 1, L.gate.y, "path"); carve(gx + 1, L.gate.y, "path");
+    this.map[L.gate.y][gx] = "miniboss";
+
+    // 5. cosmetic scatter (bush/rock) on a few open tiles — decoration only, never blocks
+    const dens = L.scatter ?? 0.06;
+    for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++) {
+      if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
+    }
+
+    // 6. chests + lair, each with a cleared 3×3 halo so they're reachable
+    const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && this.map[yy][xx] === "tree") this.map[yy][xx] = "grass"; } };
+    this.chests.forEach((c) => { halo(c); carve(c.x, c.y, "chest"); });
+    if (this.lairAt) { halo(this.lairAt); carve(this.lairAt.x, this.lairAt.y, "lair"); }
+    carve(this.boss.x, this.boss.y, "boss");
+    carve(L.spawn.x, L.spawn.y, "path");
+
+    // 7. ANTI-SOFT-LOCK: flood-fill from spawn (treating the gate as walkable) and verify the boss
+    // and every chest/lair are reachable; if a feature got walled off, punch a path to it.
+    this.ensureReachable(L);
+  },
+
+  // bush/rock are decoration (walkable); tree is the only overworld wall; the gate is walkable.
+  flood(start: Pt): boolean[][] {
+    const seen = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => false));
+    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < this.W && y < this.H && this.map[y][x] !== "tree";
+    const q: Pt[] = [start]; if (open(start.x, start.y)) seen[start.y][start.x] = true; else return seen;
+    while (q.length) {
+      const { x, y } = q.shift()!;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); }
+      }
+    }
+    return seen;
+  },
+  // Verify (and, if needed, repair) reachability of the boss + every chest/lair from spawn.
+  ensureReachable(L: ZoneLayout): void {
+    const targets: Pt[] = [this.boss, ...this.chests];
+    if (this.lairAt) targets.push(this.lairAt);
+    let seen = this.flood(L.spawn);
+    for (const t of targets) {
+      if (seen[t.y]?.[t.x]) continue;
+      // carve a straight L-corridor from the nearest reachable tile to the target, then re-flood.
+      let best: Pt | null = null, bd = Infinity;
+      for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++)
+        if (seen[y][x]) { const d = Math.abs(x - t.x) + Math.abs(y - t.y); if (d < bd) { bd = d; best = { x, y }; } }
+      if (best) {
+        let cx = best.x, cy = best.y;
+        const step = (x: number, y: number) => { if (x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1 && this.map[y][x] === "tree") this.map[y][x] = "path"; };
+        while (cx !== t.x) { cx += Math.sign(t.x - cx); step(cx, cy); }
+        while (cy !== t.y) { cy += Math.sign(t.y - cy); step(cx, cy); }
+        seen = this.flood(L.spawn);
+      }
+    }
   },
   // ── TOWN ── Enter a walkable settlement by id (ADR 0006). Called via Game.openTown(id).
   // Service buildings are walk-in POIs; NPCs are walked up to and talked to; the gate leaves.
@@ -153,7 +214,7 @@ export const Field = {
   // staying on the same zone index, with the zone-intro overlay.
   enterZoneFromVillage(): void {
     this.enteredDungeon = false;
-    this.px = 1; this.py = 9; this.resize(); this.genMap();
+    this.resize(); this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     Screens.show("field");
     const z = this.zone();
@@ -185,6 +246,7 @@ export const Field = {
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
     if (cell === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
+    if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     // crossing the gate the first time = entering the dungeon (one-time beat, no fight this step)
     if (this.inDungeon() && !this.enteredDungeon) {
       this.enteredDungeon = true;
@@ -235,6 +297,17 @@ export const Field = {
     }
     Battle.begin(set, this.envFor(p), false, false, depth, champIdx);
   },
+  // The hidden rare-monster lair (Greenvale: Hogger). Stepping in starts a solo rare fight; the
+  // den is consumed so it's a one-time reward for the explorer (re-cleared each visit to the zone).
+  enterLair(x: number, y: number): void {
+    this.map[y][x] = "grass";
+    const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
+    const key = rares.length ? rares[0].key : null; // first eligible rare = the den's named beast
+    this.draw(); this.hint();
+    if (!key) return;
+    Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
+  },
+  fightLair(key: string): void { Battle.begin([key], this.envFor(this.progress()), false, false, this.progress(), -1); },
   startBoss(): void { Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress()); },
   startMiniBoss(): void {
     const p = this.progress(), z = this.zone();
@@ -328,11 +401,11 @@ export const Field = {
         let ground: string;
         if (inDun) {
           const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock" };
-          let base = cell === "chest" || cell === "miniboss" || cell === "boss" ? "floor" : (dm[cell] || "floor");
+          let base = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" ? "floor" : (dm[cell] || "floor");
           if (base === "floor" && (mx * 7 + my * 13) % 4 === 0 && T[`${dset}-floor2`]) base = "floor2";
           ground = `${dset}-${base}`;
         } else {
-          ground = cell === "chest" || cell === "miniboss" || cell === "boss" ? "grass" : cell;
+          ground = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" ? "grass" : cell;
           if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
         }
         const gimg = T[ground];
@@ -349,6 +422,7 @@ export const Field = {
           else c.fillText(emoji, sx + t / 2, sy + t / 2);
         };
         if (cell === "chest") obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8);
+        else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
         else if (!gimg && cell === "tree") c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2);

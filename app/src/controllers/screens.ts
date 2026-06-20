@@ -12,7 +12,9 @@ export const Screens = {
     this.cur = name;
     (["title", "field", "battle"] as const).forEach((s) => $("#" + s + "Screen")?.classList.toggle("on", s === name));
     if (name === "title") Music.play("title");
-    else if (name === "field") Music.play("field"); // battle music is set by Battle.begin
+    // Overworld screen: a settlement (town mode) gets the warm village theme; the open zone gets
+    // the field theme. (Battle music is set by Battle.begin.) Reusable for any future settlement.
+    else if (name === "field") Music.play(Field.townMode ? "village" : "field");
     Music._renderStyleLabels();
     if (name === "field") {
       Field.resize(); Field.draw(); Field.hint();

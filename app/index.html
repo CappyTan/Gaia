@@ -281,7 +281,7 @@
       <div class="hud-grp">
         <div class="hud-pill"><span id="fieldGold">0</span> gold</div>
         <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
-        <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle('field')">♪ <span id="st-field">Radiant</span></button>
+        <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle(Music.cur === 'village' ? 'village' : 'field')">♪ <span id="st-field">Radiant</span></button>
       </div>
     </div>
     <div class="hud-pill" id="fieldPartyWrap" style="position:absolute;top:40px;left:8px;">

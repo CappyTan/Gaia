@@ -23,7 +23,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   direrat: { name: "Dire Rat", spr: "🐀", att: "QUANTA", lvl: 8, hp: 196, atk: 24, spd: 13, armor: 2, mag: 0, xp: 185, gold: [18, 32], ai: "basic", art: "rat" },
   bonespider: { name: "Bone Spider", spr: "🕷️", att: "NOX", lvl: 9, hp: 256, atk: 26, spd: 9, armor: 5, mag: 0, xp: 200, gold: [24, 42], ai: "basic", onHit: { poison: 4 }, art: "spider" },
   broodmother: { name: "Vault Broodmother", spr: "🕷️", att: "UMBRAXIS", lvl: 9, hp: 1260, atk: 66, spd: 8, armor: 7, mag: 0, xp: 320, gold: [120, 200], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "spider" },
-  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 10, hp: 2650, atk: 72, spd: 7, armor: 10, mag: 6, xp: 420, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.22 },
+  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 10, hp: 2650, atk: 72, spd: 8, armor: 10, mag: 6, xp: 420, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.22 },
   // ── ULTRA-RARE treasure monsters (Metal-Slime / Warmech tier): very rare spawns, exceptional
   //    loot. Tough but beatable, with outsized XP/gold. ──
   hogger: { name: "Hogger", spr: "🐗", att: "ANIMA", lvl: 4, hp: 440, atk: 24, spd: 10, armor: 6, mag: 0, xp: 620, gold: [90, 170], ai: "basic", rare: true },
@@ -51,7 +51,11 @@ export const RARE_ENCOUNTER_CHANCE = 0.04;
 // party's level + gear growth. HP scales HARD (enemies survive the party's burst and keep
 // acting = steady pressure); ATK scales GENTLY (hits chip instead of one-shotting squishies).
 // Base stats are tuned for the zone START. Tuned via app/tools/balance-sim.ts.
+// ATK_DEPTH 1.05->0.83: the deep-end ATK ramp was the dominant WIPE driver — at depth, champion
+// packs (rally/atkup) + crits compounded into one-shot spikes that wiped otherwise-healthy parties.
+// Flattening the ATK ramp keeps deep fights pressuring via HP/length (steady chip) instead of
+// lethal burst, which is what smooths the curve (full-clear wipe ~13%->~9%) without sponging.
 export const HP_DEPTH = 1.25;
-export const ATK_DEPTH = 1.05;
+export const ATK_DEPTH = 0.83;
 export const depthHpScale = (d: number): number => 1 + clamp(d, 0, 1) * HP_DEPTH;
 export const depthAtkScale = (d: number): number => 1 + clamp(d, 0, 1) * ATK_DEPTH;

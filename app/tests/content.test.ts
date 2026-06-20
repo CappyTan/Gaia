@@ -6,6 +6,37 @@ import { DB } from "../src/data/db";
 import { validateContent } from "../src/data/validate";
 import { ARCHETYPE_KEYS } from "../src/data/party";
 import { ATTUNEMENTS } from "../src/types";
+import { ZONES, type ZoneLayout, type Pt } from "../src/data/zones";
+
+// Mirror of controllers/field.genMap's carve (WITHOUT the repair pass) so the test proves each
+// authored zone layout is ALREADY soft-lock-free by design — the boss + every chest/lair reachable
+// from spawn — not just rescued by the runtime flood-fill repair. (ADR 0006 anti-soft-lock rule.)
+function carveZone(L: ZoneLayout): string[][] {
+  const map = Array.from({ length: L.h }, () => Array.from({ length: L.w }, () => "tree"));
+  const inB = (x: number, y: number) => x > 0 && y > 0 && x < L.w - 1 && y < L.h - 1;
+  const c = (x: number, y: number, k: string) => { if (inB(x, y)) map[y][x] = k; };
+  const rect = (r: { x: number; y: number; w: number; h: number }) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) c(x, y, "grass"); };
+  L.fieldRects.forEach(rect); L.dunRects.forEach(rect);
+  const seg = (a: Pt, b: Pt) => { let x = a.x, y = a.y; c(x, y, "path"); while (x !== b.x) { x += Math.sign(b.x - x); c(x, y, "path"); } while (y !== b.y) { y += Math.sign(b.y - y); c(x, y, "path"); } };
+  const path = (p: Pt[]) => { for (let i = 1; i < p.length; i++) seg(p[i - 1], p[i]); };
+  L.fieldPaths.forEach(path); L.dunPaths.forEach(path);
+  for (let y = 1; y < L.h - 1; y++) map[y][L.gateWallX] = "tree";
+  c(L.gateWallX - 1, L.gate.y, "path"); c(L.gateWallX + 1, L.gate.y, "path"); map[L.gate.y][L.gateWallX] = "miniboss";
+  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && map[yy][xx] === "tree") map[yy][xx] = "grass"; } };
+  L.chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
+  if (L.lair) { halo(L.lair); c(L.lair.x, L.lair.y, "lair"); }
+  c(L.boss.x, L.boss.y, "boss"); c(L.spawn.x, L.spawn.y, "path");
+  return map;
+}
+function reachable(map: string[][], start: Pt): boolean[][] {
+  const H = map.length, W = map[0].length;
+  const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && map[y][x] !== "tree";
+  if (!open(start.x, start.y)) return seen;
+  const q: Pt[] = [start]; seen[start.y][start.x] = true;
+  while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }
+  return seen;
+}
 
 describe("content integrity (validateContent)", () => {
   it("reports no problems — all content is internally consistent", () => {
@@ -39,4 +70,29 @@ describe("DB registry", () => {
     expect(DB.zones.count()).toBe(DB.zones.all().length);
     expect(DB.zones.get(0)).toBeTruthy();
   });
+});
+
+describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock)", () => {
+  for (const z of ZONES) {
+    describe(z.name, () => {
+      const L = z.layout;
+      it("has a layout with in-bounds, sensibly-sided anchors", () => {
+        expect(L).toBeTruthy();
+        const inb = (p: Pt) => p.x > 0 && p.y > 0 && p.x < L.w - 1 && p.y < L.h - 1;
+        expect(inb(L.spawn)).toBe(true);
+        expect(inb(L.boss)).toBe(true);
+        expect(L.chests.every(inb)).toBe(true);
+        expect(L.spawn.x).toBeLessThan(L.gateWallX);   // start is in the overworld
+        expect(L.boss.x).toBeGreaterThan(L.gateWallX);  // boss is in the dungeon
+        expect(L.gate.x).toBe(L.gateWallX);
+      });
+      it("is fully traversable — boss + every chest/lair reachable from spawn (no soft-lock)", () => {
+        const map = carveZone(L);
+        const seen = reachable(map, L.spawn);
+        expect(seen[L.boss.y][L.boss.x]).toBe(true);
+        for (const ch of L.chests) expect(seen[ch.y][ch.x]).toBe(true);
+        if (L.lair) expect(seen[L.lair.y][L.lair.x]).toBe(true);
+      });
+    });
+  }
 });
