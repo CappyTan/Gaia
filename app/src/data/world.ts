@@ -248,7 +248,7 @@ const SUNDERING_COAST = ring(
   [382, 534], [356, 522], [336, 496], [346, 466], [324, 440], [338, 412],
 );
 
-export const CONTINENTS: Continent[] = [
+const SURFACE_CONTINENTS: Continent[] = [
   { id: AURELION_ID, name: "Aurelion", map: OVERWORLD_ID, shape: AURELION_COAST },
   { id: VARKHAZ_ID, name: "Varkhaz", map: OVERWORLD_ID, shape: VARKHAZ_COAST },
   { id: MYRTHALAS_ID, name: "Myr'Thalas", map: OVERWORLD_ID, shape: MYRTHALAS_COAST },
@@ -263,7 +263,7 @@ export const CONTINENTS: Continent[] = [
 // the point" — relative position/size over fine vertices.
 //
 // Region numbering (atlas §1): Aurelion #1–9, Varkhaz #10–15, Myr'Thalas #16–20, the Sundering #21–25.
-export const ZONE_REGIONS: ZoneRegion[] = [
+const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
   // ══ AURELION (#1–9) — The Heartland (NW) ══════════════════════════════════════════════════════
   // ── BUILT ──
   // #1 Greenvale (Shirelands) — top-LEFT (NW) of the continent.
@@ -452,6 +452,134 @@ export const AREAS: Area[] = [
     identity: { biome: "mire", tileset: "mire", encounterLean: "miniboss-gate", music: "field" } },
 ];
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE UNDERWORLD — *The Forgotten Civilization* (atlas §2) ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The second seamless coordinate space (same 960×640 frame as the surface). A ROUGH "does-it-fit"
+// placement pass, the underworld sibling of the overworld trace above: every one of Dara's 13 canon
+// complexes painted as an ORGANIC polygon in its map-correct spot at one consistent scale, so the
+// deep stops being blank and we can see the underground fits. "Rough is the point" — relative
+// position/size over fine outlines.
+//
+// HIERARCHY CHOICE (Map › Continent › Zone › Area). The underworld is NOT split into the four surface
+// continents — it is one planet-spanning machine-city. So we model it as ONE underworld "continent",
+// **The Forgotten Civilization** (the map's own title for the realm), whose `shape` is a single broad
+// cavern-network envelope filling the central frame. The 13 complexes are its ZONE-regions (all
+// `draft` — nothing is playable underground yet). No Areas are painted (that's a per-complex build
+// job for later). This keeps regionAt / the viewer's continent→zone→area drill working unchanged.
+//
+// SCALE PEG — same map-px→tile peg as the surface: a complex traced at map-fraction (fx,fy) sits at
+// tile (fx·960, fy·640). Label positions read off `assets/reference/map-underworld-gaia.png`.
+//
+// SURFACE↔UNDERWORLD ALIGNMENT (atlas §2 "Surface ↔ underworld links"). Three complexes are named
+// "under" a surface continent; we place them in the matching overworld quadrant so the two maps
+// relate: Aurelion Access Shafts → NW (under Aurelion), Anima Deep Halls → NE (under Varkhaz),
+// Myr'Thalas Gateways → SW (under Myr'Thalas). See FLAGS-FOR-DARA at the foot of this block (G8).
+export const FORGOTTEN_ID = "forgotten-civilization";
+
+// The realm envelope: one organic cavern-network shell filling the central underworld frame (the
+// map's edges are legend/lore panels, not cavern — the network lives in the middle). Every complex
+// nests inside this shell.
+const FORGOTTEN_SHELL = ring(
+  [60, 70], [160, 36], [300, 28], [440, 24], [560, 30], [660, 36], [780, 60], [860, 96],
+  [892, 150], [880, 210], [892, 270], [868, 330], [820, 388], [760, 420], [700, 432],
+  [640, 420], [580, 432], [520, 422], [460, 436], [400, 424], [340, 432], [280, 418],
+  [220, 428], [150, 408], [96, 360], [64, 300], [78, 240], [54, 180], [72, 120],
+);
+
+export const UNDERWORLD_CONTINENTS: Continent[] = [
+  { id: FORGOTTEN_ID, name: "The Forgotten Civilization", map: UNDERWORLD_ID, shape: FORGOTTEN_SHELL },
+];
+
+// The 13 complexes as zone-regions (atlas §2 table), all draft. Positions traced from the canon
+// underworld map; "rough is the point". Each is an organic blob (cavern / facility footprint), sized
+// so the central Worldroot reads largest (the heart) and the network has breathing room around it.
+export const UNDERWORLD_ZONE_REGIONS: ZoneRegion[] = [
+  // ── CENTRAL HEART ──
+  // The Worldroot Complex — the planetary core city, the heart of everything. Largest footprint,
+  // top-CENTER, the hub the whole network fans out from.
+  { id: "uw-worldroot", name: "The Worldroot Complex", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([372, 60], [420, 46], [470, 52], [496, 78], [500, 112], [486, 142], [452, 158],
+                [412, 156], [378, 140], [358, 110], [356, 82]) },
+
+  // ── UPPER BAND (NW → NE) ──
+  // Aurelion Access Shafts — NW, under Aurelion (surface entry shafts).
+  { id: "uw-aurelion-shafts", name: "Aurelion Access Shafts", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([176, 56], [216, 44], [256, 52], [274, 76], [268, 102], [240, 116], [204, 112],
+                [178, 94], [168, 74]) },
+  // Anima Deep Halls — NE, under Varkhaz (biodomes + Planetary Seed Vaults).
+  { id: "uw-anima-halls", name: "Anima Deep Halls", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([566, 52], [610, 42], [656, 52], [676, 78], [668, 106], [636, 120], [596, 114],
+                [566, 92], [556, 70]) },
+  // The Bioengineering Biosphere — Upper NE, far-right (living laboratories / ecosystems in stasis).
+  { id: "uw-biosphere", name: "The Bioengineering Biosphere", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([758, 116], [800, 106], [842, 120], [856, 148], [846, 178], [812, 192], [772, 182],
+                [748, 156], [746, 134]) },
+
+  // ── MID BAND (W → E) ──
+  // The Transit Nexus — West-Central, the hub of the maglev/conduit network.
+  { id: "uw-transit-nexus", name: "The Transit Nexus", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([186, 158], [228, 148], [268, 160], [282, 186], [272, 214], [238, 226], [200, 216],
+                [176, 190], [174, 172]) },
+  // The Celestial Archive — Upper-Central (libraries, data vaults, simulation spires).
+  { id: "uw-celestial-archive", name: "The Celestial Archive", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([372, 168], [414, 158], [456, 170], [470, 196], [460, 222], [426, 234], [388, 224],
+                [364, 198], [362, 180]) },
+  // Titan Core Prime — Central-East, the command core of the AI project.
+  { id: "uw-titan-core", name: "Titan Core Prime", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([512, 166], [554, 156], [596, 168], [610, 196], [600, 224], [566, 236], [526, 224],
+                [502, 196], [502, 178]) },
+  // Varkhaz Deep Mines — East, industrial excavation piercing the mantle (heavily defended).
+  { id: "uw-varkhaz-mines", name: "Varkhaz Deep Mines", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([644, 160], [688, 150], [732, 162], [748, 190], [738, 220], [702, 234], [662, 222],
+                [638, 192], [636, 174]) },
+
+  // ── LOWER BAND (SW → SE) ──
+  // The Myr'Thalas Gateways — SW, under Myr'Thalas (stargate terminals to orbital docks/colonies).
+  { id: "uw-myrthalas-gateways", name: "The Myr'Thalas Gateways", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([96, 224], [138, 214], [178, 228], [192, 256], [182, 286], [146, 298], [108, 284],
+                [86, 254], [86, 238]) },
+  // The Silent Vaults — Central-South, sealed districts / dark storage realms.
+  { id: "uw-silent-vaults", name: "The Silent Vaults", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([238, 256], [280, 246], [322, 258], [336, 286], [326, 314], [292, 326], [252, 314],
+                [228, 286], [228, 270]) },
+  // The Infinite Foundries — SE Inner, automated fabrication caverns.
+  { id: "uw-infinite-foundries", name: "The Infinite Foundries", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([496, 286], [538, 276], [580, 288], [594, 316], [584, 344], [550, 356], [510, 344],
+                [486, 316], [486, 300]) },
+  // The Abyssal Conduit — South-Central, a chasm of unstable energy toward the planetary core.
+  { id: "uw-abyssal-conduit", name: "The Abyssal Conduit", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([366, 312], [406, 302], [444, 316], [456, 344], [446, 374], [410, 388], [372, 374],
+                [350, 344], [350, 328]) },
+  // The Forge Cities — SE, gigantic foundries with rivers of molten metal.
+  { id: "uw-forge-cities", name: "The Forge Cities", continent: FORGOTTEN_ID, draft: true,
+    shape: ring([632, 256], [676, 246], [718, 260], [732, 288], [722, 318], [686, 330], [646, 316],
+                [624, 286], [624, 270]) },
+];
+
+// FLAGS FOR DARA (underworld geography the canon map leaves open or this rough pass had to infer):
+//   • REALM / CONTINENT NAME. I modeled the whole underworld as ONE "continent" named **The Forgotten
+//     Civilization** (the map's title for the realm) containing the 13 complexes as zones. If you'd
+//     rather split the deep into a few broad districts (e.g. an Upper/Core/Deep band) as the continent
+//     layer, say so and I'll re-cut the hierarchy.
+//   • SURFACE↔UNDERWORLD ALIGNMENT (atlas G8). Three complexes are named "under" a surface continent
+//     and are placed in the matching quadrant (Aurelion Access Shafts NW, Anima Deep Halls NE,
+//     Myr'Thalas Gateways SW). The OTHER ten complexes have NO named surface continent above them —
+//     the canon underworld layout does NOT mirror the four surface continents (the deep is its own
+//     planet-spanning city). No under-Sundering / under-Great-Expanse entrance is named on either map.
+//     If you want the deep to mirror the surface quadrants, tell me which complex sits under which.
+//   • ALL 13 COMPLEX OUTLINES are ROUGH traces of the map's label positions at a consistent scale —
+//     correct relative position/size, not final cavern outlines. Names are yours (from the map).
+//   • THE TRANSIT NETWORK (the maglev/conduit lines + Nexus Gate Network linking the complexes) is the
+//     underworld's connection graph — still OPEN (the surface G7 sibling). This pass locks WHERE the
+//     complexes are, not yet HOW the conduits link them.
+
+// ── The combined registries (surface + underworld), keyed by `map`/`continent` ───────────────────
+// One flat list across BOTH maps; every consumer (regionAt, the World Map viewer, tests) already
+// scopes by `map` / `continent`, so the two coordinate spaces never bleed into each other.
+export const CONTINENTS: Continent[] = [...SURFACE_CONTINENTS, ...UNDERWORLD_CONTINENTS];
+export const ZONE_REGIONS: ZoneRegion[] = [...SURFACE_ZONE_REGIONS, ...UNDERWORLD_ZONE_REGIONS];
+
 // ── Point-in-region lookups (ADR 0009 §2/§5 — pure + cheap; called per-tile/frame later) ──────────
 
 /** The map definition for a map id. */
@@ -464,7 +592,7 @@ export function worldMap(mapId: string): WorldMap | undefined {
  * Areas/Zones/Continents are point-in-POLYGON; the FINEST match wins (an Area implies its Zone and
  * Continent). Empty map space (inside the coastline, no painted zone) returns just the continent;
  * off-continent returns {} — the caller falls back to the Map's own rules. Lookups are confined to
- * the named map (the underworld has no regions yet → always {}).
+ * the named map (pass "overworld" or "underworld"); a complex/region resolves only within its map.
  *
  * Cheap by construction (a handful of bbox-gated ray casts over the painted regions). When the
  * painted set grows large enough to matter, swap the linear scans for a per-map spatial index behind

@@ -240,7 +240,11 @@ export const WorldMapView = {
     // muted hatched fill + dashed gold outline (named-but-not-yet-built). Drawn for all continents,
     // but labels appear when zones are the focused level's CHILDREN (continent/zone level) for legibility.
     const zones = ZONE_REGIONS.filter((z) => continents.some((c) => c.id === z.continent));
-    const showZoneLabels = lvl === "continent" || lvl === "zone" || lvl === "area";
+    // Label zones once we're inside a continent — OR, for a single-continent map (the underworld,
+    // which is ONE realm = "The Forgotten Civilization"), at the top level too, so the complexes read
+    // as placed/labeled without needing to drill in first.
+    const singleContinentMap = continents.length === 1;
+    const showZoneLabels = lvl === "continent" || lvl === "zone" || lvl === "area" || singleContinentMap;
     for (const z of zones) {
       const built = !!z.zone;
       const focused = z.id === this.zoneId;
@@ -255,8 +259,10 @@ export const WorldMapView = {
       trace(z.shape);
       ctx.stroke();
       ctx.setLineDash([]);
-      // Label zones when they're the navigable children (focused on a continent), or when focused.
-      const labelThis = focused || (showZoneLabels && z.continent === this.continentId);
+      // Label zones when they're the navigable children (focused on a continent), or when focused,
+      // or — on a single-continent map (the underworld realm) — at the top level too.
+      const labelThis = focused || (showZoneLabels && z.continent === this.continentId)
+        || (singleContinentMap && showZoneLabels && z.continent === continents[0].id);
       if (labelThis) {
         ctx.fillStyle = built ? C.zoneLine : C.draftLine;
         ctx.font = `${built ? "bold " : ""}11px system-ui, sans-serif`;
