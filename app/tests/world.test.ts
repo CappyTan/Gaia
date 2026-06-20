@@ -33,6 +33,54 @@ const polyContains = (outer: Polygon, inner: Polygon): boolean => {
     }
   return true;
 };
+// Distance from (x,y) to a polygon's boundary (min over its edges). Used by the TOLERANT containment
+// below — a TILING area's perimeter rides the zone's coastline (and overshoots it a hair so the rim is
+// fully covered), so a strict "every vertex strictly inside" test is wrong for it; a vertex sitting ON
+// or just past the shared coast is still "nested". EPS ~3 tiles ≈ the seam-blend band width.
+const distToPoly = (poly: Polygon, x: number, y: number): number => {
+  let m = Infinity;
+  for (let i = 0, n = poly.length; i < n; i++) {
+    const a = poly[i], b = poly[(i + 1) % n];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const L = dx * dx + dy * dy || 1;
+    let t = ((x - a.x) * dx + (y - a.y) * dy) / L;
+    t = Math.max(0, Math.min(1, t));
+    const px = a.x + t * dx, py = a.y + t * dy;
+    m = Math.min(m, Math.hypot(x - px, y - py));
+  }
+  return m;
+};
+// Tolerant containment for TILING areas: a point is "in zone" if inside the zone OR within EPS of its
+// boundary (the shared coastline a tiling area must ride). Same vertex + dense-grid sampling as
+// polyContains, but boundary-touching points pass.
+const polyContainsTol = (outer: Polygon, inner: Polygon, eps = 3): boolean => {
+  const inOrNear = (x: number, y: number) => pointInPolygon(outer, x, y) || distToPoly(outer, x, y) <= eps;
+  for (const p of inner) if (!inOrNear(p.x, p.y)) return false;
+  const b = bbox(inner);
+  const N = 24;
+  for (let i = 0; i <= N; i++)
+    for (let j = 0; j <= N; j++) {
+      const x = b.minX + ((b.maxX - b.minX) * i) / N;
+      const y = b.minY + ((b.maxY - b.minY) * j) / N;
+      if (pointInPolygon(inner, x, y) && !inOrNear(x, y)) return false;
+    }
+  return true;
+};
+// What fraction of a zone's INTERIOR is covered by the union of `areas`? Dense grid over the zone bbox;
+// counts only points inside the zone. 1.0 = the areas tile the zone with no gap.
+const coverageOf = (zone: Polygon, areas: Polygon[]): number => {
+  const b = bbox(zone);
+  const N = 110;
+  let inside = 0, covered = 0;
+  for (let i = 0; i <= N; i++)
+    for (let j = 0; j <= N; j++) {
+      const x = b.minX + ((b.maxX - b.minX) * i) / N, y = b.minY + ((b.maxY - b.minY) * j) / N;
+      if (!pointInPolygon(zone, x, y)) continue;
+      inside++;
+      if (areas.some((a) => pointInPolygon(a, x, y))) covered++;
+    }
+  return inside ? covered / inside : 0;
+};
 // Do two polygons overlap with positive area? Sampled over the union bbox.
 const polyOverlap = (a: Polygon, b: Polygon): boolean => {
   const ba = bbox(a), bb = bbox(b);
@@ -172,7 +220,48 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
     for (const a of AREAS) {
       expect(builtIds.has(a.zone), `area "${a.id}" must have a real built parent zone`).toBe(true);
       const z = ZONE_REGIONS.find((zz) => zz.id === a.zone)!;
-      expect(polyContains(z.shape, a.shape), `area "${a.id}" must nest within zone "${a.zone}"`).toBe(true);
+      // TOLERANT: a TILING area rides (and overshoots a hair past) the zone's coastline, so its
+      // perimeter touches the shared boundary — nesting is "inside OR on the zone's coast", not strict.
+      expect(polyContainsTol(z.shape, a.shape), `area "${a.id}" must nest within zone "${a.zone}"`).toBe(true);
+      // Its centroid is unambiguously inside the zone (a sanity anchor on the tolerant nest above).
+      const c = centroid(a.shape);
+      expect(pointInPolygon(z.shape, c.x, c.y), `area "${a.id}" centroid must sit inside zone "${a.zone}"`).toBe(true);
+    }
+  });
+
+  it("each built zone's areas TILE the zone — they cover it (no gaps) and don't overlap", () => {
+    // The refined Areas are an organic tiling of every built zone (world-cartographer, ADR 0009 §4):
+    // together they cover the zone polygon so EVERY in-zone point resolves to an Area, and they don't
+    // mutually overlap (each tile owns its ground; finest-wins priority is a safety net, not relied on).
+    for (const z of builtZonesOf(AURELION_ID)) {
+      const as = areasOf(z.id);
+      expect(as.length, `built zone "${z.id}" should have ~4–6 areas`).toBeGreaterThanOrEqual(4);
+      // Coverage: the union of areas covers the whole zone interior (allow a hair for grid sampling).
+      const cov = coverageOf(z.shape, as.map((a) => a.shape));
+      expect(cov, `areas of "${z.id}" should cover the zone (got ${(cov * 100).toFixed(1)}%)`).toBeGreaterThan(0.99);
+      // Non-overlap: no two areas of the same zone share positive area (a clean tiling, not stacked).
+      for (let i = 0; i < as.length; i++)
+        for (let j = i + 1; j < as.length; j++)
+          expect(polyOverlap(as[i].shape, as[j].shape),
+            `areas "${as[i].id}" and "${as[j].id}" tile "${z.id}" and must not overlap`).toBe(false);
+    }
+  });
+
+  it("every built zone's areas carry identity hints (biome/tileset/lean/music) and a dungeon-mouth area", () => {
+    for (const z of builtZonesOf(AURELION_ID)) {
+      const as = areasOf(z.id);
+      for (const a of as) {
+        for (const k of ["biome", "tileset", "encounterLean", "music"] as const)
+          expect(a.identity[k], `area "${a.id}" needs an identity.${k}`).toBeTruthy();
+      }
+      // Exactly one area per zone is the dungeon-mouth approach (the level-designer puts the entrance
+      // there); flagged by the "miniboss-gate" lean. It is the EAST lobe (mouth sits east in zones.ts).
+      const mouths = as.filter((a) => a.identity.encounterLean === "miniboss-gate");
+      expect(mouths.length, `zone "${z.id}" needs exactly one dungeon-mouth area`).toBe(1);
+      const mouthCx = centroid(mouths[0].shape).x;
+      const others = as.filter((a) => a !== mouths[0]);
+      const avgOtherCx = others.reduce((s, a) => s + centroid(a.shape).x, 0) / others.length;
+      expect(mouthCx, `dungeon-mouth area of "${z.id}" is the EAST lobe`).toBeGreaterThan(avgOtherCx);
     }
   });
 
@@ -206,11 +295,14 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
       expect(pointInPolygon(resolved.shape, c.x, c.y), `${a.id} centroid must lie in the resolved area`).toBe(true);
     }
 
-    // A point inside Greenvale but outside any Area → zone hit, no area (falls back to the zone).
-    // (156,76) was verified to be in the Greenvale polygon but in none of its area sub-shapes.
-    const fallback = regionAt(OVERWORLD_ID, 156, 76);
-    expect(fallback.zone?.id, "Greenvale fallback point should resolve to the zone").toBe("greenvale");
-    expect(fallback.area, "Greenvale fallback point should have no finer area").toBeUndefined();
+    // The built zones are now fully TILED by their areas, so a point inside the zone ALWAYS resolves to
+    // an area (no in-zone fallback). (156,76) — formerly a fallback gap — now lands in Greenvale's
+    // Warren Approach. Spot-check the tiling invariant directly: this in-Greenvale point has both a zone
+    // AND an area.
+    const tiled = regionAt(OVERWORLD_ID, 156, 76);
+    expect(tiled.zone?.id, "in-Greenvale point resolves to the zone").toBe("greenvale");
+    expect(tiled.area, "tiled Greenvale point resolves to an area too").toBeTruthy();
+    expect(tiled.area?.zone, "the resolved area belongs to Greenvale").toBe("greenvale");
 
     // Empty continent space (inside the coastline but outside every zone) → continent only.
     // (230,150) is mid-Aurelion, between Goldmeadow/Riverhearth/Duskmarsh, inside no painted region.
