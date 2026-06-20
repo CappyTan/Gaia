@@ -104,12 +104,11 @@ export const Field = {
   // `draw()`/`move()`/`passable` work in world coords off a chunk cache. When OFF (Silverwood/Duskmarsh,
   // and as a safety toggle) the existing discrete grid path runs UNCHANGED. The flag gates ONLY the
   // overworld — dungeons stay discrete (mode="dungeon", `genDungeon`) regardless.
-  // `bigMapEnabled` is the MASTER toggle (Greenvale enters the windowed big map when on; flip it off
-  // for the discrete fallback). `bigMap` is the per-load ACTIVE-state flag set by enterBigMap().
-  // SHIPS DORMANT (false) during the staged seamless build (ADR 0008/0009): prod stays on the proven
-  // discrete path until the Greenvale↔Silverwood no-load proof (2C) is verified + Dara signs off the
-  // live flip. Tests/Playwright exercise the on-path by toggling this true.
-  bigMapEnabled: false,
+  // `bigMapEnabled` is the MASTER toggle: ON = the seamless continent-wide big map (ADR 0008/0009)
+  // is the live overworld; flip OFF for the proven discrete fallback. `bigMap` is the per-load
+  // ACTIVE-state flag set by enterBigMap(). LIVE as of v0.62 (Dara's go-ahead) — the discrete path
+  // remains intact behind this flag as the instant fallback.
+  bigMapEnabled: true,
   bigMap: false,
   wx: 0, wy: 0,                                   // player world-tile position (source of truth when bigMap)
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
