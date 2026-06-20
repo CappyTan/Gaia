@@ -10,6 +10,7 @@ import { Battle } from "./controllers/battle";
 import { Field } from "./controllers/field";
 import { Screens } from "./controllers/screens";
 import { DataBrowser } from "./controllers/dataBrowser";
+import { applyCurrent } from "./data/overrides";
 import { Overlay } from "./ui/overlay";
 import { Music } from "./audio/music";
 import { Telemetry } from "./telemetry/telemetry";
@@ -28,6 +29,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 // Boot.
+applyCurrent(); // apply any persisted content edits (Data screen editor) onto live data first
 Music.load();
 // Web Audio needs a user gesture to start (esp. iOS) — unlock on first interaction.
 (["pointerdown", "touchstart", "keydown"] as const).forEach((ev) =>
