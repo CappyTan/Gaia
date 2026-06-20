@@ -228,10 +228,11 @@ const RIVERHEARTH: Settlement = {
   name: "Riverhearth",
   theme: "city",
   intro:
-    "Riverhearth opens around you like a held breath let go — bridges arched over the broad bright " +
-    "river, barges crowding the wharves, a market roaring under a hundred awnings, and the bells of " +
-    "the civic hall counting out the hour. After the long road from Greenvale, this is the heart of " +
-    "the heartland: rest, trade, hear the talk of the wider world — then take the north road on.",
+    "Riverhearth hits you all at once — two great bridges arched over the broad bright river, barges " +
+    "shouldering for the wharves, a thousand awnings and a thousand bargains roaring under them, and " +
+    "over it all the Riverhall bells tolling the hour to a city that never quite holds still. After " +
+    "the long quiet road from Greenvale, this is the heartland's beating heart: rest at the inn, kit " +
+    "out at the market, and hear what the wide world's saying — then take the north gate on.",
   // 48 wide × 30 tall (the camera scrolls). River ('r') runs down the centre, crossed by two bridges
   // ('b'). Avenues ('a') grid the city; services sit one per district; NPCs stand beside the avenues
   // and wharves (never on a route tile), so none can ever sever the way. Verified in content.test.ts.
@@ -272,57 +273,57 @@ const RIVERHEARTH: Settlement = {
   npcs: [
     { id: "crier", name: "Town Crier Edda", spr: "📢", x: 13, y: 9,
       lines: [
-        "HEAR YE! By order of the Riverhall — fair trade, full purses, and a fine sky over Riverhearth this day!",
-        "Word off the south road: the Kingpin's warren is BROKEN, his bandits scattered to the four winds! Greenvale breathes easy again — and they say the heroes who did it walk our streets!",
-        "Spend a coin, hear the bells, see the bridges by lamplight. But if you're bound north — the marsh-folk at Miregard could use a stout sword. Grim doings out past the fog.",
+        "HEAR YE, HEAR YE! By grace of the Riverhall — fair scales, full purses, and the bridges open from bell to bell! Mind your coin-pouch in the crush!",
+        "FRESH OFF THE SOUTH ROAD! The Kingpin's warren lies BROKEN, his bandits scattered like chaff on the wind! Greenvale sleeps sound again — and word is the very heroes who did it walk OUR cobbles this hour!",
+        "Bide a while — drink, bargain, see the lamps come up gold on the water. But heed this, north-bound stranger: past the fog at Miregard the marsh has turned hungry. They'd pay dear for a stout sword. You did not hear it from ME.",
       ] },
     { id: "dock", name: "Dockhand Garrow", spr: "🧑‍🏭", x: 21, y: 5,
       lines: [
-        "Mind the ropes, friend — barge in, barge out, dawn to dusk. Half of Aurelion's grain comes up this river and goes out through these hands.",
-        "See those crates? Silverwood timber, Storm Coast salt, Frostpeak iron — the whole continent passes over Riverhearth's wharves. Busiest water you'll ever stand beside.",
-        "You want to cross? Take a bridge, not the river. Current'll have your boots before you've said your prayers.",
+        "Mind the ropes, friend, and mind your toes — barge in, barge out, dawn to black dark. These two hands have hauled half of Aurelion across this wharf and the day's not done.",
+        "Have a look at that cargo. Silverwood timber, Storm Coast salt, Frostpeak iron, grain off the Goldmeadow — the whole heartland floats through Riverhearth sooner or later. Busiest water you'll ever stand beside, and the smell to prove it.",
+        "Crossing over? Take a bridge, not a shortcut. This river's friendly enough where the city minds her — but she runs north too, and folk who trust her past the walls wash up at Miregard. If they wash up at all.",
       ] },
     { id: "guild", name: "Guildmaster Veska", spr: "🧑‍💼", x: 8, y: 9,
       lines: [
-        "Welcome to the Merchant Quarter — the beating purse of the heartland. If it's bought or sold in Aurelion, the price is set HERE first.",
-        "You've the look of coin to spend and gear to upgrade. The market's that way, the smith yonder. Buy well before the north road; Miregard's stalls are bare bones and worse.",
-        "A word to the wise: gold's good, but a hero's NAME travels faster than any barge. Make ours, and the Guild remembers its friends.",
+        "Welcome, welcome — to the Merchant Quarter, the purse the whole heartland answers to. If a thing is bought or sold anywhere in Aurelion, rest assured its price was settled HERE first, over wine, by people far less charming than myself.",
+        "And you have the look of coin to spend and steel to better. The market's down the avenue, the smith just yonder — outfit yourself well while you can. North of here the stalls thin to nothing, and at Miregard a 'shop' is one stranded soul selling out of a cart.",
+        "A word, free of charge: gold is good, but a name travels faster than any barge — and outlasts it. Make yours grand, and the Guild always remembers a friend. We are far, far less fond of remembering the other sort.",
       ] },
     { id: "capt", name: "Captain Aldric", spr: "🛡️", x: 36, y: 9,
       lines: [
-        "Captain of the Riverhall Watch. You're the band that cracked the warren? Then you've earned a nod from me, and I don't give those cheap.",
-        "Riverhearth's safe within these walls — bridges watched, gates manned, no bandit dares the avenues. Out THERE is a different country.",
-        "If you're for the Duskmarsh, go through Miregard and heed their warden. The marsh has been swallowing patrols. Even the Watch doesn't ride that road after dark.",
+        "Captain of the Riverhall Watch. So — you're the lot that cracked the warren. Then have a nod from me, and know I don't hand those out cheap. Most days I hand out orders and the odd arrest.",
+        "Within these walls the peace holds: bridges watched, gates manned, no bandit fool enough to draw steel on my avenues. Enjoy it while you stand on it. Past the gate is a different country, and it does not keep the Watch's hours.",
+        "Bound for the Duskmarsh? Then go by Miregard and mind their warden — he's grim, but he's right. The marsh has been eating patrols whole. I'll ride a bandit down to the river's edge and no further. Some roads even the Watch leaves to the brave or the foolish.",
       ] },
     { id: "child1", name: "Tam", spr: "🧒", x: 6, y: 17,
       lines: [
-        "Race you to the big bridge! Last one there's a river-rat! ...oh. You're not playing, are you.",
-        "My da works the wharves. He says one day I'll captain a barge all the way to the SEA. Have you SEEN the sea? Is it true it's bigger than the whole market square?",
+        "Race you to the big bridge! Loser's a river-rat! ...oh. Grown-ups never play. You've got a SWORD though, so I'll let you off.",
+        "My da works the wharves. He says one day I'll captain my own barge all the way down to the SEA! Have you SEEN the sea? Tam says it's so big you can't see the other market square on the far side. ...There IS a far side, isn't there?",
       ] },
     { id: "child2", name: "Nessa", spr: "🧒", x: 8, y: 17,
       lines: [
-        "Did you really fight the Kingpin? Was he as big as a HOUSE? Tam says bandits eat children but I don't believe him.",
-        "The fountain ate my copper. Mum says you make a wish and the river-spirit keeps it safe. I wished to see a real hero. ...Hey. HEY. Did it work?!",
+        "Did you REALLY fight the Kingpin? Was he tall as a house? Tam says bandits eat children but Tam's a liar, so. ...He doesn't, does he?",
+        "I dropped my last copper in the fountain. Mum says you make a wish and the river keeps it safe forever and ever. I wished to meet a real hero. ...Wait. WAIT. It WORKED?! Best wish EVER!",
       ] },
     { id: "ferry", name: "Ferryman Old Pell", spr: "🧓", x: 21, y: 13,
       lines: [
-        "Bridges took most of my trade, but there's still folk'd rather ride than climb. I've poled this river fifty years, lad. Know every stone under it.",
-        "She's gentle here in the city. North of the walls she turns mean, and by the time she reaches the Duskmarsh she's black as pitch and twice as patient. Rivers remember where they're going.",
+        "Them bridges took most of my trade, aye — but there's always one or two too proud to climb the steps, bless 'em. Fifty years I've poled this water, lad. I know every stone under her by the feel of my pole.",
+        "Gentle, ain't she, here where the city keeps her? Don't you trust it. North of the walls she sours, and by the time she's crawling into the Duskmarsh she's black as pitch and twice as patient. A river never forgets where it's bound. Mind you don't go the same way.",
       ] },
     { id: "noble", name: "Lady Corvin", spr: "👸", x: 39, y: 13,
       lines: [
-        "How quaint — adventurers, in from the mud. Do try not to track it onto the avenues, there's a dear.",
-        "One does NOT simply buy a townhouse in the High Quarter. One is invited. Crack a few more warrens, hero, and perhaps the Riverhall will invite YOU. Stranger things have climbed.",
+        "Oh — how quaint. Adventurers. In from the mud, by the smell of it. Do try not to drag the wilds onto MY avenue, there's a dear. The cobbles were swept at dawn.",
+        "One does not simply BUY into the High Quarter, you understand. One is invited. Topple a few more warlords, win a few more whispers at the right tables, and who knows — perhaps the Riverhall opens its doors to you. Stranger creatures have climbed. ...You'd want a bath first, naturally.",
       ] },
     { id: "bard", name: "Joss the Busker", spr: "🎻", x: 6, y: 13,
       lines: [
-        "♪ — and the bandits all fled when the heroes came down, to the bells, to the bells of fair Riverhearth town! ♪ ...Like it? Wrote it this morning. About YOU, if you toss a coin.",
-        "Every hero needs a song, and every song starts in a market square. Go north, do something worth singing, and come back — I'll have a whole ballad waiting.",
+        "♪ — and the bandits all FLED when the heroes came down, to the bells, to the bells, of fair Riverhearth town! ♪ ...Eh? Eh?? Wrote it this very morning. It's about YOU — or it could be, for the price of a copper. Two, and I'll leave out the bit where you trip in the mud.",
+        "Every hero wants a song, and every great song starts its life in a market square. So go on — go north, do something worth a verse or three, and come back this way. I'll have the ballad half-written before you've crossed the bridge.",
       ] },
     { id: "fishwife", name: "Marda the Fishwife", spr: "🐟", x: 26, y: 5,
       lines: [
-        "Fresh off the morning catch! River-trout, eel, silverfin — you'll not taste better this side of the Storm Coast!",
-        "You're bound north, I can smell the road on you. Then take a tip from one who's gutted ten thousand fish: whatever the marsh-folk tell you about the Duskmarsh, believe the WORST of it. Now — eel or trout?",
+        "FRESH off the dawn catch — river-trout, fat eel, silverfin still arguing about it! You'll not put better between your teeth this side of the Storm Coast, and I'll fight the soul who says otherwise.",
+        "North-bound, are you? Don't bother lying, love, I can smell the road on you over my own stall. Then here's wisdom from a woman who's gutted ten thousand fish and a few worse things: whatever Miregard tells you of the Duskmarsh, believe the WORST of it, and pack double. Now — eel or trout? I haven't got all morning and neither, by the look of you, have you.",
       ] },
   ],
 };
