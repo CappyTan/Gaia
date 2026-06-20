@@ -105,6 +105,22 @@ context): `grass`/`grass2` (clearings), `path` (carved roads/corridors), `tree` 
 the gate chokepoint), `bush`/`rock` (walkable scatter decoration), `chest`, `miniboss` (gate guardian,
 still 🪖 emoji), `boss`, and the `warren`/`vault` dungeon tilesets east of the gate.
 
+### Greenvale **Area-native dressing** (ADR 0009 exemplar) — per-Area shire tile kinds
+Greenvale's playable overworld now reads as its FIVE Areas (`data/world.ts` identities, realized at
+play scale by `data/zones.GREENVALE_AREAS` + `greenvaleAreaAt`, dressed in `controllers/field.draw`
+gated on `Field.areaAt(x,y)`). Each Area remaps the carved generic kinds to its own ground/scatter so
+the player can SEE which Area they're in. **Hearthford Commons** + **Warren Approach** reuse the base
+shire `grass`/`path`/`tree` (no new art). **The Hidden Grove** (SE pocket) reuses the existing forest
+kinds (`grove-ground`/`grove-ground2`/`grove-path`/`oldtree`/`fern`/`mushroom` — no new art). The two
+genuinely new skins are **Orchard Ridge** and **Bandit Fields** (placeholders today):
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Orchard ground (`orchard-ground`/`orchard-ground2`) | Greenvale Orchard Ridge (north band, remap of `grass`) | flat `#557a30` | Tended orchard floor; two-variant for texture (hash-picked). |
+| ◐ | Fruit tree (`orchard-tree`) | Orchard Ridge walls (remap of `tree`) | 🌳 emoji on orchard-ground | Orderly fruit-tree rows — the orchard's hedge/wall. Wants a laden-fruit-tree look, distinct from the wild `tree`. |
+| ◐ | Meadow ground (`meadow-ground`/`meadow-ground2`) | Greenvale Bandit Fields (south band, remap of `grass`) | flat `#7a8a36` | Open wind-rippled meadow; two-variant for texture (hash-picked). |
+| ◐ | Tall meadow grass (`wheat`) | Bandit Fields scatter (remap of `bush`) | 🌾 emoji | Walkable decoration; tall grass clumps the bandits hide in. |
+
 ### Greenfield **Duskmarsh overworld** — the mire dressing (ADR 0006)
 The Duskmarsh overworld now reads as a grim mire: the renderer (`field.draw`, gated on
 `Field.isMire()` = zone env leads with "mire") remaps the carved generic kinds to marsh sprites, and

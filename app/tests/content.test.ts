@@ -6,7 +6,7 @@ import { DB } from "../src/data/db";
 import { validateContent } from "../src/data/validate";
 import { ARCHETYPE_KEYS } from "../src/data/party";
 import { ATTUNEMENTS } from "../src/types";
-import { ZONES, type Zone, type ZoneLayout, type DungeonLayout, type Pt } from "../src/data/zones";
+import { ZONES, GREENVALE_AREAS, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type GreenvaleAreaId } from "../src/data/zones";
 import { SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, settlement } from "../src/data/towns";
 
 // ── COMBINED-GRID carve (legacy genMap path) ─────────────────────────────────────────────────
@@ -196,6 +196,49 @@ describe("ADR 0008 — decoupled overworld + dungeon (no soft-lock)", () => {
       });
     });
   }
+});
+
+// ── ADR 0009 exemplar: GREENVALE is AREA-NATIVE — its playable overworld realizes its five Areas
+// (Hearthford Commons / Orchard Ridge / Bandit Fields / The Hidden Grove / Warren Approach). The
+// per-Area regions (data/zones.GREENVALE_AREAS) tile the overworld portion (x<gateWallX) so EVERY
+// walkable overworld tile resolves to an Area, finest-first (the small grove pocket wins over Fields).
+describe("Greenvale Areas (ADR 0009 — Area-native overworld, finest-first, full coverage)", () => {
+  const z = ZONES[0];
+  const L = z.layout;
+  const ALL_AREAS: GreenvaleAreaId[] = ["gv-commons", "gv-orchard", "gv-fields", "gv-grove", "gv-warren-approach"];
+
+  it("declares exactly the five canonical Greenvale Areas", () => {
+    expect(GREENVALE_AREAS.map((a) => a.area).sort()).toEqual([...ALL_AREAS].sort());
+  });
+
+  it("resolves the key anchors to the right Area (spawn=Commons, lair=Grove, mouth approach=Warren)", () => {
+    expect(greenvaleAreaAt(L.spawn.x, L.spawn.y)).toBe("gv-commons");
+    expect(greenvaleAreaAt(L.lair!.x, L.lair!.y)).toBe("gv-grove");           // Hogger's den is in the hidden grove
+    expect(greenvaleAreaAt(L.mouth.x - 1, L.mouth.y)).toBe("gv-warren-approach"); // the run-up to the dungeon mouth
+    expect(greenvaleAreaAt(L.chests[0].x, L.chests[0].y)).toBe("gv-orchard"); // north-road chest sits in Orchard Ridge
+    expect(greenvaleAreaAt(L.chests[1].x, L.chests[1].y)).toBe("gv-fields");  // south-road chest sits in Bandit Fields
+  });
+
+  it("the grove pocket WINS over the broad Fields band where they overlap (finest-first)", () => {
+    // The lair tile lies inside BOTH the Fields band and the Grove pocket; the smaller Grove must win.
+    expect(greenvaleAreaAt(27, 20)).toBe("gv-grove");
+  });
+
+  it("covers EVERY walkable overworld tile — no tile west of the gate is Area-less", () => {
+    // Carve the overworld exactly as the controller does, then assert every reachable overworld tile
+    // (x strictly west of the gate wall) resolves to one of the five Areas.
+    const map = carveOverworld(L);
+    const seen = reachable(map, L.spawn);
+    const present = new Set<GreenvaleAreaId>();
+    for (let y = 0; y < L.h; y++) for (let x = 0; x < L.gateWallX; x++) {
+      if (!seen[y][x]) continue;
+      const a = greenvaleAreaAt(x, y);
+      expect(a, `tile (${x},${y}) has no Area`).toBeTruthy();
+      if (a) present.add(a);
+    }
+    // and the player can actually roam through all five Areas (each is on the reachable network).
+    for (const a of ALL_AREAS) expect(present.has(a), `Area ${a} is unreachable`).toBe(true);
+  });
 });
 
 describe("settlements (ADR 0006 — walkable, anti-soft-lock)", () => {

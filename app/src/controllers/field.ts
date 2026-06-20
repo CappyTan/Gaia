@@ -3,7 +3,7 @@
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
-import { ZONES, type ZoneLayout, type Pt } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type ZoneLayout, type Pt, type GreenvaleAreaId } from "../data/zones";
 import { settlement, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
@@ -61,6 +61,11 @@ export const Field = {
     for (const n of ["water", "mire-ground", "mire-ground2", "mire-path", "deadtree", "reed", "bog"]) names.push(n);
     // ancient-forest (Silverwood) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["grove-ground", "grove-ground2", "grove-path", "oldtree", "fern", "mushroom"]) names.push(n);
+    // Greenvale AREA dressing (ADR 0009 exemplar): per-Area shire flavor kinds — placeholders until
+    // sliced (see asset-gaps.md). Orchard Ridge + Bandit Fields get their own ground/scatter so the
+    // five Areas read distinct; Commons/Warren reuse the base shire grass; the Grove reuses the
+    // existing forest (grove-*) kinds.
+    for (const n of ["orchard-ground", "orchard-ground2", "orchard-tree", "meadow-ground", "meadow-ground2", "wheat"]) names.push(n);
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
@@ -89,6 +94,18 @@ export const Field = {
   // Whether THIS zone runs the new decoupled overworld/dungeon model (ADR 0008 Stage 2). Greenvale
   // first; the rest stay on the legacy combined-grid path until Chunk B proves the model out.
   usesNewModel(): boolean { return this.zoneIndex === 0; },
+  // ── ADR 0009 exemplar: Greenvale is AREA-NATIVE — its playable overworld reads as its five Areas
+  // (Hearthford Commons / Orchard Ridge / Bandit Fields / The Hidden Grove / Warren Approach), each
+  // with its own ground dressing + encounter lean. Whether THIS zone is the Area-aware one. (Only
+  // Greenvale for now — the exemplar; Silverwood/Duskmarsh are untouched pending the G21 decision.)
+  isAreaNative(): boolean { return this.zoneIndex === 0; },
+  // The Area a given overworld tile sits in (undefined in the dungeon / for a non-Area-native zone).
+  areaAt(x: number, y: number): GreenvaleAreaId | undefined {
+    if (!this.isAreaNative() || this.inDungeon()) return undefined;
+    return greenvaleAreaAt(x, y);
+  },
+  // The Area the PLAYER currently stands in (drives the encounter lean).
+  currentArea(): GreenvaleAreaId | undefined { return this.areaAt(this.px, this.py); },
   // In the zone's dungeon: tougher, own environment. New model = the `dungeon` mode flag; legacy =
   // east of the gate on the combined grid (px > gate.x).
   inDungeon(): boolean { return this.usesNewModel() ? this.mode === "dungeon" : this.px > this.gate.x; },
@@ -449,7 +466,12 @@ export const Field = {
       Battle.begin([pick(rares).key], this.envFor(p), false, false, depth, -1);
       return;
     }
-    const set = pick(band.sets).slice();
+    // AREA LEAN (ADR 0009 exemplar): in Area-native Greenvale, bias WHICH of this depth band's sets we
+    // draw toward the Area's creature character — WITHOUT changing the band (depth still drives the
+    // curve) or restatting anything. Every candidate set already belongs to this balanced depth band,
+    // so we only shift the COMPOSITION you meet (Commons = slime/kobold; Orchard = kobold/bandit;
+    // Fields = bandit/mage; Grove/Warren-Approach = the heavier mixes). Falls back to a plain pick.
+    const set = this.pickAreaSet(band.sets).slice();
     // CHAMPION PACK: past the opening, an encounter can be led by a champion (lead = index 0)
     // with 1-2 extra minions. More common deeper in / in the dungeon.
     let champIdx = -1;
@@ -460,6 +482,31 @@ export const Field = {
       if (set.length < 5) set.push(pick(adds.length ? adds : set));
     }
     Battle.begin(set, this.envFor(p), false, false, depth, champIdx);
+  },
+  // ── ADR 0009 exemplar: AREA-LEANED set choice. Pick a set from the (already depth-balanced) band,
+  // biased toward the Area the player stands in. The lean is a per-Area "which Greenvale creatures fit
+  // here" affinity over the EXISTING bestiary (no new/restatted enemies); we score each candidate set
+  // by how many of its members the Area favours, then weight-pick so a matching set is MORE likely but
+  // every band set stays possible (variety + the difficulty curve are preserved — same band, same pool).
+  pickAreaSet(sets: string[][]): string[] {
+    const area = this.currentArea();
+    if (!area) return pick(sets);
+    // Greenvale creatures that read as "belonging" to each Area (slime/slimebig = vermin of the open
+    // commons; kobold/kobolde = the orchard scrub raiders; gbandit/gmage = the deep bandit fields/camp).
+    const FAVOUR: Record<GreenvaleAreaId, Record<string, number>> = {
+      "gv-commons":          { slime: 2, slimebig: 2, kobold: 1 },
+      "gv-orchard":          { kobold: 2, kobolde: 2, gbandit: 1 },
+      "gv-fields":           { gbandit: 2, gmage: 2, kobolde: 1 },
+      "gv-grove":            { gbandit: 1, gmage: 1, slimebig: 1, kobolde: 1 }, // off the safe path: the rougher mixes
+      "gv-warren-approach":  { gbandit: 2, gmage: 1, kobolde: 1 },             // the camp's muster before the gate
+    };
+    const fav = FAVOUR[area];
+    // weight = 1 baseline + the set's favour score (so a strongly-matching set is a few× likelier).
+    let total = 0;
+    const weights = sets.map((s) => { const w = 1 + s.reduce((n, k) => n + (fav[k] ?? 0), 0); total += w; return w; });
+    let r = Math.random() * total;
+    for (let i = 0; i < sets.length; i++) { r -= weights[i]; if (r <= 0) return sets[i]; }
+    return sets[sets.length - 1];
   },
   // The hidden rare-monster lair (Greenvale: Hogger). Stepping in starts a solo rare fight; the
   // den is consumed so it's a one-time reward for the explorer (re-cleared each visit to the zone).
@@ -595,6 +642,11 @@ export const Field = {
         const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
         const mire = !inDun && this.isMire(); // grim overworld dressing (Duskmarsh)
         const grove = !inDun && this.isForest(); // dense old-growth dressing (Silverwood)
+        // ADR 0009 exemplar: in AREA-NATIVE Greenvale the overworld ground is dressed PER-AREA, so the
+        // five Areas read distinct as you roam — orchard rows in the north, tall meadow in the south, a
+        // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
+        const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
+        const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
         const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth";
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
@@ -616,20 +668,39 @@ export const Field = {
           const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground" };
           ground = isObj ? "grove-ground" : (gm[cell] || "grove-ground");
           if (ground === "grove-ground" && (mx * 7 + my * 13) % 4 === 0 && T["grove-ground2"]) ground = "grove-ground2";
+        } else if (groveArea) {
+          // Greenvale's Hidden Grove pocket: a hushed forest, dressed with the existing forest skin
+          // (grove-ground / root trail / fern / mushroom; oldtree drawn as the object below).
+          const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground" };
+          ground = isObj ? "grove-ground" : (gm[cell] || "grove-ground");
+          if (ground === "grove-ground" && (mx * 7 + my * 13) % 4 === 0 && T["grove-ground2"]) ground = "grove-ground2";
+        } else if (area === "gv-orchard") {
+          // Orchard Ridge: tended orchard rows — orchard-ground under foot, orchard fruit-trees as the
+          // wall (drawn as the object below), scatter as bush/rock (windfall + stones).
+          const gm: Record<string, string> = { grass: "orchard-ground", grass2: "orchard-ground2", path: "path", tree: "orchard-ground" };
+          ground = isObj ? "orchard-ground" : (gm[cell] || "orchard-ground");
+          if (ground === "orchard-ground" && (mx * 7 + my * 13) % 4 === 0 && T["orchard-ground2"]) ground = "orchard-ground2";
+        } else if (area === "gv-fields") {
+          // Bandit Fields: tall wind-rippled meadow — meadow-ground, wheat scatter (bush), trees frame it.
+          const gm: Record<string, string> = { grass: "meadow-ground", grass2: "meadow-ground2", path: "path", bush: "wheat", tree: "meadow-ground" };
+          ground = isObj ? "meadow-ground" : (gm[cell] || "meadow-ground");
+          if (ground === "meadow-ground" && (mx * 7 + my * 13) % 4 === 0 && T["meadow-ground2"]) ground = "meadow-ground2";
         } else {
+          // Hearthford Commons + the Warren Approach: the open base shire (grass / road / hedge-tree).
           ground = isObj ? "grass" : cell;
           if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
         }
         const gimg = T[ground];
         if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1); // +1px overlap hides hairline seams
         else {
-          // flat-colour fallback (palette differs for dungeon / mire / grove / shire)
-          const fill = inDun ? "#2a2740" : mire ? (cell === "water" ? "#23303a" : "#3a4030") : grove ? "#2e4a26" : (colors[cell] || "#4a7a32");
+          // flat-colour fallback (palette differs for dungeon / mire / grove / per-Area shire)
+          const areaFill = groveArea ? "#2e4a26" : area === "gv-orchard" ? "#557a30" : area === "gv-fields" ? "#7a8a36" : undefined;
+          const fill = inDun ? "#2a2740" : mire ? (cell === "water" ? "#23303a" : "#3a4030") : grove ? "#2e4a26" : (cell === "grass" || cell === "grass2") && areaFill ? areaFill : (colors[cell] || "#4a7a32");
           c.fillStyle = fill; c.fillRect(sx, sy, t, t);
           if (!inDun && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.08)"; c.fillRect(sx, sy, t, t); }
           if (inDun) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); } // tint only when art missing
           else if (mire && cell !== "water") { c.fillStyle = "rgba(20,28,18,.28)"; c.fillRect(sx, sy, t, t); } // grim wash
-          else if (grove) { c.fillStyle = "rgba(8,20,8,.34)"; c.fillRect(sx, sy, t, t); } // deep, hushed canopy shade
+          else if (grove || groveArea) { c.fillStyle = "rgba(8,20,8,.34)"; c.fillRect(sx, sy, t, t); } // deep, hushed canopy shade
         }
         // overlays / object sprites (fall back to emoji if art isn't loaded)
         c.font = `${t * 0.82}px serif`;
@@ -642,10 +713,19 @@ export const Field = {
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
-        else if (cell === "tree") { if (mire) obj(T.deadtree, "🌫️", 0.95); else if (grove) obj(T.oldtree, "🌲", 1.0); else if (!gimg) c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2); }
+        else if (cell === "tree") {
+          if (mire) obj(T.deadtree, "🌫️", 0.95);
+          else if (grove || groveArea) obj(T.oldtree, "🌲", 1.0);
+          else if (area === "gv-orchard") obj(T["orchard-tree"], "🌳", 1.0); // fruit-tree row
+          else if (!gimg) c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2);
+        }
         else if (cell === "water" && !inDun && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
-        else if (cell === "bush") { if (grove) obj(T.fern, "🌿", 0.85); else if (!gimg) c.fillText(inDun ? "🦴" : mire ? "🌾" : "🌿", sx + t / 2, sy + t / 2); }
-        else if (cell === "rock") { if (mire && !gimg) c.fillText("🪨", sx + t / 2, sy + t / 2); else if (grove) obj(T.mushroom, "🍄", 0.8); }
+        else if (cell === "bush") {
+          if (grove || groveArea) obj(T.fern, "🌿", 0.85);
+          else if (area === "gv-fields") obj(T.wheat, "🌾", 0.85); // tall meadow grass
+          else if (!gimg) c.fillText(inDun ? "🦴" : mire ? "🌾" : "🌿", sx + t / 2, sy + t / 2);
+        }
+        else if (cell === "rock") { if (mire && !gimg) c.fillText("🪨", sx + t / 2, sy + t / 2); else if (grove || groveArea) obj(T.mushroom, "🍄", 0.8); }
       }
     // NPCs (town only): a shadow + emoji-placeholder body + gold name caption; a "…" bubble while
     // you're mid-conversation with them. Sprite art is flagged in asset-gaps.md.
