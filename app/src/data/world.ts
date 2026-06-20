@@ -34,7 +34,7 @@
 // sits inside its continent" check (the polygon IS the truth now; the old rect is just legacy
 // engine-grid scaffolding). The shapes no longer match the tiny Stage-1 rects on purpose.
 
-import { ZONES } from "./zones";
+import { ZONES, type Pt, type Rect } from "./zones";
 
 // ── The hierarchy spine (ADR 0009 §1) ─────────────────────────────────────────────────────────
 
@@ -750,4 +750,136 @@ export function authoredAt(wx: number, wy: number): { zoneId: string; lx: number
     }
   }
   return undefined;
+}
+
+/** A BUILT zone's geography polygon (the organic shape on the world map), or undefined. */
+export function zonePolygonOf(zoneId: string): Polygon | undefined {
+  return ZONE_REGIONS.find((z) => z.id === zoneId && z.zone === zoneId)?.shape;
+}
+
+/**
+ * Is a world tile inside a built zone's geography POLYGON? Used by the Stage-2B realizer to decide
+ * procedural OPEN-GROUND fill (inside the polygon, outside the authored core) vs UNCHARTED (outside
+ * the polygon — the impassable soft edge). Pure point-in-polygon. (Cheap; the realizer caches the
+ * per-cell result by chunk so this is never on the per-frame draw path.)
+ */
+export function inZonePolygon(zoneId: string, wx: number, wy: number): boolean {
+  const poly = zonePolygonOf(zoneId);
+  return poly ? pointInPolygon(poly, wx, wy) : false;
+}
+
+// ── Stage 2B realization (PURE) — the authored blueprint + the per-tile realization kind ──────────
+// These are the PURE half of the chunk realizer (ADR 0005): the controller (field.ts) owns the chunk
+// CACHE + RENDER, but the deterministic data — what authored tile sits at a world coord, and whether a
+// world coord is open ground / uncharted — lives here so it is unit-testable WITHOUT the DOM. The
+// scatter + flood-repair use the SAME stable per-tile hash the renderer uses (never Math.random), so
+// the same chunk realizes identically every time (the determinism guarantee Stage 2B requires).
+
+/** A stable, allocation-free per-tile hash in [0,1) — the only randomness in realization. */
+export function tileHash(x: number, y: number): number {
+  return (((x * 73856093) ^ (y * 19349663)) >>> 0) / 0xffffffff;
+}
+
+/** Realization WALL kinds (impassable + flood barriers) — mirrors field.ts FIELD_WALLS. */
+const REALIZE_WALLS = new Set(["tree", "water", "uncharted"]);
+
+/**
+ * Build a placed zone's AUTHORED OVERWORLD blueprint as a LOCAL string[][] of tile kinds — the dense
+ * hand-built core that gets windowed into world space. Pure + deterministic (the scatter uses tileHash,
+ * not Math.random) and anti-soft-lock (flood-repairs the mouth + every chest/lair reachable from spawn).
+ * `miniDefeated` swaps the mouth tile guard for the enterable mouth (so the realizer reflects progress).
+ */
+export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[][] {
+  const z = ZONES.find((zz) => zz.id === zoneId);
+  if (!z) return [];
+  const L = z.layout, W = L.w, H = L.h;
+  const grid: string[][] = Array.from({ length: H }, () => Array.from({ length: W }, () => "tree"));
+  const inB = (x: number, y: number) => x > 0 && y > 0 && x < W - 1 && y < H - 1;
+  const carve = (x: number, y: number, k: string) => { if (inB(x, y)) grid[y][x] = k; };
+  const carveRect = (r: Rect) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, "grass"); };
+  L.fieldRects.forEach(carveRect);
+  const carveSeg = (a: Pt, b: Pt) => {
+    let cx = a.x, cy = a.y; const c = (x: number, y: number) => { if (inB(x, y)) grid[y][x] = "path"; };
+    c(cx, cy);
+    while (cx !== b.x) { cx += Math.sign(b.x - cx); c(cx, cy); }
+    while (cy !== b.y) { cy += Math.sign(b.y - cy); c(cx, cy); }
+  };
+  L.fieldPaths.forEach((p) => { for (let i = 1; i < p.length; i++) carveSeg(p[i - 1], p[i]); });
+  const dens = L.scatter ?? 0.06;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++)
+    if (grid[y][x] === "grass" && tileHash(x, y) < dens) grid[y][x] = tileHash(y, x) < 0.6 ? "bush" : "rock";
+  if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y)) grid[y][x] = "water";
+  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && grid[yy][xx] === "tree") grid[yy][xx] = "grass"; } };
+  L.chests.forEach((c) => { halo(c); carve(c.x, c.y, "chest"); });
+  if (L.lair) { halo(L.lair); carve(L.lair.x, L.lair.y, "lair"); }
+  halo(L.mouth); grid[L.mouth.y][L.mouth.x] = miniDefeated ? "mouth" : "miniboss";
+  carve(L.spawn.x, L.spawn.y, "path");
+  const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair);
+  repairAuthoredGrid(grid, L.spawn, targets);
+  return grid;
+}
+
+/** Flood-fill repair on a standalone authored grid: punch an L-corridor to any walled-off target. */
+export function repairAuthoredGrid(grid: string[][], spawn: Pt, targets: Pt[]): void {
+  const H = grid.length, W = grid[0]?.length ?? 0;
+  if (!W) return;
+  const flood = (s: Pt) => {
+    const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
+    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && !REALIZE_WALLS.has(grid[y][x]);
+    const q: Pt[] = []; if (open(s.x, s.y)) { seen[s.y][s.x] = true; q.push(s); }
+    while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }
+    return seen;
+  };
+  let seen = flood(spawn);
+  for (const t of targets) {
+    if (seen[t.y]?.[t.x]) continue;
+    let best: Pt | null = null, bd = Infinity;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (seen[y][x]) { const d = Math.abs(x - t.x) + Math.abs(y - t.y); if (d < bd) { bd = d; best = { x, y }; } }
+    if (best) {
+      let cx = best.x, cy = best.y;
+      const step = (x: number, y: number) => { if (x > 0 && y > 0 && x < W - 1 && y < H - 1 && REALIZE_WALLS.has(grid[y][x])) grid[y][x] = "path"; };
+      while (cx !== t.x) { cx += Math.sign(t.x - cx); step(cx, cy); }
+      while (cy !== t.y) { cy += Math.sign(t.y - cy); step(cx, cy); }
+      seen = flood(spawn);
+    }
+  }
+}
+
+/**
+ * The REALIZATION kind of a WORLD tile for a placed zone (the two-lookup model, realization axis):
+ * inside the authored placement rect → that authored cell's kind; else inside the zone polygon →
+ * "grass" (procedural open ground); else "uncharted" (the impassable soft edge). Pure — the controller
+ * passes the prebuilt authored grid so this never rebuilds it per tile.
+ */
+export function realizeKind(zoneId: string, authoredGrid: string[][], wx: number, wy: number): string {
+  const a = authoredAt(wx, wy);
+  if (a && a.zoneId === zoneId && authoredGrid[a.ly]) return authoredGrid[a.ly][a.lx];
+  if (inZonePolygon(zoneId, wx, wy)) return "grass";
+  return "uncharted";
+}
+
+/**
+ * WORLD-SPACE reachability: from a placed zone's authored spawn (in world coords), can the player reach
+ * every world target across the realized world (authored core + procedural open fill, uncharted/walls
+ * blocking)? A BFS over realized kinds, bounded to the zone polygon's bbox + a margin. Returns the set
+ * of targets NOT reached (empty == all reachable). PURE — used by the reachability test (no soft-lock).
+ */
+export function unreachableWorldTargets(zoneId: string, authoredGrid: string[][], spawnW: Pt, targetsW: Pt[]): Pt[] {
+  const poly = zonePolygonOf(zoneId);
+  if (!poly) return targetsW.slice();
+  const b = bbox(poly), m = 4;
+  const x0 = b.minX - m, y0 = b.minY - m, x1 = b.maxX + m, y1 = b.maxY + m;
+  const open = (x: number, y: number) => x >= x0 && y >= y0 && x <= x1 && y <= y1 && !REALIZE_WALLS.has(realizeKind(zoneId, authoredGrid, x, y));
+  const seen = new Set<string>();
+  const key = (x: number, y: number) => x + "," + y;
+  const q: Pt[] = [];
+  if (open(spawnW.x, spawnW.y)) { seen.add(key(spawnW.x, spawnW.y)); q.push(spawnW); }
+  while (q.length) {
+    const { x, y } = q.shift()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (open(nx, ny) && !seen.has(key(nx, ny))) { seen.add(key(nx, ny)); q.push({ x: nx, y: ny }); }
+    }
+  }
+  return targetsW.filter((t) => !seen.has(key(t.x, t.y)));
 }

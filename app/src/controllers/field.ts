@@ -4,6 +4,10 @@ import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
 import { ZONES, greenvaleAreaAt, type ZoneLayout, type Pt, type GreenvaleAreaId } from "../data/zones";
+import {
+  OVERWORLD_ID, regionAt, authoredAt, placementOf,
+  buildAuthoredGrid, realizeKind, tileHash,
+} from "../data/world";
 import { settlement, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
@@ -23,6 +27,46 @@ const DUNGEON_SETS = ["warren", "grove", "vault"];
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
 const FIELD_WALLS = new Set(["tree", "water"]);
+
+// ── Seamless big-map (ADR 0009 / Stage 2B) realization constants ──────────────────────────────
+// 32×32 world-tile chunks keyed `(wx>>5,wy>>5)`. Realized once, cached, evicted >3 Chebyshev away.
+const CHUNK = 32, CHUNK_SHIFT = 5;          // 2^5 = 32
+const SEAM_K = 3;                            // seam-dither half-width (tiles) — matches seamBlendBand K
+const EVICT_CHEB = 3;                        // evict chunks > this many chunks (Chebyshev) from player
+const CHUNK_MARGIN = 1;                      // realize the viewport chunk-ring + this many extra rings
+// `tileHash` (the ONLY randomness at realize time — never Math.random, so re-realizing a chunk is
+// byte-identical = no flicker; Stage 2B determinism) is imported from data/world (shared with the
+// pure realizer + tests).
+
+// AREA ENCOUNTER LEAN → which existing-bestiary creatures "belong" here (ADR 0009 exemplar, now keyed
+// by the Area's `encounterLean` so it is ZONE-AGNOSTIC — the same table serves discrete Greenvale and
+// the big-map window, and any future zone whose Areas reuse these lean keys). NO new/restatted enemies;
+// the lean only biases WHICH of a depth band's balanced sets you meet, never the curve. Greenvale leans:
+//   low-slime-kobold (Commons) · kobold-bandit (Orchard) · bandit-mage (Fields) · rare-lair (Grove) ·
+//   miniboss-gate (Warren Approach).
+// Discrete Greenvale's Area ids → their world.ts encounter-lean (so the discrete path shares the
+// zone-agnostic LEAN_FAVOUR table above, mirroring the big-map window's cached cell lean).
+const GV_AREA_LEAN: Record<GreenvaleAreaId, string> = {
+  "gv-commons": "low-slime-kobold", "gv-orchard": "kobold-bandit", "gv-fields": "bandit-mage",
+  "gv-grove": "rare-lair", "gv-warren-approach": "miniboss-gate",
+};
+const LEAN_FAVOUR: Record<string, Record<string, number>> = {
+  "low-slime-kobold": { slime: 2, slimebig: 2, kobold: 1 },
+  "kobold-bandit":    { kobold: 2, kobolde: 2, gbandit: 1 },
+  "bandit-mage":      { gbandit: 2, gmage: 2, kobolde: 1 },
+  "rare-lair":        { gbandit: 1, gmage: 1, slimebig: 1, kobolde: 1 }, // off the safe path: rougher mixes
+  "miniboss-gate":    { gbandit: 2, gmage: 1, kobolde: 1 },             // the camp's muster before the gate
+};
+
+/** One realized world cell: the realization KIND + the cached identity/dressing (so draw never calls regionAt). */
+interface BigCell {
+  kind: string;        // realization: authored tile kind, "grass" (open ground), or "uncharted" (soft edge)
+  biome: string;       // identity (Area→biome), cached at realize time
+  tileset: string;     // identity (Area→tileset), cached at realize time
+  lean: string;        // encounter lean (Area), cached at realize time
+  variant: number;     // 0..3 stable ground-variant index (for grass2 / *-ground2 alternates)
+  dither?: string;     // seam dither: a neighbouring Area's biome to blend toward at this cell (if any)
+}
 
 export const Field = {
   // PACING KNOBS: ENC_MIN/MAX = steps between random fights. Map size + the gate/boss/chest anchors
@@ -52,6 +96,24 @@ export const Field = {
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
   tiles: {} as Record<string, HTMLImageElement>, // loaded field sprites (empty until ready)
+
+  // ── Seamless big-map (ADR 0009 / Stage 2B) ──────────────────────────────────────────────────
+  // When `bigMap` is ON (GREENVALE ONLY for now), the overworld is rendered+roamed as a WINDOW into
+  // the one 960×640 world coordinate space: `wx/wy` (world tiles) is the player's source of truth and
+  // `draw()`/`move()`/`passable` work in world coords off a chunk cache. When OFF (Silverwood/Duskmarsh,
+  // and as a safety toggle) the existing discrete grid path runs UNCHANGED. The flag gates ONLY the
+  // overworld — dungeons stay discrete (mode="dungeon", `genDungeon`) regardless.
+  // `bigMapEnabled` is the MASTER toggle (Greenvale enters the windowed big map when on; flip it off
+  // for the discrete fallback). `bigMap` is the per-load ACTIVE-state flag set by enterBigMap().
+  // SHIPS DORMANT (false) during the staged seamless build (ADR 0008/0009): prod stays on the proven
+  // discrete path until the Greenvale↔Silverwood no-load proof (2C) is verified + Dara signs off the
+  // live flip. Tests/Playwright exercise the on-path by toggling this true.
+  bigMapEnabled: false,
+  bigMap: false,
+  wx: 0, wy: 0,                                   // player world-tile position (source of truth when bigMap)
+  chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
+  authoredGrid: null as string[][] | null,        // the placed zone's authored overworld blueprint (local)
+  bigZone: "" as string,                          // which zone the big map is currently realizing
 
   // Preload the overworld (Greenvale) tileset + both dungeon tilesets; each redraws as it lands.
   // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
@@ -106,6 +168,13 @@ export const Field = {
   },
   // The Area the PLAYER currently stands in (drives the encounter lean).
   currentArea(): GreenvaleAreaId | undefined { return this.areaAt(this.px, this.py); },
+  // The encounter LEAN of the Area under the player — zone-agnostic, used by pickAreaSet. BIG-MAP reads
+  // the cached cell lean; discrete Greenvale maps its GreenvaleAreaId → the matching world.ts lean.
+  currentLean(): string | undefined {
+    if (this.bigMapActive()) return this.bigLean() || undefined;
+    const area = this.currentArea();
+    return area ? GV_AREA_LEAN[area] : undefined;
+  },
   // In the zone's dungeon: tougher, own environment. New model = the `dungeon` mode flag; legacy =
   // east of the gate on the combined grid (px > gate.x).
   inDungeon(): boolean { return this.usesNewModel() ? this.mode === "dungeon" : this.px > this.gate.x; },
@@ -149,6 +218,10 @@ export const Field = {
   // separate grid (genDungeon); every other zone still builds the SAME combined grid as before
   // (genCombined). All paths flood-fill to GUARANTEE the boss + every chest reachable (anti-soft-lock).
   genMap(): void {
+    // BIG-MAP (Stage 2B): GREENVALE roams as a window into the 960×640 world when the master toggle is
+    // on. Everything else (and the safety toggle off) takes the discrete path UNCHANGED.
+    if (this.bigMapEnabled && this.zone().id === "greenvale") { this.enterBigMap("greenvale"); return; }
+    this.bigMap = false;
     if (this.usesNewModel()) { this.mode = "overworld"; this.genOverworld(this.zone().id); }
     else this.genCombined();
   },
@@ -368,6 +441,12 @@ export const Field = {
   // 0..1 progress through the current space. Legacy: px toward the combined-grid boss. New model:
   // OVERWORLD = px toward the dungeon mouth; DUNGEON = px toward the dungeon boss.
   progress(): number {
+    // BIG-MAP overworld: progress is world-x from the authored spawn toward the mouth's world-x.
+    if (this.bigMapActive()) {
+      const pl = placementOf(this.bigZone)!, L = (ZONES.find((z) => z.id === this.bigZone) ?? this.zone()).layout;
+      const x0 = pl.wx + L.spawn.x, x1 = pl.wx + this.mouth.x;
+      return clamp((this.wx - x0) / Math.max(1, x1 - x0), 0, 1);
+    }
     const goal = this.usesNewModel() && this.mode === "overworld" ? this.mouth.x : this.boss.x;
     return clamp((this.px - 1) / Math.max(1, goal - 1), 0, 1);
   },
@@ -384,6 +463,7 @@ export const Field = {
     // While a conversation is open, the d-pad/move keys advance the dialogue instead of walking.
     if (Dialogue.isOn()) { Dialogue.advance(); return; }
     if (Overlay.isOn()) return;
+    if (this.bigMapActive()) { this.bigMove(dx, dy); return; } // windowed big-map roams in world coords
     const nx = this.px + dx, ny = this.py + dy;
     // Walking into an NPC talks to them (you don't move onto their tile).
     if (this.townMode) { const npc = this.npcAt(nx, ny); if (npc) { this.talkTo(npc); return; } }
@@ -431,13 +511,166 @@ export const Field = {
     Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
   // Climb back out of the dungeon to the overworld (new model). Rebuilds the overworld at the mouth.
+  // BIG-MAP: restore the player onto the mouth's WORLD tile and re-enter the windowed overworld; the
+  // chunk cache + authored blueprint carry over (the mouth never moved in world space).
   ascend(): void {
+    if (this.bigMapActive()) {
+      this.mode = "overworld";
+      const pl = placementOf(this.bigZone)!;
+      this.wx = pl.wx + this.mouth.x; this.wy = pl.wy + this.mouth.y; // step back out onto the mouth's world tile
+      this.realizeAround();
+      this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+      this.draw(); this.hint();
+      Game.saveNow();
+      return;
+    }
     this.resize(); this.genOverworld(this.zone().id); // mode="overworld", px/py at spawn
     this.px = this.mouth.x; this.py = this.mouth.y;    // step back out onto the mouth, not the far spawn
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
   },
+  // ═══ SEAMLESS BIG-MAP (ADR 0009 / Stage 2B) — GREENVALE only, behind `bigMap` ════════════════
+  // Render+roam Greenvale as a WINDOW into the 960×640 world. `wx/wy` is the source of truth; the
+  // viewport is iterated from a 32×32 chunk cache (realized on move, evicted when far); each cell
+  // caches its identity (Area→biome/tileset/lean) at realize time so `draw()` never calls regionAt.
+
+  /** Is the windowed big-map overworld currently the active surface? (flag on + not in a dungeon/town.) */
+  bigMapActive(): boolean { return this.bigMap && this.mode === "overworld" && !this.townMode; },
+
+  // ENTER big-map Greenvale: set the player at the authored spawn mapped to world coords
+  // (placementOf + spawn), build the authored blueprint (pure, data/world), realize the viewport, draw.
+  enterBigMap(zoneId = "greenvale"): void {
+    this.townMode = false; this.mode = "overworld"; this.bigMap = true; this.bigZone = zoneId;
+    const z = ZONES.find((zz) => zz.id === zoneId) ?? this.zone();
+    const pl = placementOf(zoneId)!, L = z.layout;
+    this.authoredGrid = buildAuthoredGrid(zoneId, Game.miniBossDefeated);
+    this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
+    this.wx = pl.wx + L.spawn.x; this.wy = pl.wy + L.spawn.y; // authored spawn → world coords
+    this.chunks.clear();
+    this.realizeAround();
+    this.draw(); this.hint();
+  },
+
+  chunkKey(cx: number, cy: number): string { return cx + "," + cy; },
+
+  // REALIZE one 32×32 chunk once (deterministic): per cell run the two-lookup model — realization
+  // (authored grid hit → that kind; else inside the zone polygon → "grass"; else "uncharted") and
+  // identity/dressing (regionAt→Area→biome/tileset/lean, cached so draw() never calls regionAt) +
+  // a seam dither (a neighbouring Area's biome within K tiles, blended by the stable hash).
+  realizeChunk(cx: number, cy: number): BigCell[][] {
+    const zoneId = this.bigZone;
+    const x0 = cx << CHUNK_SHIFT, y0 = cy << CHUNK_SHIFT;
+    const cells: BigCell[][] = [];
+    for (let ly = 0; ly < CHUNK; ly++) {
+      const row: BigCell[] = [];
+      for (let lx = 0; lx < CHUNK; lx++) {
+        const wx = x0 + lx, wy = y0 + ly;
+        // (a) REALIZATION (pure, data/world): authored core → that kind; inside polygon → open ground;
+        // else uncharted soft edge.
+        const kind = realizeKind(zoneId, this.authoredGrid ?? [], wx, wy);
+        // (b) IDENTITY / DRESSING — cached so the per-frame draw path never calls regionAt.
+        const id = regionAt(OVERWORLD_ID, wx, wy);
+        const ai = id.area?.identity;
+        const biome = ai?.biome ?? "plains", tileset = ai?.tileset ?? "shire", lean = ai?.encounterLean ?? "";
+        const variant = ((wx * 7 + wy * 13) % 4 === 0) ? 1 : 0;
+        // SEAM DITHER: within K of a DIFFERENT neighbouring Area, blend toward its biome by the hash.
+        let dither: string | undefined;
+        if (id.area) {
+          for (const [dx, dy] of [[SEAM_K, 0], [-SEAM_K, 0], [0, SEAM_K], [0, -SEAM_K]]) {
+            const nb = regionAt(OVERWORLD_ID, wx + dx, wy + dy).area;
+            if (nb && nb.identity.biome !== biome) {
+              // closer to the seam → likelier to flip; stable per cell+neighbour.
+              if (tileHash(wx * 3 + dx, wy * 3 + dy) < 0.45) { dither = nb.identity.biome; break; }
+            }
+          }
+        }
+        row.push({ kind, biome, tileset, lean, variant, dither });
+      }
+      cells.push(row);
+    }
+    return cells;
+  },
+
+  // Realize the viewport chunk-ring + a 1-chunk margin around the player; evict chunks far away.
+  // Called on move() (NOT in draw()) so realization cost is paid once per step, off the frame path.
+  realizeAround(): void {
+    const t = this.tile || 32;
+    const viewW = this.canvas ? Math.ceil(this.canvas.width / t) : 13;
+    const viewH = this.canvas ? Math.ceil(this.canvas.height / t) : 9;
+    const cx0 = ((this.wx - (viewW >> 1)) >> CHUNK_SHIFT) - CHUNK_MARGIN;
+    const cy0 = ((this.wy - (viewH >> 1)) >> CHUNK_SHIFT) - CHUNK_MARGIN;
+    const cx1 = ((this.wx + (viewW >> 1)) >> CHUNK_SHIFT) + CHUNK_MARGIN;
+    const cy1 = ((this.wy + (viewH >> 1)) >> CHUNK_SHIFT) + CHUNK_MARGIN;
+    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+      const k = this.chunkKey(cx, cy);
+      if (!this.chunks.has(k)) this.chunks.set(k, this.realizeChunk(cx, cy));
+    }
+    // EVICT chunks > EVICT_CHEB chunks (Chebyshev) from the player's chunk.
+    const pcx = this.wx >> CHUNK_SHIFT, pcy = this.wy >> CHUNK_SHIFT;
+    for (const key of this.chunks.keys()) {
+      const [kx, ky] = key.split(",").map(Number);
+      if (Math.max(Math.abs(kx - pcx), Math.abs(ky - pcy)) > EVICT_CHEB) this.chunks.delete(key);
+    }
+  },
+
+  // The realized cell at a WORLD tile (realizing its chunk on demand — used by passable/move; the
+  // ring is normally already warm from realizeAround()).
+  cellAt(wx: number, wy: number): BigCell {
+    const cx = wx >> CHUNK_SHIFT, cy = wy >> CHUNK_SHIFT, k = this.chunkKey(cx, cy);
+    let ch = this.chunks.get(k);
+    if (!ch) { ch = this.realizeChunk(cx, cy); this.chunks.set(k, ch); }
+    return ch[wy - (cy << CHUNK_SHIFT)][wx - (cx << CHUNK_SHIFT)];
+  },
+
+  // Big-map passability: read the realized cell. Uncharted + the field walls block.
+  bigPassable(wx: number, wy: number): boolean {
+    const cell = this.cellAt(wx, wy);
+    return cell.kind !== "uncharted" && !FIELD_WALLS.has(cell.kind);
+  },
+
+  // The Area encounter-lean the player currently stands in (big-map) — drives pickAreaSet.
+  bigLean(): string { return this.cellAt(this.wx, this.wy).lean; },
+
+  // Big-map movement: walk in world coords, trigger the same POI flow off the realized cell's kind.
+  bigMove(dx: number, dy: number): void {
+    const nx = this.wx + dx, ny = this.wy + dy;
+    if (!this.bigPassable(nx, ny)) return;
+    this.wx = nx; this.wy = ny;
+    this.realizeAround(); // realize-on-move (never in draw)
+    Game.steps++; Telemetry.step();
+    this.draw(); this.hint();
+    const cell = this.cellAt(nx, ny);
+    if (cell.kind === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
+    if (cell.kind === "mouth") { this.descend(); return; }
+    if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
+    if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
+    this.stepsToEncounter--;
+    if (this.stepsToEncounter <= 0) { this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX); this.rollEncounter(); }
+  },
+  // A chest in big-map space: consume the realized cell + the authored blueprint cell, then reward.
+  openBigChest(wx: number, wy: number): void {
+    this.cellAt(wx, wy).kind = "path";
+    const a = authoredAt(wx, wy); if (a && this.authoredGrid) this.authoredGrid[a.ly][a.lx] = "path";
+    const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5);
+    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4);
+    const m = pick(Game.party);
+    const it = rollItemAtRarity(floor, m.cls, ilvl, m.att);
+    Game.inventory.push(it); Telemetry.drop(it.rarity);
+    this.draw(); this.hint();
+    Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+  },
+  // The rare-monster den in big-map space (Hogger): consume it, then start the solo rare fight.
+  enterBigLair(wx: number, wy: number): void {
+    this.cellAt(wx, wy).kind = "grass";
+    const a = authoredAt(wx, wy); if (a && this.authoredGrid) this.authoredGrid[a.ly][a.lx] = "grass";
+    const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
+    const key = rares.length ? rares[0].key : null;
+    this.draw(); this.hint();
+    if (!key) return;
+    Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
+  },
+
   // Walking onto a town POI tile opens its service (Game owns the run-state actions).
   townTouch(cell: string): void {
     const poi = POI_OF[cell];
@@ -489,18 +722,10 @@ export const Field = {
   // by how many of its members the Area favours, then weight-pick so a matching set is MORE likely but
   // every band set stays possible (variety + the difficulty curve are preserved — same band, same pool).
   pickAreaSet(sets: string[][]): string[] {
-    const area = this.currentArea();
-    if (!area) return pick(sets);
-    // Greenvale creatures that read as "belonging" to each Area (slime/slimebig = vermin of the open
-    // commons; kobold/kobolde = the orchard scrub raiders; gbandit/gmage = the deep bandit fields/camp).
-    const FAVOUR: Record<GreenvaleAreaId, Record<string, number>> = {
-      "gv-commons":          { slime: 2, slimebig: 2, kobold: 1 },
-      "gv-orchard":          { kobold: 2, kobolde: 2, gbandit: 1 },
-      "gv-fields":           { gbandit: 2, gmage: 2, kobolde: 1 },
-      "gv-grove":            { gbandit: 1, gmage: 1, slimebig: 1, kobolde: 1 }, // off the safe path: the rougher mixes
-      "gv-warren-approach":  { gbandit: 2, gmage: 1, kobolde: 1 },             // the camp's muster before the gate
-    };
-    const fav = FAVOUR[area];
+    const lean = this.currentLean();
+    if (!lean) return pick(sets);
+    const fav = LEAN_FAVOUR[lean];
+    if (!fav) return pick(sets);
     // weight = 1 baseline + the set's favour score (so a strongly-matching set is a few× likelier).
     let total = 0;
     const weights = sets.map((s) => { const w = 1 + s.reduce((n, k) => n + (fav[k] ?? 0), 0); total += w; return w; });
@@ -620,7 +845,107 @@ export const Field = {
       if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
     } else if (isWall && !gimg) { c.font = `${t * 0.7}px serif`; c.fillStyle = city ? "#9a8a64" : "#3a5a2a"; c.fillText(city ? "🧱" : marsh ? "🌲" : "🌳", sx + t / 2, sy + t / 2); }
   },
+  // ── BIG-MAP biome → ground/object dressing (ADR 0009 / Stage 2B) ─────────────────────────────
+  // A zone-AGNOSTIC dressing table keyed by a cell's cached BIOME (Area→identity.biome), replacing the
+  // discrete path's Greenvale-special-cased switch. For a realized cell kind it returns the ground
+  // sprite key (+a *-ground2 alternate by the cached variant) and, for tree/bush/rock, the object skin.
+  // Falls back to the base shire skin for an unknown biome. Pure mapping — no regionAt on the frame path.
+  bigGround(biome: string, kind: string, variant: number): { ground: string; flat: string } {
+    const T = this.tiles;
+    const isObj = kind === "chest" || kind === "miniboss" || kind === "boss" || kind === "lair" || kind === "mouth";
+    const alt = (base: string) => (variant && T[base + "2"] ? base + "2" : base);
+    // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
+    if (biome === "forest") {
+      const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground", water: "water" };
+      const g = isObj ? "grove-ground" : (gm[kind] || "grove-ground");
+      return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: "#2e4a26" };
+    }
+    if (biome === "mire" || biome === "water" || biome === "ruin") {
+      const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
+      const g = isObj ? "mire-ground" : (gm[kind] || "mire-ground");
+      return { ground: g === "mire-ground" ? alt("mire-ground") : g, flat: kind === "water" ? "#23303a" : "#3a4030" };
+    }
+    if (biome === "orchard") {
+      const gm: Record<string, string> = { grass: "orchard-ground", grass2: "orchard-ground2", path: "path", tree: "orchard-ground" };
+      const g = isObj ? "orchard-ground" : (gm[kind] || "orchard-ground");
+      return { ground: g === "orchard-ground" ? alt("orchard-ground") : g, flat: "#557a30" };
+    }
+    if (biome === "meadow") {
+      const gm: Record<string, string> = { grass: "meadow-ground", grass2: "meadow-ground2", path: "path", bush: "wheat", tree: "meadow-ground" };
+      const g = isObj ? "meadow-ground" : (gm[kind] || "meadow-ground");
+      return { ground: g === "meadow-ground" ? alt("meadow-ground") : g, flat: "#7a8a36" };
+    }
+    // plains / unknown = base shire grass + road + hedge-tree.
+    const g = isObj ? "grass" : kind;
+    return { ground: g === "grass" ? alt("grass") : g, flat: "#4a7a32" };
+  },
+
+  // BIG-MAP draw: iterate the WORLD-TILE viewport from the chunk cache (never calling regionAt).
+  // Camera centers on the player's world tile and is clamped to the world extent (placement keeps
+  // the player far from the 0/960 edges, so the clamp is effectively a no-op here). Dressing is read
+  // from each cell's cached biome (+ seam dither), so Area seams visibly dither as you roam.
+  drawBig(): void {
+    const c = this.ctx, t = this.tile, T = this.tiles;
+    if (!c || !this.canvas) return;
+    c.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const viewW = Math.ceil(this.canvas.width / t), viewH = Math.ceil(this.canvas.height / t);
+    const camx = this.wx - Math.floor(viewW / 2), camy = this.wy - Math.floor(viewH / 2);
+    c.textAlign = "center"; c.textBaseline = "middle";
+    for (let y = 0; y <= viewH; y++) for (let x = 0; x <= viewW; x++) {
+      const wx = camx + x, wy = camy + y, sx = x * t, sy = y * t;
+      const cell = this.cellAt(wx, wy);
+      if (cell.kind === "uncharted") { c.fillStyle = "#10180e"; c.fillRect(sx, sy, t, t); continue; } // soft edge
+      // seam dither: a hair of the cell is rendered in the neighbouring Area's biome (the cached choice).
+      const biome = cell.dither ?? cell.biome;
+      const { ground, flat } = this.bigGround(biome, cell.kind, cell.variant);
+      const gimg = T[ground];
+      if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
+      else {
+        c.fillStyle = flat; c.fillRect(sx, sy, t, t);
+        if ((wx + wy) % 2) { c.fillStyle = "rgba(0,0,0,.08)"; c.fillRect(sx, sy, t, t); }
+        if (biome === "forest") { c.fillStyle = "rgba(8,20,8,.34)"; c.fillRect(sx, sy, t, t); }
+      }
+      // object / scatter sprites (emoji fallback) — biome-skinned.
+      c.font = `${t * 0.82}px serif`;
+      const obj = (img: HTMLImageElement | undefined, emoji: string, sc = 0.9) => {
+        if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
+        else c.fillText(emoji, sx + t / 2, sy + t / 2);
+      };
+      const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
+      if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
+      else if (cell.kind === "lair") obj(T.lair, "🕳️", 0.85);
+      else if (cell.kind === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95);
+      else if (cell.kind === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "tree") {
+        if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
+        else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);
+        else if (biome === "mire" || biome === "ruin") obj(T.deadtree, "🌫️", 0.95);
+        else if (!gimg) c.fillText("🌲", sx + t / 2, sy + t / 2);
+      }
+      else if (cell.kind === "water" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "bush") {
+        if (biome === "forest") obj(T.fern, "🌿", 0.85);
+        else if (biome === "meadow") obj(T.wheat, "🌾", 0.85);
+        else if (!gimg) c.fillText("🌿", sx + t / 2, sy + t / 2);
+      }
+      else if (cell.kind === "rock") { if (biome === "forest") obj(T.mushroom, "🍄", 0.8); }
+    }
+    // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback).
+    const cx = (this.wx - camx) * t + t / 2, cy = (this.wy - camy) * t + t / 2;
+    c.save();
+    c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.3, t * 0.13, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.42)"; c.fill();
+    c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
+    if (T.player) {
+      const ph = t * 1.55, pw = ph * (T.player.width / T.player.height);
+      const py = Math.max(2, cy + t * 0.46 - ph);
+      c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
+      c.drawImage(T.player, cx - pw / 2, py, pw, ph); c.shadowBlur = 0;
+    } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy); }
+    c.restore();
+  },
+
   draw(): void {
+    if (this.bigMapActive()) { this.drawBig(); return; } // windowed big-map = its own world-coord render
     const c = this.ctx, t = this.tile;
     if (!c || !this.canvas) return;
     c.clearRect(0, 0, this.canvas.width, this.canvas.height);
