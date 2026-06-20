@@ -39,7 +39,7 @@ export const Music = {
   _timer: undefined as ReturnType<typeof setInterval> | undefined,
   LOOKAHEAD: 0.12,
   TICK: 25,
-  styleByState: { title: "radiant", field: "radiant", village: "radiant", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
+  styleByState: { title: "radiant", field: "radiant", village: "radiant", mire: "orchestral", marsh: "orchestral", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
   STYLE_ORDER: ["radiant", "orchestral", "heroic"],
 
   SONGS: {
@@ -71,6 +71,36 @@ export const Music = {
              ["Bb4", 4], ["A4", 2], ["G4", 2], ["F4", 4], ["G4", 4], ["A4", 8], ["G4", 4], ["F4", 4],
              ["F4", 4], ["A4", 4], ["C5", 6], ["E5", 2], ["G5", 4], ["E5", 4], ["C5", 6], ["A4", 2],
              ["Bb4", 4], ["C5", 4], ["A4", 4], ["G4", 4], ["F4", 12], ["r", 4]],
+    } },
+    // Duskmarsh overworld / dread theme — grim, low, sparse. The pastoral field's dark mirror:
+    // D phrygian (D Eb F G A Bb C), a slow 78 BPM, no drums. A low sustained drone-bass on the
+    // tonic that only shifts to the bII (Eb) and bVII (C) for an uneasy, unresolved pull; a slow
+    // pad breathing minor-third/tritone clusters above it. The "melody" is barely there — a few
+    // lonely long tones (the lead) drifting D–F–G–Bb–Eb with long rests, like something half-seen
+    // across the bog. No arp/no drums = open, still, dread. Long phrase (two 8-bar halves) so the
+    // loop never feels chirpy. Pairs as a sibling to `field` (same role set) but slow + phrygian.
+    mire: { bpm: 78, roles: {
+      bass: [["D2", 16], ["D2", 16], ["Eb2", 16], ["D2", 16],
+             ["D2", 16], ["C2", 16], ["Bb1", 16], ["D2", 16]],
+      pad: [["F3", 16], ["A3", 16], ["G3", 16], ["Ab3", 16],
+            ["F3", 16], ["Eb3", 16], ["D3", 16], ["F3", 16]],
+      lead: [["D4", 8], ["r", 8], ["F4", 6], ["r", 10], ["G4", 8], ["r", 8], ["Bb4", 8], ["A4", 4], ["r", 12],
+             ["Eb4", 8], ["r", 8], ["F4", 6], ["r", 10], ["D4", 8], ["r", 8], ["C4", 8], ["r", 4], ["D4", 8], ["r", 4]],
+    } },
+    // Miregard outpost / fog theme — a grimmer, colder, hushed town cue for marsh-themed settlements
+    // (the dark sibling of the warm Hearthford `village`). Same D phrygian dread color as `mire`, a
+    // hair faster (84 BPM) and a touch more "inhabited": a slow root-fifth bass that walks the gloomy
+    // cadence (D–Bb–Eb–D), a cold breathing pad, a sparse open-fifth "lantern" arp (the only sign of
+    // life — quiet, far-apart plucks), and a low, resigned lead phrase that keeps falling back to the
+    // tonic and never lifts. No drums. Reads as "shelter, but cold and fog-bound", not "home".
+    marsh: { bpm: 84, roles: {
+      bass: [["D2", 8], ["A2", 8], ["Bb1", 8], ["F2", 8], ["Eb2", 8], ["Bb1", 8], ["D2", 8], ["A2", 8],
+             ["D2", 8], ["A2", 8], ["C2", 8], ["G2", 8], ["Eb2", 8], ["Bb1", 8], ["D2", 8], ["D2", 8]],
+      pad: [["F3", 16], ["D3", 16], ["Eb3", 16], ["F3", 16], ["Eb3", 16], ["D3", 16], ["F3", 16], ["A3", 16]],
+      arp: [["D4", 4], ["r", 4], ["A4", 4], ["r", 4], ["r", 8], ["F4", 4], ["r", 4],
+            ["Bb3", 4], ["r", 4], ["F4", 4], ["r", 4], ["r", 8], ["Eb4", 4], ["r", 4]],
+      lead: [["A4", 8], ["G4", 4], ["F4", 12], ["r", 8], ["F4", 6], ["Eb4", 2], ["D4", 8], ["r", 16],
+             ["Bb4", 8], ["A4", 8], ["G4", 4], ["F4", 12], ["Eb4", 8], ["D4", 12], ["r", 4], ["D4", 8], ["r", 8]],
     } },
     battle: { bpm: 152, roles: {
       bass: [["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["G2", 2], ["G2", 2], ["G2", 2], ["G2", 2]],
@@ -130,9 +160,9 @@ export const Music = {
       if (e) e.textContent = capf(this.styleByState[state] || "radiant");
     };
     set("#st-title", "title");
-    // The field HUD's style pill reflects whichever overworld track is playing — the field theme,
-    // or the village theme while in a settlement (town mode).
-    set("#st-field", this.cur === "village" ? "village" : "field");
+    // The field HUD's style pill reflects whichever overworld track is playing — the open-field /
+    // grim-mire zone theme, or the village / fog-bound-outpost theme while in a settlement.
+    set("#st-field", (["village", "mire", "marsh"].includes(this.cur || "") ? this.cur : "field") as string);
     set("#st-battle", this.cur === "boss" || this.cur === "battle" ? this.cur : "battle");
   },
   unlock(): void {
