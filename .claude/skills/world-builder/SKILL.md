@@ -54,6 +54,25 @@ Give each agent the **World Brief** + the prior step's output. Respect the estab
 each stage builds on a stable base. Launch genuinely independent agents **in parallel** (one message,
 multiple Agent calls); keep dependent stages sequential.
 
+**Every producer has a QA reviewer — run it as the gate before the handoff advances.** Each producer
+stage is paired with a read-only QA agent that vets that stage's craft and reports prioritized
+findings (Blocking / Should-fix / Polish). The rule: **a stage's output does not advance to the next
+stage until its reviewer is satisfied** (no open Blocking findings). Loop Blocking/Should-fix findings
+back to the producer, then re-review. These per-stage reviewers each defer code→`code-reviewer`,
+canon→`requiem-canon-keeper`, UI→`ux-designer`, so they don't duplicate the cross-cutting gates.
+
+| Producer | QA reviewer (the gate) |
+|---|---|
+| world-cartographer | **`cartography-reviewer`** |
+| level-designer | **`level-design-reviewer`** |
+| art-integrator | **`art-reviewer`** |
+| encounter-designer | **`encounter-reviewer`** |
+| class-designer | **`class-design-reviewer`** |
+| itemization-designer | **`itemization-reviewer`** |
+| narrative-writer | **`narrative-reviewer`** |
+| audio-composer | **`audio-reviewer`** |
+| balance-tuner | **`balance-reviewer`** |
+
 **Phase A0 — Geography (where it sits + how it connects), FIRST:**
 - **`world-cartographer`** — set the macro geography before any tiles: place the region on the world
   map (coordinate/orientation consistent with `world-atlas.md`), define its **connections to
@@ -61,6 +80,7 @@ multiple Agent calls); keep dependent stages sequential.
   reciprocity; a region can connect to several), and emit the per-zone **edge spec** the level-designer
   must honor. Pure data (the zone graph); verifies reciprocity + atlas-consistency. Do this before
   Phase A so the space is shaped into a world that actually joins up.
+  → **Gate: `cartography-reviewer`** (atlas fidelity, reciprocity, edge spec) before Phase A.
 
 **Phase A — Foundation (space + skin), in parallel pairing:**
 - **`level-designer`** — shape the zone/dungeon **to the cartographer's edge spec** (exits/gate/spawn
@@ -68,34 +88,46 @@ multiple Agent calls); keep dependent stages sequential.
   (`data/zones.ts`, `controllers/field.ts`). Defines any new tile *kinds* and flags the sprites needed.
 - **`art-integrator`** — paint/wire those tile kinds + any new sprites from Dara's reference sheets
   (palette + style consistency). Works alongside level-designer (kinds vs. pixels).
+  → **Gates: `level-design-reviewer`** (open-world, no soft-locks, honors edge spec) **+ `art-reviewer`**
+  (palette/knockout/naming/wiring, no forbidden art) before Phase B.
 
 **Phase B — Population (the fights):**
 - **`encounter-designer`** — fill the encounter sets, mini/boss, rare-monster placement, pacing,
   and the Attunement lean from the Brief (`data/zones.ts`, `RARE_MONSTERS`).
+  → **Gate: `encounter-reviewer`** (teach-then-combine, pack variety, every key exists) before Phase C.
 
 **Phase C — Identity systems (only if the Brief calls for them):**
 - **`class-designer`** — if the region showcases/introduces a class kit or ability.
+  → **Gate: `class-design-reviewer`** (role fantasy, MNA curve, generator discipline, 45-unique).
 - **`itemization-designer`** — if it adds affixes / set / unique / chase loot.
+  → **Gate: `itemization-reviewer`** (affix purpose, no best-in-slot, loot invariants).
 
 **Phase D — Canon & flavor pass:**
 - **`requiem-canon-keeper`** — vet names/mechanics/vocabulary against REQUIEM; flag invented-not-canon
   drift for Dara (read-only; it reports).
 - **`narrative-writer`** — write the on-brand words: zone/enemy/ability/item blurbs, intro copy,
   microcopy — only after canon is settled, in the Brief's voice.
+  → **Gate: `narrative-reviewer`** (voice, concision, term consistency, words-only) after canon settles.
 
 **Phase E — Sound & numbers:**
 - **`audio-composer`** — compose the zone/dungeon/boss themes to the Brief's mood (`audio/music.ts`).
+  → **Gate: `audio-reviewer`** (procedural-only, iOS gesture-gating, wiring) — flags the human audition.
 - **`balance-tuner`** — last: tune enemy stats, loot/ilvl/MNA, XP for the new level band; iterate
   with the sim toward targets (HP ~55–75%, bosses ~30–50%, wipe <~10%).
+  → **Gate: `balance-reviewer`** (re-runs the sim vs targets, logic-untouched, deterministic tests).
 
 (Cross-cutting agents — narrative, audio, canon-keeper, ux — serve *whatever* the design agents
 produce; weave them in as each piece lands, don't save them all for the end.)
 
 ## 3 · Sync gates — the Director's job between phases
-After each phase, check the four powers still cohere with the Brief: does the music match the
-painted biome? do the encounters express the Attunement identity? does the prose match the lore?
-**If any power drifts, loop that agent back** with the specific mismatch before moving on. This is
-the whole point of the skill — don't let phases proceed on a broken anchor.
+Two checks gate every phase boundary, and both must pass before the next phase starts:
+1. **The stage's QA reviewer** (the table in §2) — has it signed off with no open Blocking findings?
+   This is the *craft* gate: is this stage's own work actually good?
+2. **The four-powers sync check** — do the powers still cohere with the Brief? Does the music match
+   the painted biome? Do the encounters express the Attunement identity? Does the prose match the lore?
+**If a reviewer flags a Blocking issue, or any power drifts, loop that agent back** with the specific
+finding before moving on. This is the whole point of the skill — don't let phases proceed on work that
+hasn't passed its gate or on a broken anchor.
 
 ## 4 · Integrate — Director only
 Specialists **hand work back and do not commit**. Collect every change, resolve overlaps (e.g. two
