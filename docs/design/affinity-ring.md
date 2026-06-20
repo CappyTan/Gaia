@@ -45,12 +45,15 @@ that drove most wipes) via `balance-sim.ts`.
 - **One zone boss off-mirror** (Cave Troll = NOX) so the final fight rewards the right comp.
 
 ## Flagged for future systems (not built — for when we get there)
-1. **Continent identity.** Bias each continent's bestiary toward one attunement so players *want*
-   the counter (Greenvale → ANIMA-leaning ⇒ bring NOX; Drowned Vault → NOX-leaning ⇒ bring SOL;
-   Quantum Observatory → UMBRAXIS ⇒ bring QUANTA). Encourages collecting multiple teams and
-   revisiting zones. *POC note:* the two starter zones are currently attunement-**spread** (for
-   matchup variety in a 2-zone slice); continent identity is a deliberate later layer as the
-   continent map fills out — it is NOT a return to any single-power bias.
+1. **Continent identity.** Bias a region's bestiary toward one attunement so players *want*
+   the counter. Encourages collecting multiple teams and revisiting zones. *POC note:* the two
+   starter zones are currently attunement-**spread** (for matchup variety in a 2-zone slice); this
+   is NOT a return to any single-power bias.
+   **Dara's ruling (see [`world-atlas.md`](world-atlas.md) §4 G4):** surface regions do **not** carry
+   an attunement identity — **only the five Sundering scars do** (SOL/NOX/ANIMA/QUANTA/UMBRAXIS, the
+   endgame). So this lever is scoped to the Sundering, not every continent. The affinity ring still
+   drives per-fight matchups everywhere (individual enemies/bosses can be infused, e.g. the Cave
+   Troll = NOX); it just isn't a region-wide theme outside the scars.
 2. **Rotating raid/endgame bosses** by attunement → players rotate rosters (Raid Boss UMBRAXIS ⇒
    QUANTA shines; next week NOX ⇒ SOL shines). The answer to "why collect 45 classes if I need 5."
 3. **Corrupted Attunements** — a unit that counts as 50% one power + 50% another (e.g. Corrupted

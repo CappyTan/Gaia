@@ -1,76 +1,84 @@
 # Gaia World Atlas — Overworld & Underworld catalog
 
-**Status: transcription + gap list, _not_ ratified canon.** This catalogs every place labelled on
-Dara's two world maps so the team has one shared index of zones, geography, and connections — and a
-single list of the **gaps Dara needs to fill** before we build into them. **Dara owns the world and
-lore** (CLAUDE.md): everything here is either copied verbatim from his maps or clearly marked as an
-agent *inference to confirm*. Nothing in this file overrides his canon; it feeds him decisions.
+**Status: transcription of Dara's maps + his rulings; open items flagged.** This catalogs every place
+labelled on Dara's two world maps so the team has one shared index of zones, geography, and
+connections. **Dara owns the world and lore** (CLAUDE.md): everything here is copied from his maps,
+records a **decision he's made** (§4), or is clearly marked as an agent *inference*. Nothing here
+overrides his canon.
 
 **Canonical source art** (current, high-res, with continent labels):
 - Overworld — [`assets/reference/map-gaia-overworld.png`](../../assets/reference/map-gaia-overworld.png)
 - Underworld — [`assets/reference/map-underworld-gaia.png`](../../assets/reference/map-underworld-gaia.png)
 
-(The older `map-gaia-overworld.jpeg` / `map-underworld-gaia.jpeg` are the prior versions — the
-overworld `.jpeg` predates the continent labels; treat the `.png` pair as current.)
+(The older `map-gaia-overworld.jpeg` / `map-underworld-gaia.jpeg` are prior versions — the overworld
+`.jpeg` predates the continent labels; treat the `.png` pair as current.)
 
 Use Gaia's vocabulary precisely (`CONTEXT.md`). "Zone" in the game engine is a playable slice; on
 these maps a **region** (a numbered place) will usually map to one or more game zones.
+
+> **Dara's ruling on Attunement identity:** **surface regions do _not_ have an Attunement identity —
+> only the five Sundering scars do.** So the per-region tables below carry biome/flavor only, not an
+> Attunement lean. (This narrows the "continent identity" idea flagged in
+> [`affinity-ring.md`](affinity-ring.md) to the Sundering alone — see §4 G4.)
 
 ---
 
 ## 1 · The Overworld — surface of Gaia
 
-The surface is **four continents** around a central ocean (**The Great Expanse**), with named seas
-and island chains between them. The map uses a numbered key (1–25). Verbatim region name — *epithet*
-— then the agent read (biome / likely Attunement lean) marked **(infer)** where it's not on the map.
+Four continents around a central ocean (**The Great Expanse**), with named seas and island chains
+between them. The map uses a numbered key (1–25): verbatim region name — *epithet* — then biome.
 
 ### AURELION — *The Heartland* (Northwest)
 > "Fertile lands of kingdoms and farms. The cradle of modern civilization and the seat of humanity's
-> greatest nations." *(blurb from the prior map edition; confirm it still holds.)*
-The **starting continent** — Greenvale, the current game's first zone, sits here.
+> greatest nations." The **starting continent** — the current game (Greenvale + the Duskmarsh) lives
+> here.
 
-| # | Region | Epithet | Agent read (confirm) |
+| # | Region | Epithet | Biome / notes |
 |---|---|---|---|
-| 1 | **Greenvale** | The Shirelands | Temperate farmland/forest. **Game zone 1 (Lv 1–6).** ANIMA-leaning per affinity doc — confirm. |
-| 2 | **Silverwood** | Ancient Forest | Old-growth forest (infer ANIMA). |
-| 3 | **Goldmeadow Plains** | The Breadbasket | Open grassland/farms (infer SOL). |
-| 4 | **Storm Coast** | Seafarer's Rest | Rocky coast/harbor (infer QUANTA/storm). |
-| 5 | **Riverhearth** | Trade Capital | The continent's capital city/hub. |
-| 6 | **Frostpeak Highlands** | Dwarven Strongholds | Snow mountains, dwarven holds (infer UMBRAXIS/earth). |
+| 1 | **Greenvale** | The Shirelands | Temperate farmland/forest. **Game zone 1 (Lv 1–6).** |
+| 2 | **Silverwood** | Ancient Forest | Old-growth forest. |
+| 3 | **Goldmeadow Plains** | The Breadbasket | Open grassland & farms. |
+| 4 | **Storm Coast** | Seafarer's Rest | Rocky storm-battered coast & harbor. |
+| 5 | **Riverhearth** | Trade Capital | The continent's capital / trade hub. |
+| 6 | **Frostpeak Highlands** | Dwarven Strongholds | Snow mountains, dwarven holds. |
 | 7 | **Dawnfall Hold** | Frontier Watch | Border fortress toward the frontier. |
-| 8 | **Whisper Hills** | Monastery Land | Hills/monasteries — sits between Aurelion and the central isles (continent assignment to confirm). |
-| 9 | **Sunbridge** | Port City | Port on the Coral Archipelago side (continent assignment to confirm). |
+| 8 | **Whisper Hills** | Monastery Land | Hills & monasteries (central isles, **Aurelion** per Dara). |
+| 9 | **Sunbridge** | Port City | Port toward the Coral Archipelago (**Aurelion** per Dara). |
+
+*Also in Aurelion (Dara's ruling, not yet on the map): **The Duskmarsh** + its dungeon **The Drowned
+Vault** — the current game's zone 2 (Lv 7–10). To be added to the overworld map; placement within
+Aurelion TBD.*
 
 ### VARKHAZ — *The Untamed Frontier* (Northeast)
 > "A vast and wild continent of extremes. From endless deserts to colossal jungles, only the strong
-> or the cunning survive." *(prior-edition blurb; confirm.)* Visually split: lush green west →
-> volcanic red/badlands east.
+> or the cunning survive." Visually split: lush green west → volcanic red/badlands east.
 
-| # | Region | Epithet | Agent read (confirm) |
+| # | Region | Epithet | Biome / notes |
 |---|---|---|---|
-| 10 | **Dunes of Khar** | Shifting Sands | Desert (infer SOL). |
-| 11 | **Emerald Basin** | Jungle of Giants | Dense jungle/waterfalls (infer ANIMA). |
-| 12 | **Bloodstone Mesa** | Thunderplateau | Red rock plateau (infer QUANTA/storm). |
-| 13 | **Ashfang Wastes** | Volcanic Badlands | Lava badlands (infer SOL/fire or NOX). |
-| 14 | **Thornwood** | Savage Wilds | Wild forest border. |
-| 15 | **Kraal of the Sand Kings** | Ancient Ruins | Desert ruins (infer SOL). |
+| 10 | **Dunes of Khar** | Shifting Sands | Desert. |
+| 11 | **Emerald Basin** | Jungle of Giants | Dense jungle & waterfalls. |
+| 12 | **Bloodstone Mesa** | Thunderplateau | Red-rock storm plateau. |
+| 13 | **Ashfang Wastes** | Volcanic Badlands | Lava badlands. |
+| 14 | **Thornwood** | Savage Wilds | Wild border forest. |
+| 15 | **Kraal of the Sand Kings** | Ancient Ruins | Desert ruins. |
 
-### MYR'THALIS — *The Ancient Continent* (Southwest)
+### MYR'THALAS — *The Ancient Continent* (Southwest)
 > "Oldest of the known lands. Where ancient empires rose, reached for the stars, and vanished into
-> time." *(prior-edition blurb; confirm.)* Ruined, arcane, sinking — many half-drowned sites.
+> time." Ruined, arcane, sinking — many half-drowned sites. *(Spelling per Dara: **Myr'Thalas** —
+> matches the underworld's Myr'Thalas Gateways; the overworld map's "Myr'Thalis" is superseded.)*
 
-| # | Region | Epithet | Agent read (confirm) |
+| # | Region | Epithet | Biome / notes |
 |---|---|---|---|
-| 16 | **Crystal Expanse** | Arcane Wastes | Crystalline magic-scarred waste (infer QUANTA). |
-| 17 | **The Whispering Marsh** | Haunted Wetlands | Haunted swamp (infer NOX). |
-| 18 | **Titanfall Basin** | Ruins of the Titans | Titan-scale ruins (infer UMBRAXIS). |
-| 19 | **Celestial Reach** | Sky Observatories | Ancient observatories (infer QUANTA/SOL). |
-| 20 | **The Sunken Vaults** | Lost Civilization | Half-drowned vault-city (infer NOX/UMBRAXIS). |
+| 16 | **Crystal Expanse** | Arcane Wastes | Crystalline magic-scarred waste. |
+| 17 | **The Whispering Marsh** | Haunted Wetlands | Haunted swamp. |
+| 18 | **Titanfall Basin** | Ruins of the Titans | Titan-scale ruins. |
+| 19 | **Celestial Reach** | Sky Observatories | Ancient mountaintop observatories. |
+| 20 | **The Sunken Vaults** | Lost Civilization | Half-drowned vault-city. |
 
 ### THE SUNDERING — *The Scars of the Calamity* **(Endgame)** (Southeast)
 > "The broken heart of Gaia. Five divine scars mark where the gods clashed, twisting the land into
-> otherworldly nightmares." **The five scars are explicitly one per Attunement** — this is the
-> clearest Attunement mapping on the map and a natural endgame structure.
+> otherworldly nightmares." **The five scars are the only Attunement-themed regions in the world** —
+> one per Attunement — a natural endgame structure.
 
 | # | Region | Epithet | **Attunement (map-explicit)** |
 |---|---|---|---|
@@ -94,7 +102,7 @@ The **starting continent** — Greenvale, the current game's first zone, sits he
 Major City · Minor City / Settlement · Ancient Ruin (Surface) · Ancient Ruin (Underground) ·
 Dungeon / Vault · Point of Interest · **Major Trade Route** · **Sea Route** ·
 **Hidden / Underground Connection**. *(The exact route graph — which region links to which — is hard
-to trace at the source resolution; see gap G7.)*
+to trace at the source resolution; left open, §4 G7.)*
 
 ---
 
@@ -129,19 +137,19 @@ But the gods came first."*
 | **The Forge Cities** | Southeast | Gigantic foundries that built ships, weapons, terraforming engines. Rivers of molten metal still flow. |
 | **The Abyssal Conduit** | South Central | A chasm of unstable energy reaching toward the planetary core; sensors and fail-safes keep it contained. |
 | **The Silent Vaults** | Central South | Sealed districts and dark storage realms — "many were not meant to be opened without authorization." |
-| **The Myr'Thalas Gateways** | Southwest (under Myr'Thalis) | Deep entrance caverns & **stargate terminals** that once linked Gaia to orbital docks, moons, and distant colonies. |
+| **The Myr'Thalas Gateways** | Southwest (under Myr'Thalas) | Deep entrance caverns & **stargate terminals** that once linked Gaia to orbital docks, moons, and distant colonies. |
 | **Aurelion Access Shafts** | Northwest (under Aurelion) | Scattered surface entry points to the underworld — now "heavily sealed and guarded." |
 
 ### Surface ↔ underworld links
 The map names three explicit gateways tying the surface to the deep: **Aurelion Access Shafts**
 (under Aurelion, NW), **Anima Deep Halls** (under Varkhaz, NE), and the **Myr'Thalas Gateways**
-(under Myr'Thalis, SW). *(No under-Sundering or under-Great-Expanse entrance is named — see gap G8.)*
+(under Myr'Thalas, SW). *(No under-Sundering or under-Great-Expanse entrance is named — open, §4 G8.)*
 
 ### The Nexus Gate Network
 "Ancient gates pierce the crust in hidden locations. Many are buried, collapsed, or lost.
 Reactivating them could restore forgotten paths… or awaken old defenses." **Reactivation requires:**
 Power Cores · Alignment Keys · AI Clearance Protocols · Quantum Stabilizers. *(A ready-made
-progression/unlock mechanic — flagged for design, gap G9.)*
+progression/unlock mechanic — flagged for design, §4 G9.)*
 
 ### Underworld legend (complex types)
 Ancient City / Capital · Major Facility / Complex · AI Core / Nexus · Transit Nexus (Gate) ·
@@ -154,56 +162,42 @@ Resource Complex · Starship Dock / Forge · Hazard Zone / Unstable · Collapsed
 
 The shipping game has **two** zones; the map has **25 surface regions + 13 underworld complexes**.
 
-| In the game now | On the map? |
+| In the game now | Map / canon placement |
 |---|---|
-| **Greenvale** (zone 1, Lv 1–6) + dungeon **The Bandit Warren** | Greenvale = region #1 (Aurelion). The Bandit Warren is **not labelled** — treat as a local sub-dungeon of Greenvale (confirm). |
-| **The Duskmarsh** (zone 2, Lv 7–10) + dungeon **The Drowned Vault** | **Not on the overworld map.** No "Duskmarsh"/"Drowned Vault" appears. Needs placement — see gap G3. |
+| **Greenvale** (zone 1, Lv 1–6) + dungeon **The Bandit Warren** | Greenvale = region #1 (Aurelion). The Bandit Warren is a local sub-dungeon of Greenvale (not separately mapped). |
+| **The Duskmarsh** (zone 2, Lv 7–10) + dungeon **The Drowned Vault** | **In Aurelion** (Dara's ruling). Not yet drawn on the overworld map; add it and fix its exact spot later. |
 
 Everything else on the map is **unbuilt** — these are the regions the `world-builder` skill /
 `creative-director` will flesh out, in an order Dara sets.
 
 ---
 
-## 4 · Gaps & questions for Dara (please rule on these)
+## 4 · Decisions & open items
 
-These block confident world-building. Grouped; **G1–G3 are the most urgent.**
+### Resolved by Dara
+- **G1 — Continent name = `Aurelion`** (NW continent). ✔
+- **G2 — Continent name = `Myr'Thalas`** (SW continent) — the underworld spelling is canon; the
+  overworld map's "Myr'Thalis" is superseded. ✔
+- **G3 — The Duskmarsh / Drowned Vault are in `Aurelion`.** ✔
+- **G4 — Surface regions have no Attunement identity; only the five Sundering scars do.** ✔ *(This
+  supersedes the broad "continent identity" idea in `affinity-ring.md`, which is now scoped to the
+  Sundering. The affinity ring still governs per-fight matchups everywhere; it just isn't a
+  region-wide theme outside the scars.)*
+- **G5 — Whisper Hills (#8) and Sunbridge (#9) are in `Aurelion`.** ✔
 
-- **G1 — Continent name: "Aurelion" vs "Aurelia".** The current overworld map titles the NW
-  continent **Aurelion**; the prior edition's sidebar called it **Aurelia** (and the underworld's
-  "**Aurelion** Access Shafts" matches the new spelling). Which is canon? *(Atlas currently uses
-  Aurelion.)*
-- **G2 — "Myr'Thalis" vs "Myr'Thalas".** Overworld = **Myr'Thalis**; the underworld gateway reads
-  **Myr'Thalas**. Same place — which spelling? *(Atlas uses Myr'Thalis for the continent.)*
-- **G3 — Where do the Duskmarsh & Drowned Vault live?** The current Lv 7–10 zone isn't on the map.
-  Options: (a) it's a local Aurelion region adjacent to Greenvale that should be *added* to the map;
-  (b) it's superseded by a mapped region (e.g. **The Whispering Marsh** / **The Sunken Vaults** on
-  Myr'Thalis) and we rename/relocate; (c) keep it as flavor-only. Your call sets the early
-  progression path.
-- **G4 — Per-region Attunement identity.** Only the five **Sundering scars** are explicitly tied to
-  Attunements (SOL/NOX/ANIMA/QUANTA/UMBRAXIS). The affinity doc wants each continent/region to lean
-  one Attunement so players bring the counter. Confirm/replace the **(infer)** leans in the tables
-  above — especially Aurelion's (Greenvale = ANIMA?) and an Attunement signature per continent.
-- **G5 — Continent assignment of regions #8 (Whisper Hills) & #9 (Sunbridge).** They sit in the
-  central isles between Aurelion and the Great Expanse. Aurelion, their own minor chain, or
-  Myr'Thalis?
-- **G6 — Progression order & level bands for the whole world.** We only have Greenvale (1–6) and
-  Duskmarsh (7–10). What's the intended route across the 25 regions, the level band per region, and
-  where the Sundering "endgame" gate sits? (Needed before any new zone is balanced.)
-- **G7 — The connection graph.** The map shows trade routes, sea routes, and hidden/underground
-  connections, but they're not legible at source resolution. Can you confirm the **region-to-region
-  links** (which neighbors connect, and which are sea-only or gated)? This defines the world's
-  traversal graph.
-- **G8 — Underworld extent.** Three surface gateways are named (under Aurelion, Varkhaz,
-  Myr'Thalis). Is there an entrance under the **Sundering** or the **Great Expanse**? Which
-  underworld complex sits beneath which continent (for "descend here" links)?
-- **G9 — The Nexus Gate Network as a mechanic.** The map already specifies an unlock economy (Power
-  Cores / Alignment Keys / AI Clearance / Quantum Stabilizers). Do you want this to be the
-  underworld's actual progression-gating system? If so it becomes a real design item.
-- **G10 — Capitals, starports & POIs.** "Scattered Starports and Outposts" and several map icons are
-  unnamed. Any key cities/landmarks (e.g. Riverhearth as a hub town) you want named and prioritized?
+### Open — "figure out as we go" (Dara)
+- **G6 — Progression order & level bands** across the 25 regions (only Greenvale 1–6 / Duskmarsh 7–10
+  set). Decide per region as it's built.
+- **G7 — The region-to-region connection graph** (trade/sea/underground routes). Decide as zones link
+  up.
+- **G8 — Underworld extent:** is there an entrance under the Sundering / Great Expanse, and which
+  complex sits under which continent?
+- **G9 — The Nexus Gate Network** as an actual underworld unlock economy (Power Cores / Alignment
+  Keys / AI Clearance / Quantum Stabilizers)?
+- **G10 — Naming** capitals, starports, and unlabeled POIs.
 
 ---
 
-*Maintenance: when Dara answers a gap, fold the answer into the relevant section and strike the gap.
-When a region becomes a built game zone, link it from the "Implemented vs. mapped" table. Keep the
-`.png` map pair in `assets/reference/` as the canonical source.*
+*Maintenance: when Dara answers an open item, move it up to "Resolved" and fold it into the relevant
+section. When a region becomes a built game zone, link it from §3. Keep the `.png` map pair in
+`assets/reference/` as the canonical source.*
