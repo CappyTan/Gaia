@@ -10,6 +10,7 @@ import type { Field } from "./controllers/field";
 import type { Screens } from "./controllers/screens";
 import type { DataBrowser } from "./controllers/dataBrowser";
 import type { Overlay } from "./ui/overlay";
+import type { Dialogue } from "./ui/dialogue";
 import type { Music } from "./audio/music";
 import type { Telemetry } from "./telemetry/telemetry";
 
@@ -23,6 +24,7 @@ declare global {
     Screens: typeof Screens;
     DataBrowser: typeof DataBrowser;
     Overlay: typeof Overlay;
+    Dialogue: typeof Dialogue;
     Music: typeof Music;
     Telemetry: typeof Telemetry;
     webkitAudioContext?: typeof AudioContext;

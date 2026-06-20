@@ -36,6 +36,9 @@ export const Game = {
   continueAfterBattle: null as (() => void) | null,
   _inMerchant: false,
   _inTown: false,
+  // The starting village (Hearthford) drops you into the CURRENT zone on exit; the between-zone
+  // hub advances to the NEXT zone. This flag distinguishes the two so the gate routes correctly.
+  _startVillage: false,
   _stock: [] as Item[],
   _lastDefs: null as MemberDef[] | null,
 
@@ -46,15 +49,20 @@ export const Game = {
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
     this.gold = 0; this.inventory = []; this.steps = 0; this.encountersWon = 0;
-    this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false;
+    this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
     // weapon (which sets the class) would default to SOL and silently re-class the whole party.
     this.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att); });
     recalc(this.party);
-    Field.init();
-    Screens.show("field");
+    Field.init();          // ready zone 0 behind the village (canvas, tiles, map, encounter state)
+    this.openStartVillage(); // ...but begin the run walking around the starting village
+  },
+  // Open the Greenvale starting village (Hearthford). Walking out its gate enters zone 0.
+  openStartVillage(): void {
+    this._startVillage = true;
+    this.openTown("hearthford");
   },
   gameOver(): void {
     Telemetry.endSession("wipe");
@@ -81,10 +89,10 @@ export const Game = {
   // zone boss. The four buildings are walk-in POIs (Field.townTouch routes each onto the actions
   // below); the merchant/smith/revive open as focused overlays over the town field. Party/Bag
   // opened in town return to the town field via UI.close() → backToTown (see menus.ts).
-  openTown(): void {
+  openTown(id = "hearthford"): void {
     this._inTown = true; this._inMerchant = false;
     this.rollMerchantStock(); // stock is rolled once per town visit (no reroll by re-entering the shop)
-    Field.enterTown();
+    Field.enterTown(id);
   },
   // Close an in-town overlay and return to the walkable town field.
   backToTown(): void { this._inMerchant = false; Overlay.hide(); Screens.show("field"); },
@@ -151,10 +159,19 @@ export const Game = {
       </div>
       <div class="row"><button class="btn gold" onclick="Game.backToTown()">◂ Back to town</button></div>`);
   },
-  // Leave the outpost and continue onward (next zone, or the final reckoning).
+  // Leave the settlement. The STARTING village heads into the current zone; a between-zone hub
+  // sets out for the next zone (or, after the last, the final reckoning).
   confirmLeaveTown(): void {
+    if (this._startVillage) {
+      const here = ZONES[Field.zoneIndex];
+      Overlay.show(`<h2 class="title-gold">⚔️ Out the Gate</h2>
+        <p class="small">Head north into ${here.name}? The road's yours when you're ready.</p>
+        <div class="row"><button class="btn gold" onclick="Game.leaveTown()">Into ${here.name} →</button>
+          <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
+      return;
+    }
     const next = Field.isLastZone() ? null : ZONES[Field.zoneIndex + 1];
-    Overlay.show(`<h2 class="title-gold">⚔️ Leave the Outpost</h2>
+    Overlay.show(`<h2 class="title-gold">⚔️ Leave Town</h2>
       <p class="small">${next ? `Set out for ${next.name}? Your gear and levels carry over.` : "Press on to the final reckoning?"}</p>
       <div class="row"><button class="btn gold" onclick="Game.leaveTown()">${next ? "Onward to " + next.name + " →" : "Onward →"}</button>
         <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
@@ -162,6 +179,7 @@ export const Game = {
   leaveTown(): void {
     this._inTown = false; this._inMerchant = false; Field.townMode = false;
     Overlay.hide();
+    if (this._startVillage) { this._startVillage = false; Field.enterZoneFromVillage(); return; }
     if (Field.isLastZone()) this.victory();
     else Field.loadZone(Field.zoneIndex + 1);
   },

@@ -12,21 +12,32 @@ import { Screens } from "./controllers/screens";
 import { DataBrowser } from "./controllers/dataBrowser";
 import { applyCurrent } from "./data/overrides";
 import { Overlay } from "./ui/overlay";
+import { Dialogue } from "./ui/dialogue";
 import { Music } from "./audio/music";
 import { Telemetry } from "./telemetry/telemetry";
 
 // Publish controllers for the HTML's inline onclick handlers.
-Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, Overlay, Music, Telemetry });
+Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, Overlay, Dialogue, Music, Telemetry });
 
-// Keyboard movement on the field.
+// Keyboard on the field: while a conversation is open, any movement/confirm key advances it;
+// otherwise the keys walk the map.
 window.addEventListener("keydown", (e) => {
-  if (Screens.cur !== "field" || Overlay.isOn()) return;
+  if (Screens.cur !== "field") return;
+  if (Dialogue.isOn()) {
+    const k = e.key.toLowerCase();
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", "enter", " ", "spacebar"].includes(k)) { Dialogue.advance(); e.preventDefault(); }
+    return;
+  }
+  if (Overlay.isOn()) return;
   const k = e.key.toLowerCase();
   if (k === "arrowup" || k === "w") { Field.move(0, -1); e.preventDefault(); }
   else if (k === "arrowdown" || k === "s") { Field.move(0, 1); e.preventDefault(); }
   else if (k === "arrowleft" || k === "a") { Field.move(-1, 0); e.preventDefault(); }
   else if (k === "arrowright" || k === "d") { Field.move(1, 0); e.preventDefault(); }
 });
+
+// Tap/click the dialogue box to advance/close it (touch-friendly; iOS-Safari safe).
+$("#dialogue")?.addEventListener("click", () => Dialogue.advance());
 
 // Boot.
 applyCurrent(); // apply any persisted content edits (Data screen editor) onto live data first

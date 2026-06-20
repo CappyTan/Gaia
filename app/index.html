@@ -62,6 +62,18 @@
   #menuBtns{position:absolute; bottom:70px; right:10px; display:flex; flex-direction:column; gap:6px; align-items:flex-end;}
   #menuBtns .btn{padding:7px 14px; font-size:14px; min-width:88px; text-align:center;}
 
+  /* ---- In-world NPC dialogue (non-blocking, distinct from the modal #overlay) ---- */
+  #dialogue{position:absolute; left:50%; bottom:74px; transform:translateX(-50%) translateY(12px);
+    width:min(620px,92%); display:none; align-items:flex-start; gap:12px; cursor:pointer;
+    background:linear-gradient(#15131f,#0c0a14); border:1px solid var(--gold); border-radius:12px;
+    padding:12px 16px; box-shadow:0 10px 30px rgba(0,0,0,.6); opacity:0; transition:opacity .15s, transform .15s;}
+  #dialogue.on{display:flex; opacity:1; transform:translateX(-50%) translateY(0);}
+  #dialogue .dlg-spr{font-size:34px; line-height:1; flex:0 0 auto;}
+  #dialogue .dlg-body{flex:1 1 auto; min-width:0;}
+  #dialogue .dlg-name{color:var(--gold2); font-weight:bold; font-size:14px; letter-spacing:.5px; margin-bottom:3px;}
+  #dialogue .dlg-text{color:var(--ink); font-size:14px; line-height:1.4;}
+  #dialogue .dlg-next{flex:0 0 auto; align-self:flex-end; color:var(--gold); font-size:13px; opacity:.8;}
+
   /* ---- Battle ---- */
   #battleScreen{background:#06060b;}
   #battleStyleBtn{position:absolute; top:6px; right:6px; z-index:6; font-size:11px; padding:4px 8px; opacity:.82;}
@@ -286,6 +298,8 @@
       <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
       <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
     </div>
+    <!-- In-world NPC dialogue: lightweight, non-blocking (ADR 0006). Tap to advance. -->
+    <div id="dialogue"></div>
   </div>
 
   <!-- BATTLE -->
