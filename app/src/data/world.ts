@@ -883,3 +883,84 @@ export function unreachableWorldTargets(zoneId: string, authoredGrid: string[][]
   }
   return targetsW.filter((t) => !seen.has(key(t.x, t.y)));
 }
+
+// ── Stage 2C: CONTINENT-WIDE realization (the G22 correction) ─────────────────────────────────────
+// The 2B rule was ZONE-scoped: walkable == authored core OR inside the ONE zone's polygon, else
+// uncharted. The organic re-paint put Greenvale and Silverwood ~136 tiles APART inside Aurelion
+// (world-atlas §4 G22), so the seamless proof is a CONTINENTAL roam, not a shared-zone-seam crossing.
+// The revised rule (G22): a world tile is walkable PROCEDURAL OPEN GROUND if it is inside ANY continent
+// polygon; built-zone authored cores still come from `authoredAt`; ONLY ocean (off every continent) or
+// the world edge is impassable "uncharted". This makes the whole continent interior roamable — dense
+// authored cores set in open continent, the open land bridging them.
+//
+// PURE (ADR 0005): these mirror the zone-scoped helpers above but operate at the continent grain. The
+// controller caches the per-cell result by chunk so `regionAt`/point-in-polygon never hit the frame path.
+
+/** The continent whose polygon contains a world tile (overworld map), or undefined (ocean / edge). */
+export function continentAt(mapId: string, x: number, y: number): Continent | undefined {
+  return CONTINENTS.find((c) => c.map === mapId && pointInPolygon(c.shape, x, y));
+}
+
+/** Is a world tile inside ANY continent polygon on the given map? (false == ocean / off-map = uncharted.) */
+export function inAnyContinent(mapId: string, x: number, y: number): boolean {
+  return !!continentAt(mapId, x, y);
+}
+
+/**
+ * CONTINENT-WIDE realization kind for a world tile (the G22 two-lookup model, realization axis): any
+ * built zone's authored core → that authored cell's kind; else inside ANY continent → "grass"
+ * (procedural open ground — the whole continent interior is walkable); else "uncharted" (ocean / the
+ * world edge — the impassable soft boundary). `authoredGrids` is a prebuilt blueprint per built zone
+ * id (built once on enter), so this never rebuilds a grid per tile. Pure + deterministic.
+ *
+ * CORE↔CONTINENT BRIDGING (G22): each authored grid is a fully tree-WALLED rectangle (its outer ring is
+ * always "tree" by construction), which in a CONTINENTAL roam would seal the dense core off from the
+ * open land around it. So the grid's OUTER BORDER RING falls through to the continent rule (open ground)
+ * — the authored INTERIOR (where all spawn/road/chest/mouth content lives, carved within the inner box)
+ * is realized verbatim, but the sacrificial wall ring opens, so the core connects seamlessly to the
+ * continent it sits in. Interior tree scatter is untouched (it's decoration, not a boundary).
+ */
+export function realizeKindWorld(
+  mapId: string, authoredGrids: Record<string, string[][]>, wx: number, wy: number,
+): string {
+  const a = authoredAt(wx, wy);
+  if (a) {
+    const g = authoredGrids[a.zoneId];
+    if (g && g[a.ly]) {
+      const onBorder = a.lx === 0 || a.ly === 0 || a.ly === g.length - 1 || a.lx === g[a.ly].length - 1;
+      if (!onBorder) return g[a.ly][a.lx];   // authored interior verbatim
+      // border ring: fall through to the continent rule so the core isn't sealed off (G22).
+    }
+  }
+  if (inAnyContinent(mapId, wx, wy)) return "grass";
+  return "uncharted";
+}
+
+/**
+ * CONTINENT-WIDE reachability (the G22 proof): from a spawn world tile, BFS across the realized
+ * continent (every built core + the open continent that bridges them; ocean/walls block) and return
+ * the targets NOT reached. Bounded to a bbox over the targets + spawn + a margin so it stays cheap.
+ * PURE — used by the Stage-2C reachability test (Greenvale spawn → Silverwood core / the Duskmarsh).
+ */
+export function unreachableContinentTargets(
+  mapId: string, authoredGrids: Record<string, string[][]>, spawnW: Pt, targetsW: Pt[],
+): Pt[] {
+  let minX = spawnW.x, minY = spawnW.y, maxX = spawnW.x, maxY = spawnW.y;
+  for (const t of targetsW) { minX = Math.min(minX, t.x); minY = Math.min(minY, t.y); maxX = Math.max(maxX, t.x); maxY = Math.max(maxY, t.y); }
+  const m = 12;
+  const x0 = minX - m, y0 = minY - m, x1 = maxX + m, y1 = maxY + m;
+  const open = (x: number, y: number) =>
+    x >= x0 && y >= y0 && x <= x1 && y <= y1 && !REALIZE_WALLS.has(realizeKindWorld(mapId, authoredGrids, x, y));
+  const seen = new Set<string>();
+  const key = (x: number, y: number) => x + "," + y;
+  const q: Pt[] = [];
+  if (open(spawnW.x, spawnW.y)) { seen.add(key(spawnW.x, spawnW.y)); q.push(spawnW); }
+  while (q.length) {
+    const { x, y } = q.shift()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (open(nx, ny) && !seen.has(key(nx, ny))) { seen.add(key(nx, ny)); q.push({ x: nx, y: ny }); }
+    }
+  }
+  return targetsW.filter((t) => !seen.has(key(t.x, t.y)));
+}

@@ -44,7 +44,9 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     gold: 1234, steps: 57, encountersWon: 9, bossDefeated: false, miniBossDefeated: true,
     party, inventory, defs: [a.def, b.def],
     inTown: false, startVillage: false, hubChain: ["hearthford"], hubIx: 0,
-    zoneIndex: 1, townId: null, px: 12, py: 7, enteredDungeon: true,
+    zoneIndex: 1, townId: null, px: 12, py: 7,
+    wx: 0, wy: 0, bigMap: false,
+    enteredDungeon: true,
   };
   return { party, inventory, snapshot };
 }
@@ -216,6 +218,59 @@ describe("storage-unavailable (private mode / no localStorage) is safe", () => {
     expect(hasSave()).toBe(false);
     expect(load()).toBeNull();
     expect(() => clear()).not.toThrow();
+  });
+});
+
+describe("world coords (schema v2, Stage 2C seamless big-map)", () => {
+  it("round-trips wx/wy when roaming the continent (bigMap on)", () => {
+    const { snapshot } = makeRun();
+    snapshot.bigMap = true; snapshot.enteredDungeon = false; snapshot.inTown = false;
+    snapshot.wx = 290; snapshot.wy = 70; // a Silverwood-core-ish world tile
+    const env = serialize(snapshot, "v9.9");
+    expect(env.saveSchema).toBe(2);
+    const r = deserialize(env)!;
+    expect(r.bigMap).toBe(true);
+    expect(r.wx).toBe(290); expect(r.wy).toBe(70);
+  });
+
+  it("a discrete (non-big-map) save carries no world position", () => {
+    const { snapshot } = makeRun();          // bigMap:false in the builder
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.bigMap).toBe(false);
+    expect(r.wx).toBe(0); expect(r.wy).toBe(0);
+  });
+
+  it("migrates a v1 OVERWORLD save → v2 by deriving wx/wy from the zone placement + (px,py)", () => {
+    const { snapshot } = makeRun();
+    snapshot.zoneIndex = 0; snapshot.enteredDungeon = false; snapshot.inTown = false;
+    snapshot.px = 12; snapshot.py = 7;
+    const env = serialize(snapshot, "v1");
+    // forge a legacy v1 envelope: schema 1, strip the v2 fields the migration must synthesize.
+    env.saveSchema = 1;
+    delete (env.run as any).wx; delete (env.run as any).wy; delete (env.run as any).bigMap;
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    // greenvale placement is (127,62); spawn-relative (12,7) → world (139,69). Migration sets bigMap
+    // false (v1 had no big map → resume discrete), but wx/wy are derived for forward-compat.
+    expect(r.bigMap).toBe(false);
+    // the migration wrote wx/wy onto the envelope run; deserialize zeroes them only because bigMap is
+    // false — so we verify the migration math on the raw migrated run instead.
+    expect((env.run as any).wx).toBe(127 + 12);
+    expect((env.run as any).wy).toBe(62 + 7);
+    expect(r.party.length).toBe(2);          // degrade-never-throw: party intact
+  });
+
+  it("migrates a v1 DUNGEON/TOWN save without throwing (no world tile → 0,0, respawn at spawn)", () => {
+    const { snapshot } = makeRun();
+    snapshot.inTown = true; snapshot.townId = "hearthford";
+    const env = serialize(snapshot, "v1");
+    env.saveSchema = 1;
+    delete (env.run as any).wx; delete (env.run as any).wy; delete (env.run as any).bigMap;
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect((env.run as any).wx).toBe(0);     // no sensible world tile in town → degraded
+    expect((env.run as any).wy).toBe(0);
+    expect(r.party.length).toBe(2);
   });
 });
 

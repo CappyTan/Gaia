@@ -96,7 +96,12 @@ export const Game = {
       hubChain: this._hubChain, hubIx: this._hubIx,
       zoneIndex: Field.zoneIndex,
       townId: this._inTown ? (Field.town?.id ?? this._hubChain[this._hubIx] ?? null) : null,
-      px: Field.px, py: Field.py, enteredDungeon: Field.enteredDungeon,
+      px: Field.px, py: Field.py,
+      // WORLD COORDS (Stage 2C): persist the seamless big-map position when roaming the continent (and
+      // not in a dungeon). Discrete/town/dungeon saves leave these at 0 + bigMap false (px/py is truth).
+      wx: Field.bigMapActive() ? Field.wx : 0, wy: Field.bigMapActive() ? Field.wy : 0,
+      bigMap: Field.bigMapActive(),
+      enteredDungeon: Field.enteredDungeon,
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -136,10 +141,24 @@ export const Game = {
       // ADR 0008 Stage 2: a new-model zone saved INSIDE its dungeon rebuilds the dungeon grid;
       // otherwise build the overworld (the mouth is enterable again if the mini was beaten). Legacy
       // zones go through genMap → the combined grid as before.
-      if (Field.usesNewModel() && r.enteredDungeon) Field.genDungeon(Field.zoneIndex);
-      else Field.genMap();             // sets px/py to the spawn (overworld) / mode="overworld"
+      if (Field.bigMapEnabled) {
+        // BIG-MAP resume (Stage 2C). genMap enters the continent big map (sets up the world + grids);
+        // a save made INSIDE a dungeon then rebuilds the (always-discrete) dungeon grid on top, keeping
+        // bigMap set so ascend returns to the continent surface.
+        Field.genMap();
+        if (r.enteredDungeon) Field.genDungeon(Field.zoneIndex);
+        else if (r.bigMap && Field.bigMapActive() && (r.wx || r.wy)) {
+          Field.wx = r.wx; Field.wy = r.wy;           // restore the saved world tile + re-derive the zone
+          Field.realizeAround(); Field.syncZoneFromWorld();
+        }
+      } else if (Field.usesNewModel() && r.enteredDungeon) {
+        Field.genDungeon(Field.zoneIndex);            // discrete: rebuild the dungeon grid
+        this.placePlayer(r.px, r.py);
+      } else {
+        Field.genMap();                               // discrete: overworld / combined grid as before
+        this.placePlayer(r.px, r.py);
+      }
       Field.stepsToEncounter = ri(Field.ENC_MIN, Field.ENC_MAX);
-      this.placePlayer(r.px, r.py);
       Screens.show("field"); Field.draw(); Field.hint();
     }
     const noteHtml = r.notes.length ? `<p class="small" style="opacity:.8">${r.notes.join("<br>")}</p>` : "";

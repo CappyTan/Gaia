@@ -13,11 +13,20 @@ import { describe, it, expect } from "vitest";
 import {
   buildAuthoredGrid, realizeKind, tileHash, unreachableWorldTargets,
   placementOf, authoredAt, inZonePolygon, OVERWORLD_W, OVERWORLD_H,
+  OVERWORLD_ID, AURELION_ID, inAnyContinent, realizeKindWorld,
+  unreachableContinentTargets, builtZonesOf, zonePolygonOf, polyCentroid,
 } from "../src/data/world";
 import { ZONES } from "../src/data/zones";
 
 const GV = "greenvale";
 const layout = ZONES.find((z) => z.id === GV)!.layout;
+
+/** Build the continent's authored-grid map exactly as field.ts enterBigMap does (every built core). */
+function continentGrids(): Record<string, string[][]> {
+  const grids: Record<string, string[][]> = {};
+  for (const z of builtZonesOf(AURELION_ID)) if (placementOf(z.zone!)) grids[z.zone!] = buildAuthoredGrid(z.zone!, true);
+  return grids;
+}
 
 // Realize a CHUNK exactly as field.ts realizeChunk does (the realization axis only — identity/dressing
 // is regionAt-cached in the controller and is itself pure; here we pin the realization+hash determinism).
@@ -106,5 +115,79 @@ describe("big-map realization (Stage 2B)", () => {
     // sanity: the world frame the placement lives in is the canonical 960×640.
     expect(OVERWORLD_W).toBe(960);
     expect(OVERWORLD_H).toBe(640);
+  });
+});
+
+// ── Stage 2C: CONTINENT-WIDE realization + reachability (the G22 correction) ──────────────────────
+// G22: the whole continent interior is walkable procedural open ground; built cores are dense islands
+// in it; only OCEAN / off-continent / the world edge is impassable "uncharted". The proof is a
+// continental roam Greenvale-spawn → Silverwood-core (the cores are ~136 tiles apart, bridged by open
+// continent), not a shared-zone-seam crossing.
+describe("continent-wide realization (Stage 2C, G22)", () => {
+  it("open continent (inside any continent, outside every core) realizes to walkable open ground", () => {
+    const grids = continentGrids();
+    // a tile inside Aurelion but in NO built zone's authored core → "grass" (walkable open continent).
+    let foundOpenContinent = false;
+    for (let wy = 60; wy < 90 && !foundOpenContinent; wy++)
+      for (let wx = 200; wx < 260 && !foundOpenContinent; wx++) // the gap between Greenvale & Silverwood cores
+        if (inAnyContinent(OVERWORLD_ID, wx, wy) && !authoredAt(wx, wy)) {
+          expect(realizeKindWorld(OVERWORLD_ID, grids, wx, wy)).toBe("grass");
+          foundOpenContinent = true;
+        }
+    expect(foundOpenContinent).toBe(true);
+  });
+
+  it("ocean / off-continent / world edge is impassable uncharted", () => {
+    const grids = continentGrids();
+    // (0,0) and the far SE corner are open sea between continents → uncharted.
+    expect(inAnyContinent(OVERWORLD_ID, 2, 2)).toBe(false);
+    expect(realizeKindWorld(OVERWORLD_ID, grids, 2, 2)).toBe("uncharted");
+    expect(realizeKindWorld(OVERWORLD_ID, grids, OVERWORLD_W - 2, OVERWORLD_H - 2)).toBe("uncharted");
+  });
+
+  it("every built core still realizes its authored tiles inside the continent world", () => {
+    const grids = continentGrids();
+    for (const z of builtZonesOf(AURELION_ID)) {
+      const id = z.zone!, pl = placementOf(id);
+      if (!pl) continue;
+      const L = ZONES.find((zz) => zz.id === id)!.layout;
+      const wx = pl.wx + L.spawn.x, wy = pl.wy + L.spawn.y;
+      expect(authoredAt(wx, wy)).toMatchObject({ zoneId: id });
+      expect(realizeKindWorld(OVERWORLD_ID, grids, wx, wy)).toBe(grids[id][L.spawn.y][L.spawn.x]);
+    }
+  });
+
+  it("continent reachability: Greenvale spawn reaches Silverwood's + the Duskmarsh's cores across open land", () => {
+    const grids = continentGrids();
+    const gv = placementOf(GV)!;
+    const spawnW = { x: gv.wx + layout.spawn.x, y: gv.wy + layout.spawn.y };
+    const swCore = polyCentroid(zonePolygonOf("silverwood")!);
+    const dmCore = polyCentroid(zonePolygonOf("duskmarsh")!);
+    const targets = [
+      { x: Math.round(swCore.x), y: Math.round(swCore.y) },
+      { x: Math.round(dmCore.x), y: Math.round(dmCore.y) },
+    ];
+    const missing = unreachableContinentTargets(OVERWORLD_ID, grids, spawnW, targets);
+    expect(missing).toEqual([]);
+  });
+
+  it("and from Greenvale's spawn every built zone's mouth/chests/lair are still reachable", () => {
+    const grids = continentGrids();
+    const gv = placementOf(GV)!;
+    const spawnW = { x: gv.wx + layout.spawn.x, y: gv.wy + layout.spawn.y };
+    // Greenvale's own authored features, plus Silverwood's mouth, all in world coords.
+    const w = (id: string, p: { x: number; y: number }) => { const pl = placementOf(id)!; return { x: pl.wx + p.x, y: pl.wy + p.y }; };
+    const swL = ZONES.find((z) => z.id === "silverwood")!.layout;
+    const targets = [
+      w(GV, layout.mouth), ...layout.chests.map((c) => w(GV, c)), w(GV, layout.lair!),
+      w("silverwood", swL.mouth),
+    ];
+    expect(unreachableContinentTargets(OVERWORLD_ID, grids, spawnW, targets)).toEqual([]);
+  });
+
+  it("continent realization is deterministic (realize a world tile twice → identical kind)", () => {
+    const grids = continentGrids();
+    for (const [x, y] of [[230, 72], [129, 74], [295, 71], [2, 2]] as const)
+      expect(realizeKindWorld(OVERWORLD_ID, grids, x, y)).toBe(realizeKindWorld(OVERWORLD_ID, grids, x, y));
   });
 });

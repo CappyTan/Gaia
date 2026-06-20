@@ -20,7 +20,7 @@ export const Screens = {
     //    (Silverwood) gets the hushed, old-growth `forest` theme; everything else keeps the restless
     //    `field` theme (Greenvale).
     // Keyed off flags/theme, not place names, so it generalizes to future cities/grim zones/settlements.
-    else if (name === "field") Music.play(Field.townMode ? (Field.town?.theme === "city" ? "city" : Field.town?.theme === "marsh" ? "marsh" : "village") : (Field.isMire() ? "mire" : Field.isForest() ? "forest" : "field"));
+    else if (name === "field") Music.play(Field.townMode ? (Field.town?.theme === "city" ? "city" : Field.town?.theme === "marsh" ? "marsh" : "village") : Field.fieldMusic());
     Music._renderStyleLabels();
     if (name === "field") {
       Field.resize(); Field.draw(); Field.hint();

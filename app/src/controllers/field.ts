@@ -5,9 +5,10 @@ import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
 import { ZONES, greenvaleAreaAt, type ZoneLayout, type Pt, type GreenvaleAreaId } from "../data/zones";
 import {
-  OVERWORLD_ID, regionAt, authoredAt, placementOf,
-  buildAuthoredGrid, realizeKind, tileHash,
+  OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
+  buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf,
 } from "../data/world";
+import { Music } from "../audio/music";
 import { settlement, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
@@ -112,8 +113,13 @@ export const Field = {
   bigMap: false,
   wx: 0, wy: 0,                                   // player world-tile position (source of truth when bigMap)
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
-  authoredGrid: null as string[][] | null,        // the placed zone's authored overworld blueprint (local)
-  bigZone: "" as string,                          // which zone the big map is currently realizing
+  // Stage 2C: the big map is CONTINENT-WIDE — every built zone's authored blueprint is realized into
+  // the one 960×640 world, the open continent bridging them (G22). `authoredGrids` maps a built zone
+  // id → its authored overworld blueprint (local string[][]); `bigZone` is the zone the player is
+  // CURRENTLY standing in (drives zoneIndex/bands/mouth/dungeon), derived per-step in bigMove.
+  authoredGrids: {} as Record<string, string[][]>,
+  bigZone: "" as string,                          // the built zone the player currently stands in ("" = open continent)
+  bigMusic: "field" as string,                    // the big-map overworld song key currently playing (duck-swap on change)
 
   // Preload the overworld (Greenvale) tileset + both dungeon tilesets; each redraws as it lands.
   // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
@@ -218,9 +224,11 @@ export const Field = {
   // separate grid (genDungeon); every other zone still builds the SAME combined grid as before
   // (genCombined). All paths flood-fill to GUARANTEE the boss + every chest reachable (anti-soft-lock).
   genMap(): void {
-    // BIG-MAP (Stage 2B): GREENVALE roams as a window into the 960×640 world when the master toggle is
-    // on. Everything else (and the safety toggle off) takes the discrete path UNCHANGED.
-    if (this.bigMapEnabled && this.zone().id === "greenvale") { this.enterBigMap("greenvale"); return; }
+    // BIG-MAP (Stage 2C): when the master toggle is on, the OVERWORLD is roamed as a window into the
+    // 960×640 world CONTINENT — drop at Greenvale's authored spawn and roam all of Aurelion (the three
+    // built cores + the open continent between them; G22). Position derives the zone, so no loadZone.
+    // The safety toggle off (and dungeons regardless) takes the discrete path UNCHANGED.
+    if (this.bigMapEnabled) { this.enterBigMap(); return; }
     this.bigMap = false;
     if (this.usesNewModel()) { this.mode = "overworld"; this.genOverworld(this.zone().id); }
     else this.genCombined();
@@ -441,10 +449,14 @@ export const Field = {
   // 0..1 progress through the current space. Legacy: px toward the combined-grid boss. New model:
   // OVERWORLD = px toward the dungeon mouth; DUNGEON = px toward the dungeon boss.
   progress(): number {
-    // BIG-MAP overworld: progress is world-x from the authored spawn toward the mouth's world-x.
+    // BIG-MAP overworld: progress is world-x from the current built zone's authored spawn toward its
+    // mouth's world-x. In OPEN CONTINENT (no built zone under the player) there's no gate to progress
+    // toward — report mid-progress (encounters there are suppressed anyway; G22 backlog land).
     if (this.bigMapActive()) {
-      const pl = placementOf(this.bigZone)!, L = (ZONES.find((z) => z.id === this.bigZone) ?? this.zone()).layout;
-      const x0 = pl.wx + L.spawn.x, x1 = pl.wx + this.mouth.x;
+      const pl = this.bigZone ? placementOf(this.bigZone) : undefined;
+      if (!pl) return 0.5;
+      const L = (ZONES.find((z) => z.id === this.bigZone) ?? this.zone()).layout;
+      const x0 = pl.wx + L.spawn.x, x1 = pl.wx + L.mouth.x;
       return clamp((this.wx - x0) / Math.max(1, x1 - x0), 0, 1);
     }
     const goal = this.usesNewModel() && this.mode === "overworld" ? this.mouth.x : this.boss.x;
@@ -514,11 +526,12 @@ export const Field = {
   // BIG-MAP: restore the player onto the mouth's WORLD tile and re-enter the windowed overworld; the
   // chunk cache + authored blueprint carry over (the mouth never moved in world space).
   ascend(): void {
-    if (this.bigMapActive()) {
-      this.mode = "overworld";
+    if (this.bigMap) {
+      this.mode = "overworld"; this.enteredDungeon = false; // back on the seamless surface
       const pl = placementOf(this.bigZone)!;
       this.wx = pl.wx + this.mouth.x; this.wy = pl.wy + this.mouth.y; // step back out onto the mouth's world tile
       this.realizeAround();
+      this.syncZoneFromWorld();
       this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
       this.draw(); this.hint();
       Game.saveNow();
@@ -530,26 +543,63 @@ export const Field = {
     this.draw(); this.hint();
     Game.saveNow();
   },
-  // ═══ SEAMLESS BIG-MAP (ADR 0009 / Stage 2B) — GREENVALE only, behind `bigMap` ════════════════
-  // Render+roam Greenvale as a WINDOW into the 960×640 world. `wx/wy` is the source of truth; the
-  // viewport is iterated from a 32×32 chunk cache (realized on move, evicted when far); each cell
-  // caches its identity (Area→biome/tileset/lean) at realize time so `draw()` never calls regionAt.
+  // ═══ SEAMLESS BIG-MAP (ADR 0009 / Stage 2C) — CONTINENT-WIDE, behind `bigMap` ═══════════════════
+  // Render+roam the whole AURELION continent as a WINDOW into the 960×640 world (G22). `wx/wy` is the
+  // source of truth; the viewport is iterated from a 32×32 chunk cache (realized on move, evicted when
+  // far); each cell caches its identity (Area→biome/tileset/lean/music) at realize time so `draw()`
+  // never calls regionAt. The three built cores (Greenvale/Silverwood/the Duskmarsh) and the open
+  // continent between them are all roamable; position derives the zone (NO loadZone, ever).
 
   /** Is the windowed big-map overworld currently the active surface? (flag on + not in a dungeon/town.) */
   bigMapActive(): boolean { return this.bigMap && this.mode === "overworld" && !this.townMode; },
 
-  // ENTER big-map Greenvale: set the player at the authored spawn mapped to world coords
-  // (placementOf + spawn), build the authored blueprint (pure, data/world), realize the viewport, draw.
-  enterBigMap(zoneId = "greenvale"): void {
-    this.townMode = false; this.mode = "overworld"; this.bigMap = true; this.bigZone = zoneId;
-    const z = ZONES.find((zz) => zz.id === zoneId) ?? this.zone();
-    const pl = placementOf(zoneId)!, L = z.layout;
-    this.authoredGrid = buildAuthoredGrid(zoneId, Game.miniBossDefeated);
-    this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
+  /** The built zones whose authored cores live on the roamed continent (Aurelion's three built zones). */
+  bigBuiltZoneIds(): string[] { return builtZonesOf(AURELION_ID).map((z) => z.zone!).filter((id) => placementOf(id)); },
+
+  // ENTER the continent big map: build EVERY built zone's authored blueprint (pure, data/world),
+  // drop the player at Greenvale's authored spawn mapped to world coords, sync zoneIndex/mouth to the
+  // zone under the player, realize the viewport ring, draw.
+  enterBigMap(startZone = "greenvale"): void {
+    this.townMode = false; this.mode = "overworld"; this.bigMap = true;
+    this.authoredGrids = {};
+    for (const id of this.bigBuiltZoneIds()) this.authoredGrids[id] = buildAuthoredGrid(id, Game.miniBossDefeated);
+    const z = ZONES.find((zz) => zz.id === startZone) ?? ZONES[0];
+    const pl = placementOf(startZone)!, L = z.layout;
     this.wx = pl.wx + L.spawn.x; this.wy = pl.wy + L.spawn.y; // authored spawn → world coords
     this.chunks.clear();
+    this.syncZoneFromWorld();   // sets zoneIndex/bigZone/mouth/gate + cues music for the spawn position
     this.realizeAround();
     this.draw(); this.hint();
+  },
+
+  // POSITION-DERIVED STATE (Stage 2C, the no-loadZone core): from the player's world tile, resolve the
+  // built zone they stand in (regionAt → zone whose Area owns this tile) and sync the derived run state
+  // — zoneIndex (so bands/dungeon-set/rares follow), bigZone, the zone's mouth (for progress/descend),
+  // and the overworld music. In OPEN CONTINENT (no built zone) bigZone="" (no encounters, ambient cue).
+  // Cheap: one regionAt at the player tile per step (off the per-frame draw path).
+  syncZoneFromWorld(): void {
+    const res = regionAt(OVERWORLD_ID, this.wx, this.wy);
+    const zid = res.zone?.zone; // a BUILT zone id, or undefined (backlog/open continent)
+    const builtId = zid && placementOf(zid) ? zid : "";
+    if (builtId !== this.bigZone) {
+      this.bigZone = builtId;
+      if (builtId) {
+        const zi = ZONES.findIndex((z) => z.id === builtId);
+        if (zi >= 0) this.zoneIndex = zi;
+        const L = this.zone().layout;
+        this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
+      }
+    }
+    // MUSIC: Area identity music with a zone/open-continent fallback; duck-swap only when it changes.
+    const key = Music.forField(res.area?.identity.music, builtId || undefined);
+    if (key !== this.bigMusic) { this.bigMusic = key; Music.play(key); Music._renderStyleLabels?.(); }
+  },
+
+  // The overworld song key for the CURRENT position — used by screens.ts (both paths). Big-map derives
+  // it from the player's Area identity; the discrete path from the zone's env (mire/forest/field).
+  fieldMusic(): string {
+    if (this.bigMapActive()) return Music.forField(regionAt(OVERWORLD_ID, this.wx, this.wy).area?.identity.music, this.bigZone || undefined);
+    return Music.forField(this.isMire() ? "mire" : this.isForest() ? "forest" : "field", this.zone().id);
   },
 
   chunkKey(cx: number, cy: number): string { return cx + "," + cy; },
@@ -559,16 +609,15 @@ export const Field = {
   // identity/dressing (regionAt→Area→biome/tileset/lean, cached so draw() never calls regionAt) +
   // a seam dither (a neighbouring Area's biome within K tiles, blended by the stable hash).
   realizeChunk(cx: number, cy: number): BigCell[][] {
-    const zoneId = this.bigZone;
     const x0 = cx << CHUNK_SHIFT, y0 = cy << CHUNK_SHIFT;
     const cells: BigCell[][] = [];
     for (let ly = 0; ly < CHUNK; ly++) {
       const row: BigCell[] = [];
       for (let lx = 0; lx < CHUNK; lx++) {
         const wx = x0 + lx, wy = y0 + ly;
-        // (a) REALIZATION (pure, data/world): authored core → that kind; inside polygon → open ground;
-        // else uncharted soft edge.
-        const kind = realizeKind(zoneId, this.authoredGrid ?? [], wx, wy);
+        // (a) REALIZATION (pure, data/world, G22): ANY built zone's authored core → that kind; else
+        // inside ANY continent → open ground ("grass"); else uncharted soft edge (ocean / world edge).
+        const kind = realizeKindWorld(OVERWORLD_ID, this.authoredGrids, wx, wy);
         // (b) IDENTITY / DRESSING — cached so the per-frame draw path never calls regionAt.
         const id = regionAt(OVERWORLD_ID, wx, wy);
         const ai = id.area?.identity;
@@ -637,7 +686,8 @@ export const Field = {
     const nx = this.wx + dx, ny = this.wy + dy;
     if (!this.bigPassable(nx, ny)) return;
     this.wx = nx; this.wy = ny;
-    this.realizeAround(); // realize-on-move (never in draw)
+    this.realizeAround();      // realize-on-move (never in draw)
+    this.syncZoneFromWorld();  // POSITION-DERIVED state (zone/bands/music) — the no-loadZone crossing
     Game.steps++; Telemetry.step();
     this.draw(); this.hint();
     const cell = this.cellAt(nx, ny);
@@ -645,13 +695,15 @@ export const Field = {
     if (cell.kind === "mouth") { this.descend(); return; }
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
+    // OPEN CONTINENT (no built zone under the player) is backlog land — no random encounters yet (G22).
+    if (!this.bigZone) return;
     this.stepsToEncounter--;
     if (this.stepsToEncounter <= 0) { this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX); this.rollEncounter(); }
   },
   // A chest in big-map space: consume the realized cell + the authored blueprint cell, then reward.
   openBigChest(wx: number, wy: number): void {
     this.cellAt(wx, wy).kind = "path";
-    const a = authoredAt(wx, wy); if (a && this.authoredGrid) this.authoredGrid[a.ly][a.lx] = "path";
+    const a = authoredAt(wx, wy); if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "path";
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5);
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4);
     const m = pick(Game.party);
@@ -663,7 +715,7 @@ export const Field = {
   // The rare-monster den in big-map space (Hogger): consume it, then start the solo rare fight.
   enterBigLair(wx: number, wy: number): void {
     this.cellAt(wx, wy).kind = "grass";
-    const a = authoredAt(wx, wy); if (a && this.authoredGrid) this.authoredGrid[a.ly][a.lx] = "grass";
+    const a = authoredAt(wx, wy); if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "grass";
     const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
     const key = rares.length ? rares[0].key : null;
     this.draw(); this.hint();
