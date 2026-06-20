@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.45", t: "Hearthford — your adventure now begins INSIDE a real, lived-in starting village, not a menu. Roam the green, rest at the inn, visit the market/smith/shrine, and walk up to the townsfolk — Elder Maelis, Watchman Bram, Little Pip, Goodwife Tansy, Innkeeper Doral — to talk to them, then take the north gate out into Greenvale. First step of a ground-up world rebuild: towns and cities you actually live in. (Art is placeholder for now.)" },
   { v: "v0.44", t: "Crash-proof telemetry — your in-progress run is now mirrored as you play, so a crash or closed tab no longer loses it: the next time you open the game it quietly recovers that run and sends it to the repo. Finished runs still auto-save as before." },
   { v: "v0.43", t: "Battle-screen layout pass — bigger battlefield, slimmer command/roster bar (70/30 split); hero bars sit flush at the bottom edge; heroes clustered closer together; names removed from the field sprites and the roster reordered (Auren · Sephi · Kaela · Liora · Rion); fresh Greenvale plains backdrop." },
   { v: "v0.42", t: "The Greenvale Outpost is now a real, walkable town — you roam a cobbled plaza and step up to each building to use it: the Inn (free rest), the Merchant (Supplies), the Smith, and the Revive shrine, then the south gate to head on. Replaces the menu-style hub." },

@@ -4,10 +4,12 @@ import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
 import { ZONES } from "../data/zones";
+import { settlement, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
+import { Dialogue } from "../ui/dialogue";
 import { Screens } from "./screens";
 import { Game } from "./game";
 import { Battle } from "./battle";
@@ -27,9 +29,11 @@ export const Field = {
   ENC_MIN: 3, ENC_MAX: 6,
   zoneIndex: 0,
   enteredDungeon: false,
-  // TOWN: a real walkable hub (the Greenvale Outpost) reusing this same canvas/camera/dpad — set
-  // between zones in place of the old modal hub. No encounters; buildings are walk-in POIs.
+  // TOWN: a real walkable settlement (data-driven, ADR 0006) reusing this same canvas/camera/dpad.
+  // Loaded by id from data/towns.ts. No encounters; buildings are walk-in POIs; NPCs are talked to.
   townMode: false,
+  town: null as Settlement | null,
+  npcs: [] as TownNPC[],
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
   tiles: {} as Record<string, HTMLImageElement>, // loaded field sprites (empty until ready)
@@ -39,8 +43,8 @@ export const Field = {
   loadTiles(): void {
     const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "player"];
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
-    // town sprites (resolve to emoji fallback until the tileset is sliced — see art pipeline)
-    for (const n of ["town-cobble", "town-cobble2", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit"]) names.push(n);
+    // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
+    for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
     names.forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
@@ -122,44 +126,56 @@ export const Field = {
     this.map[this.boss.y][this.boss.x] = "boss";
     this.map[9][1] = "path";
   },
-  // ── TOWN ── Enter the walkable Greenvale Outpost (called after a zone boss, via Game.openTown).
-  // A compact cobbled plaza ringed by the four service buildings; walk onto a building's door to
-  // use it, onto the gate to leave. Stock is rolled by the caller (Game.openTown).
-  enterTown(): void {
-    this.genTown();
+  // ── TOWN ── Enter a walkable settlement by id (ADR 0006). Called via Game.openTown(id).
+  // Service buildings are walk-in POIs; NPCs are walked up to and talked to; the gate leaves.
+  // Stock is rolled by the caller (Game.openTown).
+  enterTown(id = "hearthford"): void {
+    this.genTown(id);
     Screens.show("field");
     this.draw(); this.hint();
-    Overlay.show(`<h2 class="title-gold">Greenvale Outpost</h2><p class="small">A safe haven between the roads. Visit the Inn to rest, the Merchant and Smith for gear, the shrine to revive the fallen — then take the gate onward.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Enter town</button></div>`);
+    const s = this.town!;
+    Overlay.show(`<h2 class="title-gold">${s.name}</h2><p class="small">${s.intro}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Enter town</button></div>`);
   },
-  genTown(): void {
+  // Decode the settlement's hand-authored ASCII layout into the tile grid + NPC list.
+  genTown(id = "hearthford"): void {
     this.townMode = true;
-    this.W = 15; this.H = 11;
-    this.map = [];
-    for (let y = 0; y < this.H; y++) {
-      const row: string[] = [];
-      for (let x = 0; x < this.W; x++) row.push(x === 0 || y === 0 || x === this.W - 1 || y === this.H - 1 ? "twall" : "town-cobble");
-      this.map.push(row);
-    }
-    // service buildings (walk onto the door tile to enter) ringing the plaza
-    this.map[2][3] = "t-inn";        // top-left  — Inn (rest)
-    this.map[2][11] = "t-shop";      // top-right — Supplies (merchant)
-    this.map[8][3] = "t-smith";      // bot-left  — Blacksmith
-    this.map[8][11] = "t-revive";    // bot-right — Revive shrine
-    this.map[5][7] = "t-fountain";   // centrepiece (impassable decoration)
-    this.map[this.H - 1][7] = "t-exit"; // gate in the south wall — leave the outpost
-    this.px = 7; this.py = this.H - 2; // enter just inside the gate
+    const s = settlement(id);
+    this.town = s;
+    this.map = s.layout.map((row) => Array.from(row, (ch) => TOWN_GLYPHS[ch] ?? "town-cobble"));
+    this.H = this.map.length; this.W = this.map[0].length;
+    this.npcs = s.npcs.map((n) => ({ ...n })); // shallow copy so dialogue state stays in data-shape
+    const sp = s.spawn ?? { x: Math.floor(this.W / 2), y: this.H - 2 };
+    this.px = clamp(sp.x, 0, this.W - 1); this.py = clamp(sp.y, 0, this.H - 1);
+  },
+  npcAt(x: number, y: number): TownNPC | undefined { return this.npcs.find((n) => n.x === x && n.y === y); },
+  // Leave the STARTING village into the current zone (index 0). Rebuilds the zone map (town genTown
+  // overwrote it), drops the player at the zone start, and arms encounters — like loadZone but
+  // staying on the same zone index, with the zone-intro overlay.
+  enterZoneFromVillage(): void {
+    this.enteredDungeon = false;
+    this.px = 1; this.py = 9; this.resize(); this.genMap();
+    this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+    Screens.show("field");
+    const z = this.zone();
+    Overlay.show(`<h2 class="title-gold">${z.name}</h2><p class="small">You set out from the village. Search off the path for treasure — and watch the road.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Set out</button></div>`);
   },
   progress(): number { return clamp((this.px - 1) / (this.boss.x - 1), 0, 1); },
   passable(x: number, y: number): boolean {
     if (x < 0 || y < 0 || x >= this.W || y >= this.H) return false;
     const cell = this.map[y][x];
-    if (this.townMode) return cell !== "twall" && cell !== "t-fountain"; // buildings/gate are walk-in
+    // In town: walls/decoration block, NPCs block (you bump into them = talk), service doors/gate
+    // are walk-in. Buildings (t-inn/shop/smith/revive) are NOT in TOWN_BLOCKERS so you step onto them.
+    if (this.townMode) return !TOWN_BLOCKERS.has(cell) && !this.npcAt(x, y);
     return cell !== "tree";
   },
   move(dx: number, dy: number): void {
     if (Game.state !== "field" && Screens.cur !== "field") return;
+    // While a conversation is open, the d-pad/move keys advance the dialogue instead of walking.
+    if (Dialogue.isOn()) { Dialogue.advance(); return; }
     if (Overlay.isOn()) return;
     const nx = this.px + dx, ny = this.py + dy;
+    // Walking into an NPC talks to them (you don't move onto their tile).
+    if (this.townMode) { const npc = this.npcAt(nx, ny); if (npc) { this.talkTo(npc); return; } }
     if (!this.passable(nx, ny)) return;
     this.px = nx; this.py = ny;
     if (this.townMode) { this.draw(); this.hint(); this.townTouch(this.map[ny][nx]); return; } // no steps/encounters in town
@@ -181,11 +197,18 @@ export const Field = {
   },
   // Walking onto a town POI tile opens its service (Game owns the run-state actions).
   townTouch(cell: string): void {
-    if (cell === "t-inn") Game.openInn();
-    else if (cell === "t-shop") Game.openMerchant();
-    else if (cell === "t-smith") Game.openSmith();
-    else if (cell === "t-revive") Game.openRevive();
-    else if (cell === "t-exit") Game.confirmLeaveTown();
+    const poi = POI_OF[cell];
+    if (poi === "inn") Game.openInn();
+    else if (poi === "shop") Game.openMerchant();
+    else if (poi === "smith") Game.openSmith();
+    else if (poi === "revive") Game.openRevive();
+    else if (poi === "exit") Game.confirmLeaveTown();
+  },
+  // Talk to an NPC: open the lightweight (non-blocking) dialogue box; advancing redraws so the
+  // little "talking" marker over the NPC clears when the conversation ends.
+  talkTo(npc: TownNPC): void {
+    Dialogue.open(npc.name, npc.spr, npc.lines, () => { this.draw(); this.hint(); });
+    this.draw(); this.hint();
   },
   rollEncounter(): void {
     const p = this.progress(), bands = this.zone().bands;
@@ -233,8 +256,8 @@ export const Field = {
     if (party) party.innerHTML = Game.party.map((m) => `<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
     set("#fieldGold", String(Game.gold));
     if (this.townMode) {
-      set("#fieldHint", "Walk to a building to use it; step onto the south gate to head out.");
-      set("#fieldZone", `Greenvale Outpost · Zone ${this.zoneIndex + 1}`);
+      set("#fieldHint", "Walk into a townsperson to talk; onto a building to use it; through the north gate to head out.");
+      set("#fieldZone", this.town?.name ?? "Town");
       return;
     }
     const p = this.progress(), z = this.zone(), name = z.name;
@@ -248,25 +271,36 @@ export const Field = {
     set("#fieldHint", msg);
     set("#fieldZone", `${this.inDungeon() ? z.dungeon.name : name} · ${Game.encountersWon} cleared`);
   },
-  // One town tile: cobble ground (+impassable wall) then the building/decoration sprite with a
-  // gold label, falling back to emoji until the tileset art is sliced in.
+  // One town tile: a ground sprite (cobble / grass; wall has none) under a building/decoration
+  // object with a gold label. Everything falls back to emoji/flat-colour until the tileset is
+  // sliced in (see asset-gaps.md). Decorations (tree/well/house/flower) sit on grass so removing
+  // a kind never strands the player.
   drawTownCell(c: CanvasRenderingContext2D, T: Record<string, HTMLImageElement>, cell: string, mx: number, my: number, sx: number, sy: number, t: number): void {
     const isWall = cell === "twall";
-    let g = isWall ? "" : "town-cobble";
+    // ground under the tile: grass for decorations/grass tiles, cobble for streets & buildings.
+    const onGrass = cell === "town-grass" || cell === "town-flower" || cell === "t-tree" || cell === "t-well" || cell === "t-house";
+    let g = isWall ? "" : onGrass ? "town-grass" : "town-cobble";
     if (g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
     const gimg = T[g];
     if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
-    else { c.fillStyle = isWall ? "#241f17" : "#6b5d44"; c.fillRect(sx, sy, t, t); if (!isWall && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.07)"; c.fillRect(sx, sy, t, t); } }
+    else {
+      c.fillStyle = isWall ? "#241f17" : onGrass ? "#3f6b2c" : "#6b5d44"; c.fillRect(sx, sy, t, t);
+      if (!isWall && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.07)"; c.fillRect(sx, sy, t, t); }
+    }
+    // [sprite key, emoji fallback, scale (×tile), label]. Empty label = no caption.
     const POI: Record<string, [string, string, number, string]> = {
-      "t-inn": ["town-inn", "🏠", 1.6, "Inn"], "t-shop": ["town-shop", "🛒", 1.6, "Supplies"],
-      "t-smith": ["town-smith", "🔨", 1.6, "Smith"], "t-revive": ["town-revive", "🔮", 1.6, "Revive"],
-      "t-fountain": ["town-fountain", "⛲", 1.2, ""], "t-exit": ["town-exit", "🚪", 1.1, "Leave →"],
+      "t-inn": ["town-inn", "🏠", 1.6, "Inn"], "t-shop": ["town-shop", "🛒", 1.6, "Market"],
+      "t-smith": ["town-smith", "🔨", 1.6, "Smith"], "t-revive": ["town-revive", "🔮", 1.6, "Shrine"],
+      "t-exit": ["town-exit", "🚪", 1.1, "↑ Leave"],
+      "t-fountain": ["town-fountain", "⛲", 1.2, ""], "t-well": ["town-well", "🪣", 1.0, ""],
+      "t-tree": ["town-tree", "🌳", 1.3, ""], "t-house": ["town-house", "🏡", 1.5, ""],
+      "town-flower": ["town-flower", "🌷", 0.7, ""],
     };
     const poi = POI[cell];
     if (poi) {
       const img = T[poi[0]];
       if (img) { const h = t * poi[2], w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
-      else { c.font = `${t * 0.74}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
+      else { c.font = `${t * (poi[2] < 1 ? 0.5 : 0.74)}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
       if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
     } else if (isWall && !gimg) { c.font = `${t * 0.7}px serif`; c.fillStyle = "#3a5a2a"; c.fillText("🌳", sx + t / 2, sy + t / 2); }
   },
@@ -320,6 +354,20 @@ export const Field = {
         else if (!gimg && cell === "tree") c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2);
         else if (!gimg && cell === "bush") c.fillText(inDun ? "🦴" : "🌿", sx + t / 2, sy + t / 2);
       }
+    // NPCs (town only): a shadow + emoji-placeholder body + gold name caption; a "…" bubble while
+    // you're mid-conversation with them. Sprite art is flagged in asset-gaps.md.
+    if (this.townMode) {
+      const talking = Dialogue.isOn();
+      for (const n of this.npcs) {
+        if (n.x < camx || n.y < camy || n.x > camx + viewW || n.y > camy + viewH) continue;
+        const nx = (n.x - camx) * t + t / 2, ny = (n.y - camy) * t + t / 2;
+        c.beginPath(); c.ellipse(nx, ny + t * 0.36, t * 0.26, t * 0.11, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.38)"; c.fill();
+        c.font = `${t * 0.72}px serif`; c.fillStyle = "#fff"; c.fillText(n.spr, nx, ny - t * 0.04);
+        c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.92)";
+        c.strokeText(n.name, nx, ny + t * 0.5); c.fillText(n.name, nx, ny + t * 0.5);
+        if (!talking) { c.font = `${t * 0.4}px serif`; c.fillStyle = "rgba(244,210,122,.85)"; c.fillText("💬", nx + t * 0.36, ny - t * 0.4); }
+      }
+    }
     // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback)
     const cx = (this.px - camx) * t + t / 2, cy = (this.py - camy) * t + t / 2;
     c.save();
