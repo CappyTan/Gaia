@@ -92,6 +92,14 @@
   /* ultra-rare treasure monster: a prismatic shimmer so it reads as a special encounter */
   .enemy.rare .ename{color:#ffe9a8; font-weight:bold; text-shadow:0 0 10px rgba(255,210,120,.9);}
   .enemy.rare .spr-img, .enemy.rare .spr{filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 9px rgba(255,215,130,.85)) drop-shadow(0 0 16px rgba(180,120,255,.45)) drop-shadow(0 3px 5px #000); animation:pulse 1.6s ease-in-out infinite;}
+  /* mini-boss / boss: render markedly larger; a lone boss centers in the zone (Dara) */
+  .enemy.miniboss .spr-img{width:118px; height:128px;}
+  .enemy.boss .spr-img{width:150px; height:160px;
+    filter:contrast(1.08) saturate(1.06) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000) drop-shadow(0 0 14px rgba(244,151,46,.5)) drop-shadow(0 6px 8px rgba(0,0,0,.75));}
+  .enemy.boss .ename, .enemy.miniboss .ename{font-size:14px; color:var(--gold2); font-weight:bold;}
+  #enemyZone.has-boss{justify-content:center; align-items:center;}
+  #enemyZone.has-boss .enemy{flex-direction:column; align-items:center; gap:4px; text-align:center;}
+  #enemyZone.has-boss .enemy .ebar{width:80%; min-width:120px; flex:0 0 auto;}
   .enemy.acting{transform:translateX(10px) scale(1.05);}
   .enemy .ename{font-size:12px;}
   .att-tag{font-size:10px; font-weight:bold; letter-spacing:.3px;}
@@ -149,12 +157,15 @@
   .badge.stun{background:#5a4a00; color:#ffe27a;} .badge.atkup{background:#5a2e00; color:#ffb27a;}
   .badge.champ{background:rgba(244,210,122,.18); color:var(--gold); border:1px solid var(--gold);} /* champion affixes read as a power tier */
 
-  #log{position:absolute; left:34%; right:0; bottom:42%; height:auto; max-height:64px; overflow:hidden; pointer-events:none;
-    padding:4px 10px; font-size:12px; color:var(--gold2); text-shadow:0 1px 2px #000;}
-  #log div{opacity:.55;} #log div:last-child{opacity:1;}
+  /* combat log: a quiet 2-line ticker pinned to the field/UI seam (Dara: was a cluttered scroll
+     over the party). Right-aligned, dimmed prior line, small scrim for legibility. */
+  #log{position:absolute; left:34%; right:0; bottom:42%; height:auto; max-height:34px; overflow:hidden; pointer-events:none;
+    padding:3px 12px; font-size:12px; line-height:1.35; text-align:right; color:var(--gold2);
+    text-shadow:0 1px 3px #000, 0 0 6px #000; background:linear-gradient(transparent, rgba(6,6,11,.55));}
+  #log div{opacity:.4;} #log div:last-child{opacity:.95;}
 
-  .float{position:absolute; font-weight:bold; font-size:18px; pointer-events:none; text-shadow:0 2px 3px #000;
-    animation:floatup 1s ease-out forwards;}
+  .float{position:absolute; font-weight:bold; font-size:16px; pointer-events:none; text-shadow:0 2px 3px #000;
+    animation:floatup .85s ease-out forwards;}
   @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
   /* crit burst: Dara's per-Attunement spark, popped + faded over a struck unit (screen-blended
      so the knocked-out glow reads as light, not a flat decal) */
@@ -204,8 +215,19 @@
   .rwarn{color:var(--legendary); font-size:12px; margin:2px 0 4px; padding:5px 8px; background:#2a1d12; border:1px solid #5a3a1a; border-radius:7px;}
   .rfoot{position:sticky; bottom:0; background:var(--panel); padding:10px 0 2px; margin-top:6px; box-shadow:0 -10px 10px 2px var(--panel); z-index:1;}
   .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
-  .equip-slot button{font-size:11px; padding:3px 8px;}
+  .equip-slot button{font-size:13px; padding:8px 12px; min-height:40px;}
   .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}
+  /* Party card sections + vertical MNA allocator (Dara: tap targets + hierarchy redo) */
+  .psec{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); margin:12px 0 4px;}
+  .mna-pool{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px;
+    border-radius:10px; background:rgba(244,151,46,.12); border:1px solid var(--legendary); margin-bottom:4px;}
+  .mna-pool b{color:var(--gold2); font-size:15px;}
+  .mna-row{display:flex; align-items:center; gap:10px; padding:6px 8px; margin:4px 0;
+    border:1px solid var(--line); border-radius:10px; background:#16162a;}
+  .mna-name{flex:1; font-size:14px; font-weight:bold;}
+  .mna-tot{font-size:18px; font-weight:bold; min-width:30px; text-align:right; color:var(--gold2);}
+  .mna-sub{font-size:11px; color:var(--dim); min-width:54px;}
+  .mna-btn{width:44px; height:44px; flex:0 0 auto; font-size:22px; line-height:1; padding:0; border-radius:10px;}
   a.link{color:var(--gold2); cursor:pointer; text-decoration:underline;}
 </style>
 </head>
