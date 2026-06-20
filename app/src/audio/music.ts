@@ -39,7 +39,7 @@ export const Music = {
   _timer: undefined as ReturnType<typeof setInterval> | undefined,
   LOOKAHEAD: 0.12,
   TICK: 25,
-  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", mire: "orchestral", marsh: "orchestral", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
+  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", forest: "orchestral", mire: "orchestral", marsh: "orchestral", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
   STYLE_ORDER: ["radiant", "orchestral", "heroic"],
 
   SONGS: {
@@ -101,6 +101,26 @@ export const Music = {
             ["Bb3", 4], ["r", 4], ["F4", 4], ["r", 4], ["r", 8], ["Eb4", 4], ["r", 4]],
       lead: [["A4", 8], ["G4", 4], ["F4", 12], ["r", 8], ["F4", 6], ["Eb4", 2], ["D4", 8], ["r", 16],
              ["Bb4", 8], ["A4", 8], ["G4", 4], ["F4", 12], ["Eb4", 8], ["D4", 12], ["r", 4], ["D4", 8], ["r", 8]],
+    } },
+    // Silverwood / ancient-forest theme — hushed, old, mysterious. The pastoral `field`'s deep-canopy
+    // sibling: where Greenvale is bright + restless, Silverwood is slow + enclosing; where the `mire`
+    // is bleak Phrygian dread, this is modal woodland — minor-colored but alive. E Dorian (E F# G A B
+    // C# D): the minor third (G) hushes it, but the natural sixth (C#) keeps it green/old rather than
+    // grim. Slow 96 BPM, no drums. 16-bar loop in two breathing 8-bar halves. A soft root-fifth drone-
+    // bass drifts the modal cadence i–bVI–bVII–v (E–C–D–A) so it pulls but never resolves bright; a
+    // slow pad breathes stacked open fifths / minor-thirds above (towering canopy). A quiet plucked
+    // open-interval arp = shafts of light through the leaves — sparse, far apart, mostly fifths. The
+    // lead is barely-there: long lonely tones (E–B–D–F#–C#) with wide rests, like birdsong deep in old
+    // growth. Best heard through the `orchestral` style (soft saw pad, triangle lead, no drums).
+    forest: { bpm: 96, roles: {
+      bass: [["E2", 8], ["B2", 8], ["C2", 8], ["G2", 8], ["D2", 8], ["A2", 8], ["A2", 8], ["E2", 8],
+             ["E2", 8], ["B2", 8], ["C2", 8], ["G2", 8], ["D2", 8], ["A2", 8], ["B1", 8], ["E2", 8]],
+      pad: [["B3", 16], ["G3", 16], ["G3", 16], ["E3", 16],
+            ["A3", 16], ["E3", 16], ["F#3", 16], ["B3", 16]],
+      arp: [["E4", 4], ["r", 4], ["B4", 4], ["r", 4], ["r", 8], ["G4", 4], ["r", 4],
+            ["D4", 4], ["r", 4], ["A4", 4], ["r", 4], ["r", 8], ["F#4", 4], ["r", 4]],
+      lead: [["E4", 8], ["r", 8], ["B4", 6], ["r", 10], ["G4", 8], ["r", 8], ["F#4", 8], ["E4", 4], ["r", 12],
+             ["A4", 8], ["r", 8], ["C#4", 6], ["r", 10], ["B4", 8], ["r", 8], ["D4", 8], ["r", 4], ["E4", 8], ["r", 4]],
     } },
     // Riverhearth / city theme — grand, bustling, prosperous trade-capital cue. The warm `village`'s
     // big-city cousin: brighter (C major, no Lydian wink — just confident, open major), faster (112
@@ -185,7 +205,7 @@ export const Music = {
     set("#st-title", "title");
     // The field HUD's style pill reflects whichever overworld track is playing — the open-field /
     // grim-mire zone theme, or the village / fog-bound-outpost theme while in a settlement.
-    set("#st-field", (["village", "city", "mire", "marsh"].includes(this.cur || "") ? this.cur : "field") as string);
+    set("#st-field", (["village", "city", "mire", "marsh", "forest"].includes(this.cur || "") ? this.cur : "field") as string);
     set("#st-battle", this.cur === "boss" || this.cur === "battle" ? this.cur : "battle");
   },
   unlock(): void {
