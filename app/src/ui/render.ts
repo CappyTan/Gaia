@@ -69,13 +69,16 @@ export function renderDoll(m: Member): string {
   if (ar && ARMOR_LAYER[id] && ARMOR_LAYER[id][ar.rarity]) {
     h += `<img class="dl-layer" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
   }
-  const w = m.equip && m.equip.weapon;
-  if (w && WEAP_IMG[w.cls]) {
-    const r = RIG.weapon[w.cls] || DEFAULT_WEAPON;
-    const url = weaponArt(w.cls, w.rarity, w.att) || "";
-    const st = `left:${(r.x * 100).toFixed(1)}%;top:${(r.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
-    h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="${url}" alt="">`;
-  }
+  // Weapon overlay DISABLED for now (Dara): the v2 class bodies already depict the held weapon,
+  // and the separate weapon-sprite layer doesn't align cleanly over them. Revisit later — kept
+  // here (and the RIG/WEAP_IMG tables in data/art.ts) so it's a one-line re-enable.
+  // const w = m.equip && m.equip.weapon;
+  // if (w && WEAP_IMG[w.cls]) {
+  //   const r = RIG.weapon[w.cls] || DEFAULT_WEAPON;
+  //   const url = weaponArt(w.cls, w.rarity, w.att) || "";
+  //   const st = `left:${(r.x * 100).toFixed(1)}%;top:${(r.y * 100).toFixed(1)}%;width:${Math.round(r.scale * 100)}%;transform:translate(-50%,-50%) rotate(${r.rot}deg);`;
+  //   h += `<img class="dl-wep g-${w.rarity}" style="${st}" src="${url}" alt="">`;
+  // }
   return h + `</div>`;
 }
 

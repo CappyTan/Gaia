@@ -74,6 +74,23 @@ def cell(im, cx, cy, hw, htop, hbot=None, kx=0.85, ky=0.8, af=0.06):
     bb=c.getbbox()
     return c.crop(bb) if bb else c
 
+def chroma_key(im, lo=120, hi=170):
+    """Magenta chroma-key knockout for the class-bodies sheet (figures rendered on flat #FF00FF).
+    Unlike the dark-flood remove_bg, this keys on 'magenta-ness' m = min(R,B) - G, so pure-black
+    robes survive (m~0) while the bright-magenta void drops (m~248) — the only reliable way to cut
+    the dark NOX/UMBRAXIS figures. Ramps alpha across the anti-aliased edge and de-spills the pink
+    fringe so edges read clean over any battlefield colour."""
+    im=im.convert("RGB"); W,H=im.size; px=im.load()
+    out=Image.new("RGBA",(W,H)); op=out.load()
+    for y in range(H):
+        for x in range(W):
+            r,g,b=px[x,y]; m=min(r,b)-g
+            a=0 if m>=hi else 255 if m<=lo else int(255*(hi-m)/(hi-lo))
+            if a>0 and m>40:  # de-spill: pull the pink rim down toward the neutral channel
+                r=min(r, max(g, r-(m-40))); b=min(b, max(g, b-(m-40)))
+            op[x,y]=(r,g,b,a)
+    return out
+
 def save(im, *parts):
     p=os.path.join(OUT,*parts); os.makedirs(os.path.dirname(p),exist_ok=True); im.save(p)
 
@@ -206,9 +223,10 @@ for k,b in EB.items():
 #      body to match. Outputs bodies/{att}-{slug}.png for all 45; the four SOL party figures are
 #      also written as heroes/{id}.png (sprite + identity fallback). They're weaponless, so the
 #      rig overlays the equipped weapon on a clean hand (ADR 0004). ---------------------------
-im=Image.open(os.path.join(REF,"class-base-models-45.png"))
-BCOL=[253,386,525,663,810,958,1097,1235,1390]   # 9 archetype column centres
-BROW=[132,335,530,721,896]                       # 5 attunement row centres (SOL..UMBRAXIS)
+im=Image.open(os.path.join(REF,"class-bodies-45.png"))   # Dara's chroma-key sheet: figures on flat #FF00FF
+BCOL=[198,352,505,659,813,966,1120,1274,1427]   # 9 archetype column centres
+BROWC=[129,318,503,686,877]                      # 5 attunement row centres SOL..UMBRAXIS
+BHW,BHH=76,92                                     # cell half-width / half-height (figures fit inside)
 SLUG=["sword-shield","dual-swords","two-handed","hammer","daggers","pistols","rifle","staff","spellblade"]
 HERO={(0,0):"dawnguard",(0,1):"sunblade",(0,7):"lightkeeper",(0,8):"dawnchaser"}  # (row,col)->id
 bodies={}; her={}
@@ -217,16 +235,18 @@ bodies={}; her={}
 # the box (same scale + position), so the weapon rig coordinates (data/art.ts) map 1:1 to the
 # figure for every class — without this, trim-varying widths drift the held weapon off the body.
 DOLL_W, DOLL_H = 248, 296   # 62:74 * 4
-def fit_body(im, wcap=0.86, hfrac=0.97, bottom=0.99):
+def fit_body(im, wcap=0.94, hfrac=0.99, bottom=0.99):
     im=im.convert("RGBA"); iw,ih=im.size
     r=min(DOLL_H*hfrac/ih, DOLL_W*wcap/iw)
-    fig=im.resize((max(1,int(iw*r)), max(1,int(ih*r))))
+    fig=im.resize((max(1,int(iw*r)), max(1,int(ih*r))), Image.LANCZOS)
     canvas=Image.new("RGBA",(DOLL_W,DOLL_H),(0,0,0,0))
     canvas.alpha_composite(fig,((DOLL_W-fig.width)//2, max(0,int(DOLL_H*bottom)-fig.height)))
     return canvas
-for ri,cy in enumerate(BROW):
+for ri,cy in enumerate(BROWC):
     for ci,cx in enumerate(BCOL):
-        c=fit_body(cell(im,cx,cy,66,96,kx=0.78,ky=0.95,af=0.04))
+        # chroma-key the magenta void, then drop any neighbour-cell sliver / stray spark, trim, fit
+        c=keep_central(chroma_key(im.crop((cx-BHW,cy-BHH,cx+BHW,cy+BHH))), kx=0.80, ky=0.97, areafrac=0.06)
+        bb=c.getbbox(); c=fit_body(c.crop(bb) if bb else c)
         save(c,"bodies",f"{ATT[ri]}-{SLUG[ci]}.png"); bodies[(ri,ci)]=c
         if (ri,ci) in HERO: save(c,"heroes",f"{HERO[(ri,ci)]}.png"); her[HERO[(ri,ci)]]=c
 
