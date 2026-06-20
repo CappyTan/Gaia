@@ -15,8 +15,10 @@ import { Game } from "./game";
 import { Battle } from "./battle";
 import { Telemetry } from "../telemetry/telemetry";
 
-// Per-zone dungeon tileset prefix (east of the gate): Greenvale -> Bandit Warren, Duskmarsh -> Drowned Vault.
-const DUNGEON_SETS = ["warren", "vault"];
+// Per-zone dungeon tileset prefix (east of the gate), indexed by zoneIndex: Greenvale -> Bandit
+// Warren, Silverwood -> the Sunless Grove, Duskmarsh -> Drowned Vault. Matches ZONES order + the
+// per-zone `dungeon.env`.
+const DUNGEON_SETS = ["warren", "grove", "vault"];
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
@@ -50,6 +52,8 @@ export const Field = {
     const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "lair", "player"];
     // marsh (Duskmarsh) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["water", "mire-ground", "mire-ground2", "mire-path", "deadtree", "reed", "bog"]) names.push(n);
+    // ancient-forest (Silverwood) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
+    for (const n of ["grove-ground", "grove-ground2", "grove-path", "oldtree", "fern", "mushroom"]) names.push(n);
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
@@ -71,6 +75,10 @@ export const Field = {
   // A grim mire reads differently from the shire: the overworld dresses its ground/walls/scatter as
   // a marsh (bog water, dead trees, reeds) when the zone's overworld env leads with "mire".
   isMire(): boolean { return this.zone().envs[0] === "mire"; },
+  // An ancient forest reads DENSER + DARKER than the open shire: the overworld dresses its
+  // ground/walls/scatter as an old-growth grove (mossy ground, towering old trees, fern/mushroom
+  // clumps) when the zone's overworld env leads with "forest" (sibling to the marsh's isMire()).
+  isForest(): boolean { return this.zone().envs[0] === "forest"; },
   // Past the mini-boss gate you're in the zone's dungeon: tougher, own environment.
   inDungeon(): boolean { return this.px > this.gate.x; },
   envFor(p: number): string {
@@ -450,6 +458,7 @@ export const Field = {
         const inDun = mx > this.gate.x; // east of the gate = the zone's dungeon (its own tileset)
         const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
         const mire = !inDun && this.isMire(); // grim overworld dressing (Duskmarsh)
+        const grove = !inDun && this.isForest(); // dense old-growth dressing (Silverwood)
         const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair";
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
@@ -465,6 +474,12 @@ export const Field = {
           const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
           ground = isObj ? "mire-ground" : (gm[cell] || "mire-ground");
           if (ground === "mire-ground" && (mx * 7 + my * 13) % 4 === 0 && T["mire-ground2"]) ground = "mire-ground2";
+        } else if (grove) {
+          // forest remap: open ground = mossy grove-ground, path = a root-worn trail, scatter =
+          // fern/mushroom, tree = an ancient old-tree (still drawn as the object below).
+          const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground" };
+          ground = isObj ? "grove-ground" : (gm[cell] || "grove-ground");
+          if (ground === "grove-ground" && (mx * 7 + my * 13) % 4 === 0 && T["grove-ground2"]) ground = "grove-ground2";
         } else {
           ground = isObj ? "grass" : cell;
           if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
@@ -472,12 +487,13 @@ export const Field = {
         const gimg = T[ground];
         if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1); // +1px overlap hides hairline seams
         else {
-          // flat-colour fallback (palette differs for dungeon / mire / shire)
-          const fill = inDun ? "#2a2740" : mire ? (cell === "water" ? "#23303a" : "#3a4030") : (colors[cell] || "#4a7a32");
+          // flat-colour fallback (palette differs for dungeon / mire / grove / shire)
+          const fill = inDun ? "#2a2740" : mire ? (cell === "water" ? "#23303a" : "#3a4030") : grove ? "#2e4a26" : (colors[cell] || "#4a7a32");
           c.fillStyle = fill; c.fillRect(sx, sy, t, t);
           if (!inDun && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.08)"; c.fillRect(sx, sy, t, t); }
           if (inDun) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); } // tint only when art missing
           else if (mire && cell !== "water") { c.fillStyle = "rgba(20,28,18,.28)"; c.fillRect(sx, sy, t, t); } // grim wash
+          else if (grove) { c.fillStyle = "rgba(8,20,8,.34)"; c.fillRect(sx, sy, t, t); } // deep, hushed canopy shade
         }
         // overlays / object sprites (fall back to emoji if art isn't loaded)
         c.font = `${t * 0.82}px serif`;
@@ -489,10 +505,10 @@ export const Field = {
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
-        else if (cell === "tree") { if (mire) obj(T.deadtree, "🌫️", 0.95); else if (!gimg) c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2); }
+        else if (cell === "tree") { if (mire) obj(T.deadtree, "🌫️", 0.95); else if (grove) obj(T.oldtree, "🌲", 1.0); else if (!gimg) c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2); }
         else if (cell === "water" && !inDun && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
-        else if (cell === "bush" && !gimg) c.fillText(inDun ? "🦴" : mire ? "🌾" : "🌿", sx + t / 2, sy + t / 2);
-        else if (cell === "rock" && mire && !gimg) c.fillText("🪨", sx + t / 2, sy + t / 2);
+        else if (cell === "bush") { if (grove) obj(T.fern, "🌿", 0.85); else if (!gimg) c.fillText(inDun ? "🦴" : mire ? "🌾" : "🌿", sx + t / 2, sy + t / 2); }
+        else if (cell === "rock") { if (mire && !gimg) c.fillText("🪨", sx + t / 2, sy + t / 2); else if (grove) obj(T.mushroom, "🍄", 0.8); }
       }
     // NPCs (town only): a shadow + emoji-placeholder body + gold name caption; a "…" bubble while
     // you're mid-conversation with them. Sprite art is flagged in asset-gaps.md.

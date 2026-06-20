@@ -53,10 +53,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
 // Pool of ultra-rare monsters eligible to crash a random encounter, with the zone index they
 // can appear in. Kept tiny + data-driven — add an entry to introduce a new rare.
 export const RARE_MONSTERS: { key: string; zones: number[] }[] = [
-  { key: "hogger", zones: [0] },     // Hogger prowls Greenvale
-  { key: "metalslime", zones: [0] }, // Metal Slime — Greenvale
-  { key: "metalbabble", zones: [1] }, // Metal Babble — the Drowned Vault (rarer, richer)
-  { key: "warmech", zones: [1] },     // Warmech — Duskmarsh (until Titan Prime exists)
+  { key: "hogger", zones: [0] },      // Hogger prowls Greenvale (zone 0)
+  { key: "metalslime", zones: [0] },  // Metal Slime — Greenvale (zone 0)
+  { key: "mossback", zones: [1] },    // Mossback Tortoise — Silverwood (zone 1; also its grove lair)
+  { key: "metalbabble", zones: [2] }, // Metal Babble — the Drowned Vault (zone 2; rarer, richer)
+  { key: "warmech", zones: [2] },     // Warmech — Duskmarsh (zone 2; until Titan Prime exists)
 ];
 // Chance a random (non-boss) encounter is replaced by an eligible ultra-rare monster.
 export const RARE_ENCOUNTER_CHANCE = 0.04;

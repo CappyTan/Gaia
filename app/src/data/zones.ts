@@ -141,6 +141,73 @@ const GREENVALE_LAYOUT: ZoneLayout = {
   scatter: 0.06,
 };
 
+// ── Silverwood, the Ancient Forest + the Sunless Grove (greenfield, ADR 0006) ───────────────
+// Region #2 of Aurelion (world-atlas): the deep, old, hushed old-growth forest, inserted BETWEEN
+// Greenvale and the Duskmarsh. It reads DENSER and DARKER than Greenvale's open shire — the canvas
+// of ancient trees presses close, the road is a narrow ROOT-WORN trail that winds (no straight
+// shot east), and the carved clearings are small, hidden hollows rather than open meadows. The
+// renderer dresses the overworld as a grove (mossy ground, towering old trees, fern/mushroom
+// scatter) when the zone's overworld env leads with "forest" (the isForest() pass, sibling to the
+// marsh's isMire()).
+//
+// THE OVERWORLD CRITICAL PATH winds EAST from the spawn glade through three linked hollows to the
+// Elder Treant's gate. Branches that PAY OFF, all OFF the trail behind a tighter approach:
+//  - a NORTH fern hollow hides a chest (the first easy detour, teaches "search the trees");
+//  - a SOUTH sunken-root hollow hides a chest;
+//  - a far-NE canopy nook hides a chest behind a longer spur;
+//  - a deep SOUTHERN mossbed — walled in old trees — hides the Mossback Tortoise's lair (the rare
+//    reward for the explorer who pushes into the dark).
+//
+// EAST of the Elder Treant's gate, THE SUNLESS GROVE is a hollowed-out heartwood dungeon with GATED
+// progression (a small puzzle, not a straight line): the root-hall entry forks two ways. The short
+// NORTH fork dead-ends on a hollow bole with the grove's first chest (a breather reward) but does
+// NOT reach the deep arena; you must take the longer SOUTH fork down through a fungal gallery (its
+// own rich chest) and back up a root-stair into the Hollow King's heartwood arena. The richest hoard
+// sits deepest, by the arena threshold (reward the brave). genMap carves + flood-fills to GUARANTEE
+// the boss/chests/lair stay reachable (anti-soft-lock).
+const SILVERWOOD_LAYOUT: ZoneLayout = {
+  w: 60, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 32, y: 11 }, gateWallX: 32, boss: { x: 56, y: 11 },
+  fieldRects: [
+    { x: 1, y: 9, w: 7, h: 6 },     // spawn glade (the forest road mouth)
+    { x: 11, y: 3, w: 7, h: 5 },    // north fern hollow (chest)
+    { x: 10, y: 15, w: 7, h: 5 },   // south sunken-root hollow (chest)
+    { x: 18, y: 8, w: 7, h: 7 },    // central crossing hollow
+    { x: 23, y: 2, w: 6, h: 5 },    // NE canopy nook (chest, longer spur)
+    { x: 21, y: 16, w: 8, h: 5 },   // deep southern mossbed (Mossback's lair)
+    { x: 28, y: 9, w: 4, h: 5 },    // pre-gate staging hollow before the Elder Treant
+  ],
+  fieldPaths: [
+    [{ x: 2, y: 11 }, { x: 8, y: 11 }, { x: 14, y: 12 }, { x: 21, y: 11 }, { x: 31, y: 11 }], // the winding trail east
+    [{ x: 13, y: 11 }, { x: 13, y: 6 }],   // spur up to the fern hollow
+    [{ x: 12, y: 12 }, { x: 12, y: 17 }],  // spur down to the sunken-root hollow
+    [{ x: 22, y: 9 }, { x: 25, y: 4 }],    // spur up to the NE canopy nook
+    [{ x: 24, y: 14 }, { x: 24, y: 18 }],  // spur down into the deep mossbed
+  ],
+  dunRects: [
+    { x: 34, y: 8, w: 6, h: 7 },    // grove root-hall (the fork)
+    { x: 42, y: 3, w: 6, h: 5 },    // north hollow bole (dead-end, breather chest)
+    { x: 41, y: 15, w: 7, h: 5 },   // south fungal gallery (rich chest, on the boss route)
+    { x: 48, y: 6, w: 5, h: 6 },    // root-stair antechamber
+    { x: 52, y: 8, w: 7, h: 7 },    // the Hollow King's heartwood arena
+  ],
+  dunPaths: [
+    [{ x: 33, y: 11 }, { x: 38, y: 11 }],                          // gate → root-hall
+    [{ x: 39, y: 9 }, { x: 45, y: 9 }, { x: 45, y: 5 }],           // hall → north bole (dead-end)
+    [{ x: 39, y: 13 }, { x: 44, y: 13 }, { x: 44, y: 17 }],        // hall → south fungal gallery
+    [{ x: 45, y: 16 }, { x: 50, y: 16 }, { x: 50, y: 9 }],         // gallery → root-stair antechamber
+    [{ x: 50, y: 10 }, { x: 55, y: 10 }, { x: 55, y: 11 }],        // antechamber → arena (boss)
+  ],
+  chests: [
+    { x: 14, y: 4 },   // north fern hollow (overworld branch)
+    { x: 13, y: 18 },  // south sunken-root hollow (overworld branch)
+    { x: 25, y: 3 },   // NE canopy nook (off the safe path, longer spur)
+    { x: 45, y: 4 },   // north hollow bole (breather, dead-end)
+    { x: 54, y: 12 },  // deepest — by the arena threshold (richest, rewards the brave)
+  ],
+  lair: { x: 24, y: 18 }, // the Mossback Tortoise dens deep in the southern mossbed
+  scatter: 0.09,          // denser scatter than the shire: ferns/mushrooms thick on the floor
+};
+
 // ── The Duskmarsh + Drowned Vault (greenfield, ADR 0006) ────────────────────────────────────
 // The early "dark detour" — grimmer and TIGHTER than Greenvale's open shire. The road is a narrow
 // causeway threading EAST between flooded hollows: standing water (hard wall) pinches the route to
@@ -207,10 +274,26 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
     envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
-  // Inbound from Greenvale, the player passes through the grand trade capital Riverhearth (the
-  // triumphant breather hub) and then the grim marsh outpost Miregard (the Duskmarsh's doorstep)
-  // before the marsh itself loads. `hub` stays "miregard" (the true doorstep) for back-compat.
-  { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll", hub: "miregard", hubs: ["riverhearth", "miregard"],
+  // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
+  // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
+  // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to
+  // the Sunless Grove; the Hollow King waits at its heart. Attunements stay SPREAD (Dara's
+  // no-region-identity ruling — the forest is NOT an ANIMA theme). Bands are first-pass (teach →
+  // combine); balance-tuner owns the final numbers across the now-3-zone curve.
+  { id: "silverwood", name: "Silverwood", mini: "treantelder", miniAdds: ["thornling", "thornling"], boss: "hollowking",
+    hub: "riverhearth", hubs: ["riverhearth"],
+    envs: ["forest", "forest", "forest", "forest"], dungeon: { name: "The Sunless Grove", env: "grove" }, layout: SILVERWOOD_LAYOUT, bands: [
+      // teach the new roster one/two at a time, then start combining toward the gate.
+      { at: 0.0, sets: [["dwolf", "dwolf"], ["thornling", "dwolf"], ["dwolf", "thornling"]] },
+      { at: 0.18, sets: [["dwolf", "thornling", "dwolf"], ["sylvanarcher", "dwolf"], ["thornling", "thornling", "dwolf"]] },
+      { at: 0.36, sets: [["sylvanarcher", "dwolf", "thornling"], ["gloomwisp", "dwolf", "dwolf"], ["sylvanarcher", "thornling", "dwolf"]] },
+      { at: 0.54, sets: [["gloomwisp", "sylvanarcher", "dwolf"], ["barkbrute", "dwolf", "thornling"], ["sylvanarcher", "gloomwisp", "thornling"]] },
+      { at: 0.72, sets: [["barkbrute", "sylvanarcher", "dwolf"], ["spriggan", "gloomwisp", "thornling"], ["barkbrute", "spriggan", "sylvanarcher"]] },
+    ] },
+  // ── ZONE 3 (index 2): The Duskmarsh → the Drowned Vault (Lv 10+) ──
+  // Inbound from Silverwood, the grim marsh outpost Miregard is the Duskmarsh's doorstep (Riverhearth
+  // now belongs to Silverwood's chain). `hub` stays "miregard" (the true doorstep) for back-compat.
+  { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll", hub: "miregard", hubs: ["miregard"],
     envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "vault" }, layout: DUSKMARSH_LAYOUT, bands: [
       { at: 0.0, sets: [["rat", "rat", "spider"], ["spider", "rat"], ["rat", "rat", "spider"]] },
       { at: 0.2, sets: [["rat", "spider", "rat"], ["leper", "rat", "rat"], ["direrat", "rat", "spider"]] },
