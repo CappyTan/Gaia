@@ -16,6 +16,7 @@ import type { Affix, Attunement, Item, Member, MemberDef, Row, Slot } from "../t
 import { ATTUNEMENTS, EQUIP_SLOTS, zeroMna } from "../types";
 import { makeMember, recalc } from "./progression";
 import { ZONES } from "../data/zones";
+import { placementOf } from "../data/world";
 import { SETTLEMENTS } from "../data/towns";
 import { kitFor } from "../data/classes";
 import { AFFIXES } from "../data/items";
@@ -23,7 +24,9 @@ import { RARITY } from "../data/rarity";
 
 // ── envelope ───────────────────────────────────────────────────────────────────────────────
 /** Bump ONLY when the serialized run SHAPE changes (then add a migration in `migrate`). */
-export const SAVE_SCHEMA = 1;
+// v2 (Stage 2C): adds world coords `wx/wy` for the seamless big-map overworld (the position source of
+// truth when roaming the continent). v1 saves migrate forward by deriving wx/wy from the zone placement.
+export const SAVE_SCHEMA = 2;
 const STORAGE_KEY = "gaia.save.v1";
 
 /** A persisted item — plain data; affix labels (functions) are rebuilt from the affix pool on load. */
@@ -75,6 +78,12 @@ export interface SavedRun {
   townId: string | null;        // set when saved in a settlement
   px: number;
   py: number;
+  // WORLD COORDS (schema v2, Stage 2C) — the seamless big-map overworld position source of truth. Set
+  // when saved roaming the continent (big-map on); 0,0 / absent for town/dungeon/discrete saves (the
+  // controller falls back to px/py + the zone placement). v1 saves get these derived in migration.
+  wx?: number;
+  wy?: number;
+  bigMap?: boolean;             // saved while roaming the continent big map (resume re-enters it)
   enteredDungeon: boolean;
 }
 
@@ -103,6 +112,9 @@ export interface RunSnapshot {
   townId: string | null;
   px: number;
   py: number;
+  wx: number;
+  wy: number;
+  bigMap: boolean;
   enteredDungeon: boolean;
 }
 
@@ -124,6 +136,9 @@ export interface LoadedRun {
   townId: string | null;     // resolved settlement id (null = open field)
   px: number;
   py: number;
+  wx: number;                // world coords (big-map resume); 0 when not roaming the continent
+  wy: number;
+  bigMap: boolean;           // resume into the seamless continent big map
   enteredDungeon: boolean;
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
@@ -195,7 +210,9 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     inTown: s.inTown, startVillage: s.startVillage, hubChain: s.hubChain, hubIx: s.hubIx,
     zoneId: ZONES[s.zoneIndex]?.id ?? ZONES[0].id,
     townId: s.townId,
-    px: s.px, py: s.py, enteredDungeon: s.enteredDungeon,
+    px: s.px, py: s.py,
+    wx: s.wx, wy: s.wy, bigMap: s.bigMap,
+    enteredDungeon: s.enteredDungeon,
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -211,10 +228,24 @@ export function save(s: RunSnapshot, gameVersion: string): void {
 // Bring an older-schema envelope up to the current shape. Each step is `(env) => env`. When a save's
 // schema is newer than ours (a downgrade after a rollback) we can't understand it — bail to fresh.
 function migrate(env: SaveEnvelope): SaveEnvelope | null {
-  let e = env;
+  const e = env;
   if (typeof e.saveSchema !== "number") return null;
   if (e.saveSchema > SAVE_SCHEMA) return null;       // future save on an older build — start fresh
-  // (no past schemas yet; future bumps add: `if (e.saveSchema < N) { ...migrate...; e.saveSchema = N; }`)
+  // v1 → v2 (Stage 2C): the run gained world coords for the seamless big-map overworld. DERIVE wx/wy
+  // from the saved zone placement + (px,py) so a v1 OVERWORLD save resumes at the right world tile;
+  // DEGRADE-NEVER-THROW for town/dungeon saves (no sensible world tile → leave 0,0 + bigMap false, so
+  // the controller respawns at the zone spawn). The discrete fields (zoneId/px/py) are untouched.
+  if (e.saveSchema < 2) {
+    const r = e.run;
+    if (r && typeof r === "object") {
+      const pl = !r.inTown && !r.enteredDungeon && r.zoneId ? placementOf(r.zoneId) : undefined;
+      if (pl && typeof r.px === "number" && typeof r.py === "number") {
+        r.wx = pl.wx + r.px; r.wy = pl.wy + r.py;
+      } else { r.wx = 0; r.wy = 0; }
+      r.bigMap = false; // v1 had no big map; resume on the proven discrete path
+    }
+    e.saveSchema = 2;
+  }
   return e;
 }
 
@@ -325,6 +356,12 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
   const px = resetPos ? 0 : Math.max(0, Math.floor(r.px || 0));
   const py = resetPos ? 0 : Math.max(0, Math.floor(r.py || 0));
 
+  // WORLD COORDS (v2). Resume the big-map overworld at the saved world tile; if the zone changed out
+  // from under us, drop bigMap so the controller respawns at the (discrete or big-map) zone spawn.
+  const bigMap = !resetPos && !inTown && !!r.bigMap;
+  const wx = bigMap ? Math.max(0, Math.floor(r.wx || 0)) : 0;
+  const wy = bigMap ? Math.max(0, Math.floor(r.wy || 0)) : 0;
+
   return {
     gold: Math.max(0, Math.floor(r.gold || 0)),
     steps: Math.max(0, Math.floor(r.steps || 0)),
@@ -337,6 +374,7 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     hubChain, hubIx,
     zoneIndex, townId,
     px, py,
+    wx, wy, bigMap,
     enteredDungeon: resetPos ? false : !!r.enteredDungeon,
     notes,
   };

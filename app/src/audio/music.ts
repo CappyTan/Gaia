@@ -251,6 +251,19 @@ export const Music = {
     this.pending = state;
     if (this.started && this.cur !== state) this._switch(state);
   },
+  // ── Shared FIELD theme selector (Stage 2C) ──────────────────────────────────────────────────
+  // One place both the discrete screen switcher (screens.ts) and the seamless big-map (field.ts
+  // bigMove) resolve which overworld song to play from the player's IDENTITY at their position.
+  // Inputs are the Area's music key (AreaIdentity.music: "field"/"forest"/"mire") with a Zone id
+  // fallback (silverwood→forest, duskmarsh→mire) and an OPEN-CONTINENT ambient default (no Area, no
+  // built zone) — backlog land outside the built cores rides the restless `field` cue until it's
+  // built out. The result is a SONGS key; the caller duck-swaps via play() only when the key changes.
+  forField(areaMusic?: string, zoneId?: string): string {
+    if (areaMusic && this.SONGS[areaMusic as keyof typeof this.SONGS]) return areaMusic;
+    if (zoneId === "silverwood") return "forest";
+    if (zoneId === "duskmarsh") return "mire";
+    return "field"; // open continent / unknown → the ambient overworld cue
+  },
   _switch(state: string): void {
     if (!this.ctx || !this.master) return;
     const g = this.master.gain, t = this.ctx.currentTime;

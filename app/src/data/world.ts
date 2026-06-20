@@ -34,7 +34,7 @@
 // sits inside its continent" check (the polygon IS the truth now; the old rect is just legacy
 // engine-grid scaffolding). The shapes no longer match the tiny Stage-1 rects on purpose.
 
-import { ZONES } from "./zones";
+import { ZONES, type Pt, type Rect } from "./zones";
 
 // ── The hierarchy spine (ADR 0009 §1) ─────────────────────────────────────────────────────────
 
@@ -650,4 +650,317 @@ export function zonesOf(continentId: string): ZoneRegion[] {
 /** Only the BUILT zone regions (those linking a playable Zone) of a continent. */
 export function builtZonesOf(continentId: string): ZoneRegion[] {
   return ZONE_REGIONS.filter((z) => z.continent === continentId && z.zone);
+}
+
+// ── Placement bridge (seamless big-map, Stage 2A) — authored grids → world space ──────────────────
+// The CRUX of the seamless overworld (docs/design/seamless-overworld-plan.md): each built zone has
+// BOTH an authored playable grid (`data/zones.ts` ZoneLayout — Greenvale 64×24, Silverwood 60×24,
+// Duskmarsh 56×22, with roads/chests/lair/mouth, anti-soft-lock-tuned) AND an organic GEOGRAPHY
+// polygon here (`ZONE_REGIONS`). This bridge places the authored grid into the one 960×640 world
+// coordinate space at SCALE 1:1 (one authored tile = one world tile, no stretch), CENTERED on the
+// zone polygon's CENTROID — so the dense hand-built core sits in the middle of the larger, sparser
+// organic polygon (the interior outside the core becomes procedural open ground in a later stage).
+//
+// CENTERING METHOD. `wx,wy` is the world tile where the authored grid's local (0,0) sits, chosen so
+// the grid's w×h rect is centered on the polygon's CENTROID. The centroid is the area-weighted
+// SHOELACE centroid (`polyCentroid` below) — the true center of mass of the organic shape, not the
+// bbox center (the two coincide here to <1 tile since the traced polygons are near-symmetric, but the
+// shoelace centroid is the principled choice for an irregular coastline). `wx = round(cx − w/2)`,
+// `wy = round(cy − h/2)`.
+//
+// PURE DATA ONLY (ADR 0005), NO engine consumer yet (Stage 2A). `regionAt` stays the identity source
+// of truth (unchanged). Stage 2B+ reads `authoredAt` to REALIZE the authored tile under a world coord.
+//
+// FIT CHECK (see app/tests/placement.test.ts): each authored grid is SMALLER than its polygon's bbox
+// (a dense core inside a sparser blob), every placement rect lies within its polygon's bbox, the three
+// rects don't overlap, and each zone's authored spawn/mouth/lair/chests map to world coords that land
+// INSIDE the zone polygon — i.e. the core sits sensibly in the geography. All three zones fit cleanly.
+
+/** A built zone's authored-grid placement in world space (Stage 2A). Scale is always 1 (no stretch). */
+export interface ZonePlacement {
+  /** World tile where the authored grid's local (0,0) sits (so the grid is centered on the centroid). */
+  wx: number;
+  wy: number;
+  /** One authored tile = one world tile. */
+  scale: 1;
+}
+
+/**
+ * The area-weighted (shoelace) CENTROID of a polygon — its center of mass. Orientation-agnostic
+ * (the sign of the signed area cancels). Used to center each authored grid on its zone polygon.
+ */
+export function polyCentroid(poly: Polygon): Point {
+  let a2 = 0, cx = 0, cy = 0;
+  for (let i = 0, n = poly.length; i < n; i++) {
+    const p = poly[i], q = poly[(i + 1) % n];
+    const cross = p.x * q.y - q.x * p.y;
+    a2 += cross;
+    cx += (p.x + q.x) * cross;
+    cy += (p.y + q.y) * cross;
+  }
+  // a2 = 2·signedArea; centroid = Σ(p+q)·cross / (6·signedArea).
+  if (a2 === 0) { const b = bbox(poly); return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }; }
+  return { x: cx / (3 * a2), y: cy / (3 * a2) };
+}
+
+// The placement table for the three BUILT zones. Each `(wx,wy)` is computed so the authored grid
+// (w×h from its ZoneLayout) is centered on the zone polygon's shoelace centroid:
+//   greenvale  (64×24) centroid ≈ (159, 74)  → wx,wy = (127, 62)   rect [127,62)..[191,86)
+//   silverwood (60×24) centroid ≈ (295, 71)  → wx,wy = (265, 59)   rect [265,59)..[325,83)
+//   duskmarsh  (56×22) centroid ≈ (176, 151) → wx,wy = (148, 140)  rect [148,140)..[204,162)
+// (Hard-coded — pure data the engine reads at startup — but derived exactly by `polyCentroid` above;
+// the test recomputes them from the polygons + ZoneLayouts to guard against drift.)
+export const WORLD_PLACEMENT: Record<string, ZonePlacement> = {
+  greenvale: { wx: 127, wy: 62, scale: 1 },
+  silverwood: { wx: 265, wy: 59, scale: 1 },
+  duskmarsh: { wx: 148, wy: 140, scale: 1 },
+};
+
+/** A built zone's authored-grid placement in world space, or undefined if the zone isn't placed. */
+export function placementOf(zoneId: string): ZonePlacement | undefined {
+  return WORLD_PLACEMENT[zoneId];
+}
+
+/**
+ * A placed zone's authored grid as a WORLD-SPACE rectangle (half-open [x0,x1) × [y0,y1)), using the
+ * authored grid's w×h from its ZoneLayout. undefined if the zone isn't placed (or has no layout).
+ */
+export function worldDimsOf(zoneId: string): { x0: number; y0: number; x1: number; y1: number } | undefined {
+  const p = WORLD_PLACEMENT[zoneId];
+  const z = ZONES.find((zz) => zz.id === zoneId);
+  if (!p || !z) return undefined;
+  return { x0: p.wx, y0: p.wy, x1: p.wx + z.layout.w, y1: p.wy + z.layout.h };
+}
+
+/**
+ * REALIZATION lookup (Stage 2A data, consumed by the Stage 2B renderer): if a world tile falls inside
+ * some built zone's placement rect, return that zone + the authored LOCAL coords (`lx = wx − placement.wx`,
+ * `ly = wy − placement.wy`); else undefined (the tile is procedural open ground / uncharted). Placement
+ * rects don't overlap (asserted in the test), so first-match is also finest-match.
+ *
+ * NOTE this is the REALIZATION axis (which authored tile sits here), independent of `regionAt` which is
+ * the IDENTITY axis (which Area/Zone/Continent owns the tile — biome/encounter-lean/music). The plan's
+ * two-lookup model: identity works everywhere; realization only inside a placed authored core.
+ */
+export function authoredAt(wx: number, wy: number): { zoneId: string; lx: number; ly: number } | undefined {
+  for (const zoneId of Object.keys(WORLD_PLACEMENT)) {
+    const d = worldDimsOf(zoneId);
+    if (d && wx >= d.x0 && wx < d.x1 && wy >= d.y0 && wy < d.y1) {
+      return { zoneId, lx: wx - WORLD_PLACEMENT[zoneId].wx, ly: wy - WORLD_PLACEMENT[zoneId].wy };
+    }
+  }
+  return undefined;
+}
+
+/** A BUILT zone's geography polygon (the organic shape on the world map), or undefined. */
+export function zonePolygonOf(zoneId: string): Polygon | undefined {
+  return ZONE_REGIONS.find((z) => z.id === zoneId && z.zone === zoneId)?.shape;
+}
+
+/**
+ * Is a world tile inside a built zone's geography POLYGON? Used by the Stage-2B realizer to decide
+ * procedural OPEN-GROUND fill (inside the polygon, outside the authored core) vs UNCHARTED (outside
+ * the polygon — the impassable soft edge). Pure point-in-polygon. (Cheap; the realizer caches the
+ * per-cell result by chunk so this is never on the per-frame draw path.)
+ */
+export function inZonePolygon(zoneId: string, wx: number, wy: number): boolean {
+  const poly = zonePolygonOf(zoneId);
+  return poly ? pointInPolygon(poly, wx, wy) : false;
+}
+
+// ── Stage 2B realization (PURE) — the authored blueprint + the per-tile realization kind ──────────
+// These are the PURE half of the chunk realizer (ADR 0005): the controller (field.ts) owns the chunk
+// CACHE + RENDER, but the deterministic data — what authored tile sits at a world coord, and whether a
+// world coord is open ground / uncharted — lives here so it is unit-testable WITHOUT the DOM. The
+// scatter + flood-repair use the SAME stable per-tile hash the renderer uses (never Math.random), so
+// the same chunk realizes identically every time (the determinism guarantee Stage 2B requires).
+
+/** A stable, allocation-free per-tile hash in [0,1) — the only randomness in realization. */
+export function tileHash(x: number, y: number): number {
+  return (((x * 73856093) ^ (y * 19349663)) >>> 0) / 0xffffffff;
+}
+
+/** Realization WALL kinds (impassable + flood barriers) — mirrors field.ts FIELD_WALLS. */
+const REALIZE_WALLS = new Set(["tree", "water", "uncharted"]);
+
+/**
+ * Build a placed zone's AUTHORED OVERWORLD blueprint as a LOCAL string[][] of tile kinds — the dense
+ * hand-built core that gets windowed into world space. Pure + deterministic (the scatter uses tileHash,
+ * not Math.random) and anti-soft-lock (flood-repairs the mouth + every chest/lair reachable from spawn).
+ * `miniDefeated` swaps the mouth tile guard for the enterable mouth (so the realizer reflects progress).
+ */
+export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[][] {
+  const z = ZONES.find((zz) => zz.id === zoneId);
+  if (!z) return [];
+  const L = z.layout, W = L.w, H = L.h;
+  const grid: string[][] = Array.from({ length: H }, () => Array.from({ length: W }, () => "tree"));
+  const inB = (x: number, y: number) => x > 0 && y > 0 && x < W - 1 && y < H - 1;
+  const carve = (x: number, y: number, k: string) => { if (inB(x, y)) grid[y][x] = k; };
+  const carveRect = (r: Rect) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, "grass"); };
+  L.fieldRects.forEach(carveRect);
+  const carveSeg = (a: Pt, b: Pt) => {
+    let cx = a.x, cy = a.y; const c = (x: number, y: number) => { if (inB(x, y)) grid[y][x] = "path"; };
+    c(cx, cy);
+    while (cx !== b.x) { cx += Math.sign(b.x - cx); c(cx, cy); }
+    while (cy !== b.y) { cy += Math.sign(b.y - cy); c(cx, cy); }
+  };
+  L.fieldPaths.forEach((p) => { for (let i = 1; i < p.length; i++) carveSeg(p[i - 1], p[i]); });
+  const dens = L.scatter ?? 0.06;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++)
+    if (grid[y][x] === "grass" && tileHash(x, y) < dens) grid[y][x] = tileHash(y, x) < 0.6 ? "bush" : "rock";
+  if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y)) grid[y][x] = "water";
+  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && grid[yy][xx] === "tree") grid[yy][xx] = "grass"; } };
+  L.chests.forEach((c) => { halo(c); carve(c.x, c.y, "chest"); });
+  if (L.lair) { halo(L.lair); carve(L.lair.x, L.lair.y, "lair"); }
+  halo(L.mouth); grid[L.mouth.y][L.mouth.x] = miniDefeated ? "mouth" : "miniboss";
+  carve(L.spawn.x, L.spawn.y, "path");
+  const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair);
+  repairAuthoredGrid(grid, L.spawn, targets);
+  return grid;
+}
+
+/** Flood-fill repair on a standalone authored grid: punch an L-corridor to any walled-off target. */
+export function repairAuthoredGrid(grid: string[][], spawn: Pt, targets: Pt[]): void {
+  const H = grid.length, W = grid[0]?.length ?? 0;
+  if (!W) return;
+  const flood = (s: Pt) => {
+    const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
+    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && !REALIZE_WALLS.has(grid[y][x]);
+    const q: Pt[] = []; if (open(s.x, s.y)) { seen[s.y][s.x] = true; q.push(s); }
+    while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }
+    return seen;
+  };
+  let seen = flood(spawn);
+  for (const t of targets) {
+    if (seen[t.y]?.[t.x]) continue;
+    let best: Pt | null = null, bd = Infinity;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (seen[y][x]) { const d = Math.abs(x - t.x) + Math.abs(y - t.y); if (d < bd) { bd = d; best = { x, y }; } }
+    if (best) {
+      let cx = best.x, cy = best.y;
+      const step = (x: number, y: number) => { if (x > 0 && y > 0 && x < W - 1 && y < H - 1 && REALIZE_WALLS.has(grid[y][x])) grid[y][x] = "path"; };
+      while (cx !== t.x) { cx += Math.sign(t.x - cx); step(cx, cy); }
+      while (cy !== t.y) { cy += Math.sign(t.y - cy); step(cx, cy); }
+      seen = flood(spawn);
+    }
+  }
+}
+
+/**
+ * The REALIZATION kind of a WORLD tile for a placed zone (the two-lookup model, realization axis):
+ * inside the authored placement rect → that authored cell's kind; else inside the zone polygon →
+ * "grass" (procedural open ground); else "uncharted" (the impassable soft edge). Pure — the controller
+ * passes the prebuilt authored grid so this never rebuilds it per tile.
+ */
+export function realizeKind(zoneId: string, authoredGrid: string[][], wx: number, wy: number): string {
+  const a = authoredAt(wx, wy);
+  if (a && a.zoneId === zoneId && authoredGrid[a.ly]) return authoredGrid[a.ly][a.lx];
+  if (inZonePolygon(zoneId, wx, wy)) return "grass";
+  return "uncharted";
+}
+
+/**
+ * WORLD-SPACE reachability: from a placed zone's authored spawn (in world coords), can the player reach
+ * every world target across the realized world (authored core + procedural open fill, uncharted/walls
+ * blocking)? A BFS over realized kinds, bounded to the zone polygon's bbox + a margin. Returns the set
+ * of targets NOT reached (empty == all reachable). PURE — used by the reachability test (no soft-lock).
+ */
+export function unreachableWorldTargets(zoneId: string, authoredGrid: string[][], spawnW: Pt, targetsW: Pt[]): Pt[] {
+  const poly = zonePolygonOf(zoneId);
+  if (!poly) return targetsW.slice();
+  const b = bbox(poly), m = 4;
+  const x0 = b.minX - m, y0 = b.minY - m, x1 = b.maxX + m, y1 = b.maxY + m;
+  const open = (x: number, y: number) => x >= x0 && y >= y0 && x <= x1 && y <= y1 && !REALIZE_WALLS.has(realizeKind(zoneId, authoredGrid, x, y));
+  const seen = new Set<string>();
+  const key = (x: number, y: number) => x + "," + y;
+  const q: Pt[] = [];
+  if (open(spawnW.x, spawnW.y)) { seen.add(key(spawnW.x, spawnW.y)); q.push(spawnW); }
+  while (q.length) {
+    const { x, y } = q.shift()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (open(nx, ny) && !seen.has(key(nx, ny))) { seen.add(key(nx, ny)); q.push({ x: nx, y: ny }); }
+    }
+  }
+  return targetsW.filter((t) => !seen.has(key(t.x, t.y)));
+}
+
+// ── Stage 2C: CONTINENT-WIDE realization (the G22 correction) ─────────────────────────────────────
+// The 2B rule was ZONE-scoped: walkable == authored core OR inside the ONE zone's polygon, else
+// uncharted. The organic re-paint put Greenvale and Silverwood ~136 tiles APART inside Aurelion
+// (world-atlas §4 G22), so the seamless proof is a CONTINENTAL roam, not a shared-zone-seam crossing.
+// The revised rule (G22): a world tile is walkable PROCEDURAL OPEN GROUND if it is inside ANY continent
+// polygon; built-zone authored cores still come from `authoredAt`; ONLY ocean (off every continent) or
+// the world edge is impassable "uncharted". This makes the whole continent interior roamable — dense
+// authored cores set in open continent, the open land bridging them.
+//
+// PURE (ADR 0005): these mirror the zone-scoped helpers above but operate at the continent grain. The
+// controller caches the per-cell result by chunk so `regionAt`/point-in-polygon never hit the frame path.
+
+/** The continent whose polygon contains a world tile (overworld map), or undefined (ocean / edge). */
+export function continentAt(mapId: string, x: number, y: number): Continent | undefined {
+  return CONTINENTS.find((c) => c.map === mapId && pointInPolygon(c.shape, x, y));
+}
+
+/** Is a world tile inside ANY continent polygon on the given map? (false == ocean / off-map = uncharted.) */
+export function inAnyContinent(mapId: string, x: number, y: number): boolean {
+  return !!continentAt(mapId, x, y);
+}
+
+/**
+ * CONTINENT-WIDE realization kind for a world tile (the G22 two-lookup model, realization axis): any
+ * built zone's authored core → that authored cell's kind; else inside ANY continent → "grass"
+ * (procedural open ground — the whole continent interior is walkable); else "uncharted" (ocean / the
+ * world edge — the impassable soft boundary). `authoredGrids` is a prebuilt blueprint per built zone
+ * id (built once on enter), so this never rebuilds a grid per tile. Pure + deterministic.
+ *
+ * CORE↔CONTINENT BRIDGING (G22): each authored grid is a fully tree-WALLED rectangle (its outer ring is
+ * always "tree" by construction), which in a CONTINENTAL roam would seal the dense core off from the
+ * open land around it. So the grid's OUTER BORDER RING falls through to the continent rule (open ground)
+ * — the authored INTERIOR (where all spawn/road/chest/mouth content lives, carved within the inner box)
+ * is realized verbatim, but the sacrificial wall ring opens, so the core connects seamlessly to the
+ * continent it sits in. Interior tree scatter is untouched (it's decoration, not a boundary).
+ */
+export function realizeKindWorld(
+  mapId: string, authoredGrids: Record<string, string[][]>, wx: number, wy: number,
+): string {
+  const a = authoredAt(wx, wy);
+  if (a) {
+    const g = authoredGrids[a.zoneId];
+    if (g && g[a.ly]) {
+      const onBorder = a.lx === 0 || a.ly === 0 || a.ly === g.length - 1 || a.lx === g[a.ly].length - 1;
+      if (!onBorder) return g[a.ly][a.lx];   // authored interior verbatim
+      // border ring: fall through to the continent rule so the core isn't sealed off (G22).
+    }
+  }
+  if (inAnyContinent(mapId, wx, wy)) return "grass";
+  return "uncharted";
+}
+
+/**
+ * CONTINENT-WIDE reachability (the G22 proof): from a spawn world tile, BFS across the realized
+ * continent (every built core + the open continent that bridges them; ocean/walls block) and return
+ * the targets NOT reached. Bounded to a bbox over the targets + spawn + a margin so it stays cheap.
+ * PURE — used by the Stage-2C reachability test (Greenvale spawn → Silverwood core / the Duskmarsh).
+ */
+export function unreachableContinentTargets(
+  mapId: string, authoredGrids: Record<string, string[][]>, spawnW: Pt, targetsW: Pt[],
+): Pt[] {
+  let minX = spawnW.x, minY = spawnW.y, maxX = spawnW.x, maxY = spawnW.y;
+  for (const t of targetsW) { minX = Math.min(minX, t.x); minY = Math.min(minY, t.y); maxX = Math.max(maxX, t.x); maxY = Math.max(maxY, t.y); }
+  const m = 12;
+  const x0 = minX - m, y0 = minY - m, x1 = maxX + m, y1 = maxY + m;
+  const open = (x: number, y: number) =>
+    x >= x0 && y >= y0 && x <= x1 && y <= y1 && !REALIZE_WALLS.has(realizeKindWorld(mapId, authoredGrids, x, y));
+  const seen = new Set<string>();
+  const key = (x: number, y: number) => x + "," + y;
+  const q: Pt[] = [];
+  if (open(spawnW.x, spawnW.y)) { seen.add(key(spawnW.x, spawnW.y)); q.push(spawnW); }
+  while (q.length) {
+    const { x, y } = q.shift()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (open(nx, ny) && !seen.has(key(nx, ny))) { seen.add(key(nx, ny)); q.push({ x: nx, y: ny }); }
+    }
+  }
+  return targetsW.filter((t) => !seen.has(key(t.x, t.y)));
 }
