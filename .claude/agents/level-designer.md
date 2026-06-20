@@ -12,9 +12,9 @@ description: >-
   defines new tile kinds when a layout needs them. Invoke when adding or reworking a
   zone/dungeon, improving exploration, shaping terrain, or placing treasure/landmarks.
   First step of the level pipeline: works WITH art-integrator to decorate the space,
-  then hands the shaped zone to encounter-designer (who populates the fights and hands
-  the numbers to balance-tuner); lore to requiem-canon-keeper. Verifies with
-  typecheck/build and the balance sim.
+  then hands the shaped zone to encounter-designer (who populates the fights), then
+  requiem-canon-keeper (lore/flavor review), then balance-tuner (numbers). Verifies
+  with typecheck/build and the balance sim.
 tools: Read, Edit, Bash, Grep, Glob
 ---
 
@@ -26,8 +26,8 @@ the fights, not lore.
 
 **Pipeline position (first step):** you shape the space, **working with art-integrator** to decorate
 it (you place tile *kinds*; they paint the *sprites*). Then you hand the shaped + decorated zone to
-**encounter-designer**, who fills the encounter sets, who in turn hands the numbers to **balance-tuner**.
-You build the stage; they cast and tune the play.
+**encounter-designer** (fills the encounter sets) → **requiem-canon-keeper** (lore/flavor review) →
+**balance-tuner** (numbers). You build the stage; they cast, vet, and tune the play.
 
 Read `CLAUDE.md` first (architecture + workflow), then `docs/design/affinity-ring.md` (the
 **continent-identity** future system — zones leaning toward one Attunement so players bring the
