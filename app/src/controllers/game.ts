@@ -6,7 +6,8 @@
 import type { Item, Member, MemberDef } from "../types";
 import { clamp, ri, pick } from "../core/rng";
 import { PARTY_DEFS } from "../data/party";
-import { ZONES } from "../data/zones";
+import { ZONES, type Zone } from "../data/zones";
+import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtRarity, itemScore } from "../systems/loot";
 import { itemHtml } from "../ui/render";
@@ -22,6 +23,12 @@ export function priceOf(it: Item): number {
 // The merchant buys loot back at a fraction of its asking price (standard RPG sell margin).
 export function sellPriceOf(it: Item): number {
   return Math.max(5, Math.round(priceOf(it) * 0.4));
+}
+// The ordered settlements walked through on the way INTO a zone (ADR 0006 hub chain). Prefer the
+// explicit `hubs` chain; fall back to the single `hub`, then Hearthford — so a zone always has one.
+export function hubsFor(z: Zone): string[] {
+  if (z.hubs && z.hubs.length) return z.hubs;
+  return [z.hub ?? "hearthford"];
 }
 
 export const Game = {
@@ -39,6 +46,11 @@ export const Game = {
   // The starting village (Hearthford) drops you into the CURRENT zone on exit; the between-zone
   // hub advances to the NEXT zone. This flag distinguishes the two so the gate routes correctly.
   _startVillage: false,
+  // HUB CHAIN (ADR 0006): the ordered settlements being walked through on the way into the next zone
+  // (e.g. ["riverhearth","miregard"] before the Duskmarsh). Leaving advances the index; only when the
+  // chain is exhausted does the next zone load. Empty/index past the end = no chain in progress.
+  _hubChain: [] as string[],
+  _hubIx: 0,
   _stock: [] as Item[],
   _lastDefs: null as MemberDef[] | null,
 
@@ -50,6 +62,7 @@ export const Game = {
     this._lastDefs = defs;
     this.gold = 0; this.inventory = []; this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
+    this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
@@ -62,7 +75,9 @@ export const Game = {
   // Open the Greenvale starting village (Hearthford). Walking out its gate enters zone 0.
   openStartVillage(): void {
     this._startVillage = true;
-    this.openTown(ZONES[0].hub ?? "hearthford"); // the starting zone's own front-door village
+    // The starting zone's hub chain is its opening village (usually just Hearthford).
+    this._hubChain = hubsFor(ZONES[0]); this._hubIx = 0;
+    this.openTown(this._hubChain[0] ?? "hearthford"); // the starting zone's own front-door village
   },
   gameOver(): void {
     Telemetry.endSession("wipe");
@@ -85,18 +100,27 @@ export const Game = {
       <button class="btn" onclick="Overlay.hide()">Home</button></div>`);
   },
 
-  // ── TOWN: the Greenvale Outpost — a real walkable hub (Field.townMode) that appears after a
-  // zone boss. The four buildings are walk-in POIs (Field.townTouch routes each onto the actions
-  // below); the merchant/smith/revive open as focused overlays over the town field. Party/Bag
-  // opened in town return to the town field via UI.close() → backToTown (see menus.ts).
-  // Open a walkable settlement hub. With no id (the between-zones call after a boss), resolve the
-  // hub that FRONTS the next zone — the marsh outpost before the Duskmarsh, not always Hearthford —
-  // so each transition arrives at its own place. Falls back to Hearthford if a zone has no hub.
-  openTown(id?: string): void {
+  // ── TOWN: a real walkable settlement hub (Field.townMode). The four buildings are walk-in POIs
+  // (Field.townTouch routes each onto the actions below); the merchant/smith/revive open as focused
+  // overlays over the town field. Party/Bag opened in town return to the town field via
+  // UI.close() → backToTown (see menus.ts).
+  // Open a specific walkable settlement by id (no resolution here — the caller picks the place; the
+  // hub-chain machinery below decides WHICH settlement at each step).
+  openTown(id = "hearthford"): void {
     this._inTown = true; this._inMerchant = false;
-    const resolved = id ?? (Field.isLastZone() ? undefined : ZONES[Field.zoneIndex + 1]?.hub) ?? "hearthford";
     this.rollMerchantStock(); // stock is rolled once per town visit (no reroll by re-entering the shop)
-    Field.enterTown(resolved);
+    Field.enterTown(id);
+  },
+  // After a zone boss falls (battle.ts), begin walking the NEXT zone's hub chain — the ordered
+  // settlements the player passes through before that zone loads (e.g. Riverhearth → Miregard before
+  // the Duskmarsh). Opens the first; `leaveTown` advances the chain and only loads the zone at its end.
+  enterNextHubChain(): void {
+    this._startVillage = false;
+    const next = ZONES[Field.zoneIndex + 1];
+    this._hubChain = next ? hubsFor(next) : [];
+    this._hubIx = 0;
+    if (!this._hubChain.length) { this.victory(); return; } // no chain (shouldn't happen) → end run
+    this.openTown(this._hubChain[0]);
   },
   // Close an in-town overlay and return to the walkable town field.
   backToTown(): void { this._inMerchant = false; Overlay.hide(); Screens.show("field"); },
@@ -164,7 +188,8 @@ export const Game = {
       <div class="row"><button class="btn gold" onclick="Game.backToTown()">◂ Back to town</button></div>`);
   },
   // Leave the settlement. The STARTING village heads into the current zone; a between-zone hub
-  // sets out for the next zone (or, after the last, the final reckoning).
+  // either advances to the NEXT settlement in the chain (e.g. Riverhearth → Miregard) or, at the
+  // chain's end, sets out for the next zone (or, after the last, the final reckoning).
   confirmLeaveTown(): void {
     if (this._startVillage) {
       const here = ZONES[Field.zoneIndex];
@@ -174,16 +199,32 @@ export const Game = {
           <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
       return;
     }
-    const next = Field.isLastZone() ? null : ZONES[Field.zoneIndex + 1];
-    Overlay.show(`<h2 class="title-gold">⚔️ Leave Town</h2>
-      <p class="small">${next ? `Set out for ${next.name}? Your gear and levels carry over.` : "Press on to the final reckoning?"}</p>
-      <div class="row"><button class="btn gold" onclick="Game.leaveTown()">${next ? "Onward to " + next.name + " →" : "Onward →"}</button>
+    const dest = this.nextLeaveDest();
+    Overlay.show(`<h2 class="title-gold">⚔️ Leave ${Field.town?.name ?? "Town"}</h2>
+      <p class="small">${dest.label}</p>
+      <div class="row"><button class="btn gold" onclick="Game.leaveTown()">${dest.cta}</button>
         <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
+  },
+  // Where leaving the current between-zones hub goes: the NEXT settlement in the chain if one
+  // remains, else the next zone (or the final reckoning). Pure copy-helper for the confirm prompt.
+  nextLeaveDest(): { label: string; cta: string } {
+    const nextHub = this._hubChain[this._hubIx + 1];
+    if (nextHub) {
+      const nm = settlement(nextHub).name;
+      return { label: `Take the road on to ${nm}? Your gear and levels carry over.`, cta: `On to ${nm} →` };
+    }
+    const next = Field.isLastZone() ? null : ZONES[Field.zoneIndex + 1];
+    return next
+      ? { label: `Set out for ${next.name}? Your gear and levels carry over.`, cta: `Onward to ${next.name} →` }
+      : { label: "Press on to the final reckoning?", cta: "Onward →" };
   },
   leaveTown(): void {
     this._inTown = false; this._inMerchant = false; Field.townMode = false;
     Overlay.hide();
     if (this._startVillage) { this._startVillage = false; Field.enterZoneFromVillage(); return; }
+    // Advance the hub chain: if another settlement remains, walk into it; else load the next zone.
+    const nextHub = this._hubChain[this._hubIx + 1];
+    if (nextHub) { this._hubIx++; this.openTown(nextHub); Field.draw(); return; }
     if (Field.isLastZone()) this.victory();
     else Field.loadZone(Field.zoneIndex + 1);
   },

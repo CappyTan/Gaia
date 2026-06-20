@@ -60,6 +60,36 @@ tile set (distinct from sunny Hearthford). All ship as placeholders today.
 | ◐ | NPC: Stranded Jeb (trader) | by the market | 🧑‍🌾 emoji | Sprite needed. |
 | ◐ | NPC: Wynn the Bog-Fisher | on the spine causeway | 🧓 emoji | Sprite needed. |
 
+### Riverhearth — the Trade Capital (ADR 0006, first true CITY)
+Third settlement and Gaia's **first real city** (`data/towns.ts` `RIVERHEARTH`, `theme: "city"`,
+rendered by `controllers/field.drawTownCell`). A large (48×30, camera-scrolled), dense capital built
+around a **river crossed by two bridges**, with four readable districts: a **docks/riverfront** (wharf
+planks + warehouses), a **civic/keep** quarter (grand halls + statue), a **market square** (stalls +
+fountain/well), and a **residential quarter** (rows of townhouses), all knit by grand **avenues**.
+Wants its OWN warm-but-bustling gold-on-dark city tileset (lamplit paved streets, banners, a bright
+river). All ship as placeholders today.
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Town ground: grand avenue (`town-avenue`) | Riverhearth spine streets | flat `#8a7a54` | The wide paved boulevards; the city's main routes. Walkable. |
+| ◐ | River (`town-river`) | the river down the city's centre | flat `#2f5b7a` + faint ripple | **Impassable water.** Crossed only by bridges; bridges keep both banks reachable. |
+| ◐ | Bridge (`town-bridge`) | the two river crossings | flat `#7a6a48` | Walkable span over the river. Wants an arched-stone-bridge sprite. |
+| ◐ | Dock/wharf (`town-dock`) | riverfront, north reach | flat `#5a4a30` | Walkable plank wharf along the water; where barges tie up. |
+| ◐ | Building: grand hall (`t-grand`) | dock warehouses + civic/keep | 🏛️ emoji | Impassable; the big civic/trade structures. |
+| ◐ | Building: townhouse (`t-townhouse`) | residential quarter (12 blocks) | 🏘️ emoji | Impassable; the city's homes. |
+| ◐ | Building: market stall (`t-stall`) | market square | ⛺ emoji | Impassable; awning stalls of the trade heart. |
+| ◐ | Decoration: civic statue (`t-statue`) | the civic plaza | 🗽 emoji | Impassable; a monument on a grassy plinth. |
+| | _(reused: `t-inn`/`t-shop`/`t-smith`/`t-revive`/`t-exit` + `town-cobble`/`town-grass`/`t-fountain`/`t-well`/`t-tree` share existing sprites — the shop labels "Exchange" and the gate "↑ North Road" in the city)_ | Riverhearth services + plaza | as Hearthford | A warm capital re-skin is a nice-to-have, not a blocker. |
+| ◐ | NPC: Town Crier Edda | upper avenue | 📢 emoji + name | Sprite needed. Warm-but-bustling capital lines (placeholder → narrative-writer). |
+| ◐ | NPC: Dockhand Garrow | the wharves | 🧑‍🏭 emoji | Sprite needed. |
+| ◐ | NPC: Guildmaster Veska | merchant quarter | 🧑‍💼 emoji | Sprite needed. |
+| ◐ | NPC: Captain Aldric (guard) | by the civic hall | 🛡️ emoji | Sprite needed. |
+| ◐ | NPC: Tam & Nessa (children) | by the market fountain | 🧒 emoji ×2 | Sprites needed. |
+| ◐ | NPC: Ferryman Old Pell | by the river | 🧓 emoji | Sprite needed. |
+| ◐ | NPC: Lady Corvin (noble) | residential quarter | 👸 emoji | Sprite needed. |
+| ◐ | NPC: Joss the Busker | market square | 🎻 emoji | Sprite needed. |
+| ◐ | NPC: Marda the Fishwife | east dock | 🐟 emoji | Sprite needed. |
+
 ## Field tiles & zones
 Greenfield **Greenvale overworld + Bandit Warren** (ADR 0006): the zone is now carved from a bespoke
 `ZoneLayout` (`data/zones.ts`) by `controllers/field.genMap` — clearings, winding roads, branch

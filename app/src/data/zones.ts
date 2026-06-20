@@ -67,6 +67,16 @@ export interface Zone {
    * the previous boss (the between-zones breather). Defaults to "hearthford" if omitted.
    */
   hub?: string;
+  /**
+   * Optional ORDERED chain of settlements the player walks through on the way INTO this zone, in
+   * sequence, before the overworld loads (ADR 0006 hub flow). Lets a transition pass through more
+   * than one place — e.g. arriving from Greenvale you celebrate in the grand capital **Riverhearth**,
+   * then push on to the grim doorstep **Miregard**, then step into the Duskmarsh. When present this
+   * supersedes `hub` for the inbound flow; the FINAL entry is this zone's true doorstep. If omitted,
+   * the flow falls back to `hub` (a single-settlement chain). The starting zone's chain is its
+   * opening village. Data-driven so transitions are declared, not special-cased in the controller.
+   */
+  hubs?: string[];
 }
 
 // Greenvale's encounter table by area depth (the further east, the tougher the roll-set).
@@ -196,8 +206,11 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford" },
-  { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll", hub: "miregard",
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
+  // Inbound from Greenvale, the player passes through the grand trade capital Riverhearth (the
+  // triumphant breather hub) and then the grim marsh outpost Miregard (the Duskmarsh's doorstep)
+  // before the marsh itself loads. `hub` stays "miregard" (the true doorstep) for back-compat.
+  { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll", hub: "miregard", hubs: ["riverhearth", "miregard"],
     envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "vault" }, layout: DUSKMARSH_LAYOUT, bands: [
       { at: 0.0, sets: [["rat", "rat", "spider"], ["spider", "rat"], ["rat", "rat", "spider"]] },
       { at: 0.2, sets: [["rat", "spider", "rat"], ["leper", "rat", "rat"], ["direrat", "rat", "spider"]] },

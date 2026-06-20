@@ -55,6 +55,8 @@ export const Field = {
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
     // Miregard marsh-outpost kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["town-plank", "town-bog", "town-stilt", "town-deadtree", "town-lantern"]) names.push(n);
+    // Riverhearth city kinds — placeholders until sliced (see asset-gaps.md)
+    for (const n of ["town-avenue", "town-river", "town-bridge", "town-dock", "town-grand", "town-townhouse", "town-stall", "town-statue"]) names.push(n);
     names.forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
@@ -371,19 +373,34 @@ export const Field = {
   drawTownCell(c: CanvasRenderingContext2D, T: Record<string, HTMLImageElement>, cell: string, mx: number, my: number, sx: number, sy: number, t: number): void {
     const isWall = cell === "twall";
     const marsh = this.town?.theme === "marsh"; // grim outpost: planks over bog, not cobble + grass
+    const city = this.town?.theme === "city";   // grand capital: avenues + cobble, a river crossed by bridges
     // ground under the tile. Marsh: bog under decorations/standing-bog, plank under streets/buildings.
-    // Shire: grass under decorations, cobble under streets & buildings.
+    // Shire: grass under decorations, cobble under streets & buildings. City: cobble under most, an
+    // avenue stripe under avenue/bridge, the river its own water; decorations sit on grass verges.
     const onSoft = cell === "town-grass" || cell === "town-flower" || cell === "t-tree" || cell === "t-well" ||
-      cell === "t-house" || cell === "town-bog" || cell === "t-stilt" || cell === "t-deadtree" || cell === "t-lantern";
-    let g = isWall ? "" : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
+      cell === "t-house" || cell === "town-bog" || cell === "t-stilt" || cell === "t-deadtree" || cell === "t-lantern" ||
+      cell === "t-statue"; // statue stands on a grassy/plaza patch
+    // city ground choice (only consulted when `city`):
+    const cityGround =
+      cell === "town-river" ? "town-river" :
+      cell === "town-bridge" ? "town-bridge" :
+      cell === "town-dock" ? "town-dock" :
+      cell === "town-avenue" ? "town-avenue" :
+      onSoft ? "town-grass" : "town-cobble";
+    let g = isWall ? "" : city ? cityGround : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
     if (g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
     const gimg = T[g];
     if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
     else {
-      // flat-colour fallback. Marsh reads cold/dark; shire reads warm.
-      c.fillStyle = isWall ? (marsh ? "#1a2018" : "#241f17") : marsh ? (onSoft ? "#23303a" : "#4a4030") : (onSoft ? "#3f6b2c" : "#6b5d44");
+      // flat-colour fallback. Marsh reads cold/dark; shire reads warm; city is paved stone + a bright river.
+      let fill: string;
+      if (isWall) fill = marsh ? "#1a2018" : city ? "#2a241a" : "#241f17";
+      else if (city) fill = g === "town-river" ? "#2f5b7a" : g === "town-bridge" ? "#7a6a48" : g === "town-dock" ? "#5a4a30" : g === "town-avenue" ? "#8a7a54" : onSoft ? "#3f6b2c" : "#6b5d44";
+      else fill = marsh ? (onSoft ? "#23303a" : "#4a4030") : (onSoft ? "#3f6b2c" : "#6b5d44");
+      c.fillStyle = fill;
       c.fillRect(sx, sy, t, t);
-      if (!isWall && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.07)"; c.fillRect(sx, sy, t, t); }
+      if (g === "town-river") { c.fillStyle = "rgba(255,255,255,.06)"; if ((mx + my * 2 + (Date.now() / 600 | 0)) % 5 === 0) c.fillRect(sx, sy + t * 0.4, t, Math.max(1, t * 0.08)); } // faint ripple lines
+      else if (!isWall && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.07)"; c.fillRect(sx, sy, t, t); }
     }
     // [sprite key, emoji fallback, scale (×tile), label]. Empty label = no caption.
     const POI: Record<string, [string, string, number, string]> = {
@@ -396,14 +413,22 @@ export const Field = {
       // marsh-outpost decorations / buildings
       "t-stilt": ["town-stilt", "🛖", 1.5, ""], "t-deadtree": ["town-deadtree", "🌲", 1.3, ""],
       "t-lantern": ["town-lantern", "🏮", 1.0, ""],
+      // city (Riverhearth) buildings / decorations — flavor only (impassable), no service
+      "t-grand": ["town-grand", "🏛️", 1.7, ""], "t-townhouse": ["town-townhouse", "🏘️", 1.5, ""],
+      "t-stall": ["town-stall", "⛺", 1.3, ""], "t-statue": ["town-statue", "🗽", 1.6, ""],
     };
+    // City service buildings re-label to fit a capital (Market → Exchange; gate reads → the road on).
+    if (city) {
+      if (cell === "t-shop") { POI["t-shop"] = ["town-shop", "🛒", 1.6, "Exchange"]; }
+      if (cell === "t-exit") { POI["t-exit"] = ["town-exit", "🚪", 1.1, "↑ North Road"]; }
+    }
     const poi = POI[cell];
     if (poi) {
       const img = T[poi[0]];
       if (img) { const h = t * poi[2], w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
       else { c.font = `${t * (poi[2] < 1 ? 0.5 : 0.74)}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
       if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
-    } else if (isWall && !gimg) { c.font = `${t * 0.7}px serif`; c.fillStyle = "#3a5a2a"; c.fillText("🌳", sx + t / 2, sy + t / 2); }
+    } else if (isWall && !gimg) { c.font = `${t * 0.7}px serif`; c.fillStyle = city ? "#9a8a64" : "#3a5a2a"; c.fillText(city ? "🧱" : marsh ? "🌲" : "🌳", sx + t / 2, sy + t / 2); }
   },
   draw(): void {
     const c = this.ctx, t = this.tile;
