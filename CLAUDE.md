@@ -83,6 +83,39 @@ Requires Node (≥18) + npm. First time: `npm install`.
 - **REQUIEM canon** — if `requiem-compendium.source.html` changes, re-run the parser; never
   hand-edit the generated files: `node docs/design/requiem/parse-requiem.js`.
 
+## Shipping changes (Git & deploy) — agents own this; Dara never touches git
+
+**Dara is a designer, not a developer, and contributes _only_ through Claude sessions.** He
+describes what he wants; the agent does all the git/PR/deploy work and tells him when it's live.
+He should never be asked to run a git command or resolve a conflict. Follow this flow so the
+finicky parts don't surface:
+
+- **The pipeline:** develop on the session's dev branch → open a PR → **squash-merge to `main`** →
+  the `deploy-pages.yml` Action builds and publishes to **GitHub Pages**. The live game *is* the
+  deployed `dist/` on `main`. Nothing is "live" until that post-merge deploy goes green.
+- **Re-cut the dev branch from `main` before starting new work:**
+  `git fetch origin main && git checkout -B <branch> origin/main`. **This is the fix for the
+  recurring rebase/force-push pain.** A squash-merge replaces your branch's commits with one new
+  commit on `main`, so a *reused* branch always diverges and conflicts next time. Starting each
+  change from a fresh `main` base avoids it. (The first push after re-cutting needs
+  `--force-with-lease` — that's expected and safe; the old commits are already merged.)
+- **Verify locally before merging — this is the real gate.** `npm run typecheck && npm test &&
+  npm run build` must all be green. **PRs opened via the Claude/GitHub-App token do NOT trigger
+  the PR validation workflow** (a GitHub anti-recursion safeguard), so the PR shows no checks /
+  "pending" — that's normal, not a failure. The authoritative CI is the `push → main` deploy run,
+  which re-runs typecheck+test+build and **won't publish if any fail**. So a red local test = a
+  failed deploy = not live.
+- **Keep tests deterministic.** `systems/` use RNG; a test that doesn't pin/seed it (mock
+  `Math.random`, or use `seeded` from `core/rng`) can pass locally and randomly **fail the deploy**.
+  A flaky test is a broken deploy — fix the determinism, don't just re-run.
+- **Commit identity & `main` history:** commit as `Claude <noreply@anthropic.com>`. GitHub's
+  squash-merge commit on `main` is authored by the repo owner and committed by
+  `GitHub <noreply@github.com>` — that's normal and shows **Verified**; **never amend or
+  force-push `main`** to "fix" it. Only the dev branch is force-pushable (right after re-cutting
+  from `main`). Don't commit the model identifier into any artifact (commit/PR/code) — chat only.
+- **Always tell Dara the outcome in plain terms:** what changed, that it's merged, and that the
+  live site is updated (or what failed and that you're handling it) — not the git mechanics.
+
 ## Conventions
 
 - **No runtime framework.** Vanilla TS + Canvas/DOM; Vite is a build tool, not a runtime dep.
