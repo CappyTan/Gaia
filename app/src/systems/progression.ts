@@ -93,7 +93,7 @@ export function recalc(party: Member[]): void {
 }
 
 export function xpForLevel(l: number): number {
-  return Math.round(26 * Math.pow(l, 1.85)); // steepened 1.65->1.73->1.85: full runs were reaching the L10 boss at ~L13
+  return Math.round(26 * Math.pow(l, 1.92)); // steepened 1.65->1.73->1.85->1.92: a 3rd zone (Silverwood) of XP over-leveled the party (~L13); steeper late cost lands the finale around ~L12-13 without over-taxing the early game
 }
 
 export interface LevelUp {
