@@ -196,6 +196,28 @@ Everything else on the map is **unbuilt** — these are the regions the `world-b
   Keys / AI Clearance / Quantum Stabilizers)?
 - **G10 — Naming** capitals, starports, and unlabeled POIs.
 
+### Open — world placement & geography (from the v0.56–v0.57 cartography passes; ASK DARA)
+These came out of tracing the canon overworld map into the world registry (`data/world.ts`, 960×640).
+The world *fits* at one consistent scale; these are the judgment calls flagged for Dara's review:
+- **G11 — Duskmarsh placement.** It's a built zone (Dara: "it's in Aurelion") but **not drawn on the
+  canon map**. Currently placed as a wet basin **south of Greenvale** (world ≈ (178,150)). Where does
+  the marsh actually sit?
+- **G12 — Anima Scar (#23) position.** Straddles the Myr'Thalas↔Sundering gap on the map; currently
+  drawn inside the Sundering's western shell. Keep there, or hang it off Myr'Thalas?
+- **G13 — Sunbridge (#9).** Placed at Aurelion's southern tip toward the Coral Archipelago (its label
+  sits near water on the canon map) — placement is an inference; confirm.
+- **G14 — Isle chains** (Shattered / Coral / Celestial Isles, the Southern Sea) — left as open ocean
+  in the size-locking pass. Paint them as regions, or leave as sea?
+- **G15 — Rough region outlines.** All 25 region polygons are **rough traces** (correct relative
+  position/size, not final coastlines). Review against the canon map and nudge any that read wrong.
+- **G16 — Draft Area names + identity.** Every Area in the built zones is `draft` (Hearthford
+  Commons / Orchard Ridge / Bandit Fields / The Hidden Grove / Warren Approach; Fern Hollows /
+  Heartwood / Canopy Nook / Deep Mossbed / Sunless-Grove Approach; The Causeways / Lagoon / Sunken
+  Ruin / Vault Approach) with agent-guessed biome/music/encounter-lean. Bless or rename.
+- **G17 — Silverwood naming (from v0.50).** Still-open canon flags: **The Hollow King** (boss + its
+  QUANTA justification), **The Sunless Grove** (dungeon), **Spriggan** (generic name + its SOL+leech
+  typing). Keep or rename.
+
 ---
 
 *Maintenance: when Dara answers an open item, move it up to "Resolved" and fold it into the relevant
