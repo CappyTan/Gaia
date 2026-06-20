@@ -31,29 +31,41 @@ export const UI = {
     Game.party.forEach((m) => {
       const arch = m.equip.weapon?.cls || m.cls;
       const cls = className(m.att, arch);
-      // MNA allocator: show each tree's total (with a +button to spend points), plus respec.
+      // MNA allocator: one full-width, thumb-friendly row per Attunement tree (Dara: the inline
+      // pills + tiny "+" were hard to tap). Each row has a big +/- and a clear total.
       const showTree = (a: typeof ATTUNEMENTS[number]) => m.mna[a] > 0 || m.mnaPoints > 0 || a === m.att;
-      const mnaRow = ATTUNEMENTS.filter(showTree).map((a) => {
-        const tot = m.mna[a], fromGear = tot - m.mnaAlloc[a];
-        const plus = m.mnaPoints > 0 ? ` <button class="btn" style="padding:9px 12px;font-size:15px;min-width:44px;min-height:40px;margin-left:4px" onclick="UI.allocMna('${m.id}','${a}')">+</button>` : "";
-        const archon = tot >= 100 ? " ⭐" : "";
-        // levels-vs-gear shown inline (touch has no hover)
-        const split = tot > 0 ? ` <span style="opacity:.55">(${m.mnaAlloc[a]}+${fromGear})</span>` : "";
-        return `<span class="pill">${a} <b>${tot}</b>${archon}${split}${plus}</span>`;
-      }).join(" ");
       const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
-      const respec = spent > 0 ? ` <button class="btn" style="padding:9px 12px;font-size:12px;min-height:40px" onclick="UI.respec('${m.id}')">Respec ${respecCost(m)}g</button>` : "";
+      const pool = m.mnaPoints;
+      const poolBar = `<div class="mna-pool"><span>MNA points <span style="opacity:.6">(levels + gear)</span></span>${pool > 0 ? `<b class="r-legendary">${pool} to spend</b>` : `<span class="small">all spent</span>`}</div>`;
+      const mnaRows = ATTUNEMENTS.filter(showTree).map((a) => {
+        const tot = m.mna[a], fromGear = tot - m.mnaAlloc[a];
+        const archon = tot >= 100 ? " ⭐" : "";
+        const dec = m.mnaAlloc[a] > 0 ? `<button class="btn mna-btn" onclick="UI.deallocMna('${m.id}','${a}')" aria-label="remove ${a} point">−</button>` : "";
+        const inc = pool > 0 ? `<button class="btn gold mna-btn" onclick="UI.allocMna('${m.id}','${a}')" aria-label="add ${a} point">+</button>` : "";
+        return `<div class="mna-row" style="border-color:${ATT[a].color}55">
+          <span class="mna-name" style="color:${ATT[a].color}">${a}${archon}</span>
+          <span class="mna-tot">${tot}</span>
+          <span class="mna-sub">${m.mnaAlloc[a]} lvl + ${fromGear} gear</span>
+          ${dec}${inc}</div>`;
+      }).join("");
       h += `<div class="card" style="margin:6px 0;text-align:left">
-        <b style="color:var(--gold2)">${m.spr} ${m.name}</b> <span class="pill" style="color:${ATT[m.att].color};border-color:${ATT[m.att].color}66">${cls} · ${m.role}</span> <span class="pill">Lv ${m.level}</span>
-        <div class="small">HP ${m.maxhp} · MP ${m.maxmp} · ATK ${m.atk} · MAG ${m.mag} · SPD ${m.spd} · ARM ${m.armor} · Crit ${m.critPct}%${m.solPct ? ` · +${m.solPct}% Power` : ""}${m.leech ? ` · ${m.leech}% leech` : ""}</div>
-        <div class="small" style="margin-top:4px">MNA <span style="opacity:.5">(levels+gear)</span>${m.mnaPoints > 0 ? ` · <b class="r-legendary">${m.mnaPoints} point${m.mnaPoints > 1 ? "s" : ""} to spend</b>` : ""}: ${mnaRow}${respec}</div>
-        <div class="small">XP ${m.xp}/${xpForLevel(m.level)}</div>
-        <div class="grid2" style="margin-top:6px">${EQUIP_SLOTS.map((slot) => {
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <b style="color:var(--gold2);font-size:16px">${m.spr} ${m.name}</b>
+          <span class="pill" style="color:${ATT[m.att].color};border-color:${ATT[m.att].color}66">${cls} · ${m.role}</span>
+          <span class="pill">Lv ${m.level}</span></div>
+        <div class="small" style="margin-top:6px">HP ${m.maxhp} · MP ${m.maxmp} · ATK ${m.atk} · MAG ${m.mag} · SPD ${m.spd} · ARM ${m.armor} · Crit ${m.critPct}%${m.solPct ? ` · +${m.solPct}% Power` : ""}${m.leech ? ` · ${m.leech}% leech` : ""}</div>
+        <div class="small" style="opacity:.6">XP ${m.xp}/${xpForLevel(m.level)}</div>
+        <div class="psec">Attunement (MNA)</div>
+        ${poolBar}${mnaRows}
+        ${spent > 0 ? `<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="btn" style="min-height:40px" onclick="UI.respec('${m.id}')">Respec all · ${respecCost(m)}g</button></div>` : ""}
+        <div class="psec">Gear</div>
+        <div class="grid2">${EQUIP_SLOTS.map((slot) => {
         const it = m.equip[slot];
         return `<div class="equip-slot"><span><span class="tag">${slot}</span><br>${it ? `<span class="r-${it.rarity}">${it.name}</span>` : "<span class='small'>— empty —</span>"}</span>
             <button class="btn" onclick="UI.equipPicker('${m.id}','${slot}')">Swap</button></div>`;
       }).join("")}</div>
-        <div class="small" style="margin-top:6px">Abilities: ${unlockedSkills(m).length}/${m.skills.length} unlocked <button class="btn" style="padding:9px 14px;font-size:13px;min-height:40px" onclick="UI.skillTree('${m.id}')">Skill Tree ▸</button></div>
+        <div class="psec">Abilities</div>
+        <div class="small">${unlockedSkills(m).length}/${m.skills.length} unlocked <button class="btn" style="padding:9px 14px;font-size:13px;min-height:40px" onclick="UI.skillTree('${m.id}')">Skill Tree ▸</button></div>
       </div>`;
     });
     h += `</div><div class="row"><button class="btn gold" onclick="UI.close()">Close</button></div>`;
@@ -93,6 +105,15 @@ export const UI = {
     if (!m || m.mnaPoints <= 0) return;
     m.mnaAlloc[att] += 1;
     m.mnaPoints -= 1;
+    recalc(Game.party);
+    this.openParty();
+  },
+  // Take one point back out of a tree (free undo for a mis-tap; whole-tree respec still costs gold).
+  deallocMna(memberId: string, att: Attunement): void {
+    const m = Game.party.find((x) => x.id === memberId);
+    if (!m || m.mnaAlloc[att] <= 0) return;
+    m.mnaAlloc[att] -= 1;
+    m.mnaPoints += 1;
     recalc(Game.party);
     this.openParty();
   },

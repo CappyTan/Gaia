@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.40", t: "UX pass from Dara's notes — Party screen redone with a vertical, thumb-friendly MNA allocator (big +/− per Attunement, free undo); boss sprites render big and centered in battle; the combat log is now a calm 2-line ticker instead of a cluttered scroll over the party." },
   { v: "v0.39", t: "The Data screen is now an editor — toggle Edit to tweak enemy and ability numbers live (validated as you go), with the changes persisting and an Export to a JSON patch. Lets a designer balance by hand; the code stays the source of truth." },
   { v: "v0.38", t: "Content browser — a 'Data' screen on the title that lays out the whole game database (bestiary, abilities, the 45 classes, zones) for design/balance visibility at a glance." },
   { v: "v0.37", t: "Difficulty + pacing retune — fights now actually cost HP and bosses bite, tuned against a 'skilled' player model in the sim; steeper XP so you reach the boss around level 10 instead of out-leveling it." },

@@ -400,8 +400,12 @@ export const Battle = {
   },
   renderEnemies(targetable: boolean): void {
     const z = $("#enemyZone")!; z.innerHTML = "";
+    // A lone boss/mini-boss renders large + centered (Dara); with a pack it just scales up.
+    const aliveN = this.enemies.filter((e) => e.alive).length;
+    z.classList.toggle("has-boss", aliveN === 1 && this.enemies.some((e) => e.alive && (e.boss || e.miniboss)));
     this.enemies.forEach((e) => {
-      const d = el("div", "enemy" + (e.alive ? "" : " dead") + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
+      const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
+      const d = el("div", "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
         <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
@@ -460,7 +464,7 @@ export const Battle = {
       if (bars[2]) bars[2].style.width = m.atb + "%";
     });
   },
-  log(t: string): void { this.logLines.push(t); if (this.logLines.length > 4) this.logLines.shift(); this.renderLog(); },
+  log(t: string): void { this.logLines.push(t); if (this.logLines.length > 2) this.logLines.shift(); this.renderLog(); }, // 2-line ticker (Dara: was cluttered)
   renderLog(): void { const l = $("#log"); if (!l) return; l.innerHTML = this.logLines.map((x) => `<div>${x}</div>`).join(""); },
 
   /* ---- battle-screen feedback helpers ---- */
