@@ -62,7 +62,7 @@ export const Game = {
   // Open the Greenvale starting village (Hearthford). Walking out its gate enters zone 0.
   openStartVillage(): void {
     this._startVillage = true;
-    this.openTown("hearthford");
+    this.openTown(ZONES[0].hub ?? "hearthford"); // the starting zone's own front-door village
   },
   gameOver(): void {
     Telemetry.endSession("wipe");
@@ -89,10 +89,14 @@ export const Game = {
   // zone boss. The four buildings are walk-in POIs (Field.townTouch routes each onto the actions
   // below); the merchant/smith/revive open as focused overlays over the town field. Party/Bag
   // opened in town return to the town field via UI.close() → backToTown (see menus.ts).
-  openTown(id = "hearthford"): void {
+  // Open a walkable settlement hub. With no id (the between-zones call after a boss), resolve the
+  // hub that FRONTS the next zone — the marsh outpost before the Duskmarsh, not always Hearthford —
+  // so each transition arrives at its own place. Falls back to Hearthford if a zone has no hub.
+  openTown(id?: string): void {
     this._inTown = true; this._inMerchant = false;
+    const resolved = id ?? (Field.isLastZone() ? undefined : ZONES[Field.zoneIndex + 1]?.hub) ?? "hearthford";
     this.rollMerchantStock(); // stock is rolled once per town visit (no reroll by re-entering the shop)
-    Field.enterTown(id);
+    Field.enterTown(resolved);
   },
   // Close an in-town overlay and return to the walkable town field.
   backToTown(): void { this._inMerchant = false; Overlay.hide(); Screens.show("field"); },

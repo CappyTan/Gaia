@@ -41,6 +41,25 @@ placeholders today.
 | ◐ | NPC: Innkeeper Doral | near the inn | 🧑‍🍳 emoji | Sprite needed. |
 | ◐ | NPC "talk" indicator | over each NPC | 💬 emoji | Hint that an NPC is talkable. |
 
+### Miregard — the Duskmarsh marsh-edge outpost (ADR 0006)
+Second settlement, the **between-zones hub before the Duskmarsh** (`data/towns.ts` `MIREGARD`,
+`theme: "marsh"`, rendered by `controllers/field.drawTownCell`). A grim half-drowned stockade on
+stilts — plank boardwalks over black bog, lantern-lit, fog-bound. Wants its OWN gold-on-dark-but-cold
+tile set (distinct from sunny Hearthford). All ship as placeholders today.
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Town ground: plank boardwalk (`town-plank`) | Miregard streets/causeway | flat `#4a4030` | The walkable surface (over bog). Cold, weathered wood. |
+| ◐ | Town ground: bog (`town-bog`) | Miregard under decorations/edges | flat `#23303a` | Impassable black water; the negative space the planks cross. |
+| ◐ | Building: stilt-house (`t-stilt`) | Miregard flavor homes (4) | 🛖 emoji | Impassable; huts raised over the bog. |
+| ◐ | Decoration: dead/marsh tree (`t-deadtree`) | Miregard corners/edges | 🌲 emoji | Impassable; bare/drowned timber. |
+| ◐ | Decoration: lantern post (`t-lantern`) | Miregard, flanking the walks | 🏮 emoji | Impassable; the only warm light in the fog. |
+| | _(reused: `t-inn`/`t-shop`/`t-smith`/`t-revive`/`t-exit` buildings + walls share Hearthford's POI sprites for now — a marsh-styled re-skin would sell the grim tone)_ | Miregard services + gate | as Hearthford | Exit label reads "→ Marsh". A cold re-skin is a nice-to-have, not a blocker. |
+| ◐ | NPC: Marsh-Warden Coll | by the east gate causeway | 🪖 emoji | Sprite needed. Dread-tinged lines (placeholder → narrative-writer). |
+| ◐ | NPC: Old Mother Sedge (bog-healer) | near the shrine | 🧙 emoji | Sprite needed. |
+| ◐ | NPC: Stranded Jeb (trader) | by the market | 🧑‍🌾 emoji | Sprite needed. |
+| ◐ | NPC: Wynn the Bog-Fisher | on the spine causeway | 🧓 emoji | Sprite needed. |
+
 ## Field tiles & zones
 Greenfield **Greenvale overworld + Bandit Warren** (ADR 0006): the zone is now carved from a bespoke
 `ZoneLayout` (`data/zones.ts`) by `controllers/field.genMap` — clearings, winding roads, branch
@@ -55,6 +74,22 @@ Re-used existing field kinds the bespoke layouts lean on harder now (no new art 
 context): `grass`/`grass2` (clearings), `path` (carved roads/corridors), `tree` (forest/room walls +
 the gate chokepoint), `bush`/`rock` (walkable scatter decoration), `chest`, `miniboss` (gate guardian,
 still 🪖 emoji), `boss`, and the `warren`/`vault` dungeon tilesets east of the gate.
+
+### Greenfield **Duskmarsh overworld** — the mire dressing (ADR 0006)
+The Duskmarsh overworld now reads as a grim mire: the renderer (`field.draw`, gated on
+`Field.isMire()` = zone env leads with "mire") remaps the carved generic kinds to marsh sprites, and
+the layout adds hard-blocking standing-water pools that pinch the causeway. East of the gate the
+**Drowned Vault** reuses the existing `vault` dungeon tileset (no new art). New OVERWORLD marsh kinds
+(placeholders today):
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Standing water (`water`) | Duskmarsh pools framing the causeway | 🌊 emoji on `#23303a` | **Hard wall** (blocks movement + flood-fill, like `tree`). Authored to pinch, not sever; the soft-lock flood-fill guarantees it never strands a required tile. |
+| ◐ | Mire ground (`mire-ground`/`mire-ground2`) | Duskmarsh open ground (remap of `grass`) | flat `#3a4030` + grim wash | Boggy walkable earth; two-variant for texture (hash-picked). |
+| ◐ | Mire causeway (`mire-path`) | Duskmarsh roads (remap of `path`) | falls back to mire-ground fill | The plank/dry causeway the player follows east. |
+| ◐ | Dead tree (`deadtree`) | Duskmarsh walls (remap of `tree`) | 🌫️ emoji on mire-ground | Bare/drowned timber — the marsh's forest wall + the gate chokepoint. |
+| ◐ | Reed clump (`reed`) | Duskmarsh scatter (remap of `bush`) | 🌾 emoji | Walkable decoration. |
+| ◐ | Bog tuft (`bog`) | Duskmarsh scatter (remap of `rock`) | 🪨 emoji | Walkable decoration. |
 
 ## Enemies & bosses
 | Status | Asset | Where used | Placeholder | Notes |

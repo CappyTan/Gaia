@@ -18,6 +18,10 @@ import { Telemetry } from "../telemetry/telemetry";
 // Per-zone dungeon tileset prefix (east of the gate): Greenvale -> Bandit Warren, Duskmarsh -> Drowned Vault.
 const DUNGEON_SETS = ["warren", "vault"];
 
+// Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
+// these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
+const FIELD_WALLS = new Set(["tree", "water"]);
+
 export const Field = {
   // PACING KNOBS: ENC_MIN/MAX = steps between random fights. Map size + the gate/boss/chest anchors
   // are now BESPOKE PER ZONE (ADR 0006) — supplied by `zone().layout`, applied in genMap.
@@ -44,9 +48,13 @@ export const Field = {
   // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
   loadTiles(): void {
     const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "lair", "player"];
+    // marsh (Duskmarsh) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
+    for (const n of ["water", "mire-ground", "mire-ground2", "mire-path", "deadtree", "reed", "bog"]) names.push(n);
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
+    // Miregard marsh-outpost kinds — placeholders until sliced (see asset-gaps.md)
+    for (const n of ["town-plank", "town-bog", "town-stilt", "town-deadtree", "town-lantern"]) names.push(n);
     names.forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
@@ -58,6 +66,9 @@ export const Field = {
 
   zone() { return ZONES[this.zoneIndex]; },
   isLastZone(): boolean { return this.zoneIndex >= ZONES.length - 1; },
+  // A grim mire reads differently from the shire: the overworld dresses its ground/walls/scatter as
+  // a marsh (bog water, dead trees, reeds) when the zone's overworld env leads with "mire".
+  isMire(): boolean { return this.zone().envs[0] === "mire"; },
   // Past the mini-boss gate you're in the zone's dungeon: tougher, own environment.
   inDungeon(): boolean { return this.px > this.gate.x; },
   envFor(p: number): string {
@@ -135,10 +146,19 @@ export const Field = {
     carve(gx - 1, L.gate.y, "path"); carve(gx + 1, L.gate.y, "path");
     this.map[L.gate.y][gx] = "miniboss";
 
-    // 5. cosmetic scatter (bush/rock) on a few open tiles — decoration only, never blocks
+    // 5. cosmetic scatter (bush/rock) on a few open tiles — decoration only, never blocks. The
+    // renderer dresses these as reed/bog clumps in the marsh (env-aware), so no new kind is needed.
     const dens = L.scatter ?? 0.06;
     for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++) {
       if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
+    }
+
+    // 5b. WATER pools: hard-blocking marsh water stamped over carved ground to pinch the causeway
+    // (a zone flavor wall, like tree). The flood-fill in step 7 still guarantees reachability, so
+    // a pool that severed a required tile is repaired; authored pools only pinch, not sever.
+    if (L.water) for (const w of L.water) {
+      for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++)
+        if (inB(x, y) && this.map[y][x] !== "miniboss") this.map[y][x] = "water";
     }
 
     // 6. chests + lair, each with a cleared 3×3 halo so they're reachable
@@ -153,10 +173,10 @@ export const Field = {
     this.ensureReachable(L);
   },
 
-  // bush/rock are decoration (walkable); tree is the only overworld wall; the gate is walkable.
+  // bush/rock are decoration (walkable); tree and water are walls; the gate is walkable.
   flood(start: Pt): boolean[][] {
     const seen = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => false));
-    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < this.W && y < this.H && this.map[y][x] !== "tree";
+    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < this.W && y < this.H && !FIELD_WALLS.has(this.map[y][x]);
     const q: Pt[] = [start]; if (open(start.x, start.y)) seen[start.y][start.x] = true; else return seen;
     while (q.length) {
       const { x, y } = q.shift()!;
@@ -180,7 +200,7 @@ export const Field = {
         if (seen[y][x]) { const d = Math.abs(x - t.x) + Math.abs(y - t.y); if (d < bd) { bd = d; best = { x, y }; } }
       if (best) {
         let cx = best.x, cy = best.y;
-        const step = (x: number, y: number) => { if (x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1 && this.map[y][x] === "tree") this.map[y][x] = "path"; };
+        const step = (x: number, y: number) => { if (x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1 && FIELD_WALLS.has(this.map[y][x])) this.map[y][x] = "path"; };
         while (cx !== t.x) { cx += Math.sign(t.x - cx); step(cx, cy); }
         while (cy !== t.y) { cy += Math.sign(t.y - cy); step(cx, cy); }
         seen = this.flood(L.spawn);
@@ -227,7 +247,7 @@ export const Field = {
     // In town: walls/decoration block, NPCs block (you bump into them = talk), service doors/gate
     // are walk-in. Buildings (t-inn/shop/smith/revive) are NOT in TOWN_BLOCKERS so you step onto them.
     if (this.townMode) return !TOWN_BLOCKERS.has(cell) && !this.npcAt(x, y);
-    return cell !== "tree";
+    return !FIELD_WALLS.has(cell);
   },
   move(dx: number, dy: number): void {
     if (Game.state !== "field" && Screens.cur !== "field") return;
@@ -350,24 +370,32 @@ export const Field = {
   // a kind never strands the player.
   drawTownCell(c: CanvasRenderingContext2D, T: Record<string, HTMLImageElement>, cell: string, mx: number, my: number, sx: number, sy: number, t: number): void {
     const isWall = cell === "twall";
-    // ground under the tile: grass for decorations/grass tiles, cobble for streets & buildings.
-    const onGrass = cell === "town-grass" || cell === "town-flower" || cell === "t-tree" || cell === "t-well" || cell === "t-house";
-    let g = isWall ? "" : onGrass ? "town-grass" : "town-cobble";
+    const marsh = this.town?.theme === "marsh"; // grim outpost: planks over bog, not cobble + grass
+    // ground under the tile. Marsh: bog under decorations/standing-bog, plank under streets/buildings.
+    // Shire: grass under decorations, cobble under streets & buildings.
+    const onSoft = cell === "town-grass" || cell === "town-flower" || cell === "t-tree" || cell === "t-well" ||
+      cell === "t-house" || cell === "town-bog" || cell === "t-stilt" || cell === "t-deadtree" || cell === "t-lantern";
+    let g = isWall ? "" : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
     if (g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
     const gimg = T[g];
     if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
     else {
-      c.fillStyle = isWall ? "#241f17" : onGrass ? "#3f6b2c" : "#6b5d44"; c.fillRect(sx, sy, t, t);
+      // flat-colour fallback. Marsh reads cold/dark; shire reads warm.
+      c.fillStyle = isWall ? (marsh ? "#1a2018" : "#241f17") : marsh ? (onSoft ? "#23303a" : "#4a4030") : (onSoft ? "#3f6b2c" : "#6b5d44");
+      c.fillRect(sx, sy, t, t);
       if (!isWall && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.07)"; c.fillRect(sx, sy, t, t); }
     }
     // [sprite key, emoji fallback, scale (×tile), label]. Empty label = no caption.
     const POI: Record<string, [string, string, number, string]> = {
       "t-inn": ["town-inn", "🏠", 1.6, "Inn"], "t-shop": ["town-shop", "🛒", 1.6, "Market"],
       "t-smith": ["town-smith", "🔨", 1.6, "Smith"], "t-revive": ["town-revive", "🔮", 1.6, "Shrine"],
-      "t-exit": ["town-exit", "🚪", 1.1, "↑ Leave"],
+      "t-exit": ["town-exit", "🚪", 1.1, marsh ? "→ Marsh" : "↑ Leave"],
       "t-fountain": ["town-fountain", "⛲", 1.2, ""], "t-well": ["town-well", "🪣", 1.0, ""],
       "t-tree": ["town-tree", "🌳", 1.3, ""], "t-house": ["town-house", "🏡", 1.5, ""],
       "town-flower": ["town-flower", "🌷", 0.7, ""],
+      // marsh-outpost decorations / buildings
+      "t-stilt": ["town-stilt", "🛖", 1.5, ""], "t-deadtree": ["town-deadtree", "🌲", 1.3, ""],
+      "t-lantern": ["town-lantern", "🏮", 1.0, ""],
     };
     const poi = POI[cell];
     if (poi) {
@@ -396,24 +424,35 @@ export const Field = {
         if (this.townMode) { this.drawTownCell(c, T, cell, mx, my, sx, sy, t); continue; }
         const inDun = mx > this.gate.x; // east of the gate = the zone's dungeon (its own tileset)
         const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
-        // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale; chest/boss/
-        // miniboss sit on a floor/grass tile; a stable hash mixes in the variant for texture.
+        const mire = !inDun && this.isMire(); // grim overworld dressing (Duskmarsh)
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair";
+        // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
+        // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
         if (inDun) {
-          const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock" };
-          let base = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" ? "floor" : (dm[cell] || "floor");
+          const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock", water: "wall" };
+          let base = isObj ? "floor" : (dm[cell] || "floor");
           if (base === "floor" && (mx * 7 + my * 13) % 4 === 0 && T[`${dset}-floor2`]) base = "floor2";
           ground = `${dset}-${base}`;
+        } else if (mire) {
+          // marsh remap: open ground = boggy mire-ground, path = a plank causeway, scatter = reed/bog,
+          // tree = dead-tree (still drawn as the object below), water = standing water.
+          const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
+          ground = isObj ? "mire-ground" : (gm[cell] || "mire-ground");
+          if (ground === "mire-ground" && (mx * 7 + my * 13) % 4 === 0 && T["mire-ground2"]) ground = "mire-ground2";
         } else {
-          ground = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" ? "grass" : cell;
+          ground = isObj ? "grass" : cell;
           if (ground === "grass" && (mx * 7 + my * 13) % 4 === 0 && T.grass2) ground = "grass2";
         }
         const gimg = T[ground];
         if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1); // +1px overlap hides hairline seams
         else {
-          c.fillStyle = (inDun ? "#2a2740" : colors[cell]) || "#4a7a32"; c.fillRect(sx, sy, t, t);
-          if (!inDun && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.06)"; c.fillRect(sx, sy, t, t); }
+          // flat-colour fallback (palette differs for dungeon / mire / shire)
+          const fill = inDun ? "#2a2740" : mire ? (cell === "water" ? "#23303a" : "#3a4030") : (colors[cell] || "#4a7a32");
+          c.fillStyle = fill; c.fillRect(sx, sy, t, t);
+          if (!inDun && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.08)"; c.fillRect(sx, sy, t, t); }
           if (inDun) { c.fillStyle = "rgba(38,30,66,.5)"; c.fillRect(sx, sy, t, t); } // tint only when art missing
+          else if (mire && cell !== "water") { c.fillStyle = "rgba(20,28,18,.28)"; c.fillRect(sx, sy, t, t); } // grim wash
         }
         // overlays / object sprites (fall back to emoji if art isn't loaded)
         c.font = `${t * 0.82}px serif`;
@@ -425,8 +464,10 @@ export const Field = {
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
-        else if (!gimg && cell === "tree") c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2);
-        else if (!gimg && cell === "bush") c.fillText(inDun ? "🦴" : "🌿", sx + t / 2, sy + t / 2);
+        else if (cell === "tree") { if (mire) obj(T.deadtree, "🌫️", 0.95); else if (!gimg) c.fillText(inDun ? "🪨" : "🌲", sx + t / 2, sy + t / 2); }
+        else if (cell === "water" && !inDun && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
+        else if (cell === "bush" && !gimg) c.fillText(inDun ? "🦴" : mire ? "🌾" : "🌿", sx + t / 2, sy + t / 2);
+        else if (cell === "rock" && mire && !gimg) c.fillText("🪨", sx + t / 2, sy + t / 2);
       }
     // NPCs (town only): a shadow + emoji-placeholder body + gold name caption; a "…" bubble while
     // you're mid-conversation with them. Sprite art is flagged in asset-gaps.md.

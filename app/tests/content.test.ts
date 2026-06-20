@@ -7,6 +7,7 @@ import { validateContent } from "../src/data/validate";
 import { ARCHETYPE_KEYS } from "../src/data/party";
 import { ATTUNEMENTS } from "../src/types";
 import { ZONES, type ZoneLayout, type Pt } from "../src/data/zones";
+import { SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF } from "../src/data/towns";
 
 // Mirror of controllers/field.genMap's carve (WITHOUT the repair pass) so the test proves each
 // authored zone layout is ALREADY soft-lock-free by design — the boss + every chest/lair reachable
@@ -22,7 +23,9 @@ function carveZone(L: ZoneLayout): string[][] {
   L.fieldPaths.forEach(path); L.dunPaths.forEach(path);
   for (let y = 1; y < L.h - 1; y++) map[y][L.gateWallX] = "tree";
   c(L.gateWallX - 1, L.gate.y, "path"); c(L.gateWallX + 1, L.gate.y, "path"); map[L.gate.y][L.gateWallX] = "miniboss";
-  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && map[yy][xx] === "tree") map[yy][xx] = "grass"; } };
+  // hard-blocking water pools stamped over carved ground (marsh) — mirrors genMap step 5b.
+  if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y) && map[y][x] !== "miniboss") map[y][x] = "water";
+  const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && (map[yy][xx] === "tree" || map[yy][xx] === "water")) map[yy][xx] = "grass"; } };
   L.chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
   if (L.lair) { halo(L.lair); c(L.lair.x, L.lair.y, "lair"); }
   c(L.boss.x, L.boss.y, "boss"); c(L.spawn.x, L.spawn.y, "path");
@@ -31,7 +34,7 @@ function carveZone(L: ZoneLayout): string[][] {
 function reachable(map: string[][], start: Pt): boolean[][] {
   const H = map.length, W = map[0].length;
   const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
-  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && map[y][x] !== "tree";
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && map[y][x] !== "tree" && map[y][x] !== "water";
   if (!open(start.x, start.y)) return seen;
   const q: Pt[] = [start]; seen[start.y][start.x] = true;
   while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }
@@ -92,6 +95,51 @@ describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock)", () => {
         expect(seen[L.boss.y][L.boss.x]).toBe(true);
         for (const ch of L.chests) expect(seen[ch.y][ch.x]).toBe(true);
         if (L.lair) expect(seen[L.lair.y][L.lair.x]).toBe(true);
+      });
+    });
+  }
+});
+
+describe("settlements (ADR 0006 — walkable, anti-soft-lock)", () => {
+  for (const s of Object.values(SETTLEMENTS)) {
+    describe(s.name, () => {
+      // Decode the ASCII layout exactly as Field.genTown does (glyph → tile kind).
+      const map = s.layout.map((row) => Array.from(row, (ch) => TOWN_GLYPHS[ch] ?? "town-cobble"));
+      const H = map.length, W = map[0].length;
+      const spawn = s.spawn ?? { x: Math.floor(W / 2), y: H - 2 };
+      const npcAt = new Set(s.npcs.map((n) => `${n.x},${n.y}`));
+      // walkable = not a blocker tile and not an NPC (NPCs block; you bump them to talk).
+      const open = (x: number, y: number) =>
+        x >= 0 && y >= 0 && x < W && y < H && !TOWN_BLOCKERS.has(map[y][x]) && !npcAt.has(`${x},${y}`);
+      const flood = (): boolean[][] => {
+        const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
+        if (!open(spawn.x, spawn.y)) return seen;
+        const q: Pt[] = [spawn]; seen[spawn.y][spawn.x] = true;
+        while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }
+        return seen;
+      };
+
+      it("has uniform-width rows and a walkable spawn", () => {
+        expect(s.layout.every((r) => r.length === W)).toBe(true);
+        expect(open(spawn.x, spawn.y)).toBe(true);
+      });
+      it("has an exit gate, and every service + NPC is reachable from spawn (no soft-lock)", () => {
+        const seen = flood();
+        // exit gate present + reachable
+        let hasExit = false;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          if (POI_OF[map[y][x]] === "exit") { hasExit = true; expect(seen[y][x]).toBe(true); }
+        }
+        expect(hasExit).toBe(true);
+        // every service building (inn/shop/smith/revive) reachable
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          if (POI_OF[map[y][x]] && POI_OF[map[y][x]] !== "exit") expect(seen[y][x]).toBe(true);
+        }
+        // every NPC has a reachable adjacent tile (the player can walk up and talk)
+        for (const n of s.npcs) {
+          const adj = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[n.y + dy]?.[n.x + dx]);
+          expect(adj).toBe(true);
+        }
       });
     });
   }
