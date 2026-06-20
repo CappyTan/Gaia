@@ -106,6 +106,13 @@ Requires Node (≥18) + npm. First time: `npm install`.
   design (per-attunement mana, per-class resources, full kits, Ascension/Soul Burn/Archon). The
   game ships an *invented placeholder* (a damage affinity ring + one signature effect per
   attunement) and only the four SOL classes. When they disagree, REQUIEM wins; reconcile toward it.
+- **Dara is the primary designer of classes, abilities, and lore; agents are support.** He authors
+  this content; AI agents (and the main loop) **assist** — implement his designs, draft proposals for
+  his review, fill genuine gaps, and **flag conflicts/issues for him to decide**. Agents never
+  overrule his canon. Invent only into real gaps, reconcile toward REQUIEM, and when canon and a
+  proposal disagree, *surface it for Dara* rather than changing the canon. The `requiem-canon-keeper`
+  flags; **Dara rules.** (Combat-balance numbers, level layout, loot scaling, art pipeline, etc.
+  remain agent-driven — it's specifically class/ability/lore *design* that is Dara's to own.)
 - **Art is Dara's lane.** Real art is sliced from his reference sheets via `slice-art.py` (the
   only sanctioned way to regenerate `app/assets/`). Generated/placeholder art must match his
   gold-on-dark palette. **Never ship the FF battle-screen reference screenshots** (Square Enix

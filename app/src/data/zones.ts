@@ -20,11 +20,11 @@ export interface Zone {
 // Greenvale's encounter table by area depth (the further east, the tougher the roll-set).
 // The mid-zone chokepoint (Bandit Brigadier) and the final Kingpin are NOT in this table.
 export const ENCOUNTERS: EncounterBand[] = [
-  { at: 0.0, sets: [["slime"], ["kobold", "kobold"], ["slime", "kobold"]] },
-  { at: 0.18, sets: [["gbandit"], ["slime", "slime"], ["kobold", "gbandit"], ["kobold"]] },
-  { at: 0.36, sets: [["gbandit", "kobold"], ["slimebig"], ["gbandit", "gbandit"], ["slime", "kobolde"]] },
-  { at: 0.54, sets: [["slimebig", "kobold"], ["kobolde"], ["gbandit", "gmage"], ["kobolde", "gbandit"]] },
-  { at: 0.72, sets: [["kobolde", "gmage"], ["slimebig", "gmage"], ["gbandit", "kobolde"], ["gbandit", "gbandit", "gmage"]] },
+  { at: 0.0, sets: [["slime", "slime", "kobold"], ["kobold", "kobold"], ["slime", "kobold"]] },
+  { at: 0.18, sets: [["gbandit", "kobold", "kobold"], ["slime", "slime", "kobold"], ["kobold", "gbandit"], ["slime", "kobold", "kobold"]] },
+  { at: 0.36, sets: [["gbandit", "kobold", "kobold"], ["slimebig", "kobold", "kobold"], ["gbandit", "gbandit", "kobold"], ["slime", "kobolde", "kobold"]] },
+  { at: 0.54, sets: [["slimebig", "kobold", "kobold"], ["kobolde", "gbandit", "kobold"], ["gbandit", "gmage", "kobold"], ["kobolde", "gbandit", "kobold"]] },
+  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage"]] },
 ];
 
 // Zones are ordered. Beating a zone's boss opens a merchant, then the next zone; the LAST
@@ -34,10 +34,10 @@ export const ZONES: Zone[] = [
     envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren" }, bands: ENCOUNTERS },
   { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll",
     envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "vault" }, bands: [
-      { at: 0.0, sets: [["rat"], ["spider"], ["rat", "rat"]] },
-      { at: 0.2, sets: [["rat", "spider"], ["leper"], ["direrat"]] },
-      { at: 0.4, sets: [["leper", "rat"], ["spider", "bonespider"], ["direrat", "spider"]] },
-      { at: 0.6, sets: [["leper", "direrat"], ["bonespider", "spider"], ["rat", "rat", "leper"]] },
-      { at: 0.8, sets: [["bonespider", "leper"], ["direrat", "direrat", "rat"], ["leper", "bonespider", "spider"]] },
+      { at: 0.0, sets: [["rat", "rat", "spider"], ["spider", "rat"], ["rat", "rat", "spider"]] },
+      { at: 0.2, sets: [["rat", "spider", "rat"], ["leper", "rat", "rat"], ["direrat", "rat", "spider"]] },
+      { at: 0.4, sets: [["leper", "rat", "spider"], ["spider", "bonespider", "rat"], ["direrat", "spider", "rat"]] },
+      { at: 0.6, sets: [["leper", "direrat", "rat"], ["bonespider", "spider", "rat"], ["rat", "rat", "leper"]] },
+      { at: 0.8, sets: [["bonespider", "leper", "rat"], ["direrat", "direrat", "rat"], ["leper", "bonespider", "spider"]] },
     ] },
 ];

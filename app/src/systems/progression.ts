@@ -93,7 +93,7 @@ export function recalc(party: Member[]): void {
 }
 
 export function xpForLevel(l: number): number {
-  return Math.round(26 * Math.pow(l, 1.73)); // steepened from 1.65 — the 5-way XP split was over-leveling
+  return Math.round(26 * Math.pow(l, 1.85)); // steepened 1.65->1.73->1.85: full runs were reaching the L10 boss at ~L13
 }
 
 export interface LevelUp {

@@ -1,12 +1,15 @@
 // Headless full-run combat simulator for tuning difficulty. Imports the SHIPPING systems
 // directly (combatDamage / makeEnemy / loot / progression) — no DOM, no regex extraction.
-//   npm run sim            # 60 runs (default)
-//   npx tsx app/tools/balance-sim.ts 200
+//   npm run sim                         # 60 runs, "skilled" persona (models real play)
+//   npx tsx app/tools/balance-sim.ts 200            # 200 runs, skilled
+//   npx tsx app/tools/balance-sim.ts 200 reckless   # pessimistic floor
 //
-// Tune by editing data/enemies.ts (or zones.ts) then re-running. Targets:
-//   - avg end-of-fight party HP ~55-75% (fights cost real HP, net of heals)
-//   - boss / mini-boss end HP lower (~30-50%) — genuine threats
-//   - wipe rate low (<~10%) under decent play, but non-zero room for bad play
+// PERSONA matters: tune against "skilled" (it tracks real telemetry — competent play), and sanity
+// the floor with "reckless". Tune by editing data/enemies.ts (or zones.ts) then re-running. Targets
+// against the SKILLED persona:
+//   - avg end-of-fight party HP ~55-75% on randoms (fights cost real HP, net of heals)
+//   - boss / mini-boss low-point ~30-50% — genuine threats
+//   - skilled wipe rate low (~5-10%); reckless will read higher (worst-case headroom)
 
 import type { Enemy, Item, Member, Skill } from "../src/types";
 import { ri, pick, clamp } from "../src/core/rng";
@@ -20,6 +23,20 @@ import { makeEnemy, combatDamage } from "../src/systems/combat";
 
 // Field-layout constants the sim traverses (mirror controllers/field.ts).
 const BX = 58, GX = 30, ENC_MIN = 3, ENC_MAX = 6;
+
+// PLAYER PERSONA — how well the simulated player drives the party. The default models a
+// competent player (you, per telemetry: focus-fire threats, keep HP topped, open with buffs) so
+// the sim is PREDICTIVE of the real game; "reckless" keeps the old loose play as a pessimistic
+// floor for worst-case tuning. Pick with: `npm run sim 200 reckless`.
+// What separates a skilled player here is keeping HP topped (proactive + party heals) while still
+// killing fast — NOT fancy targeting (whittling the tanky champion first just lets everything else
+// hit you; finishing the soonest-to-die enemy removes attackers fastest, which both personas do).
+interface Persona { name: string; healAt: number; partyHeal: boolean; }
+const PERSONAS: Record<string, Persona> = {
+  skilled: { name: "skilled (you)", healAt: 0.68, partyHeal: true },   // heal early, top the party
+  reckless: { name: "reckless", healAt: 0.4, partyHeal: false },        // heal late, single-target — worst-case floor
+};
+const PERSONA: Persona = PERSONAS[process.argv[3]] ?? PERSONAS.skilled;
 
 const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, ilvl: 0, name: "", implicit: {}, affixes: [] };
 
@@ -37,8 +54,9 @@ function affordableDmg(m: Member): Skill | null {
       .sort((a, b) => (b.power ?? 0) * (b.hits || 1) - (a.power ?? 0) * (a.hits || 1))[0] || null
   );
 }
-function affordableHeal(m: Member): Skill | null {
-  return m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s) && s.mp <= (m.mp ?? 0) && s.type === "heal")[0] || null;
+// All affordable, usable heals (skilled play prefers a party-wide heal when several are hurt).
+function affordableHeals(m: Member): Skill[] {
+  return m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s) && s.mp <= (m.mp ?? 0) && s.type === "heal");
 }
 function dot(u: Member | Enemy): void {
   const st = u.status;
@@ -86,15 +104,24 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
     if (act.status.stun) continue;
     if (act.side === "party") {
       const m = act as Member;
-      const wounded = party.filter((x) => x.alive && x.hp < x.maxhp * 0.55).sort((a, b) => a.hp / a.maxhp - b.hp / b.maxhp);
-      const hs = affordableHeal(m);
-      if (hs && wounded.length) { m.mp = (m.mp ?? 0) - hs.mp; const t = wounded[0]; t.hp = Math.min(t.maxhp, t.hp + Math.round(m.mag * (hs.power ?? 0) + 6)); }
-      else {
-        const sk = affordableDmg(m), tgt = enemies.filter((e) => e.alive).sort((a, b) => a.hp - b.hp)[0];
-        if (!tgt) continue;
+      const foesAlive = enemies.filter((e) => e.alive);
+      if (!foesAlive.length) continue;
+      const wounded = party.filter((x) => x.alive && x.hp < x.maxhp * PERSONA.healAt).sort((a, b) => a.hp / a.maxhp - b.hp / b.maxhp);
+      const heals = affordableHeals(m);
+      const partyHeal = PERSONA.partyHeal && wounded.length >= 2 ? heals.find((s) => s.target === "allAllies") : undefined;
+      const singleHeal = heals.slice().sort((a, b) => (b.power ?? 0) - (a.power ?? 0))[0];
+      if (partyHeal && wounded.length) { // top off the whole party
+        m.mp = (m.mp ?? 0) - partyHeal.mp;
+        party.filter((x) => x.alive).forEach((t) => { t.hp = Math.min(t.maxhp, t.hp + Math.round(m.mag * (partyHeal.power ?? 0) + 6)); if (partyHeal.status?.regen) t.status.regen = partyHeal.status.regen; });
+      } else if (singleHeal && wounded.length) { // patch the most-wounded ally
+        m.mp = (m.mp ?? 0) - singleHeal.mp; const t = wounded[0];
+        t.hp = Math.min(t.maxhp, t.hp + Math.round(m.mag * (singleHeal.power ?? 0) + 6));
+      } else { // kill the soonest-to-die enemy (fewest enemy turns) — efficient for both personas
+        const tgt = foesAlive.slice().sort((a, b) => a.hp - b.hp)[0];
+        const sk = affordableDmg(m);
         if (sk && sk.mp) m.mp = (m.mp ?? 0) - sk.mp;
         const hits = sk ? sk.hits || 1 : 1;
-        const targs = sk && sk.target === "allEnemies" ? enemies.filter((e) => e.alive) : [tgt];
+        const targs = sk && sk.target === "allEnemies" ? foesAlive : [tgt];
         targs.forEach((tt) => {
           for (let h = 0; h < hits; h++) {
             if (!tt.alive) break;
@@ -225,7 +252,7 @@ for (let i = 0; i < N; i++) {
     else z.boss.push(f.minHP);
   });
 }
-console.log(`runs ${N} | full-clear wipe rate ${pc(wipes / N)} | avg final party level ${avg(lvls).toFixed(1)}`);
+console.log(`runs ${N} | persona: ${PERSONA.name} | full-clear wipe rate ${pc(wipes / N)} | avg final party level ${avg(lvls).toFixed(1)}`);
 console.log(`(low point during fight = lowest party HP%; boss = zone/final boss)`);
 for (const zi of Object.keys(byZone)) {
   const z = byZone[+zi];
