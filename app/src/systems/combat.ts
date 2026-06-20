@@ -86,7 +86,7 @@ function applyAffixes(e: Enemy, n: number): void {
  */
 export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false): Enemy {
   const d = ENEMIES[key];
-  const champHp = champion ? 1.65 : 1;
+  const champHp = champion ? 1.4 : 1;
   const champAtk = champion ? 1.3 : 1;
   const hp = Math.round(d.hp * depthHpScale(depth) * champHp);
   const atk = Math.round(d.atk * depthAtkScale(depth) * champAtk);
