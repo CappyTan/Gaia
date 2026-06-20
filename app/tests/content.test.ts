@@ -60,9 +60,11 @@ describe("DB registry", () => {
     expect(DB.enemies.keys().length).toBe(DB.enemies.all().length);
     expect(DB.enemies.rares().some((e) => e.key === "hogger")).toBe(true);
     expect(DB.enemies.bosses().some((e) => e.boss)).toBe(true);
-    // slime spawns in Greenvale (zone 0); the Cave Troll boss is in zone 1
+    // slime spawns in Greenvale (zone 0); the Hollow King boss is in Silverwood (zone 1); the Cave
+    // Troll boss is in the Duskmarsh (zone 2, after Silverwood was inserted at index 1).
     expect(DB.enemies.zonesOf("slime")).toContain(0);
-    expect(DB.enemies.zonesOf("troll")).toContain(1);
+    expect(DB.enemies.zonesOf("hollowking")).toContain(1);
+    expect(DB.enemies.zonesOf("troll")).toContain(2);
     expect(DB.enemies.inZone(0).some((e) => e.key === "slime")).toBe(true);
   });
   it("exposes the full 45-class grid with kits", () => {
@@ -201,17 +203,23 @@ describe("Riverhearth — the Trade Capital (city)", () => {
   });
 });
 
-// The between-zones HUB CHAIN (ADR 0006): beating Greenvale's boss should route the player through
-// Riverhearth → Miregard before the Duskmarsh loads, and every settlement in every zone's chain must
-// exist and be walkable — so the new flow can't strand the player mid-journey.
+// The between-zones HUB CHAIN (ADR 0006): with Silverwood inserted at index 1 the journey is
+// Greenvale → [Riverhearth] → Silverwood → [Miregard] → the Duskmarsh. Beating Greenvale's boss
+// routes the player through Riverhearth before Silverwood loads; beating Silverwood's boss routes
+// through Miregard before the Duskmarsh loads. Every settlement in every chain must exist and be
+// walkable — so the flow can't strand the player mid-journey.
 describe("zone hub chains (flow can't strand the player)", () => {
   const hubsFor = (z: typeof ZONES[number]) => (z.hubs && z.hubs.length ? z.hubs : [z.hub ?? "hearthford"]);
 
-  it("Greenvale → Riverhearth → Miregard → the Duskmarsh, in that order", () => {
+  it("Greenvale → [Riverhearth] → Silverwood → [Miregard] → the Duskmarsh, in that order", () => {
+    // zone order is greenvale, silverwood, duskmarsh.
+    expect(ZONES.map((z) => z.id)).toEqual(["greenvale", "silverwood", "duskmarsh"]);
     // The starting zone's chain is its opening village.
     expect(hubsFor(ZONES[0])).toEqual(["hearthford"]);
-    // Inbound to the Duskmarsh you pass through the capital then the marsh outpost.
-    expect(hubsFor(ZONES[1])).toEqual(["riverhearth", "miregard"]);
+    // Inbound to Silverwood you pass through the grand trade capital.
+    expect(hubsFor(ZONES[1])).toEqual(["riverhearth"]);
+    // Inbound to the Duskmarsh you pass through the grim marsh outpost.
+    expect(hubsFor(ZONES[2])).toEqual(["miregard"]);
   });
 
   it("every settlement named in any chain exists in the registry", () => {

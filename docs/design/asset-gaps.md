@@ -121,10 +121,47 @@ the layout adds hard-blocking standing-water pools that pinch the causeway. East
 | ◐ | Reed clump (`reed`) | Duskmarsh scatter (remap of `bush`) | 🌾 emoji | Walkable decoration. |
 | ◐ | Bog tuft (`bog`) | Duskmarsh scatter (remap of `rock`) | 🪨 emoji | Walkable decoration. |
 
-## Enemies & bosses
+### Greenfield **Silverwood overworld** — the ancient-forest dressing (ADR 0006)
+Silverwood (Aurelion region #2, the Ancient Forest; game zone index 1, inserted between Greenvale and
+the Duskmarsh) reads DENSER + DARKER than the open shire: the renderer (`field.draw`, gated on
+`Field.isForest()` = zone env leads with "forest") remaps the carved generic kinds to old-growth
+grove sprites, sibling to the marsh's `isMire()` remap. The winding root-trail layout + heavier
+scatter (`scatter: 0.09`) do the "old, hushed, close" feel; the new kinds give it its skin. East of
+the Elder Treant's gate, the **Sunless Grove** dungeon uses a NEW `grove` dungeon tileset prefix
+(`grove-floor`/`grove-floor2`/`grove-path`/`grove-wall`/`grove-rock`/`grove-chest`/`grove-entrance` —
+loaded by `DUNGEON_SETS[1]`; falls back to flat dungeon colours until sliced). New OVERWORLD forest
+kinds (placeholders today):
+
 | Status | Asset | Where used | Placeholder | Notes |
 |---|---|---|---|---|
-| | _(filled in as the bestiary expands)_ | | | |
+| ◐ | Grove ground (`grove-ground`/`grove-ground2`) | Silverwood open ground (remap of `grass`) | flat `#2e4a26` + deep canopy shade | Mossy walkable forest floor; two-variant for texture (hash-picked). |
+| ◐ | Root trail (`grove-path`) | Silverwood roads (remap of `path`) | falls back to grove-ground fill | The root-worn trail the player winds along east. |
+| ◐ | Ancient tree (`oldtree`) | Silverwood walls (remap of `tree`) | 🌲 emoji on grove-ground | Towering old-growth trunk — the forest wall + the gate chokepoint. Wants a darker/denser look than Greenvale's `tree`. |
+| ◐ | Fern clump (`fern`) | Silverwood scatter (remap of `bush`) | 🌿 emoji | Walkable decoration. |
+| ◐ | Mushroom (`mushroom`) | Silverwood scatter (remap of `rock`) | 🍄 emoji | Walkable decoration. |
+
+Plus a NEW dungeon tileset for the **Sunless Grove** (`grove-*`, see above) — a hollowed-heartwood
+crawl distinct from the `warren` (Bandit Warren) and `vault` (Drowned Vault) sets. The `lair` tile is
+reused for the Mossback Tortoise's den in the southern mossbed (same overworld den/burrow sprite as
+Hogger's; no new art).
+
+## Enemies & bosses
+The **Silverwood roster** (Dara's new bestiary, `data/enemies.ts`) ships as emoji placeholders until
+sliced. Attunements are SPREAD across the ring (no region theme). Names/lore flagged for
+requiem-canon-keeper to vet.
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Direwolf (`dwolf`) | Silverwood random | 🐺 emoji | ANIMA, fast pack beast (the teach enemy). |
+| ◐ | Thornling (`thornling`) | Silverwood random | 🌿 emoji | QUANTA, poison-on-hit plant. |
+| ◐ | Sylvan Archer (`sylvanarcher`) | Silverwood random | 🏹 emoji | SOL, high-ATK skirmisher. |
+| ◐ | Gloom Wisp (`gloomwisp`) | Silverwood random | 🔮 emoji | UMBRAXIS caster (`hex`). |
+| ◐ | Barkhide Brute (`barkbrute`) | Silverwood random | 🪵 emoji | NOX, tanky armored bruiser. |
+| ◐ | Spriggan (`spriggan`) | Silverwood random | 🍂 emoji | SOL, life-leech attacker. |
+| ◐ | Elder Treant (`treantelder`) | Silverwood mini-boss (the gate) | 🌳 emoji | ANIMA mini-boss; gate to the Sunless Grove. |
+| ◐ | The Hollow King (`hollowking`) | Silverwood boss (grove arena) | 🦌 emoji | QUANTA zone boss. |
+| ◐ | Mossback Tortoise (`mossback`) | Silverwood rare (grove lair + random) | 🐢 emoji | ANIMA ultra-rare, huge armor / huge XP (Metal-Slime tier). |
+| | _(more filled in as the bestiary expands)_ | | | |
 
 ---
 
