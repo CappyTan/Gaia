@@ -15,9 +15,10 @@ import { Overlay } from "./ui/overlay";
 import { Dialogue } from "./ui/dialogue";
 import { Music } from "./audio/music";
 import { Telemetry } from "./telemetry/telemetry";
+import { Save } from "./systems/save";
 
 // Publish controllers for the HTML's inline onclick handlers.
-Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, Overlay, Dialogue, Music, Telemetry });
+Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, Overlay, Dialogue, Music, Telemetry, Save });
 
 // Keyboard on the field: while a conversation is open, any movement/confirm key advances it;
 // otherwise the keys walk the map.
@@ -49,6 +50,9 @@ Music.load();
 );
 const verTag = $("#verTag");
 if (verTag) verTag.textContent = `Gaia ${GAME_VERSION}`;
+// Offer Continue on the title only when a resumable save exists (ADR 0007).
+const continueBtn = $("#continueBtn");
+if (continueBtn) continueBtn.style.display = Save.hasSave() ? "" : "none";
 Screens.show("title");
 
 // Dev-only: surface content-integrity problems in the console (the DB validator). Tree-shaken out

@@ -337,6 +337,7 @@ export const Battle = {
         ? () => Game.victory()
         : () => Game.enterNextHubChain() // walk the next zone's hub chain (e.g. Riverhearth → Miregard)
       : () => Screens.show("field");
+    Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007)
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal), 500);
   },
   showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean): void {

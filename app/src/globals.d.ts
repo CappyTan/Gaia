@@ -13,6 +13,7 @@ import type { Overlay } from "./ui/overlay";
 import type { Dialogue } from "./ui/dialogue";
 import type { Music } from "./audio/music";
 import type { Telemetry } from "./telemetry/telemetry";
+import type { Save } from "./systems/save";
 
 declare global {
   interface Window {
@@ -27,6 +28,7 @@ declare global {
     Dialogue: typeof Dialogue;
     Music: typeof Music;
     Telemetry: typeof Telemetry;
+    Save: typeof Save;
     webkitAudioContext?: typeof AudioContext;
   }
 }

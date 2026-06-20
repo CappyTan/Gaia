@@ -98,6 +98,7 @@ export const UI = {
     Game.inventory.splice(invIdx, 1);
     if (old) Game.inventory.push(old);
     recalc(Game.party);
+    Game.saveNow(); // autosave on equip change (ADR 0007)
     this.equipPicker(memberId, slot);
   },
   // Spend one earned MNA point into an Attunement tree (manual allocation).
@@ -212,6 +213,7 @@ export const UI = {
     Game.inventory.splice(invIdx, 1);
     if (old) Game.inventory.push(old);
     recalc(Game.party);
+    Game.saveNow(); // autosave on equip change (ADR 0007)
     this.openInventory();
   },
 };
