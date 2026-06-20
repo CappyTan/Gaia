@@ -7,7 +7,7 @@
 // field renderer/`passable` understand those kinds. Buildings are walk-in: stepping onto the
 // door tile fires the building's service (routed in Field.townTouch → Game.open*).
 
-export type TownPOI = "inn" | "shop" | "smith" | "revive" | "exit";
+export type TownPOI = "inn" | "shop" | "smith" | "revive" | "stash" | "exit";
 
 /** An NPC the player can walk up to (or onto) and talk to. `lines` are spoken in order. */
 export interface TownNPC {
@@ -49,7 +49,7 @@ export interface Settlement {
 // Map a layout glyph to the tile kind the field renderer draws + `passable` checks.
 export const TOWN_GLYPHS: Record<string, string> = {
   "#": "twall", ".": "town-cobble", ",": "town-grass", "+": "town-flower",
-  "I": "t-inn", "M": "t-shop", "B": "t-smith", "R": "t-revive", "E": "t-exit",
+  "I": "t-inn", "M": "t-shop", "B": "t-smith", "R": "t-revive", "V": "t-stash", "E": "t-exit",
   "F": "t-fountain", "T": "t-tree", "W": "t-well", "H": "t-house",
   // marsh-outpost kinds (Miregard): plank boardwalk over bog, standing water, stilt-houses, dead trees, lantern posts
   "=": "town-plank", "~": "town-bog", "h": "t-stilt", "t": "t-deadtree", "L": "t-lantern",
@@ -60,7 +60,7 @@ export const TOWN_GLYPHS: Record<string, string> = {
 
 // Which POI a building tile triggers when walked onto.
 export const POI_OF: Record<string, TownPOI> = {
-  "t-inn": "inn", "t-shop": "shop", "t-smith": "smith", "t-revive": "revive", "t-exit": "exit",
+  "t-inn": "inn", "t-shop": "shop", "t-smith": "smith", "t-revive": "revive", "t-stash": "stash", "t-exit": "exit",
 };
 
 // Town tiles the player cannot walk through.
@@ -97,7 +97,7 @@ const HEARTHFORD: Settlement = {
     "#,..,,...+FF+..,,..,..,,#",
     "#T,.,,........,,,.,..,,T#",
     "#,,...........,,,...,,,,#",
-    "#,,..B.....,,..R....,,,,#",
+    "#,,..B....V,,..R....,,,,#",
     "#H,,,...........,,,H,,,,#",
     "#,,T,,...,,,,,,..,T,,,,,#",
     "#,,,,,,.........,,,,,,,,#",

@@ -235,9 +235,13 @@ bodies={}; her={}
 # the box (same scale + position), so the weapon rig coordinates (data/art.ts) map 1:1 to the
 # figure for every class — without this, trim-varying widths drift the held weapon off the body.
 DOLL_W, DOLL_H = 248, 296   # 62:74 * 4
-def fit_body(im, wcap=0.94, hfrac=0.99, bottom=0.99):
+def fit_body(im, hfrac=0.97, wcap=0.99, bottom=0.99):
+    # Normalize every hero to the SAME on-screen size: scale the figure to a fixed fraction of the
+    # canvas HEIGHT (so a rifle/two-hander hero is the same height as a sword hero), only shrinking
+    # if that would overrun the canvas width. Centred horizontally, feet bottom-aligned.
     im=im.convert("RGBA"); iw,ih=im.size
-    r=min(DOLL_H*hfrac/ih, DOLL_W*wcap/iw)
+    r=DOLL_H*hfrac/ih
+    if iw*r>DOLL_W*wcap: r=DOLL_W*wcap/iw
     fig=im.resize((max(1,int(iw*r)), max(1,int(ih*r))), Image.LANCZOS)
     canvas=Image.new("RGBA",(DOLL_W,DOLL_H),(0,0,0,0))
     canvas.alpha_composite(fig,((DOLL_W-fig.width)//2, max(0,int(DOLL_H*bottom)-fig.height)))

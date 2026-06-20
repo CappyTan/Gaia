@@ -122,6 +122,18 @@ him=Image.open(os.path.join(REF,"rare-hogger.png")); HW,HH=him.size
 c=slice_cell(him, (0, int(HH*0.13), HW, HH), luma=20)
 save(c, "hogger"); out["hogger"]=c
 
+# ---- SOURCE 3: omega boss art. Single full figures on PURE BLACK (no vignette), bright/glowing,
+#      used by the ENRAGE phase (alpha->omega crossfade at 20% HP). Knocked out + fit to the SAME
+#      199x300 canvas as the alpha sprite so only the ART changes on the battlefield, not the size.
+OMEGA={
+ "kingpin-omega": "boss-kingpin-omega.png",  # Greenvale Kingpin, enraged (SOL fire)
+ "troll-omega":   "boss-troll-omega.png",    # Cave Troll, enraged (NOX ice)
+}
+for key,fn in OMEGA.items():
+    oi=Image.open(os.path.join(REF,fn)); OW,OH=oi.size
+    c=slice_cell(oi, (0,0,OW,OH), luma=24)
+    save(c, key); out[key]=c
+
 print("sliced enemies:", ", ".join(f"{k} {v.size[0]}x{v.size[1]}" for k,v in out.items()))
 
 if PREVIEW:
