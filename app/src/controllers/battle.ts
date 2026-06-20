@@ -364,7 +364,7 @@ export const Battle = {
     // Painterly terrain backgrounds (sliced from Dara's terrain sheet). Game env -> bg slug;
     // a dark scrim keeps sprites + bars legible over the bright art. Falls back to the original
     // CSS gradient if the image isn't present.
-    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave" };
+    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave", warren: "warren", vault: "vault" };
     const fallback: Record<string, string> = {
       plains: "radial-gradient(130% 95% at 50% 22%, #34465a 0%, #131a26 50%, #06090f 100%)",
       forest: "radial-gradient(130% 95% at 50% 22%, #243a2a 0%, #0d1611 50%, #060a07 100%)",
@@ -372,6 +372,8 @@ export const Battle = {
       mountains: "radial-gradient(130% 95% at 50% 22%, #2c3645 0%, #131722 50%, #070a0e 100%)",
       mire: "radial-gradient(130% 95% at 50% 22%, #1f3a36 0%, #0c1a18 50%, #050d0c 100%)",
       hollow: "radial-gradient(130% 95% at 50% 22%, #2a2440 0%, #120e22 50%, #07050e 100%)",
+      warren: "radial-gradient(130% 95% at 50% 22%, #3a2a18 0%, #190f08 50%, #0a0604 100%)",
+      vault: "radial-gradient(130% 95% at 50% 22%, #18283a 0%, #0a1420 50%, #050a0e 100%)",
     };
     const bg = $("#battleBg")!;
     const url = assetUrl(`backgrounds/${ENV_BG[this.env] || "plains"}.png`);
