@@ -149,6 +149,50 @@ for name,fn in DUNGEONS.items():
     for (r,c),cn in DOBJ.items():
         t=remove_bg(dim.crop((DFX[c][0],DFY[r][0],DFX[c][1],DFY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}-{cn}.png")
 
+# ---- TOWN tileset (issue #34): Dara's gold-on-dark town montage (1536x1024). NOT a clean grid —
+#      buildings/objects are irregularly placed, so each sprite has a hand-measured crop box (x0,y0,
+#      x1,y1) read off the sheet by eye. Ground swatches are kept OPAQUE and interior-cropped to
+#      64x64 so they tile seamlessly (like the field/dungeon floors); buildings + props get the dark
+#      bg knocked out via remove_bg + thumbnail so they sit over a ground tile. Filenames match what
+#      the Field controller already looks up under field/. -------------------------------------
+tim=Image.open(os.path.join(REF,"town-tiles.png"))
+# GROUND swatches (opaque, interior-cropped -> 64x64). Boxes lifted from the bottom swatch row.
+# Swatch cells are separated by a thin dark painted seam; boxes below are measured to the clean
+# interior of each cell (verified by a column-darkness seam scan), so only a small trim is needed.
+TOWN_GROUND={
+ "town-cobble": (192,750,306,864),    # irregular grey cobblestone
+ "town-cobble2":(338,750,448,860),    # radial/circular cobble variant (texture break-up)
+ "town-dirt":   (590,752,688,850),    # brown dirt / path (diagonal-crack pattern)
+ "town-grass":  (700,748,760,856),    # olive grass (gold-on-dark reads tan-olive, not bright green)
+}
+TGIN=8   # trim the painted seam between swatches before tiling
+for name,(x0,y0,x1,y1) in TOWN_GROUND.items():
+    save(tim.crop((x0+TGIN,y0+TGIN,x1-TGIN,y1-TGIN)).convert("RGBA").resize((64,64)),"field",f"{name}.png")
+# OBJECTS. NOTE: unlike the figure/enemy sheets, this town art has NO luma gap between subject and
+# surround — the blue-grey building roofs read at the same luma (~25-35) as the ambient dark bg, and
+# the props sit on painted COBBLE ground (not a dark void). A border flood-fill knockout therefore
+# eats the buildings/props themselves. So these are cropped OPAQUE, tight to each painted vignette
+# (each is a self-contained gold-on-dark scene element that composites as a painterly tile). Buildings
+# keep their baked-in INN/SUPPLIES/BLACKSMITH/REVIVE labels — they read as signage.
+TOWN_OBJ={
+ "town-inn":     ((8,18,302,300),     (160,160)),  # blue-roof cottage, "INN"
+ "town-shop":    ((442,28,768,302),   (160,160)),  # awning storefront, "SUPPLIES"
+ "town-smith":   ((812,12,1090,300),  (160,160)),  # forge w/ glowing fire, "BLACKSMITH"
+ "town-revive":  ((1182,8,1492,304),  (160,160)),  # blue-glow crystal shrine, "REVIVE"
+ "town-fountain":((10,425,338,730),   (150,150)),  # octagonal fountain on cobble pad
+ "town-exit":    ((1338,432,1502,668),(150,150)),  # stone archway = town gate / leave marker
+ # bonus props (used later)
+ "town-well":    ((432,358,512,486),  (96,110)),
+ "town-stall":   ((544,562,720,730),  (140,140)),  # blue/white striped awning market stall
+ "town-statue":  ((1008,356,1115,564),(110,150)),  # figure on pedestal
+ "town-signpost":((812,376,880,510),  (90,130)),   # post w/ arrow signs
+ "town-barrel":  ((758,894,836,988),  (90,110)),
+ "town-crate":   ((852,890,926,988),  (96,110)),
+}
+town={}
+for name,(box,thumb) in TOWN_OBJ.items():
+    t=tim.crop(box).convert("RGBA"); t.thumbnail(thumb); save(t,"field",f"{name}.png"); town[name]=t
+
 # ---- enemies (Greenvale bestiary, lower figure band) ----
 EB={"bandit":(12,380,300,815),"cutpurse":(312,380,600,815),"marauder":(614,380,902,815),
     "archer":(916,380,1204,815),"brute":(1218,380,1524,815)}

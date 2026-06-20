@@ -27,6 +27,9 @@ export const Field = {
   ENC_MIN: 3, ENC_MAX: 6,
   zoneIndex: 0,
   enteredDungeon: false,
+  // TOWN: a real walkable hub (the Greenvale Outpost) reusing this same canvas/camera/dpad — set
+  // between zones in place of the old modal hub. No encounters; buildings are walk-in POIs.
+  townMode: false,
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
   tiles: {} as Record<string, HTMLImageElement>, // loaded field sprites (empty until ready)
@@ -36,6 +39,8 @@ export const Field = {
   loadTiles(): void {
     const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "player"];
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
+    // town sprites (resolve to emoji fallback until the tileset is sliced — see art pipeline)
+    for (const n of ["town-cobble", "town-cobble2", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit"]) names.push(n);
     names.forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
@@ -86,6 +91,7 @@ export const Field = {
     this.tile = Math.max(28, Math.floor(Math.min(w / 13, h / 9))); // never 0 (would blank the map)
   },
   genMap(): void {
+    this.townMode = false; this.W = 60; this.H = 18; // a zone map (restore dims if leaving a town)
     this.map = [];
     for (let y = 0; y < this.H; y++) {
       const row: string[] = [];
@@ -116,17 +122,48 @@ export const Field = {
     this.map[this.boss.y][this.boss.x] = "boss";
     this.map[9][1] = "path";
   },
+  // ── TOWN ── Enter the walkable Greenvale Outpost (called after a zone boss, via Game.openTown).
+  // A compact cobbled plaza ringed by the four service buildings; walk onto a building's door to
+  // use it, onto the gate to leave. Stock is rolled by the caller (Game.openTown).
+  enterTown(): void {
+    this.genTown();
+    Screens.show("field");
+    this.draw(); this.hint();
+    Overlay.show(`<h2 class="title-gold">Greenvale Outpost</h2><p class="small">A safe haven between the roads. Visit the Inn to rest, the Merchant and Smith for gear, the shrine to revive the fallen — then take the gate onward.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Enter town</button></div>`);
+  },
+  genTown(): void {
+    this.townMode = true;
+    this.W = 15; this.H = 11;
+    this.map = [];
+    for (let y = 0; y < this.H; y++) {
+      const row: string[] = [];
+      for (let x = 0; x < this.W; x++) row.push(x === 0 || y === 0 || x === this.W - 1 || y === this.H - 1 ? "twall" : "town-cobble");
+      this.map.push(row);
+    }
+    // service buildings (walk onto the door tile to enter) ringing the plaza
+    this.map[2][3] = "t-inn";        // top-left  — Inn (rest)
+    this.map[2][11] = "t-shop";      // top-right — Supplies (merchant)
+    this.map[8][3] = "t-smith";      // bot-left  — Blacksmith
+    this.map[8][11] = "t-revive";    // bot-right — Revive shrine
+    this.map[5][7] = "t-fountain";   // centrepiece (impassable decoration)
+    this.map[this.H - 1][7] = "t-exit"; // gate in the south wall — leave the outpost
+    this.px = 7; this.py = this.H - 2; // enter just inside the gate
+  },
   progress(): number { return clamp((this.px - 1) / (this.boss.x - 1), 0, 1); },
   passable(x: number, y: number): boolean {
     if (x < 0 || y < 0 || x >= this.W || y >= this.H) return false;
-    return this.map[y][x] !== "tree";
+    const cell = this.map[y][x];
+    if (this.townMode) return cell !== "twall" && cell !== "t-fountain"; // buildings/gate are walk-in
+    return cell !== "tree";
   },
   move(dx: number, dy: number): void {
     if (Game.state !== "field" && Screens.cur !== "field") return;
     if (Overlay.isOn()) return;
     const nx = this.px + dx, ny = this.py + dy;
     if (!this.passable(nx, ny)) return;
-    this.px = nx; this.py = ny; Game.steps++; Telemetry.step();
+    this.px = nx; this.py = ny;
+    if (this.townMode) { this.draw(); this.hint(); this.townTouch(this.map[ny][nx]); return; } // no steps/encounters in town
+    Game.steps++; Telemetry.step();
     this.draw(); this.hint();
     const cell = this.map[ny][nx];
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
@@ -141,6 +178,14 @@ export const Field = {
     }
     this.stepsToEncounter--;
     if (this.stepsToEncounter <= 0) { this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX); this.rollEncounter(); }
+  },
+  // Walking onto a town POI tile opens its service (Game owns the run-state actions).
+  townTouch(cell: string): void {
+    if (cell === "t-inn") Game.openInn();
+    else if (cell === "t-shop") Game.openMerchant();
+    else if (cell === "t-smith") Game.openSmith();
+    else if (cell === "t-revive") Game.openRevive();
+    else if (cell === "t-exit") Game.confirmLeaveTown();
   },
   rollEncounter(): void {
     const p = this.progress(), bands = this.zone().bands;
@@ -183,6 +228,15 @@ export const Field = {
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
   hint(): void {
+    const set = (sel: string, txt: string) => { const e = $(sel); if (e) e.textContent = txt; };
+    const party = $("#fieldParty");
+    if (party) party.innerHTML = Game.party.map((m) => `<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
+    set("#fieldGold", String(Game.gold));
+    if (this.townMode) {
+      set("#fieldHint", "Walk to a building to use it; step onto the south gate to head out.");
+      set("#fieldZone", `Greenvale Outpost · Zone ${this.zoneIndex + 1}`);
+      return;
+    }
     const p = this.progress(), z = this.zone(), name = z.name;
     const miniNm = ENEMIES[z.mini].name, bossNm = ENEMIES[z.boss].name;
     let msg: string;
@@ -191,12 +245,30 @@ export const Field = {
     else if (p < 0.12) msg = `Head east through ${name}. Search off the path for treasure.`;
     else if (p > 0.88) msg = `${z.dungeon.name} lies just ahead.`;
     else msg = `${Math.round(p * 100)}% through ${name}. Keep moving east.`;
-    const set = (sel: string, txt: string) => { const e = $(sel); if (e) e.textContent = txt; };
     set("#fieldHint", msg);
     set("#fieldZone", `${this.inDungeon() ? z.dungeon.name : name} · ${Game.encountersWon} cleared`);
-    set("#fieldGold", String(Game.gold));
-    const fp = $("#fieldParty");
-    if (fp) fp.innerHTML = Game.party.map((m) => `<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
+  },
+  // One town tile: cobble ground (+impassable wall) then the building/decoration sprite with a
+  // gold label, falling back to emoji until the tileset art is sliced in.
+  drawTownCell(c: CanvasRenderingContext2D, T: Record<string, HTMLImageElement>, cell: string, mx: number, my: number, sx: number, sy: number, t: number): void {
+    const isWall = cell === "twall";
+    let g = isWall ? "" : "town-cobble";
+    if (g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
+    const gimg = T[g];
+    if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
+    else { c.fillStyle = isWall ? "#241f17" : "#6b5d44"; c.fillRect(sx, sy, t, t); if (!isWall && (mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.07)"; c.fillRect(sx, sy, t, t); } }
+    const POI: Record<string, [string, string, number, string]> = {
+      "t-inn": ["town-inn", "🏠", 1.6, "Inn"], "t-shop": ["town-shop", "🛒", 1.6, "Supplies"],
+      "t-smith": ["town-smith", "🔨", 1.6, "Smith"], "t-revive": ["town-revive", "🔮", 1.6, "Revive"],
+      "t-fountain": ["town-fountain", "⛲", 1.2, ""], "t-exit": ["town-exit", "🚪", 1.1, "Leave →"],
+    };
+    const poi = POI[cell];
+    if (poi) {
+      const img = T[poi[0]];
+      if (img) { const h = t * poi[2], w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
+      else { c.font = `${t * 0.74}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
+      if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
+    } else if (isWall && !gimg) { c.font = `${t * 0.7}px serif`; c.fillStyle = "#3a5a2a"; c.fillText("🌳", sx + t / 2, sy + t / 2); }
   },
   draw(): void {
     const c = this.ctx, t = this.tile;
@@ -214,6 +286,7 @@ export const Field = {
         if (mx >= this.W || my >= this.H) continue;
         const cell = this.map[my][mx];
         const sx = (mx - camx) * t, sy = (my - camy) * t;
+        if (this.townMode) { this.drawTownCell(c, T, cell, mx, my, sx, sy, t); continue; }
         const inDun = mx > this.gate.x; // east of the gate = the zone's dungeon (its own tileset)
         const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale; chest/boss/
