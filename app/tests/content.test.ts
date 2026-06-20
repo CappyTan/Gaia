@@ -98,6 +98,23 @@ describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock)", () => {
         for (const ch of L.chests) expect(seen[ch.y][ch.x]).toBe(true);
         if (L.lair) expect(seen[L.lair.y][L.lair.x]).toBe(true);
       });
+      // OPEN-WORLD (Dara 2026-06-20): a zone must be a NETWORK with loops, not a spine. Prove it by
+      // counting REDUNDANT through-routes — paths whose individual removal still leaves the boss
+      // reachable. A pure spine/tree has ZERO redundant carriers (cut any link → severed); a mesh
+      // with loops has several. Require ≥2 redundant carriers on BOTH sides of the gate (overworld
+      // and dungeon), i.e. genuine alternate routes that rejoin — "could you draw it as one trunk? no".
+      const reachWithoutPath = (which: "fieldPaths" | "dunPaths", idx: number): boolean => {
+        const clone: ZoneLayout = JSON.parse(JSON.stringify(L));
+        clone[which].splice(idx, 1);
+        const seen = reachable(carveZone(clone), clone.spawn);
+        return !!seen[L.boss.y]?.[L.boss.x];
+      };
+      const redundant = (which: "fieldPaths" | "dunPaths") =>
+        L[which].reduce((n, _p, i) => n + (reachWithoutPath(which, i) ? 1 : 0), 0);
+      it("is an OPEN-WORLD network — multiple loop-redundant routes overworld AND dungeon (not a spine)", () => {
+        expect(redundant("fieldPaths")).toBeGreaterThanOrEqual(2); // ≥2 alternate overworld routes
+        expect(redundant("dunPaths")).toBeGreaterThanOrEqual(2);   // ≥2 alternate dungeon arms
+      });
     });
   }
 });
