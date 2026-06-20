@@ -132,6 +132,17 @@ describe("world map — placement + region graph (ADR 0008 Stage 1)", () => {
       }
   });
 
+  it("each region's worldRect width/height equals that region's overworld layout w/h", () => {
+    // World-space placement and the engine's grid must agree on a region's size — otherwise the
+    // seamless renderer (Chunk B) would draw a region wider/taller than it actually generates.
+    for (const r of WORLD_REGIONS) {
+      const rect = rectOf(r.id);
+      const z = ZONES.find((zz) => zz.id === r.id)!;
+      expect(rect.x1 - rect.x0, `${r.id} worldRect width must equal layout.w`).toBe(z.layout.w);
+      expect(rect.y1 - rect.y0, `${r.id} worldRect height must equal layout.h`).toBe(z.layout.h);
+    }
+  });
+
   it("the placement matches the laid-out Aurelion geography", () => {
     // Greenvale start at origin; Silverwood directly east; Duskmarsh directly south of Silverwood.
     expect(worldRegion("greenvale")!.origin).toEqual({ wx: 0, wy: 0 });

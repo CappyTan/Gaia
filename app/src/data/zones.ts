@@ -26,13 +26,24 @@ export interface ZoneLayout {
   gate: Pt;             // mid-zone chokepoint (the mini-boss tile in the tree wall)
   gateWallX: number;    // x of the full-height chokepoint wall (the gate sits in it)
   boss: Pt;             // the zone boss tile (deep east, in the dungeon)
+  /**
+   * The DUNGEON MOUTH (ADR 0008 Stage 2): the overworld POI the mini-boss guards and the player
+   * steps onto to descend into the zone's discrete dungeon. Same tile as the old `gate` — kept
+   * separate so the overworld-only generator (`genOverworld`) places the mouth without a gate wall.
+   */
+  mouth: Pt;
   /** Overworld (west of the gate wall) carved space + roads. */
   fieldRects: Rect[];
   fieldPaths: Path[];
-  /** Dungeon (east of the gate wall) carved rooms + corridors. */
+  /**
+   * @deprecated DUNGEON data has MOVED to `Zone.dungeon.layout` (rebased to its own grid, x from 0).
+   * These fields remain ONLY so step-2's `genMap` can rebuild the byte-identical combined grid while
+   * Silverwood/Duskmarsh still run the legacy path. Greenvale carries empty arrays here (its dungeon
+   * lives entirely in `dungeon.layout`). Removed when all zones move to genOverworld/genDungeon.
+   */
   dunRects: Rect[];
   dunPaths: Path[];
-  /** Treasure chests (overworld + dungeon). Each gets a guaranteed walkable approach. */
+  /** Treasure chests — OVERWORLD ONLY now (dungeon chests live in `DungeonLayout.chests`). */
   chests: Pt[];
   /** Optional points of interest: e.g. a rare-monster lair the player can stumble into. */
   lair?: Pt;
@@ -49,6 +60,24 @@ export interface ZoneLayout {
   water?: Rect[];
 }
 
+/**
+ * A dungeon's OWN tile grid (ADR 0008 Stage 2) — decoupled from the overworld region. The player
+ * descends through the overworld `mouth` into this separate space (`genDungeon`). x is rebased to
+ * start at 0 (independent of the overworld's width / the old gate wall). Same carve vocabulary as
+ * the overworld (rooms = rects, paths = polylines), flood-filled to keep boss + chests reachable.
+ */
+export interface DungeonLayout {
+  w: number;            // dungeon grid width  (tiles)
+  h: number;            // dungeon grid height (tiles)
+  entry: Pt;            // where the player lands on descending (the mouth's inside)
+  gate: Pt;             // the door tile back out to the overworld (usually == entry)
+  boss: Pt;             // the dungeon boss tile (the zone boss lives HERE)
+  rooms: Rect[];        // carved chambers
+  paths: Path[];        // corridors joining them
+  chests: Pt[];         // dungeon treasure (each gets a walkable approach)
+  scatter?: number;     // cosmetic rock density (0–1)
+}
+
 export interface Zone {
   id: string;
   name: string;
@@ -57,8 +86,12 @@ export interface Zone {
   boss: string;
   envs: string[];
   bands: EncounterBand[];
-  /** The dungeon past the mini-boss gate: own name + environment, tougher enemies. */
-  dungeon: { name: string; env: string };
+  /**
+   * The dungeon past the mini-boss mouth: own name + environment, tougher enemies, and (ADR 0008
+   * Stage 2) its own decoupled tile grid (`layout`, x rebased to 0). The zone boss lives in
+   * `dungeon.layout.boss`.
+   */
+  dungeon: { name: string; env: string; layout: DungeonLayout };
   /** Bespoke layout consumed by `controllers/field.genMap` (ADR 0006). */
   layout: ZoneLayout;
   /**
@@ -105,6 +138,7 @@ export const ENCOUNTERS: EncounterBand[] = [
 // (anti-soft-lock); the loops mean you can never be walled into a pocket.
 const GREENVALE_LAYOUT: ZoneLayout = {
   w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 12 }, gateWallX: 40, boss: { x: 60, y: 11 },
+  mouth: { x: 40, y: 12 }, // the dungeon mouth = the old gate tile (the Brigadier guards it)
   fieldRects: [
     { x: 1, y: 10, w: 7, h: 6 },    // spawn green (the village road mouth)
     { x: 10, y: 8, w: 7, h: 8 },    // WEST HUB — the first crossroads, three roads leave it
@@ -125,27 +159,39 @@ const GREENVALE_LAYOUT: ZoneLayout = {
     [{ x: 15, y: 17 }, { x: 15, y: 15 }], // cross-link: meadow ↔ west hub
     [{ x: 27, y: 6 }, { x: 27, y: 9 }],   // cross-link: NE thicket ↔ central hub
   ],
-  dunRects: [
-    { x: 42, y: 8, w: 6, h: 8 },    // warren entry hall (the fork)
-    { x: 50, y: 3, w: 7, h: 5 },    // north guard chamber (chest, on the loop)
-    { x: 50, y: 16, w: 7, h: 5 },   // south store room (chest, on the loop)
-    { x: 54, y: 8, w: 5, h: 7 },    // antechamber hub (the loop rejoins here)
-    { x: 57, y: 8, w: 6, h: 6 },    // the Kingpin's arena
-  ],
-  dunPaths: [
-    [{ x: 41, y: 12 }, { x: 45, y: 12 }],                          // gate → entry hall
-    [{ x: 45, y: 10 }, { x: 53, y: 5 }, { x: 56, y: 9 }],          // hall → north chamber → antechamber
-    [{ x: 45, y: 14 }, { x: 53, y: 18 }, { x: 56, y: 13 }],        // hall → south store → antechamber (the LOOP)
-    [{ x: 56, y: 11 }, { x: 59, y: 11 }],                          // antechamber → arena (boss)
-  ],
+  dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (GREENVALE_DUNGEON) — ADR 0008 Stage 2
   chests: [
     { x: 15, y: 3 },   // orchard (north road)
     { x: 14, y: 20 },  // meadow (south road)
     { x: 27, y: 3 },   // NE thicket (north ridge crest, off the safe road)
-    { x: 53, y: 18 },  // south store room (dungeon loop, richest)
-    { x: 53, y: 4 },   // north guard chamber (dungeon loop, breather reward)
   ],
   lair: { x: 27, y: 20 }, // Hogger, deep in the southern grove off the south loop
+  scatter: 0.06,
+};
+
+// The Bandit Warren as its OWN grid (ADR 0008 Stage 2): the old Greenvale dungeon (everything east
+// of the gate wall at x=40), x rebased by -gateWallX so the gate stub at world-x 41 becomes local
+// x=1 (a clean west border at x=0). Width = 64-40 = 24; height carries over (24). The combined
+// genMap reconstructs the byte-identical old grid by adding gateWallX back. Kingpin → 20,11.
+const GREENVALE_DUNGEON: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  rooms: [
+    { x: 2, y: 8, w: 6, h: 8 },     // warren entry hall (the fork)
+    { x: 10, y: 3, w: 7, h: 5 },    // north guard chamber (chest, on the loop)
+    { x: 10, y: 16, w: 7, h: 5 },   // south store room (chest, on the loop)
+    { x: 14, y: 8, w: 5, h: 7 },    // antechamber hub (the loop rejoins here)
+    { x: 17, y: 8, w: 6, h: 6 },    // the Kingpin's arena
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → entry hall
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north chamber → antechamber
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south store → antechamber (the LOOP)
+    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+  ],
+  chests: [
+    { x: 13, y: 18 },  // south store room (loop, richest)
+    { x: 13, y: 4 },   // north guard chamber (loop, breather reward)
+  ],
   scatter: 0.06,
 };
 
@@ -166,6 +212,7 @@ const GREENVALE_LAYOUT: ZoneLayout = {
 // reachable (anti-soft-lock); the loops mean no pocket can wall you in.
 const SILVERWOOD_LAYOUT: ZoneLayout = {
   w: 60, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 36, y: 12 }, gateWallX: 36, boss: { x: 56, y: 11 },
+  mouth: { x: 36, y: 12 },
   fieldRects: [
     { x: 1, y: 10, w: 6, h: 6 },    // spawn glade (the forest road mouth)
     { x: 9, y: 9, w: 6, h: 7 },     // WEST HOLLOW hub — three trails leave it
@@ -186,28 +233,37 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
     [{ x: 13, y: 17 }, { x: 13, y: 15 }],  // cross-link: sunken hollow ↔ west hub
     [{ x: 24, y: 7 }, { x: 24, y: 10 }],   // cross-link: NE canopy ↔ central hub
   ],
-  dunRects: [
-    { x: 38, y: 8, w: 6, h: 8 },    // grove root-hall (the fork)
-    { x: 46, y: 3, w: 6, h: 5 },    // north hollow bole (chest, on the loop)
-    { x: 45, y: 16, w: 7, h: 5 },   // south fungal gallery (chest, on the loop)
-    { x: 50, y: 8, w: 5, h: 7 },    // root-stair antechamber hub (the loop rejoins)
-    { x: 53, y: 8, w: 6, h: 6 },    // the Hollow King's heartwood arena
-  ],
-  dunPaths: [
-    [{ x: 37, y: 12 }, { x: 41, y: 12 }],                          // gate → root-hall
-    [{ x: 41, y: 10 }, { x: 49, y: 5 }, { x: 52, y: 9 }],          // hall → north bole → antechamber
-    [{ x: 41, y: 14 }, { x: 48, y: 18 }, { x: 52, y: 13 }],        // hall → south gallery → antechamber (the LOOP)
-    [{ x: 52, y: 11 }, { x: 55, y: 11 }],                          // antechamber → arena (boss)
-  ],
+  dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (SILVERWOOD_DUNGEON) — ADR 0008 Stage 2
   chests: [
     { x: 14, y: 4 },   // north fern hollow (north trail)
     { x: 13, y: 20 },  // south sunken-root hollow (south trail)
     { x: 25, y: 4 },   // NE canopy nook (north crest, off the safe trail)
-    { x: 48, y: 18 },  // south fungal gallery (dungeon loop, rich)
-    { x: 49, y: 4 },   // north hollow bole (dungeon loop, breather)
   ],
   lair: { x: 24, y: 20 }, // the Mossback Tortoise dens deep in the southern mossbed off the south loop
   scatter: 0.09,          // denser scatter than the shire: ferns/mushrooms thick on the floor
+};
+// The Sunless Grove as its own grid (data uniform with Greenvale; Silverwood stays on the LEGACY
+// combined-grid path in Chunk A, so this layout is data-only until its zone is migrated — Chunk B).
+const SILVERWOOD_DUNGEON: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  rooms: [
+    { x: 2, y: 8, w: 6, h: 8 },     // grove root-hall (the fork)
+    { x: 10, y: 3, w: 6, h: 5 },    // north hollow bole (chest, on the loop)
+    { x: 9, y: 16, w: 7, h: 5 },    // south fungal gallery (chest, on the loop)
+    { x: 14, y: 8, w: 5, h: 7 },    // root-stair antechamber hub (the loop rejoins)
+    { x: 17, y: 8, w: 6, h: 6 },    // the Hollow King's heartwood arena
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → root-hall
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north bole → antechamber
+    [{ x: 5, y: 14 }, { x: 12, y: 18 }, { x: 16, y: 13 }],         // hall → south gallery → antechamber (the LOOP)
+    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+  ],
+  chests: [
+    { x: 12, y: 18 },  // south fungal gallery (loop, rich)
+    { x: 13, y: 4 },   // north hollow bole (loop, breather)
+  ],
+  scatter: 0.09,
 };
 
 // ── The Duskmarsh + Drowned Vault (OPEN-WORLD rework — Dara 2026-06-20) ──────────────────────
@@ -228,6 +284,7 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
 // loops mean the water can never wall you into a pocket.
 const DUSKMARSH_LAYOUT: ZoneLayout = {
   w: 56, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 32, y: 11 }, gateWallX: 32, boss: { x: 52, y: 10 },
+  mouth: { x: 32, y: 11 },
   fieldRects: [
     { x: 1, y: 9, w: 6, h: 5 },     // mire head hub (the causeway mouth / fork)
     { x: 9, y: 2, w: 7, h: 5 },     // north bog pocket (chest, fog-bound)
@@ -252,27 +309,36 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
     { x: 4, y: 13, w: 2, h: 7 },    // SW bank pool
     { x: 17, y: 9, w: 2, h: 4 },    // east-of-lagoon pinch
   ],
-  dunRects: [
-    { x: 34, y: 7, w: 6, h: 8 },    // vault entry hall (the flooded sump fork)
-    { x: 42, y: 2, w: 6, h: 5 },    // north drowned gallery (chest, on the loop)
-    { x: 41, y: 15, w: 6, h: 5 },   // south drowned cell (chest, on the loop)
-    { x: 46, y: 7, w: 5, h: 7 },    // sunken-stair antechamber hub (the loop rejoins)
-    { x: 49, y: 7, w: 6, h: 6 },    // the Cave Troll's deep arena
-  ],
-  dunPaths: [
-    [{ x: 33, y: 11 }, { x: 37, y: 11 }],                          // gate → entry hall
-    [{ x: 37, y: 9 }, { x: 45, y: 4 }, { x: 48, y: 8 }],           // hall → north gallery → antechamber
-    [{ x: 37, y: 13 }, { x: 44, y: 17 }, { x: 48, y: 12 }],        // hall → south cell → antechamber (the LOOP)
-    [{ x: 48, y: 10 }, { x: 51, y: 10 }],                          // antechamber → arena (boss)
-  ],
+  dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (DUSKMARSH_DUNGEON) — ADR 0008 Stage 2
   chests: [
     { x: 12, y: 3 },   // north bog pocket (north causeway)
     { x: 13, y: 18 },  // sunken ruin (south causeway, shares the ruin with the lair)
-    { x: 44, y: 3 },   // north drowned gallery (dungeon loop)
-    { x: 44, y: 18 },  // south drowned cell (dungeon loop)
-    { x: 48, y: 12 },  // deepest — by the arena threshold (richest, rewards the brave)
   ],
   lair: { x: 11, y: 18 }, // the rare beast dens in the flooded ruin stones off the south road
+  scatter: 0.07,
+};
+// The Drowned Vault as its own grid (data uniform with Greenvale; Duskmarsh stays on the LEGACY
+// combined-grid path in Chunk A — data-only until its zone is migrated in Chunk B).
+const DUSKMARSH_DUNGEON: DungeonLayout = {
+  w: 24, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 20, y: 10 },
+  rooms: [
+    { x: 2, y: 7, w: 6, h: 8 },     // vault entry hall (the flooded sump fork)
+    { x: 10, y: 2, w: 6, h: 5 },    // north drowned gallery (chest, on the loop)
+    { x: 9, y: 15, w: 6, h: 5 },    // south drowned cell (chest, on the loop)
+    { x: 14, y: 7, w: 5, h: 7 },    // sunken-stair antechamber hub (the loop rejoins)
+    { x: 17, y: 7, w: 6, h: 6 },    // the Cave Troll's deep arena
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 5, y: 11 }],                            // mouth → entry hall
+    [{ x: 5, y: 9 }, { x: 13, y: 4 }, { x: 16, y: 8 }],            // hall → north gallery → antechamber
+    [{ x: 5, y: 13 }, { x: 12, y: 17 }, { x: 16, y: 12 }],         // hall → south cell → antechamber (the LOOP)
+    [{ x: 16, y: 10 }, { x: 19, y: 10 }],                          // antechamber → arena (boss)
+  ],
+  chests: [
+    { x: 12, y: 3 },   // north drowned gallery (loop)
+    { x: 12, y: 18 },  // south drowned cell (loop)
+    { x: 16, y: 12 },  // deepest — by the arena threshold (richest)
+  ],
   scatter: 0.07,
 };
 
@@ -412,6 +478,62 @@ export function worldRect(id: string): { x0: number; y0: number; x1: number; y1:
   return { x0: r.origin.wx, y0: r.origin.wy, x1: r.origin.wx + z.layout.w, y1: r.origin.wy + z.layout.h };
 }
 
+// ── World-space helpers (ADR 0008 Stage 2, step 1 — PURE, no engine consumer yet) ─────────────
+// Convert between a region's local tile grid and the shared world frame, and answer "who owns this
+// world tile?". A world tile (wx,wy) belongs to a region when it falls inside that region's
+// worldRect (half-open: [x0,x1) × [y0,y1)) — so a shared seam at x1 belongs to the EASTERN/SOUTHERN
+// neighbour (whose rect starts there), never to two regions at once. The Stage-2 renderer/movement
+// (Chunk B) will read these; they're invisible until then.
+
+/** The region (zone id) that owns a world tile, or undefined if outside every placed region. */
+export function regionAtWorld(wx: number, wy: number): string | undefined {
+  for (const r of WORLD_REGIONS) {
+    const rect = worldRect(r.id);
+    if (rect && wx >= rect.x0 && wx < rect.x1 && wy >= rect.y0 && wy < rect.y1) return r.id;
+  }
+  return undefined;
+}
+
+/** Every region whose world-rect overlaps the (half-open) world-space rectangle [x0,y0)..[x1,y1). */
+export function regionsOverlappingRect(x0: number, y0: number, x1: number, y1: number): string[] {
+  const lo = { x: Math.min(x0, x1), y: Math.min(y0, y1) };
+  const hi = { x: Math.max(x0, x1), y: Math.max(y0, y1) };
+  const out: string[] = [];
+  for (const r of WORLD_REGIONS) {
+    const rect = worldRect(r.id);
+    if (rect && rect.x0 < hi.x && lo.x < rect.x1 && rect.y0 < hi.y && lo.y < rect.y1) out.push(r.id);
+  }
+  return out;
+}
+
+/** World tile → a region's LOCAL tile coord (subtract its origin). undefined if the region isn't placed. */
+export function localOf(id: string, wx: number, wy: number): Pt | undefined {
+  const r = worldRegion(id);
+  if (!r) return undefined;
+  return { x: wx - r.origin.wx, y: wy - r.origin.wy };
+}
+
+/** A region's LOCAL tile coord → the shared WORLD frame (add its origin). undefined if not placed. */
+export function worldOf(id: string, lx: number, ly: number): Pt | undefined {
+  const r = worldRegion(id);
+  if (!r) return undefined;
+  return { x: lx + r.origin.wx, y: ly + r.origin.wy };
+}
+
+/**
+ * The render-only BLEND BAND for a seam edge: the ±K-tile world span across the seam where the two
+ * regions' ground dithers from one biome into the other (ADR 0008 §3 / step 4). Returns the band as
+ * a world-space rectangle straddling the border line plus the perpendicular `from..to` span and the
+ * `axis` the seam runs along — purely a rendering hint (it does NOT change tile ownership or
+ * passability; `regionAtWorld` stays the source of truth). Diagonal corner-only edges (zero-length
+ * border span) and edges with no shared span return undefined (nothing to blend). K defaults to 3.
+ */
+export function seamBlendBand(edge: WorldEdge, k = 3): { axis: "x" | "y"; from: number; to: number; lo: number; hi: number } | undefined {
+  const b = edge.border;
+  if (b.from === b.to) return undefined; // corner-touch: a single point, no band to blend
+  return { axis: b.axis, from: b.from, to: b.to, lo: b.at - k, hi: b.at + k };
+}
+
 /**
  * SETTLEMENT PLACEMENT — recommendation + OPEN DESIGN DECISION for Dara (ADR 0008 §5).
  *
@@ -442,7 +564,7 @@ export const WORLD_SETTLEMENT_NOTE = {
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
   // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
   // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
   // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to
@@ -451,7 +573,7 @@ export const ZONES: Zone[] = [
   // combine); balance-tuner owns the final numbers across the now-3-zone curve.
   { id: "silverwood", name: "Silverwood", mini: "treantelder", miniAdds: ["thornling", "thornling"], boss: "hollowking",
     hub: "riverhearth", hubs: ["riverhearth"],
-    envs: ["forest", "forest", "forest", "forest"], dungeon: { name: "The Sunless Grove", env: "grove" }, layout: SILVERWOOD_LAYOUT, bands: [
+    envs: ["forest", "forest", "forest", "forest"], dungeon: { name: "The Sunless Grove", env: "grove", layout: SILVERWOOD_DUNGEON }, layout: SILVERWOOD_LAYOUT, bands: [
       // teach the new roster one/two at a time, then start combining toward the gate.
       { at: 0.0, sets: [["dwolf", "dwolf"], ["thornling", "dwolf"], ["dwolf", "thornling"]] },
       { at: 0.18, sets: [["dwolf", "thornling", "dwolf"], ["sylvanarcher", "dwolf"], ["thornling", "thornling", "dwolf"]] },
@@ -463,7 +585,7 @@ export const ZONES: Zone[] = [
   // Inbound from Silverwood, the grim marsh outpost Miregard is the Duskmarsh's doorstep (Riverhearth
   // now belongs to Silverwood's chain). `hub` stays "miregard" (the true doorstep) for back-compat.
   { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll", hub: "miregard", hubs: ["miregard"],
-    envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "vault" }, layout: DUSKMARSH_LAYOUT, bands: [
+    envs: ["mire", "forest", "mire", "hollow"], dungeon: { name: "The Drowned Vault", env: "vault", layout: DUSKMARSH_DUNGEON }, layout: DUSKMARSH_LAYOUT, bands: [
       { at: 0.0, sets: [["rat", "rat", "spider"], ["spider", "rat"], ["rat", "rat", "spider"]] },
       { at: 0.2, sets: [["rat", "spider", "rat"], ["leper", "rat", "rat"], ["direrat", "rat", "spider"]] },
       { at: 0.4, sets: [["leper", "rat", "spider"], ["spider", "bonespider", "rat"], ["direrat", "spider", "rat"]] },

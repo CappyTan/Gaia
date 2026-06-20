@@ -331,7 +331,7 @@ export const Battle = {
     const wasMini = this.enemies.some((e) => e.miniboss),
       wasZoneBoss = this.enemies.some((e) => e.boss),
       wasFinal = this.finalBoss;
-    if (wasMini) { Game.miniBossDefeated = true; if (Field.gate) Field.map[Field.gate.y][Field.gate.x] = "path"; }
+    if (wasMini) { Game.miniBossDefeated = true; Field.onMiniDefeated(); } // open the mouth/gate (model-aware)
     Game.continueAfterBattle = wasZoneBoss
       ? wasFinal
         ? () => Game.victory()
