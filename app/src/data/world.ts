@@ -651,3 +651,103 @@ export function zonesOf(continentId: string): ZoneRegion[] {
 export function builtZonesOf(continentId: string): ZoneRegion[] {
   return ZONE_REGIONS.filter((z) => z.continent === continentId && z.zone);
 }
+
+// ── Placement bridge (seamless big-map, Stage 2A) — authored grids → world space ──────────────────
+// The CRUX of the seamless overworld (docs/design/seamless-overworld-plan.md): each built zone has
+// BOTH an authored playable grid (`data/zones.ts` ZoneLayout — Greenvale 64×24, Silverwood 60×24,
+// Duskmarsh 56×22, with roads/chests/lair/mouth, anti-soft-lock-tuned) AND an organic GEOGRAPHY
+// polygon here (`ZONE_REGIONS`). This bridge places the authored grid into the one 960×640 world
+// coordinate space at SCALE 1:1 (one authored tile = one world tile, no stretch), CENTERED on the
+// zone polygon's CENTROID — so the dense hand-built core sits in the middle of the larger, sparser
+// organic polygon (the interior outside the core becomes procedural open ground in a later stage).
+//
+// CENTERING METHOD. `wx,wy` is the world tile where the authored grid's local (0,0) sits, chosen so
+// the grid's w×h rect is centered on the polygon's CENTROID. The centroid is the area-weighted
+// SHOELACE centroid (`polyCentroid` below) — the true center of mass of the organic shape, not the
+// bbox center (the two coincide here to <1 tile since the traced polygons are near-symmetric, but the
+// shoelace centroid is the principled choice for an irregular coastline). `wx = round(cx − w/2)`,
+// `wy = round(cy − h/2)`.
+//
+// PURE DATA ONLY (ADR 0005), NO engine consumer yet (Stage 2A). `regionAt` stays the identity source
+// of truth (unchanged). Stage 2B+ reads `authoredAt` to REALIZE the authored tile under a world coord.
+//
+// FIT CHECK (see app/tests/placement.test.ts): each authored grid is SMALLER than its polygon's bbox
+// (a dense core inside a sparser blob), every placement rect lies within its polygon's bbox, the three
+// rects don't overlap, and each zone's authored spawn/mouth/lair/chests map to world coords that land
+// INSIDE the zone polygon — i.e. the core sits sensibly in the geography. All three zones fit cleanly.
+
+/** A built zone's authored-grid placement in world space (Stage 2A). Scale is always 1 (no stretch). */
+export interface ZonePlacement {
+  /** World tile where the authored grid's local (0,0) sits (so the grid is centered on the centroid). */
+  wx: number;
+  wy: number;
+  /** One authored tile = one world tile. */
+  scale: 1;
+}
+
+/**
+ * The area-weighted (shoelace) CENTROID of a polygon — its center of mass. Orientation-agnostic
+ * (the sign of the signed area cancels). Used to center each authored grid on its zone polygon.
+ */
+export function polyCentroid(poly: Polygon): Point {
+  let a2 = 0, cx = 0, cy = 0;
+  for (let i = 0, n = poly.length; i < n; i++) {
+    const p = poly[i], q = poly[(i + 1) % n];
+    const cross = p.x * q.y - q.x * p.y;
+    a2 += cross;
+    cx += (p.x + q.x) * cross;
+    cy += (p.y + q.y) * cross;
+  }
+  // a2 = 2·signedArea; centroid = Σ(p+q)·cross / (6·signedArea).
+  if (a2 === 0) { const b = bbox(poly); return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }; }
+  return { x: cx / (3 * a2), y: cy / (3 * a2) };
+}
+
+// The placement table for the three BUILT zones. Each `(wx,wy)` is computed so the authored grid
+// (w×h from its ZoneLayout) is centered on the zone polygon's shoelace centroid:
+//   greenvale  (64×24) centroid ≈ (159, 74)  → wx,wy = (127, 62)   rect [127,62)..[191,86)
+//   silverwood (60×24) centroid ≈ (295, 71)  → wx,wy = (265, 59)   rect [265,59)..[325,83)
+//   duskmarsh  (56×22) centroid ≈ (176, 151) → wx,wy = (148, 140)  rect [148,140)..[204,162)
+// (Hard-coded — pure data the engine reads at startup — but derived exactly by `polyCentroid` above;
+// the test recomputes them from the polygons + ZoneLayouts to guard against drift.)
+export const WORLD_PLACEMENT: Record<string, ZonePlacement> = {
+  greenvale: { wx: 127, wy: 62, scale: 1 },
+  silverwood: { wx: 265, wy: 59, scale: 1 },
+  duskmarsh: { wx: 148, wy: 140, scale: 1 },
+};
+
+/** A built zone's authored-grid placement in world space, or undefined if the zone isn't placed. */
+export function placementOf(zoneId: string): ZonePlacement | undefined {
+  return WORLD_PLACEMENT[zoneId];
+}
+
+/**
+ * A placed zone's authored grid as a WORLD-SPACE rectangle (half-open [x0,x1) × [y0,y1)), using the
+ * authored grid's w×h from its ZoneLayout. undefined if the zone isn't placed (or has no layout).
+ */
+export function worldDimsOf(zoneId: string): { x0: number; y0: number; x1: number; y1: number } | undefined {
+  const p = WORLD_PLACEMENT[zoneId];
+  const z = ZONES.find((zz) => zz.id === zoneId);
+  if (!p || !z) return undefined;
+  return { x0: p.wx, y0: p.wy, x1: p.wx + z.layout.w, y1: p.wy + z.layout.h };
+}
+
+/**
+ * REALIZATION lookup (Stage 2A data, consumed by the Stage 2B renderer): if a world tile falls inside
+ * some built zone's placement rect, return that zone + the authored LOCAL coords (`lx = wx − placement.wx`,
+ * `ly = wy − placement.wy`); else undefined (the tile is procedural open ground / uncharted). Placement
+ * rects don't overlap (asserted in the test), so first-match is also finest-match.
+ *
+ * NOTE this is the REALIZATION axis (which authored tile sits here), independent of `regionAt` which is
+ * the IDENTITY axis (which Area/Zone/Continent owns the tile — biome/encounter-lean/music). The plan's
+ * two-lookup model: identity works everywhere; realization only inside a placed authored core.
+ */
+export function authoredAt(wx: number, wy: number): { zoneId: string; lx: number; ly: number } | undefined {
+  for (const zoneId of Object.keys(WORLD_PLACEMENT)) {
+    const d = worldDimsOf(zoneId);
+    if (d && wx >= d.x0 && wx < d.x1 && wy >= d.y0 && wy < d.y1) {
+      return { zoneId, lx: wx - WORLD_PLACEMENT[zoneId].wx, ly: wy - WORLD_PLACEMENT[zoneId].wy };
+    }
+  }
+  return undefined;
+}
