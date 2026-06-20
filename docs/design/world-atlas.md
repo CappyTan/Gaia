@@ -228,14 +228,18 @@ The world *fits* at one consistent scale; these are the judgment calls flagged f
 - **G20 — Underworld transit/conduit graph (G7 sibling).** The maglev/conduit lines + Nexus Gate
   Network linking the complexes are the underworld's connection graph — still open (this pass locked
   *where* complexes are, not *how* they link).
-- **G21 — "Redo existing zones": which path? (DECISION NEEDED).** Bringing Greenvale/Silverwood/
-  Duskmarsh up to the framework has two paths: **(a)** rebuild their playable layouts on the *current
-  discrete engine* — organic Areas with identity, interconnected, aligned to their world polygons
-  (shippable now); or **(b)** build the *seamless big-map engine* (ADR 0008/0009 Stage 2 Chunk B) that
-  renders zones straight from their world polygons, making the per-zone grids obsolete. Agent default
-  (while Dara's away): do the part valuable to BOTH — refine each zone's organic Areas + identity in
-  `world.ts` — then rebuild **Greenvale only** as the exemplar on path (a), and PAUSE the full
-  three-zone rework until Dara confirms (a) vs (b).
+- **G21 — "Redo existing zones": which path? (RESOLVED — Dara chose the seamless engine).** Build the
+  seamless big-map engine; Silverwood/Duskmarsh come into it directly (no discrete rebuild). In
+  progress (ADR 0008/0009, `seamless-overworld-plan.md`).
+- **G22 — Continent is walkable; built zones are dense cores (agent engineering decision, flag for
+  awareness).** The organic re-paint placed Greenvale and Silverwood ~136 tiles apart (not adjacent),
+  so seamless roaming means the **whole continent interior is walkable** procedural open land (biome
+  dressed by `regionAt`), built zones are the dense authored cores within it, and **only ocean /
+  off-continent / the world edge is impassable** ("uncharted"). Consequence: **backlog regions are
+  walkable but empty** for now (open land you can cross but with no authored content/encounters yet) —
+  this is the "watch it grow" backlog made roamable; it may feel sparse until those regions are built.
+  Flag for Dara: OK to roam empty continent between built zones, or gate unbuilt land behind a soft
+  "uncharted" wall until built?
 
 ---
 
