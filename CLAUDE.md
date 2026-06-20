@@ -115,6 +115,10 @@ finicky parts don't surface:
   from `main`). Don't commit the model identifier into any artifact (commit/PR/code) — chat only.
 - **Always tell Dara the outcome in plain terms:** what changed, that it's merged, and that the
   live site is updated (or what failed and that you're handling it) — not the git mechanics.
+- **Don't hand-run this flow — use the tooling.** The `deploy` skill
+  ([`.claude/skills/deploy/SKILL.md`](.claude/skills/deploy/SKILL.md)) is the step-by-step clean
+  deploy; the **`devops`** agent owns the whole lifecycle and follows that skill (it merges/pushes/
+  deploys, unlike read-only `release-shepherd`). To ship: run `/deploy` or hand off to `devops`.
 
 ## Conventions
 
