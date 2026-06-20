@@ -16,7 +16,21 @@ export const ENEMIES: Record<string, EnemyDef> = {
   gmage: { name: "Greenvale Mage", spr: "🧙", att: "UMBRAXIS", lvl: 4, hp: 92, atk: 12, spd: 9, armor: 1, mag: 17, xp: 116, gold: [18, 30], ai: "caster", skills: ["hex"], castChance: 0.55 },
   brigand: { name: "Bandit Brigadier", spr: "🪖", att: "NOX", lvl: 5, hp: 520, atk: 39, spd: 8, armor: 5, mag: 0, xp: 170, gold: [60, 100], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.2, art: "gbandit" },
   kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 6, hp: 950, atk: 38, spd: 7, armor: 7, mag: 0, xp: 240, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.15 },
-  // ── ZONE 2: The Duskmarsh → the Drowned Vault (entered ~Lv 7-8, higher base stats) ──
+  // ── ZONE 2: Silverwood — the Ancient Forest (levels 7-9; new region, ADR 0006). Attunements are
+  //    spread (Dara's no-region-identity ruling — the forest is NOT an ANIMA theme). CD-authored
+  //    bestiary under Dara's granted authority — FLAGGED for Dara / requiem-canon-keeper to vet the
+  //    names + lore. Sprites are emoji placeholders (see asset-gaps.md). Stats are starter values on
+  //    the curve between Greenvale and the Duskmarsh — balance-tuner owns the final numbers. ──
+  dwolf: { name: "Direwolf", spr: "🐺", att: "ANIMA", lvl: 7, hp: 158, atk: 22, spd: 15, armor: 1, mag: 0, xp: 124, gold: [14, 28], ai: "basic" },
+  thornling: { name: "Thornling", spr: "🌿", att: "QUANTA", lvl: 7, hp: 186, atk: 19, spd: 8, armor: 3, mag: 0, xp: 132, gold: [16, 30], ai: "basic", onHit: { poison: 3 } },
+  sylvanarcher: { name: "Sylvan Archer", spr: "🏹", att: "SOL", lvl: 8, hp: 150, atk: 25, spd: 12, armor: 1, mag: 0, xp: 146, gold: [20, 36], ai: "basic" },
+  gloomwisp: { name: "Gloom Wisp", spr: "🔮", att: "UMBRAXIS", lvl: 8, hp: 132, atk: 14, spd: 12, armor: 1, mag: 18, xp: 150, gold: [22, 38], ai: "caster", skills: ["hex"], castChance: 0.5 },
+  barkbrute: { name: "Barkhide Brute", spr: "🪵", att: "NOX", lvl: 9, hp: 250, atk: 23, spd: 6, armor: 6, mag: 0, xp: 196, gold: [24, 42], ai: "basic" },
+  spriggan: { name: "Spriggan", spr: "🍂", att: "SOL", lvl: 9, hp: 198, atk: 24, spd: 12, armor: 3, mag: 0, xp: 190, gold: [22, 40], ai: "basic", leech: 25 },
+  treantelder: { name: "Elder Treant", spr: "🌳", att: "ANIMA", lvl: 9, hp: 1150, atk: 52, spd: 6, armor: 8, mag: 0, xp: 300, gold: [110, 180], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.25 },
+  hollowking: { name: "The Hollow King", spr: "🦌", att: "QUANTA", lvl: 10, hp: 1650, atk: 56, spd: 8, armor: 8, mag: 0, xp: 360, gold: [160, 240], ai: "boss", boss: true, skills: ["rally"], castChance: 0.18 },
+  mossback: { name: "Mossback Tortoise", spr: "🐢", att: "ANIMA", lvl: 8, hp: 60, atk: 11, spd: 4, armor: 55, mag: 0, xp: 850, gold: [110, 240], ai: "basic", rare: true },
+  // ── ZONE 3: The Duskmarsh → the Drowned Vault (entered ~Lv 10-11, higher base stats) ──
   rat: { name: "Cave Rat", spr: "🐀", att: "NOX", lvl: 7, hp: 160, atk: 23, spd: 14, armor: 1, mag: 0, xp: 120, gold: [14, 28], ai: "basic" },
   spider: { name: "Cave Spider", spr: "🕷️", att: "ANIMA", lvl: 7, hp: 190, atk: 22, spd: 11, armor: 2, mag: 0, xp: 130, gold: [18, 34], ai: "basic", onHit: { poison: 3 } },
   leper: { name: "Cave Leper", spr: "🧟", att: "UMBRAXIS", lvl: 8, hp: 238, atk: 22, spd: 6, armor: 3, mag: 0, xp: 180, gold: [20, 38], ai: "basic", leech: 30 },
