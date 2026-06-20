@@ -10,7 +10,8 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, AURELION_ID,
+  MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, OVERWORLD_W, OVERWORLD_H,
+  AURELION_ID, VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID,
   regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, bbox,
   type Polygon,
 } from "../src/data/world";
@@ -51,12 +52,49 @@ const centroid = (p: Polygon) => ({
 });
 
 describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
-  it("the overworld is one ~250×250 coordinate space", () => {
+  it("the overworld is ONE non-square 3:2 coordinate space sized to the canon map", () => {
     const ow = worldMap(OVERWORLD_ID)!;
     expect(ow).toBeTruthy();
     expect(ow.kind).toBe("overworld");
-    expect(ow.width).toBeGreaterThanOrEqual(250);
-    expect(ow.height).toBeGreaterThanOrEqual(250);
+    // Sized to the 1536×1024 (3:2) canon map; NOT square, NOT 250×250.
+    expect(ow.width).toBe(OVERWORLD_W);
+    expect(ow.height).toBe(OVERWORLD_H);
+    expect(ow.width).not.toBe(ow.height);
+    expect(ow.width / ow.height).toBeCloseTo(1.5, 2); // 3:2
+    // Big enough that every region has real play-space (a built zone ≈ 60 tiles across).
+    expect(ow.width).toBeGreaterThanOrEqual(800);
+  });
+
+  it("all four canon continents are painted in their map quadrants", () => {
+    const ids = CONTINENTS.filter((c) => c.map === OVERWORLD_ID).map((c) => c.id).sort();
+    expect(ids).toEqual([AURELION_ID, MYRTHALAS_ID, SUNDERING_ID, VARKHAZ_ID].sort());
+    const cen = (id: string) => centroid(CONTINENTS.find((c) => c.id === id)!.shape);
+    const a = cen(AURELION_ID), v = cen(VARKHAZ_ID), m = cen(MYRTHALAS_ID), s = cen(SUNDERING_ID);
+    const midX = OVERWORLD_W / 2, midY = OVERWORLD_H / 2;
+    // Aurelion NW, Varkhaz NE, Myr'Thalas SW, the Sundering S/SE.
+    expect(a.x, "Aurelion is in the west").toBeLessThan(midX);
+    expect(a.y, "Aurelion is in the north").toBeLessThan(midY);
+    expect(v.x, "Varkhaz is in the east").toBeGreaterThan(midX);
+    expect(v.y, "Varkhaz is in the north").toBeLessThan(midY);
+    expect(m.x, "Myr'Thalas is in the west").toBeLessThan(midX);
+    expect(m.y, "Myr'Thalas is in the south").toBeGreaterThan(midY);
+    expect(s.y, "the Sundering is in the south").toBeGreaterThan(midY);
+    expect(s.x, "the Sundering is east of Myr'Thalas").toBeGreaterThan(m.x);
+  });
+
+  it("no two continents overlap (each is its own landmass across the central sea)", () => {
+    for (let i = 0; i < CONTINENTS.length; i++)
+      for (let j = i + 1; j < CONTINENTS.length; j++)
+        expect(polyOverlap(CONTINENTS[i].shape, CONTINENTS[j].shape),
+          `${CONTINENTS[i].id} and ${CONTINENTS[j].id} must not overlap`).toBe(false);
+  });
+
+  it("all 25 canon regions are painted, distributed across the four continents", () => {
+    expect(ZONE_REGIONS.length).toBe(26); // 25 map regions + the off-map Duskmarsh (Dara's ruling)
+    expect(zonesOf(AURELION_ID).length).toBe(10);   // #1–9 + Duskmarsh
+    expect(zonesOf(VARKHAZ_ID).length).toBe(6);     // #10–15
+    expect(zonesOf(MYRTHALAS_ID).length).toBe(5);   // #16–20
+    expect(zonesOf(SUNDERING_ID).length).toBe(5);   // #21–25
   });
 
   it("no polygon is degenerate (>=3 vertices, positive area, no self-coincident points)", () => {
@@ -163,19 +201,28 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
     }
 
     // A point inside Greenvale but outside any Area → zone hit, no area (falls back to the zone).
-    // (35,40.5) was verified to be in the Greenvale polygon but in none of its area sub-shapes.
-    const fallback = regionAt(OVERWORLD_ID, 35, 40);
+    // (156,76) was verified to be in the Greenvale polygon but in none of its area sub-shapes.
+    const fallback = regionAt(OVERWORLD_ID, 156, 76);
     expect(fallback.zone?.id, "Greenvale fallback point should resolve to the zone").toBe("greenvale");
     expect(fallback.area, "Greenvale fallback point should have no finer area").toBeUndefined();
 
     // Empty continent space (inside the coastline but outside every zone) → continent only.
-    // (90,60) is mid-continent, between Goldmeadow/Riverhearth/Frostpeak, inside no painted region.
-    const empty = regionAt(OVERWORLD_ID, 90, 60);
+    // (230,150) is mid-Aurelion, between Goldmeadow/Riverhearth/Duskmarsh, inside no painted region.
+    const empty = regionAt(OVERWORLD_ID, 230, 150);
     expect(empty.continent?.id).toBe(AURELION_ID);
     expect(empty.zone, "empty continent space has no zone").toBeUndefined();
     expect(empty.area).toBeUndefined();
 
-    // Wholly off the painted continent (deep ocean SE) → nothing.
+    // One sample resolves into EACH of the four continents (a region or empty space, but right land).
+    expect(regionAt(OVERWORLD_ID, 690, 170).continent?.id, "Varkhaz sample").toBe(VARKHAZ_ID);
+    expect(regionAt(OVERWORLD_ID, 220, 420).continent?.id, "Myr'Thalas sample").toBe(MYRTHALAS_ID);
+    expect(regionAt(OVERWORLD_ID, 560, 470).continent?.id, "Sundering sample").toBe(SUNDERING_ID);
+
+    // The central Great Expanse (between the continents) is OCEAN → no continent.
+    const sea = regionAt(OVERWORLD_ID, 480, 200);
+    expect(sea.continent, "the Great Expanse is open ocean").toBeUndefined();
+
+    // Wholly off any continent (deep ocean corner) → nothing.
     const off = regionAt(OVERWORLD_ID, MAPS[0].width - 1, MAPS[0].height - 1);
     expect(off.continent).toBeUndefined();
     expect(off.zone).toBeUndefined();
@@ -186,10 +233,13 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   });
 
   it("areasOf / zonesOf / builtZonesOf are consistent with the registry", () => {
-    // All 10 Aurelion regions (3 built + 7 backlog) are painted.
+    // All 10 Aurelion regions (3 built + 7 backlog) are painted; the built ones live here.
     expect(zonesOf(AURELION_ID).length).toBe(10);
     expect(builtZonesOf(AURELION_ID).map((z) => z.id).sort())
       .toEqual(["duskmarsh", "greenvale", "silverwood"]);
+    // The other three continents are all backlog (no built zones yet).
+    for (const id of [VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID])
+      expect(builtZonesOf(id).length, `${id} has no built zones yet`).toBe(0);
     for (const z of ZONE_REGIONS)
       for (const a of areasOf(z.id)) expect(a.zone).toBe(z.id);
     // every BUILT zone has at least one skeleton area; backlog regions have none yet
