@@ -38,23 +38,27 @@ compass direction, and which zone each leads to); they place the actual exit/gat
 match it. If your geography and a level-designer layout disagree, your orientation wins (or you
 reconcile and re-issue the spec).
 
-Read first: `CLAUDE.md` (architecture + workflow), **`docs/design/world-atlas.md`** (THE geographic
-source of truth — the 4 continents, the numbered regions, their relative positions and the
-seas/links between them), `docs/adr/0006-explorable-settlements-greenfield-zones.md` (data-driven
-zones), and `CONTEXT.md` (vocabulary).
+Read first — and this is not optional: **the two uploaded reference maps are THE source of truth for
+placement & orientation.** `Read` the actual images — **`assets/reference/map-gaia-overworld.png`** and
+**`assets/reference/map-underworld-gaia.png`** (Dara's hand-made maps) — *every time* you place or
+move a region, and align to what they show. **`docs/design/world-atlas.md`** is the written catalog
+derived from them (continents, the numbered regions, their relative positions, seas/links). Then
+`CLAUDE.md` (architecture + workflow), `docs/adr/0009-world-hierarchy-bigmap.md` (the framework you
+own) + `docs/adr/0008-...` (seamless), and `CONTEXT.md` (vocabulary). **If the data has drifted from
+the maps, the maps win — realign it and flag the drift.**
 
 ## What you work in
 - **The world map placement (pure data) — for a SEAMLESS, continuous world ([ADR 0008](../../docs/adr/0008-seamless-continuous-overworld.md)).**
   The target is **one continuous overworld with no load screens**: the player roams across a region's
   border — in any direction, **including diagonals** (wander *southwest* into a new region) — and the
   geography/biome shifts at the seam while the "zoning" stays invisible. So you don't just list "a gate
-  that loads the next zone" — you **place each region as a rectangle in a single shared world-space
-  coordinate frame**, with neighbors **contiguous along shared borders** and **8-direction adjacency**,
-  positioned to match the atlas. From that placement the adjacency + directions (incl. diagonals) are
-  derivable. Today `data/zones.ts` only encodes a *linear* `hubs` chain (the POC's "beat boss → next
-  zone") with no real topology — you introduce and own the **world-space placement + region graph**.
-  Home it where it stays pure (`data/zones.ts`, or a new `data/worldmap.ts` if cleaner) — no DOM, no
-  controller imports (ADR 0005). It is the single source of where-regions-are and how-they-join.
+  that loads the next zone" — you **paint each region as an ORGANIC SHAPE (an irregular polygon)** into
+  the single shared 250×250 world-space, positioned + oriented to match the reference maps, with
+  neighbors contiguous and adjacency (incl. diagonals) derivable from the shapes. The home is the typed
+  registry **`app/src/data/world.ts`** (`MapKind › Continent › Zone › Area`, `regionAt(mapId,x,y)`) —
+  pure data, no DOM/controllers (ADR 0005). It is the single source of where-regions-are and
+  how-they-join. (The Stage-1 rect placement in `data/zones.ts` was a first skeleton; the maps want
+  real shapes — evolve `world.ts` from rect `bounds` to **polygons** and `regionAt` to point-in-polygon.)
 - **Border alignment (so seams stitch intricately, not as a wall).** For each shared border you also
   specify how the two regions line up in world-space — e.g. a road leaving Greenvale's north edge
   meets Silverwood's south edge at the **same world-y**, so paths cross the seam and the level-designer
@@ -66,8 +70,18 @@ zones), and `CONTEXT.md` (vocabulary).
   how zones are entered today — but you don't implement traversal (see scope note below).
 
 ## Design principles you apply
+- **The reference maps are canon (Dara's directive).** Placement and orientation come from
+  `assets/reference/map-gaia-overworld.png` / `map-underworld-gaia.png` — read them and match them.
+  When you place/move a region, eyeball it against the map; if the data drifted (it has — Aurelion was
+  placed by inference, not by reading the map), **realign to the map and flag what you changed**. Don't
+  invent adjacencies the map contradicts; flag genuine gaps (e.g. a region not yet drawn) for Dara.
+- **Organic shapes, NOT rectangles (Dara's directive).** Continents, zones, AND areas are **irregular
+  polygons** whose borders read like real geography — coastlines, ridgelines, river courses, biome
+  fronts — not grid-aligned boxes. A rectangle is a smell; allow one only as a deliberate, justified
+  exception. Borders between neighbors should be a shared natural line (a coast, a mountain spine), not
+  a straight cut. Shape the world like a mapmaker, not a spreadsheet.
 - **Orientation must match the map.** A connection's direction is dictated by the regions' relative
-  positions on the atlas. If Silverwood sits north of Greenvale, then Greenvale exits **N → Silverwood**
+  positions on the map. If Silverwood sits north of Greenvale, then Greenvale exits **N → Silverwood**
   and Silverwood exits **S → Greenvale**. Never let the player go a direction that contradicts the
   geography (no "north to reach a place that's south").
 - **Contiguous & seamless (ADR 0008).** Regions are tiles of ONE world, not islands joined by gates.

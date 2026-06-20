@@ -1,7 +1,8 @@
 // In-app WORLD MAP view ("the World Map screen", ADR 0009 §7): a read-only design/dev view that
 // renders the world hierarchy — the 250×250 surface (or underworld) coordinate space with the
-// painted Continent / Zone / Area boundaries drawn as labeled rects — so the designer can SEE the
-// world and watch it fill in. Empty map space reads as "to build" (the backlog made visible).
+// painted Continent / Zone / Area boundaries drawn as ORGANIC POLYGONS (filled + stroked, labeled,
+// draft regions hatched) — so the designer can SEE the world and watch it fill in. Empty map space
+// reads as "to build" (the backlog made visible). The shapes match Dara's overworld map.
 //
 // PRESENTATION ONLY (ADR 0005): reads data/world.ts; no game-state mutation, no DB writes. Canvas
 // (matching controllers/field.ts) scaled-to-fit the stage since the map is big. Wired to the title
@@ -9,7 +10,7 @@
 
 import {
   MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, UNDERWORLD_ID,
-  worldMap, regionAt, type WorldMap, type Bounds,
+  worldMap, regionAt, bbox, type WorldMap, type Polygon,
 } from "../data/world";
 import { GAME_VERSION } from "../data/version";
 import { Overlay } from "../ui/overlay";
@@ -42,16 +43,17 @@ export const WorldMapView = {
 
     const continents = CONTINENTS.filter((c) => c.map === map.id);
     const zones = ZONE_REGIONS.filter((z) => continents.some((c) => c.id === z.continent));
+    const builtN = zones.filter((z) => z.zone).length;
+    const backlogN = zones.length - builtN;
     const areas = AREAS.filter((a) => zones.some((z) => z.id === a.zone));
-    const draftN = areas.filter((a) => a.draft).length;
-    const counts = `${continents.length} continent${continents.length === 1 ? "" : "s"} · ${zones.length} zone${zones.length === 1 ? "" : "s"} · ${areas.length} area${areas.length === 1 ? "" : "s"}${draftN ? ` (${draftN} draft)` : ""}`;
+    const counts = `${continents.length} continent${continents.length === 1 ? "" : "s"} · ${builtN} built zone${builtN === 1 ? "" : "s"}${backlogN ? ` + ${backlogN} backlog` : ""} · ${areas.length} area${areas.length === 1 ? "" : "s"}`;
 
     const legend = `<div class="small" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:6px 0">
       <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.continentLine};background:${C.continentFill};vertical-align:middle"></i> Continent</span>
-      <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.zoneLine};background:${C.zoneFill};vertical-align:middle"></i> Zone</span>
-      <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.areaLine};background:${C.areaFill};vertical-align:middle"></i> Area</span>
-      <span><i style="display:inline-block;width:11px;height:11px;border:1px dashed ${C.draftLine};vertical-align:middle"></i> ·draft</span>
-      <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.grid};background:${C.empty};vertical-align:middle"></i> empty = to build</span>
+      <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.zoneLine};background:${C.zoneFill};vertical-align:middle"></i> Built zone</span>
+      <span><i style="display:inline-block;width:11px;height:11px;border:1px dashed ${C.draftLine};vertical-align:middle"></i> Backlog region</span>
+      <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.areaLine};background:${C.areaFill};vertical-align:middle"></i> Area ·draft</span>
+      <span><i style="display:inline-block;width:11px;height:11px;border:1px solid ${C.grid};background:${C.empty};vertical-align:middle"></i> ocean = to build</span>
     </div>`;
 
     Overlay.show(`<h2 class="title-gold">World Map — Gaia ${GAME_VERSION}</h2>
@@ -85,13 +87,19 @@ export const WorldMapView = {
 
     const s = css / map.width; // tiles → CSS px
     const px = (n: number) => n * s;
-    const rect = (b: Bounds) => [px(b.x), px(b.y), px(b.w), px(b.h)] as const;
 
-    // Backdrop = empty/backlog.
+    // Trace a polygon's path in CSS px (caller fills/strokes). Returns its bbox in CSS px for labels.
+    const path = (poly: Polygon) => {
+      ctx.beginPath();
+      poly.forEach((p, i) => (i ? ctx.lineTo(px(p.x), px(p.y)) : ctx.moveTo(px(p.x), px(p.y))));
+      ctx.closePath();
+    };
+
+    // Backdrop = ocean / empty / backlog.
     ctx.fillStyle = C.empty;
     ctx.fillRect(0, 0, css, css);
 
-    // Faint coordinate grid (every 50 tiles) so the empty backlog reads as scaled space, not a void.
+    // Faint coordinate grid (every 50 tiles) so the empty ocean reads as scaled space, not a void.
     ctx.strokeStyle = C.grid;
     ctx.lineWidth = 1;
     for (let g = 50; g < map.width; g += 50) {
@@ -100,53 +108,62 @@ export const WorldMapView = {
     }
 
     const continents = CONTINENTS.filter((c) => c.map === map.id);
-    // Continents: broad tint + label.
+    // Continents: organic landmass — tinted fill + coastline stroke + label at the NW of its bbox.
     for (const c of continents) {
-      const [x, y, w, h] = rect(c.bounds);
+      path(c.shape);
       ctx.fillStyle = C.continentFill;
-      ctx.fillRect(x, y, w, h);
+      ctx.fill();
       ctx.strokeStyle = C.continentLine;
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.stroke();
+      const bb = bbox(c.shape);
       ctx.fillStyle = C.continentLine;
       ctx.font = "bold 12px system-ui, sans-serif";
       ctx.textBaseline = "top";
-      ctx.fillText(c.name.toUpperCase(), x + 4, y + 4);
+      ctx.fillText(c.name.toUpperCase(), px(bb.minX) + 4, px(bb.minY) + 2);
     }
 
     const zones = ZONE_REGIONS.filter((z) => continents.some((c) => c.id === z.continent));
-    // Zones: outlined + named.
+    // Zones: organic regions. BUILT zones get the solid green highlight; BACKLOG regions get a
+    // muted hatched fill + dashed gold outline (named-but-not-yet-built).
     for (const z of zones) {
-      const [x, y, w, h] = rect(z.bounds);
-      ctx.fillStyle = C.zoneFill;
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = C.zoneLine;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      ctx.fillStyle = C.zoneLine;
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(z.name, x + 3, y + h - 2);
+      const built = !!z.zone;
+      path(z.shape);
+      ctx.fillStyle = built ? C.zoneFill : "rgba(199,154,82,.06)";
+      ctx.fill();
+      const bb = bbox(z.shape);
+      if (!built) this.hatchPath(ctx, z.shape, px);
+      ctx.strokeStyle = built ? C.zoneLine : C.draftLine;
+      ctx.lineWidth = built ? 1.6 : 1.1;
+      ctx.setLineDash(built ? [] : [4, 3]);
+      path(z.shape);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = built ? C.zoneLine : C.draftLine;
+      ctx.font = `${built ? "bold " : ""}11px system-ui, sans-serif`;
+      ctx.textBaseline = "top";
+      ctx.fillText((built ? "" : "·") + z.name, px(bb.minX) + 3, px(bb.minY) + 2);
     }
 
-    // Areas: inner blocks; draft areas hatched + line dashed.
-    const areas = AREAS.filter((a) => zones.some((z) => z.id === a.zone));
+    // Areas: organic inner shapes, hatched (all draft) + dashed outline. Labels only on roomy shapes.
+    const areas = AREAS.filter((a) => zones.some((z) => z.id === a.zone && z.zone));
     for (const a of areas) {
-      const [x, y, w, h] = rect(a.bounds);
+      const bb = bbox(a.shape);
+      path(a.shape);
       ctx.fillStyle = C.areaFill;
-      ctx.fillRect(x, y, w, h);
-      if (a.draft) this.hatch(ctx, x, y, w, h);
+      ctx.fill();
+      if (a.draft) this.hatchPath(ctx, a.shape, px);
       ctx.strokeStyle = a.draft ? C.draftLine : C.areaLine;
       ctx.lineWidth = 1;
       ctx.setLineDash(a.draft ? [3, 2] : []);
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      path(a.shape);
+      ctx.stroke();
       ctx.setLineDash([]);
-      // Label small areas with a leader dot; only draw text if the block is roomy enough.
-      if (w > 40 && h > 14) {
+      if (px(bb.maxX - bb.minX) > 38 && px(bb.maxY - bb.minY) > 16) {
         ctx.fillStyle = C.label;
-        ctx.font = "9px system-ui, sans-serif";
+        ctx.font = "8px system-ui, sans-serif";
         ctx.textBaseline = "top";
-        ctx.fillText((a.draft ? "·" : "") + a.name, x + 3, y + 3);
+        ctx.fillText((a.draft ? "·" : "") + a.name, px(bb.minX) + 2, px(bb.minY) + 2);
       }
     }
 
@@ -169,18 +186,27 @@ export const WorldMapView = {
     canvas.onpointerdown = (e) => inspect(e.clientX, e.clientY);
   },
 
-  // Diagonal hatch fill to mark draft areas as provisional (lore = Dara's; ADR 0009 §1).
-  hatch(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  // Diagonal hatch fill (clipped to an organic polygon) to mark draft regions/areas as provisional
+  // (lore/build = Dara's; ADR 0009 §1). `px` maps tile coords → CSS px.
+  hatchPath(ctx: CanvasRenderingContext2D, poly: Polygon, px: (n: number) => number): void {
     ctx.save();
     ctx.beginPath();
-    ctx.rect(x, y, w, h);
+    poly.forEach((p, i) => (i ? ctx.lineTo(px(p.x), px(p.y)) : ctx.moveTo(px(p.x), px(p.y))));
+    ctx.closePath();
     ctx.clip();
-    ctx.strokeStyle = "rgba(199,154,82,.30)";
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of poly) {
+      const x = px(p.x), y = px(p.y);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    ctx.strokeStyle = "rgba(199,154,82,.28)";
     ctx.lineWidth = 1;
-    for (let d = -h; d < w; d += 6) {
+    const h = maxY - minY;
+    for (let d = minX - h; d < maxX; d += 6) {
       ctx.beginPath();
-      ctx.moveTo(x + d, y);
-      ctx.lineTo(x + d + h, y + h);
+      ctx.moveTo(d, minY);
+      ctx.lineTo(d + h, maxY);
       ctx.stroke();
     }
     ctx.restore();

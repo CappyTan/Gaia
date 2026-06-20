@@ -1,27 +1,56 @@
 // World HIERARCHY registry tests (ADR 0009 — world-cartographer).
 //
-// Guards the Map › Continent › Zone › Area containment framework in data/world.ts: every painted
-// region nests in its parent, no illegal same-level overlaps (a DEFINED priority where allowed),
-// `regionAt` resolves sample points (inside each Area, and empty map space → no zone), and every
-// painted Zone links a real `Zone` id in zones.ts. A broken hierarchy (an Area spilling out of its
-// zone, a zone off its continent, a dangling zone link) MUST fail here.
+// Guards the Map › Continent › Zone › Area containment framework in data/world.ts, now ORGANIC
+// POLYGONS (Dara's directive: shapes feel like real geography, no rectangles). Every painted region's
+// polygon nests in its parent, no degenerate/self-undefined polygons, overlapping areas resolve by a
+// DEFINED priority (finest/smallest wins), `regionAt` (point-in-polygon) resolves sample points
+// (inside each Area, zone-only fallback, empty continent space, off-continent), and every BUILT zone
+// links a real `Zone` id in zones.ts. A broken hierarchy (an area spilling out of its zone, a zone
+// off its continent, a dangling link, a degenerate shape) MUST fail here.
 
 import { describe, it, expect } from "vitest";
 import {
   MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, AURELION_ID,
-  regionAt, areasOf, zonesOf, worldMap, type Bounds,
+  regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, bbox,
+  type Polygon,
 } from "../src/data/world";
-import { ZONES, worldRect } from "../src/data/zones";
+import { ZONES } from "../src/data/zones";
 
-// b fully contains inner (inner's rect lies within b, inclusive of edges)?
-const contains = (b: Bounds, inner: Bounds) =>
-  inner.x >= b.x && inner.y >= b.y &&
-  inner.x + inner.w <= b.x + b.w && inner.y + inner.h <= b.y + b.h;
-// Two rects overlap with positive AREA (touching edges/corners is NOT an overlap)?
-const overlaps = (a: Bounds, b: Bounds) =>
-  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+// Does polygon `outer` fully contain polygon `inner`? Sampled robustly: every inner VERTEX is inside
+// outer, AND a dense grid of points over inner's bbox that fall inside inner also fall inside outer.
+// (Vertices alone can pass for concave outers; the grid catches an inner edge bowing outside.)
+const polyContains = (outer: Polygon, inner: Polygon): boolean => {
+  for (const p of inner) if (!pointInPolygon(outer, p.x, p.y)) return false;
+  const b = bbox(inner);
+  const N = 24;
+  for (let i = 0; i <= N; i++)
+    for (let j = 0; j <= N; j++) {
+      const x = b.minX + ((b.maxX - b.minX) * i) / N;
+      const y = b.minY + ((b.maxY - b.minY) * j) / N;
+      if (pointInPolygon(inner, x, y) && !pointInPolygon(outer, x, y)) return false;
+    }
+  return true;
+};
+// Do two polygons overlap with positive area? Sampled over the union bbox.
+const polyOverlap = (a: Polygon, b: Polygon): boolean => {
+  const ba = bbox(a), bb = bbox(b);
+  const minX = Math.max(ba.minX, bb.minX), maxX = Math.min(ba.maxX, bb.maxX);
+  const minY = Math.max(ba.minY, bb.minY), maxY = Math.min(ba.maxY, bb.maxY);
+  if (minX >= maxX || minY >= maxY) return false;
+  const N = 60;
+  for (let i = 0; i <= N; i++)
+    for (let j = 0; j <= N; j++) {
+      const x = minX + ((maxX - minX) * i) / N, y = minY + ((maxY - minY) * j) / N;
+      if (pointInPolygon(a, x, y) && pointInPolygon(b, x, y)) return true;
+    }
+  return false;
+};
+const centroid = (p: Polygon) => ({
+  x: p.reduce((s, q) => s + q.x, 0) / p.length,
+  y: p.reduce((s, q) => s + q.y, 0) / p.length,
+});
 
-describe("world hierarchy registry (ADR 0009)", () => {
+describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   it("the overworld is one ~250×250 coordinate space", () => {
     const ow = worldMap(OVERWORLD_ID)!;
     expect(ow).toBeTruthy();
@@ -30,41 +59,59 @@ describe("world hierarchy registry (ADR 0009)", () => {
     expect(ow.height).toBeGreaterThanOrEqual(250);
   });
 
+  it("no polygon is degenerate (>=3 vertices, positive area, no self-coincident points)", () => {
+    const all: { id: string; shape: Polygon }[] = [
+      ...CONTINENTS.map((c) => ({ id: c.id, shape: c.shape })),
+      ...ZONE_REGIONS.map((z) => ({ id: z.id, shape: z.shape })),
+      ...AREAS.map((a) => ({ id: a.id, shape: a.shape })),
+    ];
+    for (const { id, shape } of all) {
+      expect(shape.length, `${id} needs >=3 vertices`).toBeGreaterThanOrEqual(3);
+      expect(polyArea2(shape), `${id} must have positive area (not collinear/self-undefined)`).toBeGreaterThan(0);
+      // no two consecutive (or duplicate) vertices coincide
+      for (let i = 0; i < shape.length; i++)
+        for (let j = i + 1; j < shape.length; j++)
+          expect(shape[i].x === shape[j].x && shape[i].y === shape[j].y,
+            `${id} has a duplicate vertex (${shape[i].x},${shape[i].y})`).toBe(false);
+    }
+  });
+
   it("every continent lies within its map", () => {
     for (const c of CONTINENTS) {
       const m = worldMap(c.map)!;
       expect(m, `continent "${c.id}" references a real map`).toBeTruthy();
-      expect(contains({ x: 0, y: 0, w: m.width, h: m.height }, c.bounds),
+      const b = bbox(c.shape);
+      expect(b.minX >= 0 && b.minY >= 0 && b.maxX <= m.width && b.maxY <= m.height,
         `continent "${c.id}" must lie within map "${c.map}"`).toBe(true);
     }
   });
 
-  it("no two continents on the same map overlap", () => {
-    for (let i = 0; i < CONTINENTS.length; i++)
-      for (let j = i + 1; j < CONTINENTS.length; j++) {
-        const a = CONTINENTS[i], b = CONTINENTS[j];
-        if (a.map !== b.map) continue;
-        expect(overlaps(a.bounds, b.bounds), `${a.id} and ${b.id} must not overlap`).toBe(false);
-      }
-  });
-
-  it("every zone references a real Zone def AND nests within its continent's bounds", () => {
+  it("every BUILT zone references a real Zone def; every region nests within its continent", () => {
     const zoneIds = new Set(ZONES.map((z) => z.id));
     const continentIds = new Set(CONTINENTS.map((c) => c.id));
     for (const z of ZONE_REGIONS) {
-      expect(zoneIds.has(z.id), `painted zone "${z.id}" must link a real ZONES entry`).toBe(true);
       expect(continentIds.has(z.continent), `zone "${z.id}" must have a real parent continent`).toBe(true);
+      if (z.zone) expect(zoneIds.has(z.zone), `built zone "${z.id}" must link a real ZONES entry`).toBe(true);
+      else expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
       const c = CONTINENTS.find((cc) => cc.id === z.continent)!;
-      expect(contains(c.bounds, z.bounds), `zone "${z.id}" must nest within continent "${z.continent}"`).toBe(true);
+      expect(polyContains(c.shape, z.shape), `zone "${z.id}" must nest within continent "${z.continent}"`).toBe(true);
     }
   });
 
-  it("each zone's hierarchy bounds equal its Stage-1 world placement (single source of truth)", () => {
-    // The flat region graph (zones.ts) and this nested hierarchy must express the SAME coordinates.
-    for (const z of ZONE_REGIONS) {
-      const r = worldRect(z.id)!;
-      expect(z.bounds).toEqual({ x: r.x0, y: r.y0, w: r.x1 - r.x0, h: r.y1 - r.y0 });
-    }
+  it("the built zones roughly occupy their map-correct positions (drift-correction guard)", () => {
+    // Realigned to Dara's overworld map: Greenvale NW, Silverwood EAST of it (similar latitude),
+    // Duskmarsh in the SW-of-Greenvale wet basin. Guard the relative orientation so it can't re-drift.
+    const cen = (id: string) => centroid(ZONE_REGIONS.find((z) => z.id === id)!.shape);
+    const gv = cen("greenvale"), sw = cen("silverwood"), dm = cen("duskmarsh");
+    expect(sw.x, "Silverwood is EAST of Greenvale").toBeGreaterThan(gv.x);
+    expect(Math.abs(sw.y - gv.y), "Silverwood ~ same latitude as Greenvale").toBeLessThan(20);
+    expect(dm.y, "Duskmarsh is SOUTH of Greenvale").toBeGreaterThan(gv.y);
+    expect(dm.x, "Duskmarsh sits in the west").toBeLessThan(sw.x);
+  });
+
+  it("zone ids are unique", () => {
+    const ids = ZONE_REGIONS.map((z) => z.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("no two zones on the same continent overlap", () => {
@@ -72,16 +119,16 @@ describe("world hierarchy registry (ADR 0009)", () => {
       for (let j = i + 1; j < ZONE_REGIONS.length; j++) {
         const a = ZONE_REGIONS[i], b = ZONE_REGIONS[j];
         if (a.continent !== b.continent) continue;
-        expect(overlaps(a.bounds, b.bounds), `${a.id} and ${b.id} must not overlap`).toBe(false);
+        expect(polyOverlap(a.shape, b.shape), `${a.id} and ${b.id} must not overlap`).toBe(false);
       }
   });
 
-  it("every area nests within its parent zone's bounds and links a real zone", () => {
-    const zoneIds = new Set(ZONE_REGIONS.map((z) => z.id));
+  it("every area nests within its parent zone's polygon and links a real built zone", () => {
+    const builtIds = new Set(ZONE_REGIONS.filter((z) => z.zone).map((z) => z.id));
     for (const a of AREAS) {
-      expect(zoneIds.has(a.zone), `area "${a.id}" must have a real parent zone`).toBe(true);
+      expect(builtIds.has(a.zone), `area "${a.id}" must have a real built parent zone`).toBe(true);
       const z = ZONE_REGIONS.find((zz) => zz.id === a.zone)!;
-      expect(contains(z.bounds, a.bounds), `area "${a.id}" must nest within zone "${a.zone}"`).toBe(true);
+      expect(polyContains(z.shape, a.shape), `area "${a.id}" must nest within zone "${a.zone}"`).toBe(true);
     }
   });
 
@@ -91,51 +138,44 @@ describe("world hierarchy registry (ADR 0009)", () => {
   });
 
   it("overlapping areas in the same zone resolve by a DEFINED priority (finest/smallest wins)", () => {
-    // Areas MAY overlap (a special pocket painted over a broad section); the contract is that the
-    // smaller-area region wins the overlap, so the resolution is deterministic, not ambiguous.
     for (const z of ZONE_REGIONS) {
       const as = areasOf(z.id);
       for (let i = 0; i < as.length; i++)
         for (let j = i + 1; j < as.length; j++) {
-          if (!overlaps(as[i].bounds, as[j].bounds)) continue;
-          // sizes must differ so "smallest wins" is unambiguous
-          const si = as[i].bounds.w * as[i].bounds.h, sj = as[j].bounds.w * as[j].bounds.h;
+          if (!polyOverlap(as[i].shape, as[j].shape)) continue;
+          const si = polyArea2(as[i].shape), sj = polyArea2(as[j].shape);
           expect(si, `overlapping areas ${as[i].id}/${as[j].id} need distinct sizes for priority`).not.toBe(sj);
         }
     }
   });
 
-  it("regionAt resolves a sample of points: inside each area, inside each zone, and empty space", () => {
-    // Inside every Area's center → that area (and its zone + continent).
+  it("regionAt resolves a sample of points: inside each area, zone-only fallback, empty, off-map", () => {
+    // Inside every Area's centroid → that area (and its zone + continent). Finest (smallest) wins, so
+    // the resolved area must contain the centroid (it's `a`, or a smaller area overlapping it).
     for (const a of AREAS) {
-      const cx = a.bounds.x + Math.floor(a.bounds.w / 2);
-      const cy = a.bounds.y + Math.floor(a.bounds.h / 2);
-      const res = regionAt(OVERWORLD_ID, cx, cy);
-      expect(res.continent?.id, `${a.id} center should be in a continent`).toBe(AURELION_ID);
-      expect(res.zone?.id, `${a.id} center should be in zone ${a.zone}`).toBe(a.zone);
-      // the resolved area is the finest containing a.center — which is a itself or a SMALLER overlap
-      expect(res.area, `${a.id} center should resolve to some area`).toBeTruthy();
+      const c = centroid(a.shape);
+      const res = regionAt(OVERWORLD_ID, c.x, c.y);
+      expect(res.continent?.id, `${a.id} centroid should be in a continent`).toBe(AURELION_ID);
+      expect(res.zone?.id, `${a.id} centroid should be in zone ${a.zone}`).toBe(a.zone);
+      expect(res.area, `${a.id} centroid should resolve to some area`).toBeTruthy();
       const resolved = AREAS.find((x) => x.id === res.area!.id)!;
-      const cont = resolved.bounds.x <= cx && cx < resolved.bounds.x + resolved.bounds.w &&
-                   resolved.bounds.y <= cy && cy < resolved.bounds.y + resolved.bounds.h;
-      expect(cont, `${a.id} center must lie inside the resolved area`).toBe(true);
+      expect(pointInPolygon(resolved.shape, c.x, c.y), `${a.id} centroid must lie in the resolved area`).toBe(true);
     }
 
     // A point inside Greenvale but outside any Area → zone hit, no area (falls back to the zone).
-    // Greenvale origin (0,0); pick a far corner tile inside the zone rect but outside every Area.
-    const gv = worldRect("greenvale")!;
-    const corner = regionAt(OVERWORLD_ID, gv.x1 - 1, gv.y1 - 1);
-    expect(corner.zone?.id).toBe("greenvale");
-    expect(corner.area).toBeUndefined();
+    // (35,40.5) was verified to be in the Greenvale polygon but in none of its area sub-shapes.
+    const fallback = regionAt(OVERWORLD_ID, 35, 40);
+    expect(fallback.zone?.id, "Greenvale fallback point should resolve to the zone").toBe("greenvale");
+    expect(fallback.area, "Greenvale fallback point should have no finer area").toBeUndefined();
 
-    // Empty map space (inside the continent box but outside every zone) → continent only, no zone.
-    const c = CONTINENTS.find((cc) => cc.id === AURELION_ID)!;
-    const empty = regionAt(OVERWORLD_ID, c.bounds.x + c.bounds.w - 1, c.bounds.y + c.bounds.h - 1);
+    // Empty continent space (inside the coastline but outside every zone) → continent only.
+    // (90,60) is mid-continent, between Goldmeadow/Riverhearth/Frostpeak, inside no painted region.
+    const empty = regionAt(OVERWORLD_ID, 90, 60);
     expect(empty.continent?.id).toBe(AURELION_ID);
-    expect(empty.zone).toBeUndefined();
+    expect(empty.zone, "empty continent space has no zone").toBeUndefined();
     expect(empty.area).toBeUndefined();
 
-    // Wholly off the painted continent → nothing.
+    // Wholly off the painted continent (deep ocean SE) → nothing.
     const off = regionAt(OVERWORLD_ID, MAPS[0].width - 1, MAPS[0].height - 1);
     expect(off.continent).toBeUndefined();
     expect(off.zone).toBeUndefined();
@@ -145,12 +185,14 @@ describe("world hierarchy registry (ADR 0009)", () => {
     expect(regionAt("nope", 10, 10)).toEqual({});
   });
 
-  it("areasOf / zonesOf are consistent with the registry", () => {
-    expect(zonesOf(AURELION_ID).map((z) => z.id).sort())
+  it("areasOf / zonesOf / builtZonesOf are consistent with the registry", () => {
+    // All 10 Aurelion regions (3 built + 7 backlog) are painted.
+    expect(zonesOf(AURELION_ID).length).toBe(10);
+    expect(builtZonesOf(AURELION_ID).map((z) => z.id).sort())
       .toEqual(["duskmarsh", "greenvale", "silverwood"]);
     for (const z of ZONE_REGIONS)
       for (const a of areasOf(z.id)) expect(a.zone).toBe(z.id);
-    // every painted zone has at least one skeleton area
-    for (const z of ZONE_REGIONS) expect(areasOf(z.id).length).toBeGreaterThan(0);
+    // every BUILT zone has at least one skeleton area; backlog regions have none yet
+    for (const z of builtZonesOf(AURELION_ID)) expect(areasOf(z.id).length).toBeGreaterThan(0);
   });
 });
