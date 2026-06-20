@@ -63,8 +63,9 @@ const HEARTHFORD: Settlement = {
   id: "hearthford",
   name: "Hearthford",
   intro:
-    "Hearthford wakes slow under a gold morning — woodsmoke, a creaking well, hens in the lane. " +
-    "Talk to the folk, rest at the inn, stock up, then take the north gate out into Greenvale.",
+    "Hearthford wakes slow in the gold of the Shirelands — woodsmoke and warm bread, a creaking " +
+    "well, hens loose in the lane. A good place to be from. Beyond the north gate, Greenvale is " +
+    "less kind these days. Talk to the folk, rest at the inn, kit yourself out — then go see why.",
   // 25 wide × 17 tall. Walls ring it; 'E' is the north exit gate.
   layout: [
     "##########EE#############",
@@ -90,32 +91,32 @@ const HEARTHFORD: Settlement = {
   npcs: [
     { id: "elder", name: "Elder Maelis", spr: "🧓", x: 11, y: 9,
       lines: [
-        "Well met, traveler. You've the look of someone the road hasn't broken yet.",
-        "Hearthford is quiet — too quiet of late. Bandits work the north fields, bold as crows.",
-        "Take the gate north into Greenvale when you're ready. And mind the warren they nest in.",
+        "Well met, traveler. You've a young road in your eyes — not yet worn the way mine is.",
+        "I've watched over Hearthford forty winters, and never seen the fields so quiet. Bandits work the north end now, bold as crows on a scarecrow.",
+        "Go north into Greenvale when you're ready — but mind the old warren they've made their nest. Brave folk have gone in. Fewer come out.",
       ] },
     { id: "guard", name: "Watchman Bram", spr: "💂", x: 11, y: 2,
       lines: [
-        "Hold a moment. Heading out the north gate? Greenvale's no orchard stroll these days.",
-        "Slimes and kobolds in the grass, and the bandits' Brigadier holds the choke to the warren.",
-        "Rest at the inn before you go. Folk who march out tired march back on a board.",
+        "Hold up. North gate? On your own head, then — Greenvale's no orchard stroll anymore.",
+        "Slimes and kobolds in the long grass, that's the least of it. The bandits' Brigadier holds the choke into the warren, and he doesn't bluff.",
+        "Sleep at the inn first. I've seen too many march out proud and come back on a board. Don't make me carry you.",
       ] },
     { id: "child", name: "Little Pip", spr: "🧒", x: 6, y: 6,
       lines: [
-        "Are you a real adventurer? With a sword and everything?",
-        "I'm gonna be one too! Soon as Mum lets me past the gate. Which is never.",
-        "If you see Hogger out there — he's HUGE, everyone says — tell him I said hi!",
+        "Are you a REAL adventurer? With a sword and a whole quest and everything?",
+        "I'm gonna be one too — soon as Mum lets me past the gate. So... never.",
+        "Hey — if you see Hogger out there, you HAVE to tell me! He's bigger than the barn, Tomas swears it. Nobody believes him. I do.",
       ] },
     { id: "farmer", name: "Goodwife Tansy", spr: "👩‍🌾", x: 18, y: 14,
       lines: [
-        "Mind the flower beds, dear. Took me all spring to coax them out of this stubborn soil.",
-        "The bandits trampled my far field again. If you're going north, give 'em one for me.",
-        "There's good gear at the smith and supplies at the market — don't go out half-shod.",
+        "Watch the flower beds, dear — took me all spring to coax those out of this stubborn Shireland soil, and I'll not have them stomped.",
+        "The bandits trampled my far field a third time this month. If you're headed north, you give one of them a knock for Tansy.",
+        "And don't go out half-shod, you hear? Honest steel at the smith, good supplies at the market. Spend the coin or you'll wish you had.",
       ] },
     { id: "innkeep", name: "Innkeeper Doral", spr: "🧑‍🍳", x: 7, y: 4,
       lines: [
-        "Roof, hearth, and a hot meal — that's the inn just there. Costs you nothing, friend.",
-        "Rest mends more than potions do. Step into the inn whenever the road's worn you thin.",
+        "A roof, a hearth, a hot bowl of something — that's all I've got, and it's yours, friend. The inn's right there.",
+        "Sleep mends what no potion can reach. Come back through that door whenever the road's worn you down to the wick.",
       ] },
   ],
 };
