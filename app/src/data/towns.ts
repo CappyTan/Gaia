@@ -31,8 +31,12 @@ export interface Settlement {
    *   'I' inn   'M' merchant   'B' smith   'R' revive shrine   'E' exit gate
    *   'F' fountain (impassable decoration)  'T' tree (impassable decoration)  'W' well (impassable)
    *   'H' house front (impassable building, flavor only)   '+' flower bed (walkable)
+   *   '=' boardwalk plank (walkable)   '~' bog/standing water (impassable)   'h' stilt-house (impassable)
+   *   't' dead/marsh tree (impassable)  'L' lantern post (impassable decoration)
    */
   layout: string[];
+  /** Optional flavor key — lets the renderer tint a settlement (e.g. "marsh" reads grim). */
+  theme?: string;
   /** Where the player stands on entry (defaults to just inside the exit gate if omitted). */
   spawn?: { x: number; y: number };
   npcs: TownNPC[];
@@ -43,6 +47,8 @@ export const TOWN_GLYPHS: Record<string, string> = {
   "#": "twall", ".": "town-cobble", ",": "town-grass", "+": "town-flower",
   "I": "t-inn", "M": "t-shop", "B": "t-smith", "R": "t-revive", "E": "t-exit",
   "F": "t-fountain", "T": "t-tree", "W": "t-well", "H": "t-house",
+  // marsh-outpost kinds (Miregard): plank boardwalk over bog, standing water, stilt-houses, dead trees, lantern posts
+  "=": "town-plank", "~": "town-bog", "h": "t-stilt", "t": "t-deadtree", "L": "t-lantern",
 };
 
 // Which POI a building tile triggers when walked onto.
@@ -51,7 +57,10 @@ export const POI_OF: Record<string, TownPOI> = {
 };
 
 // Town tiles the player cannot walk through.
-export const TOWN_BLOCKERS = new Set(["twall", "t-fountain", "t-tree", "t-well", "t-house"]);
+export const TOWN_BLOCKERS = new Set([
+  "twall", "t-fountain", "t-tree", "t-well", "t-house",
+  "town-bog", "t-stilt", "t-deadtree", "t-lantern",
+]);
 
 // ── Hearthford — the Greenvale starting village ─────────────────────────────────────────────
 // A lived-in farm hamlet (25×17): a central green with a well, two cobbled streets, the four
@@ -121,8 +130,77 @@ const HEARTHFORD: Settlement = {
   ],
 };
 
+// ── Miregard — the Duskmarsh marsh-edge outpost ─────────────────────────────────────────────
+// NOT sunny Hearthford. A grim, half-drowned stockade on stilts at the lip of the mire (25×16):
+// a palisade of dead timber rings it, the streets are plank BOARDWALKS laid over black BOG, and a
+// lantern-lit causeway runs the spine. The four services are walk-in stilt-buildings off the
+// boardwalk; the EAST gate opens onto the Duskmarsh proper. Only a few wary folk remain — a
+// marsh-warden, a bog-touched healer, a stranded trader — their lines dread-tinged (placeholder;
+// narrative-writer to polish). This is the between-zones hub the player reaches after the Kingpin
+// falls, before stepping into the marsh.
+const MIREGARD: Settlement = {
+  id: "miregard",
+  name: "Miregard",
+  theme: "marsh",
+  intro:
+    "Miregard hangs on rotting stilts at the lip of the Duskmarsh — plank walks over black water, " +
+    "lanterns guttering in a fog that never lifts. The folk who stayed speak low and bar their " +
+    "doors at dusk. Rest while there's a roof; trade while there's coin; mend at the shrine. " +
+    "Past the east gate the marsh is waiting. It has nowhere else to be.",
+  // 25 wide × 16 tall. Dead-timber palisade rings it; 'E' is the EAST gate onto the marsh. Plank
+  // boardwalks ('=') run an H over black bog ('~'); the four services sit on the cross-walks; stilt-
+  // houses ('h'), lantern posts ('L') and dead trees ('t') dress the water. NPCs stand at the water's
+  // edge (on bog beside a plank — you bump them from the walk), so none can ever sever the route.
+  layout: [
+    "#########################",
+    "#~t~~~~~~~~~~~~~~~~~~~t~#",
+    "#~~~~~~~L~~==~~L~~~~~~~~#",
+    "#~~~=I===========M=~~~~~#",
+    "#~~~~~~~~~~==~~~~~~~~~~~#",
+    "#~~~~~~~h~~==~~h~~~~~~~~#",
+    "#~~t~~~~~~~==~~~~~~~t~~~#",
+    "#~~~~~~~~~~============E#",
+    "#~~~~~~~~~~==~~~~~~~~~~~#",
+    "#~~t~~~~~~~==~~~~~~~~~~~#",
+    "#~~~~~~~h~~==~~h~~~~~~~~#",
+    "#~~~~~~~~~~==~~~~~~~~~~~#",
+    "#~~~=B===========R=~~~~~#",
+    "#~~~~~~~L~~==~~L~~~~~~~~#",
+    "#~t~~~~~~~~~~~~~~~~~~~t~#",
+    "#########################",
+  ],
+  // spawn on the spine boardwalk near the south end, facing up the lantern causeway
+  spawn: { x: 11, y: 13 },
+  npcs: [
+    { id: "warden", name: "Marsh-Warden Coll", spr: "🪖", x: 10, y: 7,
+      lines: [
+        "Came up the dry road from Greenvale, did you. Welcome to the wet end of nowhere.",
+        "The marsh has turned wrong this season. Water climbs where it never climbed, and things stir under it that ought to stay still. Three patrols I sent toward the Drowned Vault. I'm still waiting on all three.",
+        "You're set on going east — I know the look. Then heed me: keep to the planks. Step off the causeway into that bog, and the Duskmarsh doesn't give you back.",
+      ] },
+    { id: "healer", name: "Old Mother Sedge", spr: "🧙", x: 18, y: 11,
+      lines: [
+        "Come into the lantern-light where I can see you, child. The fog's fond of faces it hasn't learned yet. Don't give it yours.",
+        "I tend what the marsh leaves on my step — fever, rot, the slow grey sickness the lepers carry up from the water. Your fallen? Lay them at the shrine. It works deeper than these old hands.",
+        "There's a Broodmother out there, spinning the dark before the Vault. And below her, the troll — old as the mire and twice as spiteful. Go heavy, or go home. Sedge has buried braver than you.",
+      ] },
+    { id: "trader", name: "Stranded Jeb", spr: "🧑‍🌾", x: 18, y: 2,
+      lines: [
+        "Marooned, that's the word for me. Rolled in to sell to the marsh-folk, and now the only road out runs straight through THAT. Should've trusted the fog when it told me to turn around.",
+        "Here's the bright side, friend — my misfortune's your bargain. I'll let the stock go cheap as I dare, sooner than watch it rot in the cart when the water comes up for it.",
+        "Two rules in Miregard. One: you hear singing on the water after dark, you do not answer it. Two: settle your tab at the inn. Both'll keep you breathing, in their way.",
+      ] },
+    { id: "fisher", name: "Wynn the Bog-Fisher", spr: "🧓", x: 13, y: 8,
+      lines: [
+        "Hauled up my nets last week. What was in them weren't fish. Cut the line and let it sink. Some catches you leave to the water.",
+        "Good steel's down there, rusting in the dark — sunken stones south of the causeway, the marsh swallowed whole. A bold soul comes back rich off it. Bolder one don't come back. I fish where it's shallow.",
+      ] },
+  ],
+};
+
 export const SETTLEMENTS: Record<string, Settlement> = {
   hearthford: HEARTHFORD,
+  miregard: MIREGARD,
 };
 
 /** Look up a settlement by id (falls back to Hearthford so the field never loads nothing). */

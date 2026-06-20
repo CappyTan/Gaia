@@ -12,9 +12,13 @@ export const Screens = {
     this.cur = name;
     (["title", "field", "battle"] as const).forEach((s) => $("#" + s + "Screen")?.classList.toggle("on", s === name));
     if (name === "title") Music.play("title");
-    // Overworld screen: a settlement (town mode) gets the warm village theme; the open zone gets
-    // the field theme. (Battle music is set by Battle.begin.) Reusable for any future settlement.
-    else if (name === "field") Music.play(Field.townMode ? "village" : "field");
+    // Overworld screen: pick the cue by place + mood (Battle music is set by Battle.begin).
+    //  - In a settlement (town mode): a grim "marsh"-themed outpost (e.g. Miregard) gets the cold,
+    //    fog-bound `marsh` cue; every other settlement keeps the warm `village` theme (Hearthford).
+    //  - In the open zone: a mire env (the Duskmarsh) gets the low, dread `mire` theme; everything
+    //    else keeps the restless `field` theme (Greenvale).
+    // Keyed off flags/theme, not place names, so it generalizes to future grim zones/settlements.
+    else if (name === "field") Music.play(Field.townMode ? (Field.town?.theme === "marsh" ? "marsh" : "village") : (Field.isMire() ? "mire" : "field"));
     Music._renderStyleLabels();
     if (name === "field") {
       Field.resize(); Field.draw(); Field.hint();
