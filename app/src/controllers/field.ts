@@ -729,6 +729,7 @@ export const Field = {
     else if (poi === "shop") Game.openMerchant();
     else if (poi === "smith") Game.openSmith();
     else if (poi === "revive") Game.openRevive();
+    else if (poi === "stash") Game.openStash();
     else if (poi === "exit") Game.confirmLeaveTown();
   },
   // Talk to an NPC: open the lightweight (non-blocking) dialogue box; advancing redraws so the
@@ -872,6 +873,7 @@ export const Field = {
     const POI: Record<string, [string, string, number, string]> = {
       "t-inn": ["town-inn", "🏠", 1.6, "Inn"], "t-shop": ["town-shop", "🛒", 1.6, "Market"],
       "t-smith": ["town-smith", "🔨", 1.6, "Smith"], "t-revive": ["town-revive", "🔮", 1.6, "Shrine"],
+      "t-stash": ["town-stash", "🏦", 1.6, "Vault"], // placeholder art -> 🏦 emoji until a real building is sliced
       "t-exit": ["town-exit", "🚪", 1.1, marsh ? "→ Marsh" : "↑ Leave"],
       "t-fountain": ["town-fountain", "⛲", 1.2, ""], "t-well": ["town-well", "🪣", 1.0, ""],
       "t-tree": ["town-tree", "🌳", 1.3, ""], "t-house": ["town-house", "🏡", 1.5, ""],

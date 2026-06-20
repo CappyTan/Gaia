@@ -46,7 +46,7 @@ export const Roster = {
     const hasHealer = this.draft.some((s) => HEAL_ROLES.includes(ARCHETYPES[s.cls]?.role ?? ""));
     const warn = hasHealer ? "" : `<div class="rwarn">⚠ No Caster/Healer — you'll have no healing. Consider a Staff in the back line.</div>`;
     Overlay.show(`<h2 class="title-gold">Assemble your party</h2>
-      <p class="small">Pick each hero's Attunement and Weapon Archetype (their class). The <b>front line</b> is struck first; the <b>back line</b> (casters, ranged) is shielded.</p>
+      <p class="small">Pick each hero's Attunement and Weapon Archetype (their class). The <b>front line</b> is struck first; the <b>back line</b> (casters, ranged) is shielded. <b>Max 2 heroes per Attunement.</b></p>
       ${warn}
       <div class="tag">⚔ Front line</div><div class="rgrid">${front}</div>
       <div class="tag" style="margin-top:8px">↩ Back line</div><div class="rgrid">${back}</div>
@@ -57,10 +57,19 @@ export const Roster = {
       </div>`);
   },
 
+  // Max 2 heroes of any one Attunement (so a party can't hard-counter a known-attunement encounter
+  // by stacking a single power). Cycling skips attunements already at the cap among the other slots.
+  attCount(att: Attunement, exceptI: number): number {
+    return this.draft.reduce((n, s, j) => n + (j !== exceptI && s.att === att ? 1 : 0), 0);
+  },
   cycle(i: number, field: "att" | "cls", dir: number): void {
     const s = this.draft[i];
     if (field === "att") {
-      s.att = ATTUNEMENTS[(ATTUNEMENTS.indexOf(s.att) + dir + ATTUNEMENTS.length) % ATTUNEMENTS.length];
+      let a = s.att;
+      for (let k = 0; k < ATTUNEMENTS.length; k++) {
+        a = ATTUNEMENTS[(ATTUNEMENTS.indexOf(a) + dir + ATTUNEMENTS.length) % ATTUNEMENTS.length];
+        if (this.attCount(a, i) < 2) { s.att = a; break; } // skip an attunement already at the 2-cap
+      }
     } else {
       s.cls = ARCHETYPE_KEYS[(ARCHETYPE_KEYS.indexOf(s.cls) + dir + ARCHETYPE_KEYS.length) % ARCHETYPE_KEYS.length];
     }

@@ -125,6 +125,9 @@ export interface EnemyDef {
   rare?: boolean;
   /** Sprite art key override (defaults to the enemy's own key) — lets variants reuse base art. */
   art?: string;
+  /** Bosses we deem to have an ENRAGE phase: at ≤20% HP they crossfade to the `omega` sprite and
+   *  gain double ATB gain + double damage for the rest of the fight (the base is the "alpha"). */
+  enrage?: { omega: string };
   skills?: string[];
   castChance?: number;
   onHit?: { poison?: number };
@@ -204,6 +207,9 @@ export interface Enemy extends Unit {
   rare?: boolean;
   /** Sprite art key override (defaults to `key`). */
   art?: string;
+  /** Enrage config (alpha→omega at 20% HP), copied from the def; `enraged` flips on once triggered. */
+  enrage?: { omega: string };
+  enraged?: boolean;
 }
 
 /** What a combatant is doing this action — a plain attack, a skill, and/or an AoE sweep. */

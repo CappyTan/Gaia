@@ -96,7 +96,7 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
     maxhp: hp, hp, atk, spd: d.spd, armor: d.armor + (champion ? 2 : 0), mag,
     xpReward: champion ? Math.round(d.xp * 2.2) : d.xp,
     goldRange: champion ? [d.gold[0] * 2, d.gold[1] * 2] : d.gold,
-    ai: d.ai, boss: !!d.boss, miniboss: !!d.miniboss, rare: !!d.rare, art: d.art,
+    ai: d.ai, boss: !!d.boss, miniboss: !!d.miniboss, rare: !!d.rare, art: d.art, enrage: d.enrage,
     skills: d.skills || null, castChance: d.castChance || 0, onHitPoison: (d.onHit && d.onHit.poison) || 0,
     alive: true, atb: 0, status: {}, critPct: 5, leech: d.leech || 0, solPct: 0,
   };

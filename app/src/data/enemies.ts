@@ -15,7 +15,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   kobolde: { name: "Kobold Raider", spr: "🦎", att: "UMBRAXIS", lvl: 4, hp: 108, atk: 16, spd: 11, armor: 2, mag: 0, xp: 108, gold: [16, 28], ai: "basic", art: "kobold" },
   gmage: { name: "Greenvale Mage", spr: "🧙", att: "UMBRAXIS", lvl: 4, hp: 102, atk: 15, spd: 9, armor: 1, mag: 22, xp: 116, gold: [18, 30], ai: "caster", skills: ["hex"], castChance: 0.55 },
   brigand: { name: "Bandit Brigadier", spr: "🪖", att: "NOX", lvl: 5, hp: 480, atk: 34, spd: 8, armor: 5, mag: 0, xp: 170, gold: [60, 100], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.2, art: "gbandit" },
-  kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 6, hp: 870, atk: 35, spd: 7, armor: 7, mag: 0, xp: 240, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.16 },
+  kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 6, hp: 870, atk: 35, spd: 7, armor: 7, mag: 0, xp: 240, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.16, enrage: { omega: "kingpin-omega" } },
   // ── ZONE 2: Silverwood — the Ancient Forest (levels 7-9; new region, ADR 0006). Attunements are
   //    spread (Dara's no-region-identity ruling — the forest is NOT an ANIMA theme). CD-authored
   //    bestiary under Dara's granted authority — FLAGGED for Dara / requiem-canon-keeper to vet the
@@ -37,7 +37,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   direrat: { name: "Dire Rat", spr: "🐀", att: "QUANTA", lvl: 8, hp: 304, atk: 30, spd: 13, armor: 2, mag: 0, xp: 185, gold: [18, 32], ai: "basic", art: "rat" },
   bonespider: { name: "Bone Spider", spr: "🕷️", att: "NOX", lvl: 9, hp: 396, atk: 33, spd: 9, armor: 5, mag: 0, xp: 200, gold: [24, 42], ai: "basic", onHit: { poison: 4 }, art: "spider" },
   broodmother: { name: "Vault Broodmother", spr: "🕷️", att: "UMBRAXIS", lvl: 9, hp: 1820, atk: 76, spd: 8, armor: 7, mag: 0, xp: 320, gold: [120, 200], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "spider" },
-  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 10, hp: 4000, atk: 88, spd: 9, armor: 10, mag: 6, xp: 420, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.22 },
+  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 10, hp: 4000, atk: 88, spd: 9, armor: 10, mag: 6, xp: 420, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.22, enrage: { omega: "troll-omega" } },
   // ── ULTRA-RARE treasure monsters (Metal-Slime / Warmech tier): very rare spawns, exceptional
   //    loot. Tough but beatable, with outsized XP/gold. ──
   hogger: { name: "Hogger", spr: "🐗", att: "ANIMA", lvl: 4, hp: 440, atk: 24, spd: 10, armor: 6, mag: 0, xp: 620, gold: [90, 170], ai: "basic", rare: true },

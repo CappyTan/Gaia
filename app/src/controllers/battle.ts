@@ -60,7 +60,8 @@ export const Battle = {
     if (!this.awaiting) {
       const units = this.allLiving();
       for (const u of units) {
-        u.atb += u.spd * dt * 0.012 * (u.side === "enemy" ? 1.2 : 1); // SPD drives fill; enemies act a touch faster (Dara: enemies too slow)
+        const enraged = u.side === "enemy" && (u as Enemy).enraged ? 2 : 1; // enrage: double ATB gain (acts twice as fast)
+        u.atb += u.spd * dt * 0.012 * (u.side === "enemy" ? 1.2 : 1) * enraged; // SPD drives fill; enemies act a touch faster (Dara: enemies too slow)
         if (u.atb >= 100) u.atb = 100;
       }
       const ready = units.filter((u) => u.atb >= 100).sort((a, b) => b.atb - a.atb)[0];
@@ -206,7 +207,9 @@ export const Battle = {
     const s = act.skill;
     const r = combatDamage(actor, target, act);
     if (r.miss) { this.float(target, "miss", "#bbb"); this.log(`${actor.name} is blinded — misses!`); return; }
-    const { dmg, crit, mult } = r;
+    const { crit, mult } = r;
+    let dmg = r.dmg;
+    if (actor.side === "enemy" && (actor as Enemy).enraged) dmg = Math.round(dmg * 2); // enrage: double damage
     damage(target, dmg);
     Telemetry.dmg(actor.side, dmg, crit, mult);
     this.float(target, (crit ? "✦" : "") + dmg, mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff");
@@ -223,10 +226,43 @@ export const Battle = {
     if (actor.bonusBurn) applyStatus(target, { burn: 2 });
     if (actor.onHitPoison) applyStatus(target, { poison: actor.onHitPoison });
     this.markHurt(target);
+    if (target.alive) this.maybeEnrage(target);
     if (!target.alive) this.onDeath(target);
   },
 
   onDeath(u: Unit): void { this.log(`${u.name} is defeated.`); },
+
+  /* ---- ENRAGE: a flagged boss at ≤20% HP swaps to its "omega" sprite (crossfade) and gains
+     double ATB gain + double damage for the rest of the fight. Art-only swap — the on-field
+     footprint is unchanged (omega sprite is the same canvas as the alpha). ---- */
+  maybeEnrage(u: Unit): void {
+    const e = u as Enemy;
+    if (u.side !== "enemy" || !u.alive || !e.enrage || e.enraged) return;
+    if (u.hp > u.maxhp * 0.2) return;
+    this.triggerEnrage(e);
+  },
+  triggerEnrage(e: Enemy): void {
+    e.enraged = true;
+    this.log(`⚠ ${e.name} ENRAGES — the Omega awakens!`);
+    const i = (this.enemies as Unit[]).indexOf(e);
+    const node = $("#enemyZone")!.children[i] as HTMLElement | undefined;
+    const url = assetUrl(`enemies/${e.enrage!.omega}.png`);
+    const img = node?.querySelector<HTMLElement>(".spr-img");
+    if (img && url) {
+      // crossfade: fade the omega sprite in on the #stage layer, over the alpha, then swap the
+      // node's art so later re-renders show omega, and remove the overlay.
+      const r = img.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
+      const ov = el("img", "enrage-omega") as HTMLImageElement;
+      ov.src = url;
+      ov.style.left = r.left - s.left + "px"; ov.style.top = r.top - s.top + "px";
+      ov.style.width = r.width + "px"; ov.style.height = r.height + "px";
+      $("#stage")!.appendChild(ov);
+      requestAnimationFrame(() => ov.classList.add("show"));
+      setTimeout(() => { e.art = e.enrage!.omega; this.renderEnemies(!!this.selecting && this.selecting.kind === "enemy"); ov.remove(); }, 1100);
+    } else {
+      e.art = e.enrage!.omega;
+    }
+  },
 
   afterAction(actor: Unit): void { if (this.checkEnd()) return; this.endTurn(actor); },
   endTurn(actor: Unit): void {
@@ -278,6 +314,7 @@ export const Battle = {
     if (st.wardArmor) { st.wardArmor--; if (st.wardArmor <= 0) { delete st.wardArmor; delete u.wardAmt; } }
     if (st.atkup) { st.atkup--; if (st.atkup <= 0) delete st.atkup; }
     if (st.blind) { st.blind--; if (st.blind <= 0) delete st.blind; }
+    if (u.alive) this.maybeEnrage(u); // DoT ticks can cross the 20% enrage threshold at turn start
     u.guarding = false;
     if (st.stun) {
       delete st.stun; this.log(`${u.name} is stunned!`); recalc(Game.party); this.renderAll();
@@ -406,7 +443,7 @@ export const Battle = {
     z.classList.toggle("has-boss", aliveN === 1 && this.enemies.some((e) => e.alive && (e.boss || e.miniboss)));
     this.enemies.forEach((e) => {
       const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
-      const d = el("div", "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : ""));
+      const d = el("div", "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : ""));
       d.innerHTML = `${enemySprite(e)}<div class="ebar">
         <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>

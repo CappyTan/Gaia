@@ -55,6 +55,9 @@ export const Game = {
   _hubIx: 0,
   _stock: [] as Item[],
   _lastDefs: null as MemberDef[] | null,
+  // Persistent Vault/stash — survives between runs (localStorage), loaded lazily on first open.
+  stash: [] as Item[],
+  _stashLoaded: false,
 
   // Restart with the most recently chosen party (or the default) — used by retry/play-again.
   start(): void { this.startRun(this._lastDefs ?? PARTY_DEFS); },
@@ -296,6 +299,39 @@ export const Game = {
         <p class="small" style="margin-top:6px">Reroll a single affix on a piece of gear — Diablo-style — by spending Mana Dust, Mana Shard, and Mana Core gathered from enemies. The forge isn't open yet.</p>
       </div>
       <div class="row"><button class="btn gold" onclick="Game.backToTown()">◂ Back to town</button></div>`);
+  },
+  // ── VAULT / STASH: a persistent bank kept BETWEEN runs (localStorage). Deposit loot to keep it
+  //    safe and withdraw later. (The Aether crafting economy will plug into stored mana materials
+  //    here in time.) Placeholder 🏦 building until a real Vault is sliced. ──────────────────────
+  loadStash(): void {
+    if (this._stashLoaded) return;
+    this._stashLoaded = true;
+    try { const raw = localStorage.getItem("gaia_stash_v1"); this.stash = raw ? (JSON.parse(raw) as Item[]) : []; }
+    catch { this.stash = []; }
+  },
+  saveStash(): void { try { localStorage.setItem("gaia_stash_v1", JSON.stringify(this.stash)); } catch { /* storage off (private mode) */ } },
+  openStash(): void {
+    this.loadStash();
+    const col = (arr: Item[], btn: (i: number) => string, empty: string) => {
+      if (!arr.length) return `<p class="small">${empty}</p>`;
+      return arr.slice().sort((a, b) => b.rIx - a.rIx).map((it) => itemHtml(it,
+        `<div class="row" style="justify-content:flex-start;margin-top:6px">${btn(arr.indexOf(it))}</div>`)).join("");
+    };
+    Overlay.show(`<h2 class="title-gold">🏦 The Vault</h2>
+      <div class="small">Store loot safely — your Vault is kept between runs. Bag: ${this.inventory.length} · Vault: ${this.stash.length}</div>
+      <div class="tag" style="margin-top:8px">Bag — deposit to Vault</div>
+      <div class="scroll" style="max-height:28vh">${col(this.inventory, (i) => `<button class="btn" onclick="Game.depositToStash(${i})">Deposit →</button>`, "Bag empty.")}</div>
+      <div class="tag" style="margin-top:8px">Vault — withdraw to Bag</div>
+      <div class="scroll" style="max-height:28vh">${col(this.stash, (i) => `<button class="btn" onclick="Game.withdrawFromStash(${i})">← Withdraw</button>`, "Vault empty.")}</div>
+      <div class="row"><button class="btn gold" onclick="Game.backToTown()">◂ Back to town</button></div>`);
+  },
+  depositToStash(invIdx: number): void {
+    const it = this.inventory[invIdx]; if (!it) return;
+    this.inventory.splice(invIdx, 1); this.stash.push(it); this.saveStash(); this.openStash();
+  },
+  withdrawFromStash(stashIdx: number): void {
+    const it = this.stash[stashIdx]; if (!it) return;
+    this.stash.splice(stashIdx, 1); this.inventory.push(it); this.saveStash(); this.openStash();
   },
   // Leave the settlement. The STARTING village heads into the current zone; a between-zone hub
   // either advances to the NEXT settlement in the chain (e.g. Riverhearth → Miregard) or, at the
