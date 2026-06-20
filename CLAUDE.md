@@ -51,7 +51,7 @@ data  ←  systems  ←  controllers  →  ui
 
 | Layer | Dir | What lives here |
 |---|---|---|
-| **Content** | `data/` | `attunements`, `rarity`, `items` (+affixes), `skills`, `party`, `enemies`, `zones`, `art` tables, `version`. Pure data — add a zone/enemy/class/skill here, not in the engine. |
+| **Content** | `data/` | `attunements`, `rarity`, `items` (+affixes), `skills`, `party`, `enemies`, `zones`, `art` tables, `version`. Pure data — add a zone/enemy/class/skill here, not in the engine. `db` is the **content registry** (typed query API + cross-refs: which zones spawn an enemy, which classes use a skill); `validate` is the **integrity check** (run in tests + a dev-startup assert). Query via `DB` rather than reaching into raw consts. |
 | **Logic** | `systems/` | **Pure, no DOM, tested:** `affinity`, `combat` (`combatDamage`, `makeEnemy`, status), `loot`, `progression`, `enemyAbilities`. RNG is injectable for determinism. |
 | **Presentation** | `ui/` | `render` (paper-doll, item HTML, sprites, badges) + `overlay`. Returns HTML/draws; no game flow. |
 | **Orchestration** | `controllers/` | DOM-touching app flow: `game` (lifecycle + run state + merchant), `battle` (ATB engine + battle screen), `field` (tile map), `menus` (party/bag/equip), `screens`. |

@@ -35,3 +35,13 @@ Music.load();
 const verTag = $("#verTag");
 if (verTag) verTag.textContent = `Gaia ${GAME_VERSION}`;
 Screens.show("title");
+
+// Dev-only: surface content-integrity problems in the console (the DB validator). Tree-shaken out
+// of production builds; gives instant feedback when data is tweaked.
+if (import.meta.env.DEV) {
+  import("./data/validate").then(({ validateContent }) => {
+    const issues = validateContent();
+    if (issues.length) console.warn(`[content] ${issues.length} integrity issue(s):\n - ` + issues.join("\n - "));
+    else console.info("[content] DB integrity OK");
+  });
+}
