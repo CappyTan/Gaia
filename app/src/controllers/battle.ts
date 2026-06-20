@@ -335,7 +335,7 @@ export const Battle = {
     Game.continueAfterBattle = wasZoneBoss
       ? wasFinal
         ? () => Game.victory()
-        : () => Game.openMerchant()
+        : () => Game.openTown()
       : () => Screens.show("field");
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal), 500);
   },
