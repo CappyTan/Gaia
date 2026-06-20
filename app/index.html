@@ -171,6 +171,11 @@
   .overlay.on{display:flex;}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; max-width:520px; width:100%; max-height:calc(100% - 36px); overflow-y:auto;}
   .item{border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:6px 0; background:#0e0e18; text-align:left;}
+  /* data browser tables (the content "database" view) */
+  .dt{width:100%; border-collapse:collapse; font-size:12px; text-align:left;}
+  .dt th{position:sticky; top:0; background:#16162a; color:var(--gold2); padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  .dt td{padding:3px 6px; border-bottom:1px solid #ffffff10; vertical-align:top;}
+  .dt tbody tr:nth-child(odd){background:#ffffff06;}
   .item .iname{font-weight:bold;}
   .item .affix{font-size:12px; color:var(--sol2);}
   .item .meta{font-size:11px; color:var(--dim);}
@@ -221,6 +226,7 @@
     </div>
     <div class="row" style="margin-top:10px">
       <button class="btn gold" onclick="Roster.open()">Enter Greenvale</button>
+      <button class="btn" onclick="DataBrowser.show()">Data</button>
       <button class="btn" onclick="Telemetry.load();Telemetry.show()">Telemetry</button>
       <button class="btn mutebtn" title="Music on/off" onclick="Music.unlock();Music.toggleMute()">🔊</button>
       <button class="btn" title="Home music style" onclick="Music.cycleStyle('title')">♪ <span id="st-title">Radiant</span> ▸</button>
