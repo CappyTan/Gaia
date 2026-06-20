@@ -425,7 +425,8 @@ export const Battle = {
       const d = el("div", "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : ""));
       d.dataset.mid = m.id;
       const spr = m.alive ? renderDoll(m) : '<div class="spr">💤</div>';
-      d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div></div>${spr}`;
+      // Names live in the lower roster panel only; up here we keep just status badges next to the sprite.
+      d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? ATT[m.att].color : "#666"}">${statusBadges(m)}</div></div>${spr}`;
       (m.row === "back" ? back : front).appendChild(d);
     });
   },
@@ -437,11 +438,18 @@ export const Battle = {
     });
     this.renderRoster(true);
   },
+  // Display order for the lower roster panel (Dara's preferred ordering). Members not listed keep
+  // their party order, after the named ones. Cosmetic only — does not touch Game.party / combat.
+  rosterOrder(): Member[] {
+    const ORDER = ["Auren", "Sephi", "Kaela", "Liora", "Rion"];
+    const rank = (m: Member) => { const i = ORDER.indexOf(m.name); return i < 0 ? ORDER.length + Game.party.indexOf(m) : i; };
+    return [...Game.party].sort((a, b) => rank(a) - rank(b));
+  },
   renderRoster(barsOnly?: boolean): void {
     const p = $("#rosterPanel")!;
     if (!barsOnly || p.children.length !== Game.party.length) {
       p.innerHTML = "";
-      Game.party.forEach((m) => {
+      this.rosterOrder().forEach((m) => {
         const row = el("div", "prow" + (m === this.current ? " turn" : "") + (m.alive ? "" : " downed"));
         row.dataset.id = m.id;
         row.innerHTML = `<div class="pn" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div>
