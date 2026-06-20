@@ -42,9 +42,19 @@ placeholders today.
 | ◐ | NPC "talk" indicator | over each NPC | 💬 emoji | Hint that an NPC is talkable. |
 
 ## Field tiles & zones
+Greenfield **Greenvale overworld + Bandit Warren** (ADR 0006): the zone is now carved from a bespoke
+`ZoneLayout` (`data/zones.ts`) by `controllers/field.genMap` — clearings, winding roads, branch
+pockets, a chokepoint gate, dungeon rooms. Existing kinds reuse their art; the one genuinely new kind
+is the rare-monster lair tile.
+
 | Status | Asset | Where used | Placeholder | Notes |
 |---|---|---|---|---|
-| | _(filled in as bespoke zone layouts add tile kinds)_ | | | |
+| ◐ | Rare-monster lair (`lair`) | Greenvale southern grove (Hogger's den) | 🕳️ emoji on grass | Walk-on tile → starts the zone's rare fight (`Field.enterLair`). Wants a den/burrow sprite (overworld) — and a dungeon variant later if a dungeon ever hosts one. Sits on grass; removing it never strands the player. |
+
+Re-used existing field kinds the bespoke layouts lean on harder now (no new art needed, noted for
+context): `grass`/`grass2` (clearings), `path` (carved roads/corridors), `tree` (forest/room walls +
+the gate chokepoint), `bush`/`rock` (walkable scatter decoration), `chest`, `miniboss` (gate guardian,
+still 🪖 emoji), `boss`, and the `warren`/`vault` dungeon tilesets east of the gate.
 
 ## Enemies & bosses
 | Status | Asset | Where used | Placeholder | Notes |
