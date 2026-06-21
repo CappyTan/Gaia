@@ -181,10 +181,13 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   it("every BUILT zone references a real Zone def; every region nests within its continent", () => {
     const zoneIds = new Set(ZONES.map((z) => z.id));
     const continentIds = new Set(CONTINENTS.map((c) => c.id));
+    // Goldmeadow has now LANDED in ZONES (level-designer phase complete), so the staged-build
+    // exception is removed — the full dangling-link guard fires for EVERY linked zone again.
     for (const z of ZONE_REGIONS) {
       expect(continentIds.has(z.continent), `zone "${z.id}" must have a real parent continent`).toBe(true);
-      if (z.zone) expect(zoneIds.has(z.zone), `built zone "${z.id}" must link a real ZONES entry`).toBe(true);
-      else expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
+      if (z.zone)
+        expect(zoneIds.has(z.zone), `built zone "${z.id}" must link a real ZONES entry`).toBe(true);
+      else if (!z.zone) expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
       const c = CONTINENTS.find((cc) => cc.id === z.continent)!;
       expect(polyContains(c.shape, z.shape), `zone "${z.id}" must nest within continent "${z.continent}"`).toBe(true);
     }
@@ -332,10 +335,10 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   });
 
   it("areasOf / zonesOf / builtZonesOf are consistent with the registry", () => {
-    // All 10 Aurelion regions (3 built + 7 backlog) are painted; the built ones live here.
+    // All 10 Aurelion regions (4 built + 6 backlog) are painted; the built ones live here.
     expect(zonesOf(AURELION_ID).length).toBe(10);
     expect(builtZonesOf(AURELION_ID).map((z) => z.id).sort())
-      .toEqual(["duskmarsh", "greenvale", "silverwood"]);
+      .toEqual(["duskmarsh", "goldmeadow", "greenvale", "silverwood"]);
     // The other three continents are all backlog (no built zones yet).
     for (const id of [VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID])
       expect(builtZonesOf(id).length, `${id} has no built zones yet`).toBe(0);

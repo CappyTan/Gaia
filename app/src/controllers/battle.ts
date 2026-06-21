@@ -36,13 +36,13 @@ export const Battle = {
   logLines: [] as string[],
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
 
-  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1): void {
+  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
     this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp, i === champIdx));
     if (this.enemies.some((e) => e.elite)) Telemetry.noteElite();
     Telemetry.encounterStart(enemyKeys, env || "plains", !!isBoss);
-    Music.play(isBoss ? "boss" : "battle"); Music._renderStyleLabels();
+    Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     this.awaiting = false; this.current = null; this.logLines = [];
@@ -402,7 +402,7 @@ export const Battle = {
     // Painterly terrain backgrounds (sliced from Dara's terrain sheet). Game env -> bg slug;
     // a dark scrim keeps sprites + bars legible over the bright art. Falls back to the original
     // CSS gradient if the image isn't present.
-    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave", warren: "warren", vault: "vault" };
+    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave", warren: "warren", vault: "vault", granary: "vault" };
     const fallback: Record<string, string> = {
       plains: "radial-gradient(130% 95% at 50% 22%, #34465a 0%, #131a26 50%, #06090f 100%)",
       forest: "radial-gradient(130% 95% at 50% 22%, #243a2a 0%, #0d1611 50%, #060a07 100%)",
