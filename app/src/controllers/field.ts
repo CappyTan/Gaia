@@ -650,7 +650,7 @@ export const Field = {
     if (cell === "mouth") { this.descend(); return; }        // step onto the cleared mouth → into the dungeon
     if (cell === "stairsdown") { if (this.stairsOpen()) this.descendFloor(); return; } // descend a floor
     if (cell === "stairsup") { this.ascendFloor(); return; } // climb a floor (or out on floor 0)
-    if (cell === "village") { const h = this.zone().hub; if (h) Game.enterTownVisit(h); return; } // step onto the village → back into the zone's hub
+    if (cell === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
@@ -933,7 +933,7 @@ export const Field = {
     const cell = this.cellAt(nx, ny);
     if (cell.kind === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell.kind === "mouth") { this.descend(); return; }
-    if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.enterTownVisit(h); return; } // step onto the village → back into the zone's hub
+    if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
     if (POI_KINDS.has(cell.kind)) { this.touchBigPoi(nx, ny); return; } // shrine / camp / landmark / signpost

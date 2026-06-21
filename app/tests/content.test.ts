@@ -496,3 +496,23 @@ describe("zone hub chains (flow can't strand the player)", () => {
     }
   });
 });
+
+// A town SPAWN must be walkable and not boxed in — you should be able to move on arrival. Guards the
+// Miregard bug (spawn on a dead-end plank stub with bog on two sides → "can't walk all 4 directions").
+describe("town spawns are walkable and not boxed in", () => {
+  const npcSet = (s: typeof SETTLEMENTS[string]) => new Set((s.npcs || []).map((n) => `${n.x},${n.y}`));
+  const walkable = (s: typeof SETTLEMENTS[string], npcs: Set<string>, x: number, y: number): boolean => {
+    const row = s.layout[y]; if (row === undefined) return false;
+    const kind = TOWN_GLYPHS[row[x] ?? "#"] ?? "town-cobble"; // mirror field.passable() in townMode
+    return !TOWN_BLOCKERS.has(kind) && !npcs.has(`${x},${y}`);
+  };
+  for (const s of Object.values(SETTLEMENTS)) {
+    it(`${s.id}: spawn is walkable with ≥2 open neighbours`, () => {
+      const sp = s.spawn; expect(sp).toBeTruthy(); if (!sp) return;
+      const npcs = npcSet(s);
+      expect(walkable(s, npcs, sp.x, sp.y)).toBe(true);
+      const open = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => walkable(s, npcs, sp.x + dx, sp.y + dy)).length;
+      expect(open).toBeGreaterThanOrEqual(2);
+    });
+  }
+});

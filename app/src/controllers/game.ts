@@ -251,6 +251,17 @@ export const Game = {
     this._revisitTown = true; // openTown cleared it; this entry IS a revisit
     this.saveNow();
   },
+  // Stepping onto an overworld hub VILLAGE MARKER — confirm before entering, so roaming the seamless
+  // world can't yank you into a town by accident (Dara: "ended up in Miregard, didn't mean to"). The
+  // marker sits a tile inside a region's entrance, so it's easy to step on. The EGRESS button + the
+  // post-boss hub chain still enter directly via enterTownVisit.
+  confirmEnterTownVisit(id: string): void {
+    const name = settlement(id).name;
+    Overlay.show(`<h2 class="title-gold">🏘️ ${name}</h2>
+      <p class="small">Step inside ${name}? Inn, market, smith, shrine — and the Vault.</p>
+      <div class="row"><button class="btn gold" onclick="Game.enterTownVisit('${id}')">Enter ${name} →</button>
+        <button class="btn" onclick="Overlay.hide()">◂ Stay on the road</button></div>`);
+  },
   // EGRESS: a convenience button on the overworld — instantly retreat to the current zone's hub town.
   // Same as the village marker (a revisit), so leaving returns you to where you egressed from.
   egress(): void {
