@@ -229,4 +229,22 @@ slot until a flowing-water variant exists.
 
 ---
 
+## Multi-floor dungeon stairs (Bandit Warren — ADR 0008 Stage 3, 2026-06-21)
+
+Gaia's first **multi-floor dungeon** (the Bandit Warren, Greenvale B1→B2→Kingpin) added two per-dungeon-
+tileset **stair** tiles drawn on the floor with a gold "Down"/"Up" caption. Slots are declared in
+`Field.loadTiles` for every `DUNGEON_SETS` skin (`<set>-stairsdown` / `<set>-stairsup`), so dropping
+`app/assets/field/<set>-stairsdown.png` (e.g. `warren-stairsdown.png`) lights them up with no code change.
+
+| Status | Asset | Tile key | Where used | Placeholder | Notes |
+|---|---|---|---|---|---|
+| ☐ | **Stairs-down** (descend a floor) | `<set>-stairsdown` | Warren B1/B2 descent (any multi-floor dungeon) | ⬇️ emoji + gold "Down" caption | A stone stairwell going down, per dungeon skin (`warren-`/`grove-`/`vault-`). |
+| ☐ | **Stairs-up** (climb a floor / out) | `<set>-stairsup` | Warren B2/B3 way back (any multi-floor dungeon) | ⬆️ emoji + gold "Up" caption | A stone stairwell going up; on B1 the up-stair is the mouth-back door. |
+
+The Warren's **in-dungeon lieutenant** (the B2 gate guardian) reuses the existing `miniboss` 🪖 marker
+(same as the overworld mouth guard) — no new tile needed; only the enemy slice (flagged to encounter-
+designer / art with the Brigadier placeholder).
+
+---
+
 *Keep this list current as each region is built. The art pass happens after, in one go.*

@@ -89,6 +89,16 @@ export interface SavedRun {
   // raided), so a cleared point-of-interest stays cleared across a reload (no infinite-heal exploit).
   // OPTIONAL — absent on an old save = nothing cleared (back-compatible, no schema bump needed).
   poisCleared?: Record<string, boolean>;
+  // MULTI-FLOOR DUNGEON (ADR 0008 Stage 3): which floor of the dungeon the player was on (0 = B1), so a
+  // save made deep in the Bandit Warren resumes on the right floor. OPTIONAL + degrade-never-throw —
+  // absent / out-of-range on an old or single-floor save → floor 0 (back-compatible, no schema bump).
+  // Only meaningful when `enteredDungeon`; ignored otherwise.
+  dungeonFloor?: number;
+  // MULTI-FLOOR: which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten this visit,
+  // by floor index ("0".."N" → true). Persisted so a resume past a beaten gate keeps the stairs live
+  // (no surprise re-fight / no being stranded past a gate the state thinks is closed). OPTIONAL +
+  // degrade-never-throw — absent on an old save = nothing beaten (back-compatible, no schema bump).
+  dungeonMiniCleared?: Record<string, boolean>;
 }
 
 export interface SaveEnvelope {
@@ -121,6 +131,8 @@ export interface RunSnapshot {
   bigMap: boolean;
   enteredDungeon: boolean;
   poisCleared: Record<string, boolean>;
+  dungeonFloor: number;
+  dungeonMiniCleared: Record<number, boolean>;
 }
 
 /** A rebuilt run, content-validated, ready for the controller to install. */
@@ -146,6 +158,8 @@ export interface LoadedRun {
   bigMap: boolean;           // resume into the seamless continent big map
   enteredDungeon: boolean;
   poisCleared: Record<string, boolean>; // cleared/spent POIs (per-zone keys); empty on an old save
+  dungeonFloor: number;      // which multi-floor dungeon floor to resume on (0 if not / single-floor)
+  dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
 }
@@ -220,6 +234,8 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     wx: s.wx, wy: s.wy, bigMap: s.bigMap,
     enteredDungeon: s.enteredDungeon,
     poisCleared: { ...s.poisCleared },
+    dungeonFloor: s.dungeonFloor,
+    dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -320,6 +336,23 @@ function revivePoisCleared(v: unknown): Record<string, boolean> {
   return out;
 }
 
+/** Flatten a numeric floor→beaten map to a string-keyed dict for JSON (a Record<number> isn't JSON-native). */
+function serializeFloorFlags(v: Record<number, boolean>): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [k, val] of Object.entries(v || {})) if (val) out[k] = true;
+  return out;
+}
+/** Rebuild the floor→beaten map: parse the string keys back to non-negative ints; drop junk (never throws). */
+function reviveFloorFlags(v: unknown): Record<number, boolean> {
+  const out: Record<number, boolean> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    const n = Number(k);
+    if (val === true && Number.isInteger(n) && n >= 0) out[n] = true;
+  }
+  return out;
+}
+
 /**
  * Parse → migrate → validate → rebuild a run. Returns null if it can't be salvaged (caller starts
  * fresh). Never throws. Drops/resets content that no longer exists, preferring to keep the party.
@@ -393,6 +426,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     enteredDungeon: resetPos ? false : !!r.enteredDungeon,
     // CLEARED POIs — keep only sane boolean-true entries (degrade-never-throw on a malformed field).
     poisCleared: revivePoisCleared(r.poisCleared),
+    // MULTI-FLOOR — the saved dungeon floor (clamped ≥0; clamped to the zone's floor count by the
+    // controller on resume). Reset to 0 if the zone changed under us. Degrade-never-throw.
+    dungeonFloor: resetPos ? 0 : Math.max(0, Math.floor(r.dungeonFloor || 0)),
+    dungeonMiniCleared: resetPos ? {} : reviveFloorFlags(r.dungeonMiniCleared),
     notes,
   };
 }

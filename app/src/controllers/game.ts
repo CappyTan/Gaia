@@ -107,6 +107,9 @@ export const Game = {
       enteredDungeon: Field.enteredDungeon,
       // CLEARED POIs (the inhabited world) — so a used shrine / raided camp stays spent across a reload.
       poisCleared: Field.poisCleared,
+      // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
+      dungeonFloor: Field.dungeonFloor,
+      dungeonMiniCleared: Field.dungeonMiniCleared,
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -146,6 +149,10 @@ export const Game = {
       Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
     } else {
       Field.enteredDungeon = r.enteredDungeon;
+      // MULTI-FLOOR: restore the beaten-gate state BEFORE genDungeon below (it reads dungeonMiniCleared
+      // to decide whether each floor's lieutenant still stands), so a resume past a beaten gate keeps
+      // the stairs live. Set even when not in a dungeon (harmless; cleared on the next fresh descent).
+      Field.dungeonMiniCleared = { ...r.dungeonMiniCleared };
       Field.resize();
       // ADR 0008 Stage 2: a new-model zone saved INSIDE its dungeon rebuilds the dungeon grid;
       // otherwise build the overworld (the mouth is enterable again if the mini was beaten). Legacy
@@ -155,13 +162,13 @@ export const Game = {
         // a save made INSIDE a dungeon then rebuilds the (always-discrete) dungeon grid on top, keeping
         // bigMap set so ascend returns to the continent surface.
         Field.genMap();
-        if (r.enteredDungeon) Field.genDungeon(Field.zoneIndex);
+        if (r.enteredDungeon) Field.genDungeon(Field.zoneIndex, r.dungeonFloor); // restore the saved floor
         else if (r.bigMap && Field.bigMapActive() && (r.wx || r.wy)) {
           Field.wx = r.wx; Field.wy = r.wy;           // restore the saved world tile + re-derive the zone
           Field.realizeAround(); Field.syncZoneFromWorld();
         }
       } else if (Field.usesNewModel() && r.enteredDungeon) {
-        Field.genDungeon(Field.zoneIndex);            // discrete: rebuild the dungeon grid
+        Field.genDungeon(Field.zoneIndex, r.dungeonFloor); // discrete: rebuild the saved dungeon floor
         this.placePlayer(r.px, r.py);
       } else {
         Field.genMap();                               // discrete: overworld / combined grid as before

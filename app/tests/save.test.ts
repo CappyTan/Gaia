@@ -48,6 +48,8 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     wx: 0, wy: 0, bigMap: false,
     enteredDungeon: true,
     poisCleared: {},
+    dungeonFloor: 1,
+    dungeonMiniCleared: { 0: true },
   };
   return { party, inventory, snapshot };
 }
@@ -72,6 +74,9 @@ describe("save round-trip", () => {
     expect(r.zoneIndex).toBe(1);
     expect(r.enteredDungeon).toBe(true);
     expect(r.px).toBe(12); expect(r.py).toBe(7);
+    // MULTI-FLOOR dungeon state round-trips (the floor index + which gates were beaten this visit).
+    expect(r.dungeonFloor).toBe(1);
+    expect(r.dungeonMiniCleared).toEqual({ 0: true });
 
     // party rebuilt: identity, class, level/xp/mna preserved; gear re-equipped; stats recomputed
     expect(r.party.length).toBe(2);
@@ -125,6 +130,27 @@ describe("save round-trip", () => {
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
     expect(r.poisCleared).toEqual({});       // absent field → empty map (back-compatible)
+  });
+
+  it("a save with no dungeonFloor/dungeonMiniCleared (old save) loads as floor 0 / nothing-beaten", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).dungeonFloor;
+    delete (env.run as any).dungeonMiniCleared;
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.dungeonFloor).toBe(0);          // absent floor → B1 (back-compatible, no schema bump)
+    expect(r.dungeonMiniCleared).toEqual({}); // absent gate-state → nothing beaten
+  });
+
+  it("a junk dungeonMiniCleared map degrades cleanly (drops non-int / non-true keys, never throws)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    (env.run as any).dungeonMiniCleared = { "-1": true, "x": true, "0": 5, "2": true };
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    // only the valid non-negative-int key mapped to boolean-true survives; junk is dropped.
+    expect(r.dungeonMiniCleared).toEqual({ 2: true });
   });
 
   it("re-equipped affix labels render the saved value (no broken label fn)", () => {

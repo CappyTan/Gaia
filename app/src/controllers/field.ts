@@ -3,7 +3,7 @@
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf,
@@ -106,6 +106,17 @@ export const Field = {
   // and `inDungeon()` falls back to the old px>gate.x test.
   mode: "overworld" as "overworld" | "dungeon",
   mouth: { x: 40, y: 12 } as Pt, // overworld dungeon-mouth POI (new model) — set in genOverworld
+  // ── MULTI-FLOOR DUNGEON (ADR 0008 Stage 3) ──────────────────────────────────────────────────
+  // Which floor of a multi-floor dungeon (the Bandit Warren) the player is on (0 = B1). 0 for the 9
+  // single-floor dungeons (their `dungeon.floors` is absent → a 1-element stack). PERSISTED in the save.
+  dungeonFloor: 0,
+  // Which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten, by floor index. A floor
+  // with no `miniboss` is implicitly open; a beaten mini turns that floor's stairs live. Reset on a fresh
+  // descent into the dungeon; PERSISTED so a resume mid-dungeon keeps a beaten gate open.
+  dungeonMiniCleared: {} as Record<number, boolean>,
+  // The floor whose in-dungeon mini-boss fight is in flight (so battle.ts → onMiniDefeated can mark
+  // THIS floor cleared, distinct from the overworld mouth guard). -1 = none / the mouth guard fight.
+  pendingFloorMini: -1,
   // TOWN: a real walkable settlement (data-driven, ADR 0006) reusing this same canvas/camera/dpad.
   // Loaded by id from data/towns.ts. No encounters; buildings are walk-in POIs; NPCs are talked to.
   townMode: false,
@@ -153,7 +164,7 @@ export const Field = {
     // five Areas read distinct; Commons/Warren reuse the base shire grass; the Grove reuses the
     // existing forest (grove-*) kinds.
     for (const n of ["orchard-ground", "orchard-ground2", "orchard-tree", "meadow-ground", "meadow-ground2", "wheat"]) names.push(n);
-    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
+    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance", "stairsdown", "stairsup"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
     // Miregard marsh-outpost kinds — placeholders until sliced (see asset-gaps.md)
@@ -198,6 +209,23 @@ export const Field = {
   // Whether THIS zone runs the new decoupled overworld/dungeon model (ADR 0008 Stage 2). Greenvale
   // first; the rest stay on the legacy combined-grid path until Chunk B proves the model out.
   usesNewModel(): boolean { return this.zoneIndex === 0; },
+  // ── MULTI-FLOOR helpers (ADR 0008 Stage 3) ──────────────────────────────────────────────────
+  // The floor stack for a zone's dungeon: its authored `floors` if multi-floor, else a 1-element stack
+  // of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
+  dungeonFloors(zoneIndex?: number): DungeonLayout[] {
+    const d = ZONES[zoneIndex ?? this.zoneIndex].dungeon;
+    return d.floors && d.floors.length ? d.floors : [d.layout];
+  },
+  // The DungeonLayout the player currently stands on (the current floor). Falls back to floor 0.
+  curFloor(): DungeonLayout {
+    const fl = this.dungeonFloors();
+    return fl[clamp(this.dungeonFloor, 0, fl.length - 1)];
+  },
+  // The LAST floor (the one carrying the boss finale) — true when no deeper floor remains.
+  isLastFloor(): boolean { return this.dungeonFloor >= this.dungeonFloors().length - 1; },
+  // Whether the current floor's STAIRS DOWN are live: a floor with no gating mini-boss is always open;
+  // a gated floor opens once that floor's lieutenant is beaten (tracked in dungeonMiniCleared).
+  stairsOpen(): boolean { return !this.curFloor().miniboss || !!this.dungeonMiniCleared[this.dungeonFloor]; },
   // ── ADR 0009 exemplar: Greenvale is AREA-NATIVE — its playable overworld reads as its five Areas
   // (Hearthford Commons / Orchard Ridge / Bandit Fields / The Hidden Grove / Warren Approach), each
   // with its own ground dressing + encounter lean. Whether THIS zone is the Area-aware one. (Only
@@ -368,15 +396,22 @@ export const Field = {
     this.ensureReachable(L.spawn, targets);
   },
 
-  // ── ADR 0008 Stage 2 (step 3): build the zone's DUNGEON as its own grid (DungeonLayout). The
-  // player lands at `entry`; the zone boss lives at `boss`. Sets mode="dungeon". Greenvale only.
-  genDungeon(zoneIndex: number): void {
+  // ── ADR 0008 Stage 2/3 (step 3): build ONE FLOOR of the zone's DUNGEON as its own grid. The player
+  // lands at `entry` (the mouth's inside on B1, the up-stair on deeper floors). Sets mode="dungeon".
+  // MULTI-FLOOR: an intermediate floor carries a `stairsDown` tile (drawn "stairsdown") gated by the
+  // floor's `miniboss` lieutenant where one stands; the LAST floor carries the zone `boss` finale. The
+  // up-stair (`entry`/`gate`) is drawn "stairsup" so the player reads the way back. Greenvale (zone 0)
+  // is the first multi-floor zone; the 9 single-floor dungeons run a 1-element stack (floor 0) unchanged.
+  genDungeon(zoneIndex: number, floorIdx = 0): void {
     this.townMode = false;
     this.mode = "dungeon";
-    const D = ZONES[zoneIndex].dungeon.layout;
+    const floors = this.dungeonFloors(zoneIndex);
+    this.dungeonFloor = clamp(floorIdx, 0, floors.length - 1);
+    const last = this.dungeonFloor >= floors.length - 1;
+    const D = floors[this.dungeonFloor];
     this.W = D.w; this.H = D.h;
-    this.gate = { ...D.gate };           // the door back out to the overworld
-    this.boss = { ...D.boss };
+    this.gate = { ...D.gate };           // the door/up-stair back out / up a floor
+    this.boss = { ...D.boss };           // only meaningful on the LAST floor
     this.chests = D.chests.map((c) => ({ ...c }));
     this.lairAt = null;                  // no rare lairs in the dungeon
     this.px = D.entry.x; this.py = D.entry.y;
@@ -395,10 +430,36 @@ export const Field = {
       if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
 
     this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
-    carve(this.boss.x, this.boss.y, "boss");
-    carve(D.entry.x, D.entry.y, "path");
+    // Anti-soft-lock targets: chests + the floor's egress (boss on the last floor, stairs-down otherwise).
+    const targets: Pt[] = [...this.chests];
+    if (last) { carve(this.boss.x, this.boss.y, "boss"); targets.push(this.boss); }
+    else if (D.stairsDown) {
+      this.halo(D.stairsDown);
+      carve(D.stairsDown.x, D.stairsDown.y, "stairsdown");
+      targets.push(D.stairsDown);
+    }
+    // IN-DUNGEON mini-boss gate (the lieutenant): while it stands, its tile reads as the guardian
+    // ("miniboss") and the player can't pass to the stairs; beaten, it reverts to floor. Always a flood
+    // target so the gated stairs/chests behind it stay reachable (the repair routes THROUGH the gate tile).
+    if (D.miniboss) {
+      this.halo(D.miniboss);
+      const beaten = !!this.dungeonMiniCleared[this.dungeonFloor];
+      carve(D.miniboss.x, D.miniboss.y, beaten ? "path" : "miniboss");
+      // TRUE GATE PINCH (anti-bypass): the lieutenant gates a HORIZONTAL (east-west) passage, but its
+      // own 3×3 halo (above) opens the 8 neighbours — leaving a walkable RING that lets the player slip
+      // AROUND the fight via the tiles directly above/below it. Re-wall those perpendicular flanks so the
+      // ONLY way through the gate is the lieutenant tile itself. Authors keep the gated rooms ≥2 cols
+      // past the gate so no OTHER halo re-opens these flanks; the flood-repair still routes THROUGH the
+      // (walkable) gate tile, so a beaten lieutenant can never strand the player.
+      carve(D.miniboss.x, D.miniboss.y - 1, "tree");
+      carve(D.miniboss.x, D.miniboss.y + 1, "tree");
+      targets.push(D.miniboss);
+    }
+    // The up-stair / way back is "stairsup" on EVERY floor — "up = out" everywhere. On a deeper floor it
+    // climbs to the previous floor; on floor 0 it IS the mouth-back door (stepping on it → ascend() → the
+    // overworld mouth), so the player always has a walk-out trigger after climbing B2→B1 (QA fix).
+    carve(D.entry.x, D.entry.y, "stairsup");
 
-    const targets = [this.boss, ...this.chests];
     this.ensureReachable(D.entry, targets);
   },
 
@@ -558,8 +619,15 @@ export const Field = {
     this.draw(); this.hint();
     const cell = this.map[ny][nx];
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
-    if (cell === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
-    if (cell === "mouth") { this.descend(); return; }       // step onto the cleared mouth → into the dungeon
+    // MULTI-FLOOR: an in-dungeon "miniboss" tile is the FLOOR LIEUTENANT (gates the stairs); the
+    // overworld "miniboss" is the dungeon-mouth guard. Distinguish by mode so each fights its own cast.
+    if (cell === "miniboss") {
+      if (this.mode === "dungeon") { if (!this.dungeonMiniCleared[this.dungeonFloor]) this.startFloorMini(); else this.map[ny][nx] = "path"; return; }
+      if (!Game.miniBossDefeated) { this.startMiniBoss(); return; }
+    }
+    if (cell === "mouth") { this.descend(); return; }        // step onto the cleared mouth → into the dungeon
+    if (cell === "stairsdown") { if (this.stairsOpen()) this.descendFloor(); return; } // descend a floor
+    if (cell === "stairsup") { this.ascendFloor(); return; } // climb a floor (or out on floor 0)
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
@@ -578,6 +646,9 @@ export const Field = {
   // enterable (the guard is gone, not the threshold). Legacy zones keep the old "open the gate tile"
   // behaviour. Idempotent + safe to call on either model.
   onMiniDefeated(): void {
+    // MULTI-FLOOR: if the just-won fight was an IN-DUNGEON floor lieutenant, route to its handler (it
+    // opens that floor's stairs) — NOT the overworld mouth/gate, which the player already passed.
+    if (this.pendingFloorMini >= 0) { this.onFloorMiniDefeated(); return; }
     if (this.usesNewModel()) {
       if (this.mode === "overworld" && this.map[this.mouth.y]) this.map[this.mouth.y][this.mouth.x] = "mouth";
     } else if (this.gate && this.map[this.gate.y]) {
@@ -585,10 +656,13 @@ export const Field = {
     }
     this.draw?.(); this.hint?.();
   },
-  // Step onto the cleared mouth → build the dungeon grid, drop into it, show the "you descend" beat.
+  // Step onto the cleared mouth → build the dungeon grid (floor 0), drop into it, show the "you descend"
+  // beat. A FRESH descent from the overworld resets the per-floor mini-gate state (re-cleared per visit).
   descend(): void {
     this.enteredDungeon = true;
-    this.resize(); this.genDungeon(this.zoneIndex); // sets mode="dungeon" + px/py to the entry
+    this.dungeonMiniCleared = {}; // fresh run of the dungeon — re-fight each floor's gating lieutenant
+    this.pendingFloorMini = -1;   // defensive: no floor-mini fight is in flight on a fresh descent
+    this.resize(); this.genDungeon(this.zoneIndex, 0); // sets mode="dungeon" + px/py to floor 0's entry
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
@@ -598,10 +672,41 @@ export const Field = {
     if (dm && dm !== this.bigMusic) { this.bigMusic = dm; Music.play(dm); Music._renderStyleLabels?.(); }
     Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
+  // MULTI-FLOOR: step onto the (open) stairs-down → build the NEXT floor at its entry. Carries the
+  // beaten-gate state across floors (per-visit), autosaves the new floor so a resume restores it.
+  descendFloor(): void {
+    const floors = this.dungeonFloors();
+    if (this.dungeonFloor >= floors.length - 1) return; // already on the last floor — no deeper to go
+    this.resize(); this.genDungeon(this.zoneIndex, this.dungeonFloor + 1);
+    this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+    this.draw(); this.hint();
+    Game.saveNow();
+    const z = this.zone();
+    const last = this.isLastFloor();
+    const body = last
+      ? `You descend the last stair — the hideout opens into the ${ENEMIES[z.boss].name}'s hall.`
+      : `You descend deeper into ${z.dungeon.name}. The dens run hotter the lower you go.`;
+    Overlay.show(`<h2 class="title-gold">${z.dungeon.name} · B${this.dungeonFloor + 1}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+  },
+  // MULTI-FLOOR: step onto the up-stair on a deeper floor → climb back to the PREVIOUS floor, landing
+  // on that floor's stairs-down (so you arrive where you descended). On floor 0 the up-stair IS the
+  // mouth-back door → ascend out to the overworld.
+  ascendFloor(): void {
+    this.pendingFloorMini = -1; // defensive: leaving a floor cancels any in-flight floor-mini routing
+    if (this.dungeonFloor <= 0) { this.ascend(); return; }
+    const prev = this.dungeonFloor - 1;
+    this.resize(); this.genDungeon(this.zoneIndex, prev);
+    const sd = this.curFloor().stairsDown;
+    if (sd && this.passable(sd.x, sd.y)) { this.px = sd.x; this.py = sd.y; } // land back on the descent
+    this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+    this.draw(); this.hint();
+    Game.saveNow();
+  },
   // Climb back out of the dungeon to the overworld (new model). Rebuilds the overworld at the mouth.
   // BIG-MAP: restore the player onto the mouth's WORLD tile and re-enter the windowed overworld; the
   // chunk cache + authored blueprint carry over (the mouth never moved in world space).
   ascend(): void {
+    this.pendingFloorMini = -1; // defensive: back out to the overworld with no floor-mini fight pending
     if (this.bigMap) {
       this.mode = "overworld"; this.enteredDungeon = false; // back on the seamless surface
       const pl = placementOf(this.bigZone)!;
@@ -827,8 +932,10 @@ export const Field = {
     const p = this.progress(), bands = this.zone().bands;
     let band = bands[0];
     for (const e of bands) { if (p >= e.at) band = e; }
-    // the dungeon runs ~1-2 levels hotter than the overworld
-    const depth = this.inDungeon() ? clamp(p + 0.25, 0, 1) : p;
+    // the dungeon runs ~1-2 levels hotter than the overworld; in a MULTI-FLOOR dungeon the threat also
+    // CLIMBS with depth — each floor below B1 adds a step so the dens run hotter the lower you go.
+    const floorBump = this.inDungeon() ? this.dungeonFloor * 0.12 : 0;
+    const depth = this.inDungeon() ? clamp(p + 0.25 + floorBump, 0, 1) : p;
     // ULTRA-RARE: a small chance the encounter is instead a lone treasure monster (Metal-Slime /
     // Warmech tier) — exceptional loot. Eligible by zone; solo fight, no champion.
     const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
@@ -952,6 +1059,33 @@ export const Field = {
     const p = this.progress(), z = this.zone();
     Battle.begin([z.mini, ...(z.miniAdds || [])], this.envFor(p), true, false, p, -1, z.id);
   },
+  // MULTI-FLOOR: the IN-DUNGEON mini-boss (the floor lieutenant) — distinct from the overworld mouth
+  // guard. Uses the zone's `dungeon.floorMini` key (placeholder = the Brigadier "brigand") at a depth
+  // that climbs by floor. Tracks `pendingFloorMini` so battle.ts → onMiniDefeated marks THIS floor (not
+  // the mouth) cleared. Falls back to the zone mini if no floorMini key is authored.
+  startFloorMini(): void {
+    const z = this.zone();
+    const key = z.dungeon.floorMini || z.mini;
+    this.pendingFloorMini = this.dungeonFloor;
+    // depth runs hotter the deeper the floor (mirrors the dungeon depth bump), capped at 1.
+    const fl = this.dungeonFloors().length;
+    const depth = clamp(0.45 + this.dungeonFloor / Math.max(1, fl), 0, 1);
+    Battle.begin([key], this.envFor(depth), true, false, depth, -1, z.id);
+  },
+  // The floor lieutenant fell: mark THIS floor's gate cleared (the gated stairs go live) and reveal it
+  // on the map. Called from battle.ts via onMiniDefeated when pendingFloorMini was set.
+  onFloorMiniDefeated(): void {
+    const f = this.pendingFloorMini;
+    this.pendingFloorMini = -1;
+    if (f < 0) return;
+    this.dungeonMiniCleared[f] = true;
+    // reveal: turn the lieutenant tile to floor so the stairs behind it are now walkable-through.
+    if (this.mode === "dungeon" && f === this.dungeonFloor) {
+      const mb = this.curFloor().miniboss;
+      if (mb && this.map[mb.y]) this.map[mb.y][mb.x] = "path";
+      this.draw?.(); this.hint?.();
+    }
+  },
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5); // deeper chests = better floor
@@ -991,7 +1125,17 @@ export const Field = {
     const p = this.progress(), z = this.zone(), name = z.name;
     const miniNm = ENEMIES[z.mini].name, bossNm = ENEMIES[z.boss].name;
     let msg: string;
-    if (this.inDungeon()) msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+    if (this.inDungeon()) {
+      // MULTI-FLOOR cues: name the floor lieutenant / the stairs down on intermediate floors; the boss
+      // on the finale floor. Single-floor dungeons keep the original "deep in / boss ahead" read.
+      const multi = this.dungeonFloors().length > 1;
+      if (multi && !this.isLastFloor()) {
+        if (this.curFloor().miniboss && !this.stairsOpen()) msg = `A bandit lieutenant blocks the stairs down — cut him down to descend.`;
+        else msg = `Find the stairs down — ${z.dungeon.name} runs deeper still.`;
+      } else {
+        msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+      }
+    }
     else if (!Game.miniBossDefeated && p >= 0.38) msg = `A ${miniNm} guards the mouth of ${z.dungeon.name}.`;
     else if (this.usesNewModel() && Game.miniBossDefeated && p >= 0.7) msg = `Step onto the mouth of ${z.dungeon.name} to descend.`;
     else if (p < 0.12) msg = `Head east through ${name}. Search off the path for treasure.`;
@@ -1011,8 +1155,9 @@ export const Field = {
     // sampled for music on the per-step path. Falls back to the zone name off the big map / in a dungeon.
     const area = this.bigMapActive() ? regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name : undefined;
     const lead = this.inDungeon() ? z.dungeon.name : name;
+    const floorTag = this.inDungeon() && this.dungeonFloors().length > 1 ? `B${this.dungeonFloor + 1} · ` : "";
     const sub = this.inDungeon()
-      ? `${Game.encountersWon} cleared`
+      ? `${floorTag}${Game.encountersWon} cleared`
       : `${area ? area + " · " : ""}Lv ${sug}+ · ${Game.encountersWon} cleared`;
     setPill(lead, sub);
   },
@@ -1212,6 +1357,20 @@ export const Field = {
     }
   },
 
+  // MULTI-FLOOR stairs (placeholder until art-integrator slices warren/grove/vault-stairsdown/up): draw
+  // the sprite if present, else a clear ⬇/⬆ glyph + a small gold caption so the descent/climb reads.
+  // `up` = an up-stair (climb / out); else a down-stair (descend). ART FLAG — see the hand-back.
+  drawStairs(c: CanvasRenderingContext2D, obj: (img: HTMLImageElement | undefined, emoji: string, sc?: number) => void, img: HTMLImageElement | undefined, up: boolean, sx: number, sy: number, t: number): void {
+    obj(img, up ? "⬆️" : "⬇️", 0.9);
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const txt = up ? "Up" : "Down", ly = sy + t * 1.0;
+    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
+    c.restore();
+  },
+
   // BIG-MAP draw: iterate the WORLD-TILE viewport from the chunk cache (never calling regionAt).
   // Camera centers on the player's world tile and is clamped to the world extent (placement keeps
   // the player far from the 0/960 edges, so the clamp is effectively a no-op here). Dressing is read
@@ -1317,7 +1476,7 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || POI_KINDS.has(cell);
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "stairsdown" || cell === "stairsup" || POI_KINDS.has(cell);
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
@@ -1386,6 +1545,8 @@ export const Field = {
         if (cell === "chest") obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8);
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
+        else if (cell === "stairsdown") this.drawStairs(c, obj, T[`${dset}-stairsdown`], false, sx, sy, t); // descend a floor (placeholder — see asset-gaps.md)
+        else if (cell === "stairsup") this.drawStairs(c, obj, T[`${dset}-stairsup`], true, sx, sy, t);      // climb a floor / out
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
         else if (POI_KINDS.has(cell)) this.drawPoiCell(c, T, cell, mx, my, sx, sy, t, false); // captioned landmark/camp/shrine/sign

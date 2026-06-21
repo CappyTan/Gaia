@@ -117,13 +117,28 @@ export interface Poi {
 export interface DungeonLayout {
   w: number;            // dungeon grid width  (tiles)
   h: number;            // dungeon grid height (tiles)
-  entry: Pt;            // where the player lands on descending (the mouth's inside)
-  gate: Pt;             // the door tile back out to the overworld (usually == entry)
-  boss: Pt;             // the dungeon boss tile (the zone boss lives HERE)
+  entry: Pt;            // where the player lands on arriving on this floor (the mouth's inside / the up-stair)
+  gate: Pt;             // the door tile back out / up a floor (usually == entry)
+  boss: Pt;             // the dungeon boss tile (the FINALE floor's boss; ignored on intermediate floors)
   rooms: Rect[];        // carved chambers
   paths: Path[];        // corridors joining them
   chests: Pt[];         // dungeon treasure (each gets a walkable approach)
   scatter?: number;     // cosmetic rock density (0–1)
+  /**
+   * MULTI-FLOOR ENGINE (ADR 0008 Stage 3): on an INTERMEDIATE floor (any floor that isn't the last),
+   * the tile that DESCENDS to the next floor's `entry`. Absent on the finale floor (which carries the
+   * `boss` instead). Single-floor dungeons (the other 9 zones) omit it entirely — unchanged.
+   */
+  stairsDown?: Pt;
+  /**
+   * Optional IN-DUNGEON mini-boss tile that GATES `stairsDown` until defeated — the floor's own
+   * chokepoint, mirroring the overworld mouth/miniboss pattern. While it stands, the player can't step
+   * onto `stairsDown` (it draws + reads as the gate guardian); beating it turns the stairs live. The
+   * enemy it fights comes from `Zone.dungeon.floorMini` (encounter-designer authors the real cast).
+   * Author it so the gating mini-boss can never strand the player — the flood-repair covers stairs +
+   * boss + chests + this tile, so a beaten mini always opens onto reachable stairs.
+   */
+  miniboss?: Pt;
 }
 
 export interface Zone {
@@ -136,10 +151,19 @@ export interface Zone {
   bands: EncounterBand[];
   /**
    * The dungeon past the mini-boss mouth: own name + environment, tougher enemies, and (ADR 0008
-   * Stage 2) its own decoupled tile grid (`layout`, x rebased to 0). The zone boss lives in
-   * `dungeon.layout.boss`.
+   * Stage 2) its own decoupled tile grid (`layout`, x rebased to 0). The zone boss lives in the
+   * FINALE floor's `boss`.
+   *
+   * MULTI-FLOOR (ADR 0008 Stage 3): a dungeon is EITHER single-floor (just `layout`, the other 9
+   * zones — unchanged) OR multi-floor via `floors` (the Bandit Warren: a descending B1→B2→… stack).
+   * When `floors` is present it is the source of truth and `layout` MUST equal `floors[0]` (kept so
+   * the 9 single-floor zones and all existing `dungeon.layout` readers/tests are untouched — a
+   * single-floor dungeon is just a 1-element stack). The player descends a floor's `stairsDown`
+   * (gated by that floor's `miniboss`, if any) to the next floor's `entry`, and the LAST floor holds
+   * the `boss` finale. `floorMini` is the enemy key the in-dungeon mini-boss fights (a placeholder
+   * for the encounter-designer to author).
    */
-  dungeon: { name: string; env: string; layout: DungeonLayout };
+  dungeon: { name: string; env: string; layout: DungeonLayout; floors?: DungeonLayout[]; floorMini?: string };
   /** Bespoke layout consumed by `controllers/field.genMap` (ADR 0006). */
   layout: ZoneLayout;
   /**
@@ -316,31 +340,115 @@ export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undef
   return best;
 }
 
-// The Bandit Warren as its OWN grid (ADR 0008 Stage 2): the old Greenvale dungeon (everything east
-// of the gate wall at x=40), x rebased by -gateWallX so the gate stub at world-x 41 becomes local
-// x=1 (a clean west border at x=0). Width = 64-40 = 24; height carries over (24). The combined
-// genMap reconstructs the byte-identical old grid by adding gateWallX back. Kingpin → 20,11.
-const GREENVALE_DUNGEON: DungeonLayout = {
-  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+// ── THE BANDIT WARREN — Gaia's FIRST MULTI-FLOOR dungeon (ADR 0008 Stage 3, Lv 1-6) ─────────────
+// A descending bandit hideout in THREE floors (B1 → B2 → the Kingpin's hall). Each floor is its OWN
+// DungeonLayout on its own 24×24 grid; the player descends a floor's `stairsDown` (gated by a floor
+// `miniboss` where one stands) to the next floor's `entry`, and climbs the `entry`/up-stair back. The
+// FINALE floor (B3) holds the Kingpin `boss`. The open-world rule applies underground too: each floor
+// is a connected room-network with loops/dead-ends, not a single corridor. Anti-soft-lock: every floor
+// flood-fills so entry reaches its stairs-down (or boss) + all chests, and the gating mini can't strand.
+//
+// ENCOUNTER-DESIGNER FLAG: floor enemies reuse Greenvale bandits as PLACEHOLDERS (gbandit/kobold/
+// gmage/brigand via the bands). `floorMini: "brigand"` is the in-dungeon LIEUTENANT (B2's gate) — a
+// placeholder reusing the existing Bandit Brigadier; author the real bandit-lieutenant + the Warren's
+// own cast, and confirm the Kingpin finale, in data/enemies.ts + zones bands.
+//
+// B1 — WARREN ENTRANCE (the fork): the mouth lands at the west entry hall, which forks into a NORTH
+// guard chamber and a SOUTH store room (a dead-end side cache off it). Both rejoin at a junction hub,
+// from which the STAIRS DOWN descend (no mini on B1 — the gentle intro/breather floor). Two chests on
+// the loop arms; the richest is down the store-room dead-end (reward the brave).
+const WARREN_B1: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 }, // boss unused on B1
+  stairsDown: { x: 20, y: 11 }, // descend to B2
   rooms: [
     { x: 2, y: 8, w: 6, h: 8 },     // warren entry hall (the fork)
     { x: 10, y: 3, w: 7, h: 5 },    // north guard chamber (chest, on the loop)
     { x: 10, y: 16, w: 7, h: 5 },   // south store room (chest, on the loop)
-    { x: 14, y: 8, w: 5, h: 7 },    // antechamber hub (the loop rejoins here)
-    { x: 17, y: 8, w: 6, h: 6 },    // the Kingpin's arena
+    { x: 4, y: 18, w: 4, h: 4 },    // store-room DEAD-END side cache (off the south arm — richest B1 chest)
+    { x: 14, y: 8, w: 5, h: 7 },    // junction hub (the loop rejoins here)
+    { x: 18, y: 9, w: 5, h: 5 },    // stair landing (the descent)
   ],
   paths: [
     [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → entry hall
-    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north chamber → antechamber
-    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south store → antechamber (the LOOP)
-    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north chamber → junction
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south store → junction (the LOOP)
+    [{ x: 5, y: 16 }, { x: 6, y: 19 }],                            // south store → dead-end side cache (spur)
+    [{ x: 16, y: 11 }, { x: 20, y: 11 }],                          // junction → stair landing (descend)
   ],
   chests: [
-    { x: 13, y: 18 },  // south store room (loop, richest)
+    { x: 6, y: 20 },   // store-room dead-end cache (richest B1, reward the brave)
     { x: 13, y: 4 },   // north guard chamber (loop, breather reward)
   ],
   scatter: 0.06,
 };
+// B2 — DEEPER DENS (the gated descent): the up-stair lands west; the floor loops a north den and a
+// south den around a central hall, with a DEAD-END treasure vault hidden PAST the lieutenant. The
+// LIEUTENANT (`miniboss`) guards the STAIRS DOWN at the east — beat him to open the descent AND the
+// vault spur behind him. More dead-ends + treasure than B1; the danger climbs.
+//
+// GATE-PINCH GEOMETRY (QA fix 2026-06-21): the lieutenant tile (17,12) is the SOLE walkable link from
+// the central hall (cols 13-17) to the stair-landing/vault block (cols 20-22) — the junction is a
+// SINGLE-ROW corridor on row 12: (17,12 lieutenant)→(18,12)→(19,12)→(20,12 landing). Cols 18-19 are
+// solid wall at every OTHER row, and the gated block sits ≥2 columns east of the lieutenant (its stairs
+// at x=21, vault chest at x=21) so NO stairs/chest halo can re-open a flanking tile in cols 18-19. The
+// lieutenant's OWN 3×3 halo (which would otherwise open a walkable RING around it via (17,11)/(17,13))
+// is closed off by genDungeon re-walling the gate's perpendicular flanks — so the only way east is
+// THROUGH the fight. VERIFIED by flooding with the lieutenant forced to a wall: stairs-down AND the
+// vault chest both go UNREACHABLE (and with it walkable, everything is reachable — no soft-lock).
+const WARREN_B2: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 }, // boss unused on B2
+  stairsDown: { x: 21, y: 12 },   // descend to B3 (the Kingpin's hall) — ≥2 cols east of the lieutenant
+  miniboss: { x: 17, y: 12 },     // the bandit LIEUTENANT — the SOLE link east; gates the stairs + the vault
+  rooms: [
+    { x: 2, y: 9, w: 6, h: 6 },     // up-stair landing hall (the fork)
+    { x: 10, y: 3, w: 7, h: 5 },    // north den (chest, on the loop)
+    { x: 10, y: 16, w: 7, h: 5 },   // south den (chest, on the loop)
+    { x: 13, y: 9, w: 5, h: 6 },    // central hall (cols 13-17; the loop rejoins, lieutenant at its east mouth)
+    { x: 20, y: 9, w: 3, h: 7 },    // stair landing PAST the lieutenant (cols 20-22 — cols 18-19 stay solid)
+    { x: 20, y: 3, w: 3, h: 4 },    // hidden VAULT dead-end (cols 20-22, behind the lieutenant — richest hoard)
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // up-stair → landing hall
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 15, y: 9 }],           // hall → north den → central
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 15, y: 14 }],         // hall → south den → central (the LOOP)
+    [{ x: 17, y: 12 }, { x: 21, y: 12 }],                          // central → (THROUGH lieutenant) → stair landing
+    [{ x: 21, y: 10 }, { x: 21, y: 6 }],                           // stair landing → hidden vault dead-end (spur)
+  ],
+  chests: [
+    { x: 21, y: 4 },   // hidden vault dead-end behind the lieutenant (RICHEST — reward the brave)
+    { x: 13, y: 4 },   // north den (loop)
+    { x: 13, y: 19 },  // south den (loop)
+  ],
+  scatter: 0.07,
+};
+// B3 — THE KINGPIN'S HALL (the finale): the up-stair lands west; a short antechamber loop opens onto
+// the Kingpin's arena, the richest hoard flanking the throne. The zone `boss` (Kingpin) lives HERE.
+const WARREN_B3: DungeonLayout = {
+  w: 24, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 20, y: 10 },
+  rooms: [
+    { x: 2, y: 7, w: 6, h: 8 },     // up-stair landing hall
+    { x: 10, y: 4, w: 6, h: 5 },    // north antechamber (chest, on the loop)
+    { x: 10, y: 14, w: 6, h: 5 },   // south antechamber (chest, on the loop)
+    { x: 14, y: 8, w: 4, h: 6 },    // throne approach (the loop rejoins)
+    { x: 17, y: 6, w: 6, h: 10 },   // the KINGPIN'S ARENA (richest hoard at the throne)
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 5, y: 11 }],                            // up-stair → landing hall
+    [{ x: 5, y: 9 }, { x: 12, y: 6 }, { x: 15, y: 9 }],            // hall → north antechamber → throne approach
+    [{ x: 5, y: 13 }, { x: 12, y: 16 }, { x: 15, y: 13 }],         // hall → south antechamber → approach (the LOOP)
+    [{ x: 15, y: 11 }, { x: 19, y: 11 }],                          // approach → arena (boss)
+  ],
+  chests: [
+    { x: 20, y: 13 },  // throne-side hoard (richest — by the Kingpin)
+    { x: 13, y: 5 },   // north antechamber (loop)
+    { x: 13, y: 17 },  // south antechamber (loop)
+  ],
+  scatter: 0.06,
+};
+// The Bandit Warren = the 3-floor stack. `layout` MUST equal `floors[0]` (the single-floor contract
+// every `dungeon.layout` reader/test relies on; a single-floor dungeon is just a 1-element stack).
+const GREENVALE_DUNGEON: DungeonLayout = WARREN_B1;
+const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 
 // ── Silverwood, the Ancient Forest + the Sunless Grove (OPEN-WORLD rework — Dara 2026-06-20) ──
 // Region #2 of Aurelion (world-atlas): the deep, old, hushed old-growth forest, inserted BETWEEN
@@ -1393,7 +1501,7 @@ export const WORLD_SETTLEMENT_NOTE = {
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "brigand" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
   // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
   // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
   // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to

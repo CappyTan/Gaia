@@ -71,9 +71,16 @@ function carveOverworld(L: ZoneLayout): string[][] {
 }
 
 // ── DUNGEON-ONLY carve (ADR 0008 Stage 2, step 3 — Greenvale's genDungeon) ────────────────────
-// The decoupled dungeon grid: rooms/paths from the dungeon's own coords (x from 0), boss + chests.
-// Proves the dungeon alone reaches its boss + every dungeon chest from the entry.
-function carveDungeon(D: DungeonLayout): string[][] {
+// The decoupled dungeon grid: rooms/paths from the dungeon's own coords (x from 0), egress + chests.
+// Proves the floor alone reaches its egress (boss on the LAST floor, stairs-down otherwise) + every
+// chest from the entry. `last` mirrors genDungeon: the finale floor carves the boss, an intermediate
+// floor carves stairs-down. The gating miniboss tile is carved walkable by default (the flood routes
+// THROUGH it, exactly as the runtime — the gate is a fight, not a wall, so it can't strand the player);
+// pass `miniWall=true` to carve it as a WALL instead (the GATE-INTEGRITY check — proves the gate truly
+// blocks the stairs/vault until beaten). genDungeon re-walls the gate's PERPENDICULAR FLANKS (the tiles
+// directly above/below the lieutenant) after its halo so the halo ring can't open a bypass — mirrored
+// here so the flood matches the runtime.
+function carveDungeon(D: DungeonLayout, last = true, miniWall = false): string[][] {
   const map = Array.from({ length: D.h }, () => Array.from({ length: D.w }, () => "tree"));
   const inB = (x: number, y: number) => x > 0 && y > 0 && x < D.w - 1 && y < D.h - 1;
   const c = (x: number, y: number, k: string) => { if (inB(x, y)) map[y][x] = k; };
@@ -84,8 +91,19 @@ function carveDungeon(D: DungeonLayout): string[][] {
   D.paths.forEach(path);
   const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && map[yy][xx] === "tree") map[yy][xx] = "grass"; } };
   D.chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
-  c(D.boss.x, D.boss.y, "boss"); c(D.entry.x, D.entry.y, "path");
+  if (last) { c(D.boss.x, D.boss.y, "boss"); }
+  else if (D.stairsDown) { halo(D.stairsDown); c(D.stairsDown.x, D.stairsDown.y, "stairsdown"); }
+  if (D.miniboss) {
+    halo(D.miniboss);
+    c(D.miniboss.x, D.miniboss.y, miniWall ? "tree" : "path"); // gate = a fight (walkable) unless forced wall
+    c(D.miniboss.x, D.miniboss.y - 1, "tree"); c(D.miniboss.x, D.miniboss.y + 1, "tree"); // re-wall the gate flanks
+  }
+  c(D.entry.x, D.entry.y, "path");
   return map;
+}
+// The authored floor stack for a zone (its `floors` if multi-floor, else the single layout).
+function floorsOf(z: Zone): DungeonLayout[] {
+  const d = z.dungeon; return d.floors && d.floors.length ? d.floors : [d.layout];
 }
 function reachable(map: string[][], start: Pt): boolean[][] {
   const H = map.length, W = map[0].length;
@@ -205,6 +223,83 @@ describe("ADR 0008 — decoupled overworld + dungeon (no soft-lock)", () => {
       });
     });
   }
+});
+
+// ── ADR 0008 Stage 3 — MULTI-FLOOR dungeon engine (the Bandit Warren), no soft-lock on ANY floor.
+// EVERY floor of EVERY zone (a single-floor dungeon is a 1-element stack) must, from its entry, reach
+// its egress + every chest. An INTERMEDIATE floor's egress is its stairs-down (gated by the floor's
+// lieutenant, which is walkable in the flood — the gate is a fight, never a wall); the LAST floor's
+// egress is the zone boss. This is the foundation for every future multi-floor dungeon.
+describe("ADR 0008 Stage 3 — multi-floor dungeon (every floor traversable, no soft-lock)", () => {
+  for (const z of ZONES) {
+    const floors = floorsOf(z);
+    describe(z.name, () => {
+      it(`has ${floors.length} floor(s); intermediate floors carry stairs-down, the last carries the boss`, () => {
+        floors.forEach((D, i) => {
+          const last = i === floors.length - 1;
+          // entry on the west edge (the mouth's inside / the up-stair), in-bounds + walkable approach.
+          const dinb = (p: Pt) => p.x > 0 && p.y > 0 && p.x < D.w - 1 && p.y < D.h - 1;
+          expect(dinb(D.entry), `floor ${i} entry in-bounds`).toBe(true);
+          if (last) expect(dinb(D.boss), `floor ${i} boss in-bounds`).toBe(true);
+          else { expect(D.stairsDown, `floor ${i} has stairs-down`).toBeTruthy(); expect(dinb(D.stairsDown!), `floor ${i} stairs in-bounds`).toBe(true); }
+          // a gating lieutenant (if any) must be in-bounds.
+          if (D.miniboss) expect(dinb(D.miniboss), `floor ${i} miniboss in-bounds`).toBe(true);
+        });
+      });
+      floors.forEach((D, i) => {
+        const last = i === floors.length - 1;
+        it(`B${i + 1} reaches its ${last ? "BOSS" : "stairs-down"} + every chest from the entry`, () => {
+          const seen = reachable(carveDungeon(D, last), D.entry);
+          if (last) expect(seen[D.boss.y][D.boss.x], `B${i + 1} boss reachable`).toBe(true);
+          else expect(seen[D.stairsDown!.y][D.stairsDown!.x], `B${i + 1} stairs reachable`).toBe(true);
+          for (const ch of D.chests) expect(seen[ch.y][ch.x], `B${i + 1} chest ${ch.x},${ch.y} reachable`).toBe(true);
+          // the gating lieutenant tile itself must be reachable (the player can always reach the gate).
+          if (D.miniboss) expect(seen[D.miniboss.y][D.miniboss.x], `B${i + 1} lieutenant reachable`).toBe(true);
+        });
+      });
+    });
+  }
+  it("the Bandit Warren (Greenvale) is the first multi-floor dungeon (≥2 floors, a gated descent)", () => {
+    const gv = ZONES.find((z) => z.id === "greenvale")!;
+    const floors = floorsOf(gv);
+    expect(floors.length).toBeGreaterThanOrEqual(2);            // a real descent, not a single floor
+    expect(gv.dungeon.layout).toBe(floors[0]);                  // the single-floor contract: layout == floors[0]
+    expect(floors.some((f) => f.miniboss)).toBe(true);          // an in-dungeon mini-boss gates a descent
+    expect(gv.dungeon.floorMini).toBeTruthy();                  // a floor-lieutenant key is authored
+  });
+
+  // GATE INTEGRITY (QA 2026-06-21): the per-floor reachability test above carves the lieutenant tile
+  // WALKABLE (the flood routes through it), so it can confirm "beaten gate → reachable" but CANNOT
+  // catch a BYPASS that lets the player slip past the unbeaten gate. This proves the opposite: with the
+  // lieutenant tile forced to a WALL, the stairs-down AND every chest authored BEHIND the gate must be
+  // UNREACHABLE from the entry — i.e. the gate genuinely blocks until the fight is won. Run on every
+  // floor that has a `miniboss` gating a `stairsDown` (today: Bandit Warren B2).
+  describe("a gated floor's lieutenant is a TRUE pinch (no bypass past the unbeaten gate)", () => {
+    for (const z of ZONES) {
+      const floors = floorsOf(z);
+      floors.forEach((D, i) => {
+        const last = i === floors.length - 1;
+        if (last || !D.miniboss || !D.stairsDown) return; // only intermediate floors with a gated descent
+        it(`${z.name} B${i + 1}: stairs-down + the gated chest(s) are UNREACHABLE while the lieutenant stands`, () => {
+          // sanity: the gate's flank columns (≥2 east of the lieutenant) hold the gated egress, so a
+          // halo can't re-open the pinch. Then flood with the lieutenant forced to a WALL.
+          const blocked = carveDungeon(D, last, /* miniWall */ true);
+          const seen = reachable(blocked, D.entry);
+          expect(seen[D.stairsDown!.y][D.stairsDown!.x], `B${i + 1} stairs must be blocked by the gate`).toBe(false);
+          // any chest sitting BEHIND the gate (same side as / further than the stairs) must also be gated.
+          // Identify "behind" as: not reachable when the gate is a wall. At least one such chest must
+          // exist (the reward-the-brave vault) and ALL behind-gate chests must be blocked.
+          const gated = D.chests.filter((ch) => !seen[ch.y][ch.x]);
+          expect(gated.length, `B${i + 1} has at least one chest behind the gate (the vault)`).toBeGreaterThanOrEqual(1);
+          for (const ch of gated) expect(seen[ch.y][ch.x], `gated chest ${ch.x},${ch.y} must be blocked`).toBe(false);
+          // and CONVERSELY: with the lieutenant beaten (walkable), the very same stairs + chests open up.
+          const open = reachable(carveDungeon(D, last, /* miniWall */ false), D.entry);
+          expect(open[D.stairsDown!.y][D.stairsDown!.x], `B${i + 1} stairs open once the gate is beaten`).toBe(true);
+          for (const ch of D.chests) expect(open[ch.y][ch.x], `chest ${ch.x},${ch.y} reachable once beaten`).toBe(true);
+        });
+      });
+    }
+  });
 });
 
 // ── ADR 0009 exemplar: GREENVALE is AREA-NATIVE — its playable overworld realizes its five Areas
