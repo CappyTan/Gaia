@@ -36,13 +36,13 @@ export const Battle = {
   logLines: [] as string[],
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
 
-  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1): void {
+  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
     this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp, i === champIdx));
     if (this.enemies.some((e) => e.elite)) Telemetry.noteElite();
     Telemetry.encounterStart(enemyKeys, env || "plains", !!isBoss);
-    Music.play(isBoss ? "boss" : "battle"); Music._renderStyleLabels();
+    Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     this.awaiting = false; this.current = null; this.logLines = [];

@@ -39,7 +39,7 @@ export const Music = {
   _timer: undefined as ReturnType<typeof setInterval> | undefined,
   LOOKAHEAD: 0.12,
   TICK: 25,
-  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", forest: "orchestral", mire: "orchestral", marsh: "orchestral", battle: "radiant", boss: "radiant", victory: "radiant" } as Record<string, string>,
+  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", forest: "orchestral", mire: "orchestral", marsh: "orchestral", plains: "heroic", granary: "orchestral", battle: "radiant", boss: "radiant", warlord: "heroic", victory: "radiant" } as Record<string, string>,
   STYLE_ORDER: ["radiant", "orchestral", "heroic"],
 
   SONGS: {
@@ -121,6 +121,83 @@ export const Music = {
             ["D4", 4], ["r", 4], ["A4", 4], ["r", 4], ["r", 8], ["F#4", 4], ["r", 4]],
       lead: [["E4", 8], ["r", 8], ["B4", 6], ["r", 10], ["G4", 8], ["r", 8], ["F#4", 8], ["E4", 4], ["r", 12],
              ["A4", 8], ["r", 8], ["C#4", 6], ["r", 10], ["B4", 8], ["r", 8], ["D4", 8], ["r", 4], ["E4", 8], ["r", 4]],
+    } },
+    // Goldmeadow Plains / "the Breadbasket" overworld theme — BITTERSWEET + MARTIAL. The pastoral
+    // `field`'s wide-open, war-front sibling: where Greenvale is restless A-minor and Silverwood is a
+    // hushed Dorian canopy, Goldmeadow is bright, fast and EXPOSED — wind-over-wheat openness shot
+    // through with a marching pulse (the breadbasket is beautiful AND burning). D MIXOLYDIAN (D E F#
+    // G A B C-nat): a major-bright tonic that the FLATTENED SEVENTH (C-natural over the bVII / G and
+    // C bars) keeps from ever feeling safe — that's the undercurrent of threat. Brisk 132 BPM with a
+    // light MARCHING drum (steady kick on the beat, snare backbeat, hat 8ths — a column on the move,
+    // never a battle beat). 16-bar loop in two 8-bar halves: A strides out across open country
+    // (D·A·G·D — I–V–bVII–I, the bVII souring the lift), B answers and presses on without resolving
+    // home clean (G·D·C·A — bVII–I–bVII-of-C·V, left hanging on the dominant). A confident, singable
+    // lead (the wheat-and-banners tune) rides a *walking* root-fifth bass (the march), a warm
+    // sustained pad (the open sky), and a steady running 8th/16th arp = wind combing the wheat.
+    // Best through the `heroic` style (square lead + driving drums) for the martial bite; the
+    // `orchestral` style softens it to the pastoral side. Slots in as a `field`-family overworld cue.
+    plains: { bpm: 132, roles: {
+      bass: [["D2", 4], ["A2", 4], ["A1", 4], ["E2", 4], ["G1", 4], ["D2", 4], ["A1", 4], ["A2", 4],
+             ["G1", 4], ["D2", 4], ["G2", 4], ["D2", 4], ["C2", 4], ["G2", 4], ["A1", 4], ["A2", 4]],
+      pad: [["F#3", 8], ["D3", 8], ["A3", 8], ["E3", 8], ["B3", 8], ["G3", 8], ["A3", 8], ["F#3", 8],
+            ["B3", 8], ["G3", 8], ["F#3", 8], ["D3", 8], ["E3", 8], ["C3", 8], ["E3", 8], ["A3", 8]],
+      arp: [["D4", 2], ["F#4", 2], ["A4", 2], ["F#4", 2], ["E4", 2], ["A4", 2], ["C#5", 2], ["A4", 2],
+            ["G3", 2], ["B3", 2], ["D4", 2], ["B3", 2], ["D4", 2], ["F#4", 2], ["A4", 2], ["F#4", 2],
+            ["G3", 2], ["B3", 2], ["D4", 2], ["B3", 2], ["D4", 2], ["A4", 2], ["F#4", 2], ["D4", 2],
+            ["C4", 2], ["E4", 2], ["G4", 2], ["E4", 2], ["E4", 2], ["A4", 2], ["C#5", 2], ["A4", 2]],
+      drums: [["K", 4], ["H", 2], ["H", 2], ["S", 4], ["H", 2], ["H", 2], ["K", 4], ["H", 2], ["H", 2], ["S", 4], ["H", 2], ["K", 2]],
+      lead: [["D5", 4], ["A4", 2], ["B4", 2], ["A4", 4], ["F#4", 4], ["G4", 4], ["A4", 4], ["B4", 6], ["A4", 2],
+             ["G4", 4], ["F#4", 2], ["E4", 2], ["D4", 4], ["E4", 4], ["F#4", 8], ["A4", 4], ["D5", 4],
+             ["B4", 4], ["A4", 4], ["G4", 6], ["F#4", 2], ["D4", 4], ["F#4", 4], ["A4", 6], ["B4", 2],
+             ["C5", 4], ["B4", 2], ["A4", 2], ["G4", 4], ["F#4", 4], ["E4", 8], ["A4", 4], ["A4", 4]],
+    } },
+    // Goldmeadow dungeon / "the occupied windmill & granary undercroft" theme — TIGHT, TENSE,
+    // ENCLOSED. The plains theme's claustrophobic underside: the open D-mixolydian sky collapses to
+    // D HARMONIC MINOR (D E F G A Bb C#) — minor and grim, with the raised leading-tone C# grinding
+    // against the C-natural the overworld leaned on (the enemy has moved indoors). A coiled 120 BPM
+    // (a hair under the field's march), no swing. Sibling to the Warren/Grove/Vault cues but tauter:
+    // a low, pulsing repeated-tone bass (boots pacing a stone undercroft), a cold close-voiced pad
+    // breathing minor-2nd/tritone clusters (Bb against A, F against E), and a SPARSE, prowling lead
+    // — short anxious motifs (D–F–E, Bb–A, C#→D) with long rests between them, like rounding a
+    // corner not knowing what's there. A bare drum: muffled kick + an occasional snare hit, no hats
+    // (no open air). 16-bar loop, two 8-bar halves that tighten the screw rather than resolve. Best
+    // through `orchestral` (no drums → pure dread) or `radiant` (the soft kick = footsteps).
+    granary: { bpm: 120, roles: {
+      bass: [["D2", 2], ["D2", 2], ["D2", 4], ["A1", 2], ["A1", 2], ["Bb1", 4], ["D2", 2], ["D2", 2], ["D2", 4], ["G1", 2], ["A1", 2], ["A1", 4],
+             ["D2", 2], ["D2", 2], ["D2", 4], ["Bb1", 2], ["Bb1", 2], ["C#2", 4], ["D2", 2], ["D2", 2], ["F2", 4], ["A1", 2], ["A1", 2], ["A1", 4]],
+      pad: [["F3", 16], ["A3", 16], ["Bb3", 16], ["A3", 16], ["F3", 16], ["Eb3", 16], ["E3", 16], ["A3", 16]],
+      arp: [["D4", 2], ["r", 6], ["A3", 2], ["r", 6], ["Bb3", 2], ["r", 6], ["A3", 2], ["r", 6],
+            ["F3", 2], ["r", 6], ["C#4", 2], ["r", 6], ["D4", 2], ["r", 6], ["A3", 2], ["r", 6]],
+      drums: [["K", 4], ["r", 4], ["K", 4], ["S", 4], ["K", 4], ["r", 4], ["K", 4], ["r", 2], ["S", 2]],
+      lead: [["D5", 4], ["F5", 2], ["E5", 2], ["r", 8], ["A4", 4], ["Bb4", 4], ["r", 8],
+             ["F5", 4], ["E5", 4], ["D5", 4], ["C#5", 4], ["D5", 6], ["r", 10],
+             ["A4", 4], ["Bb4", 2], ["A4", 2], ["r", 8], ["F4", 4], ["G4", 4], ["r", 8],
+             ["Bb4", 4], ["A4", 4], ["C#5", 4], ["D5", 4], ["r", 16]],
+    } },
+    // Goldmeadow boss / "the Warlord of the Host" theme — the build's BIGGEST, MOST MARTIAL statement.
+    // The shared `boss` cue (D minor, 134) made bigger and angrier for the war-front endgame: same D
+    // tonal centre so it reads as kin, but pushed to a pounding 144 BPM and built on a HARMONIC-minor
+    // war-march (D E F G A Bb C#) — the raised C# leading-tone gives every phrase a vicious upward
+    // snap into the tonic. A relentless DOUBLE-KICK + snare war-drum (kick on every beat, snare
+    // backbeat, driving). A heavy octave-pumping root bass (the host advancing), a brass-like pad
+    // stabbing the chords (Dm·Bb·Gm·A — i–bVI–iv–V, the V landing hard on the C#-major dominant for
+    // menace), and a commanding lead that climbs the harmonic-minor scale and hammers the tonic — the
+    // warlord's banner-call. 16 bars, no rest, no let-up. Best through `heroic` (square lead + full
+    // drums) for maximum bite. Selected per-boss via `Music.forBoss(zoneId)` so only Goldmeadow's
+    // warlord gets it; every other boss keeps the shared `boss` cue.
+    warlord: { bpm: 144, roles: {
+      bass: [["D2", 2], ["D1", 2], ["D2", 2], ["D1", 2], ["D2", 2], ["D1", 2], ["A1", 2], ["A2", 2],
+             ["Bb1", 2], ["Bb0", 2], ["Bb1", 2], ["F2", 2], ["A1", 2], ["A2", 2], ["A1", 2], ["C#2", 2],
+             ["D2", 2], ["D1", 2], ["D2", 2], ["D1", 2], ["G1", 2], ["G2", 2], ["G1", 2], ["Bb1", 2],
+             ["A1", 2], ["A2", 2], ["A1", 2], ["E2", 2], ["A1", 2], ["C#2", 2], ["A1", 2], ["A2", 2]],
+      pad: [["F3", 4], ["A3", 4], ["D4", 8], ["D3", 4], ["F3", 4], ["Bb3", 8],
+            ["Bb2", 4], ["D3", 4], ["G3", 8], ["A2", 4], ["C#3", 4], ["E3", 8]],
+      drums: [["K", 2], ["K", 2], ["S", 2], ["K", 2], ["K", 2], ["K", 2], ["S", 2], ["K", 2],
+              ["K", 2], ["K", 2], ["S", 2], ["K", 2], ["K", 2], ["S", 2], ["S", 2], ["S", 2]],
+      lead: [["D4", 2], ["F4", 2], ["A4", 2], ["D5", 2], ["C#5", 2], ["D5", 2], ["A4", 4],
+             ["Bb4", 2], ["A4", 2], ["G4", 2], ["F4", 2], ["E4", 4], ["F4", 2], ["A4", 2],
+             ["D5", 2], ["C#5", 2], ["D5", 2], ["F5", 2], ["E5", 2], ["D5", 2], ["C#5", 2], ["A4", 2],
+             ["Bb4", 2], ["C#5", 2], ["D5", 4], ["A4", 2], ["F4", 2], ["E4", 2], ["D4", 4]],
     } },
     // Riverhearth / city theme — grand, bustling, prosperous trade-capital cue. The warm `village`'s
     // big-city cousin: brighter (C major, no Lydian wink — just confident, open major), faster (112
@@ -205,8 +282,8 @@ export const Music = {
     set("#st-title", "title");
     // The field HUD's style pill reflects whichever overworld track is playing — the open-field /
     // grim-mire zone theme, or the village / fog-bound-outpost theme while in a settlement.
-    set("#st-field", (["village", "city", "mire", "marsh", "forest"].includes(this.cur || "") ? this.cur : "field") as string);
-    set("#st-battle", this.cur === "boss" || this.cur === "battle" ? this.cur : "battle");
+    set("#st-field", (["village", "city", "mire", "marsh", "forest", "plains", "granary"].includes(this.cur || "") ? this.cur : "field") as string);
+    set("#st-battle", this.cur === "boss" || this.cur === "warlord" || this.cur === "battle" ? this.cur : "battle");
   },
   unlock(): void {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -262,7 +339,23 @@ export const Music = {
     if (areaMusic && this.SONGS[areaMusic as keyof typeof this.SONGS]) return areaMusic;
     if (zoneId === "silverwood") return "forest";
     if (zoneId === "duskmarsh") return "mire";
+    if (zoneId === "goldmeadow") return "plains";
     return "field"; // open continent / unknown → the ambient overworld cue
+  },
+  // Per-zone BOSS cue selector. Most bosses share the generic `boss` SONG; a zone can claim its own
+  // boss-variant here. Goldmeadow's warlord gets the bigger, more martial `warlord` statement. The
+  // battle controller calls this in place of the hard-coded "boss" key when starting a boss fight.
+  forBoss(zoneId?: string): string {
+    if (zoneId === "goldmeadow") return "warlord";
+    return "boss";
+  },
+  // Per-zone DUNGEON cue selector. Most dungeons ride the overworld cue (return ""); a zone can claim
+  // its own enclosed dungeon theme. Goldmeadow's windmill undercroft gets the tense `granary` cue.
+  // The field controller switches to this on descend when it's non-empty (and `ascend` restores the
+  // overworld cue via the normal key-compare). "" means "keep the current cue".
+  forDungeon(zoneId?: string): string {
+    if (zoneId === "goldmeadow") return "granary";
+    return "";
   },
   _switch(state: string): void {
     if (!this.ctx || !this.master) return;

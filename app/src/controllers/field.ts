@@ -519,6 +519,9 @@ export const Field = {
     this.draw(); this.hint();
     Game.saveNow();
     const z = this.zone();
+    // Swap to the zone's dedicated dungeon cue if it has one (else keep the overworld cue, as before).
+    const dm = Music.forDungeon(z.id);
+    if (dm && dm !== this.bigMusic) { this.bigMusic = dm; Music.play(dm); Music._renderStyleLabels?.(); }
     Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
   // Climb back out of the dungeon to the overworld (new model). Rebuilds the overworld at the mouth.
@@ -796,10 +799,10 @@ export const Field = {
     Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
   },
   fightLair(key: string): void { Battle.begin([key], this.envFor(this.progress()), false, false, this.progress(), -1); },
-  startBoss(): void { Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress()); },
+  startBoss(): void { Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress(), -1, this.zone().id); },
   startMiniBoss(): void {
     const p = this.progress(), z = this.zone();
-    Battle.begin([z.mini, ...(z.miniAdds || [])], this.envFor(p), true, false, p);
+    Battle.begin([z.mini, ...(z.miniAdds || [])], this.envFor(p), true, false, p, -1, z.id);
   },
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
