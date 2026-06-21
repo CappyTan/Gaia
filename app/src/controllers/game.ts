@@ -105,6 +105,8 @@ export const Game = {
       wx: Field.bigMapActive() ? Field.wx : 0, wy: Field.bigMapActive() ? Field.wy : 0,
       bigMap: Field.bigMapActive(),
       enteredDungeon: Field.enteredDungeon,
+      // CLEARED POIs (the inhabited world) — so a used shrine / raided camp stays spent across a reload.
+      poisCleared: Field.poisCleared,
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -131,7 +133,11 @@ export const Game = {
     recalc(this.party); // refold gear/MNA (hp/mp/alive already restored, _init guards the refill)
     Telemetry.load(); Telemetry.startSession();
     // build the field for the saved zone, then place the player.
-    Field.init();                      // canvas + tiles + zone 0 baseline
+    Field.init();                      // canvas + tiles + zone 0 baseline (resets poisCleared)
+    // Restore cleared-POI state AFTER init() (which zeroes it) but BEFORE the genMap below rebuilds the
+    // grid — stampPois + the big-map authored-grid re-apply consult it, so a spent shrine / raided camp
+    // stays cleared across the reload (no infinite-heal exploit).
+    Field.poisCleared = { ...r.poisCleared };
     Field.zoneIndex = r.zoneIndex;
     if (r.inTown && r.townId) {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)

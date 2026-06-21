@@ -85,6 +85,10 @@ export interface SavedRun {
   wy?: number;
   bigMap?: boolean;             // saved while roaming the continent big map (resume re-enters it)
   enteredDungeon: boolean;
+  // CLEARED POIs (the inhabited world): per-zone keys ("<zoneId>:<x>,<y>") → spent (shrine used / camp
+  // raided), so a cleared point-of-interest stays cleared across a reload (no infinite-heal exploit).
+  // OPTIONAL — absent on an old save = nothing cleared (back-compatible, no schema bump needed).
+  poisCleared?: Record<string, boolean>;
 }
 
 export interface SaveEnvelope {
@@ -116,6 +120,7 @@ export interface RunSnapshot {
   wy: number;
   bigMap: boolean;
   enteredDungeon: boolean;
+  poisCleared: Record<string, boolean>;
 }
 
 /** A rebuilt run, content-validated, ready for the controller to install. */
@@ -140,6 +145,7 @@ export interface LoadedRun {
   wy: number;
   bigMap: boolean;           // resume into the seamless continent big map
   enteredDungeon: boolean;
+  poisCleared: Record<string, boolean>; // cleared/spent POIs (per-zone keys); empty on an old save
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
 }
@@ -213,6 +219,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     px: s.px, py: s.py,
     wx: s.wx, wy: s.wy, bigMap: s.bigMap,
     enteredDungeon: s.enteredDungeon,
+    poisCleared: { ...s.poisCleared },
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -305,6 +312,14 @@ function clampN(v: unknown, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, Math.round(n)));
 }
 
+/** Sanitize the persisted cleared-POI map: a plain {string→true} dict; anything else → empty (never throws). */
+function revivePoisCleared(v: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string") out[k] = true;
+  return out;
+}
+
 /**
  * Parse → migrate → validate → rebuild a run. Returns null if it can't be salvaged (caller starts
  * fresh). Never throws. Drops/resets content that no longer exists, preferring to keep the party.
@@ -376,6 +391,8 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     px, py,
     wx, wy, bigMap,
     enteredDungeon: resetPos ? false : !!r.enteredDungeon,
+    // CLEARED POIs — keep only sane boolean-true entries (degrade-never-throw on a malformed field).
+    poisCleared: revivePoisCleared(r.poisCleared),
     notes,
   };
 }

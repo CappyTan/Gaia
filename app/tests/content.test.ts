@@ -30,13 +30,18 @@ function carveZone(z: Zone): string[][] {
   L.fieldPaths.forEach(path); L.dunPaths.forEach(path); D.paths.map((p) => p.map(offPt)).forEach(path);
   for (let y = 1; y < L.h - 1; y++) map[y][L.gateWallX] = "tree";
   c(L.gateWallX - 1, L.gate.y, "path"); c(L.gateWallX + 1, L.gate.y, "path"); map[L.gate.y][L.gateWallX] = "miniboss";
-  // hard-blocking water pools stamped over carved ground (marsh) — mirrors genMap step 5b.
-  if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y) && map[y][x] !== "miniboss") map[y][x] = "water";
+  // hard-blocking water pools + VARIED TERRAIN (rivers/cliffs) + walkable crossings (bridge/ford),
+  // stamped over carved ground — mirrors scatterAndWater. Crossings stamp LAST (walkable over river).
+  const stampT = (rs: { x: number; y: number; w: number; h: number }[] | undefined, k: string) => { if (rs) for (const w of rs) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y) && map[y][x] !== "miniboss") map[y][x] = k; };
+  stampT(L.water, "water"); stampT(L.rivers, "river"); stampT(L.cliffs, "cliff");
+  if (L.bridges) for (const b of L.bridges) c(b.x, b.y, "bridge");
+  if (L.fords) for (const f of L.fords) c(f.x, f.y, "ford");
   const chests = [...L.chests, ...D.chests.map(offPt)];
   const boss = offPt(D.boss);
   const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && (map[yy][xx] === "tree" || map[yy][xx] === "water")) map[yy][xx] = "grass"; } };
   chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
   if (L.lair) { halo(L.lair); c(L.lair.x, L.lair.y, "lair"); }
+  if (L.pois) for (const p of L.pois) { halo({ x: p.x, y: p.y }); c(p.x, p.y, p.kind); }
   c(boss.x, boss.y, "boss"); c(L.spawn.x, L.spawn.y, "path");
   return map;
 }
@@ -53,10 +58,14 @@ function carveOverworld(L: ZoneLayout): string[][] {
   const seg = (a: Pt, b: Pt) => { let x = a.x, y = a.y; c(x, y, "path"); while (x !== b.x) { x += Math.sign(b.x - x); c(x, y, "path"); } while (y !== b.y) { y += Math.sign(b.y - y); c(x, y, "path"); } };
   const path = (p: Pt[]) => { for (let i = 1; i < p.length; i++) seg(p[i - 1], p[i]); };
   L.fieldPaths.forEach(path);
-  if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y)) map[y][x] = "water";
+  const stampT = (rs: { x: number; y: number; w: number; h: number }[] | undefined, k: string) => { if (rs) for (const w of rs) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y)) map[y][x] = k; };
+  stampT(L.water, "water"); stampT(L.rivers, "river"); stampT(L.cliffs, "cliff");
+  if (L.bridges) for (const b of L.bridges) c(b.x, b.y, "bridge");
+  if (L.fords) for (const f of L.fords) c(f.x, f.y, "ford");
   const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && (map[yy][xx] === "tree" || map[yy][xx] === "water")) map[yy][xx] = "grass"; } };
   L.chests.forEach((p) => { halo(p); c(p.x, p.y, "chest"); });
   if (L.lair) { halo(L.lair); c(L.lair.x, L.lair.y, "lair"); }
+  if (L.pois) for (const p of L.pois) { halo({ x: p.x, y: p.y }); c(p.x, p.y, p.kind); }
   halo(L.mouth); c(L.mouth.x, L.mouth.y, "miniboss"); c(L.spawn.x, L.spawn.y, "path");
   return map;
 }
@@ -81,7 +90,7 @@ function carveDungeon(D: DungeonLayout): string[][] {
 function reachable(map: string[][], start: Pt): boolean[][] {
   const H = map.length, W = map[0].length;
   const seen = Array.from({ length: H }, () => Array.from({ length: W }, () => false));
-  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && map[y][x] !== "tree" && map[y][x] !== "water";
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && map[y][x] !== "tree" && map[y][x] !== "water" && map[y][x] !== "cliff" && map[y][x] !== "river";
   if (!open(start.x, start.y)) return seen;
   const q: Pt[] = [start]; seen[start.y][start.x] = true;
   while (q.length) { const { x, y } = q.shift()!; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); } } }

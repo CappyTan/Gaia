@@ -47,6 +47,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     zoneIndex: 1, townId: null, px: 12, py: 7,
     wx: 0, wy: 0, bigMap: false,
     enteredDungeon: true,
+    poisCleared: {},
   };
   return { party, inventory, snapshot };
 }
@@ -106,6 +107,24 @@ describe("save round-trip", () => {
     clear();
     expect(hasSave()).toBe(false);
     expect(load()).toBeNull();
+  });
+
+  it("persists cleared-POI state (spent shrine / raided camp stays cleared)", () => {
+    const { snapshot } = makeRun();
+    snapshot.poisCleared = { "greenvale:18,4": true, "greenvale:16,18": true };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.poisCleared["greenvale:18,4"]).toBe(true);
+    expect(r.poisCleared["greenvale:16,18"]).toBe(true);
+    expect(r.poisCleared["greenvale:99,99"]).toBeUndefined();
+  });
+
+  it("a save with no poisCleared field (old save) loads as nothing-cleared, never throws", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).poisCleared;
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.poisCleared).toEqual({});       // absent field → empty map (back-compatible)
   });
 
   it("re-equipped affix labels render the saved value (no broken label fn)", () => {

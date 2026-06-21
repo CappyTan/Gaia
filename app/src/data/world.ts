@@ -978,8 +978,13 @@ export function tileHash(x: number, y: number): number {
   return (((x * 73856093) ^ (y * 19349663)) >>> 0) / 0xffffffff;
 }
 
-/** Realization WALL kinds (impassable + flood barriers) — mirrors field.ts FIELD_WALLS. */
-const REALIZE_WALLS = new Set(["tree", "water", "uncharted"]);
+/**
+ * Realization WALL kinds (impassable + flood barriers) — mirrors field.ts FIELD_WALLS. `cliff` (rocky
+ * mountain wall) and `river` (winding watercourse) are hard terrain that blocks like `tree`/`water`;
+ * `bridge`/`ford` are WALKABLE crossings (NOT walls) so a river can be routed across. POI kinds
+ * (`shrine`/`camp`/`landmark`/`signpost`) sit on walkable ground and are NOT walls.
+ */
+const REALIZE_WALLS = new Set(["tree", "water", "uncharted", "cliff", "river"]);
 
 /**
  * Build a placed zone's AUTHORED OVERWORLD blueprint as a LOCAL string[][] of tile kinds — the dense
@@ -1007,12 +1012,25 @@ export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++)
     if (grid[y][x] === "grass" && tileHash(x, y) < dens) grid[y][x] = tileHash(y, x) < 0.6 ? "bush" : "rock";
   if (L.water) for (const w of L.water) for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++) if (inB(x, y)) grid[y][x] = "water";
+  // VARIED TERRAIN (2026-06-21): rivers/cliffs stamp like water (hard wall over carved ground); the
+  // walkable bridges/fords stamp LAST so a crossing reads on top of the river it spans.
+  if (L.rivers) for (const r of L.rivers) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (inB(x, y)) grid[y][x] = "river";
+  if (L.cliffs) for (const r of L.cliffs) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (inB(x, y)) grid[y][x] = "cliff";
+  if (L.bridges) for (const b of L.bridges) carve(b.x, b.y, "bridge");
+  if (L.fords) for (const f of L.fords) carve(f.x, f.y, "ford");
   const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && grid[yy][xx] === "tree") grid[yy][xx] = "grass"; } };
   L.chests.forEach((c) => { halo(c); carve(c.x, c.y, "chest"); });
   if (L.lair) { halo(L.lair); carve(L.lair.x, L.lair.y, "lair"); }
+  // POIs (the INHABITED world): each sits on walkable ground (halo'd) as its own special tile kind.
+  if (L.pois) for (const p of L.pois) { halo(p); carve(p.x, p.y, p.kind); }
   halo(L.mouth); grid[L.mouth.y][L.mouth.x] = miniDefeated ? "mouth" : "miniboss";
   carve(L.spawn.x, L.spawn.y, "path");
+  // ANTI-SOFT-LOCK: the mouth, every chest/lair AND every crossing/POI must stay reachable from spawn —
+  // anything a river/cliff walls off gets a punch-through corridor (so terrain can frame, not sever).
   const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair);
+  if (L.bridges) targets.push(...L.bridges);
+  if (L.fords) targets.push(...L.fords);
+  if (L.pois) targets.push(...L.pois.map((p) => ({ x: p.x, y: p.y })));
   repairAuthoredGrid(grid, L.spawn, targets);
   return grid;
 }

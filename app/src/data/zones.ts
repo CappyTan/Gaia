@@ -58,6 +58,54 @@ export interface ZoneLayout {
    * sever, the critical path.
    */
   water?: Rect[];
+  /**
+   * VARIED TERRAIN (Dara's 2026-06-21 directive). Hard-blocking, hand-placed geography stamped over
+   * the carved ground AFTER carving, just like `water` — but read as real landscape, not a flat field:
+   *   • `rivers`  — winding WATER courses (drawn as the "river" kind, hard wall like `water`); author a
+   *     bent series of rects so it snakes, not a straight moat. Cross them at a `bridge`/`ford`.
+   *   • `cliffs`  — impassable ROCKY mountain walls (the "cliff" kind, hard wall, visually distinct from
+   *     the forest "tree"); author ridgelines that funnel routes without severing the critical path.
+   * Both are taught to passable/flood/soft-lock, so the generator still GUARANTEES the mouth + every
+   * chest/lair/POI stays reachable — anything a river or cliff walls off is repaired by the same
+   * flood-fill punch-through. Author terrain that PINCHES/FRAMES the routes, never severs them.
+   */
+  rivers?: Rect[];
+  cliffs?: Rect[];
+  /**
+   * Walkable WATER CROSSINGS stamped LAST (over river/water), so a river reads as crossable at a chosen
+   * point: `bridge` (a plank span) / `ford` (a shallow pale crossing). Both are walkable ground (NOT in
+   * the wall sets), so they re-open a route the river would otherwise sever — author one where a road
+   * meets a river. (A crossing tile sits on top of the river/water tile it spans.)
+   */
+  bridges?: Pt[];
+  fords?: Pt[];
+  /**
+   * POINTS OF INTEREST — the INHABITED world (Dara's 2026-06-21 directive). A few per zone, OFF the main
+   * flow, so the zone feels lived-in, not empty space between fights. Each is a walkable special tile
+   * (drawn as a captioned landmark) with a light `move()` interaction by `kind`:
+   *   • `shrine`   — a roadside shrine: stepping on it RESTORES the party (heal) once, then it's spent.
+   *   • `camp`     — an encampment (tents + a fire): an OPTIONAL fight vs a themed pack, then a reward +
+   *     a cleared state (reuses existing enemies — difficulty flagged for balance-tuner, no new stats).
+   *   • `landmark` — a ruin / standing-stones / statue: a non-blocking flavor line (its `name`/`note`).
+   *   • `signpost` — a wayfinding marker: a non-blocking directional hint line.
+   * POIs are halo'd + treated as flood targets so they're always reachable, and they NEVER block a
+   * required route (they sit ON walkable ground). Pure data — the controller wires the triggers.
+   */
+  pois?: Poi[];
+}
+
+/** A point of interest / encampment (the INHABITED-world layer). `kind` drives its `move()` effect. */
+export type PoiKind = "shrine" | "camp" | "landmark" | "signpost";
+export interface Poi {
+  x: number;
+  y: number;
+  kind: PoiKind;
+  /** Display name (the gold caption + the dialogue/flavor line). */
+  name: string;
+  /** Optional flavor/hint line shown for `landmark`/`signpost` (defaults to a kind-generic line). */
+  note?: string;
+  /** For a `camp`: the enemy pack to fight (existing bestiary keys). Defaults to a band-appropriate pull. */
+  pack?: string[];
 }
 
 /**
@@ -136,6 +184,25 @@ export const ENCOUNTERS: EncounterBand[] = [
 // before the Kingpin's arena — a loop, so you can circle through either room (each holds a chest) and
 // come back. genMap carves these + flood-fills to GUARANTEE boss + every chest/lair reachable
 // (anti-soft-lock); the loops mean you can never be walled into a pocket.
+//
+// VARIED TERRAIN + INHABITED (Dara's 2026-06-21 directive — Greenvale is the exemplar). The shire is
+// no longer a flat green field with a tree border: real geography threads the mesh and the world is
+// lived-in:
+//   • A WINDING RIVER (the Hearthbrook) snakes down the central gap between the west hub and the
+//     central hub — column x=20 above the middle road, jogging to x=21 below it — crossed by a stone
+//     BRIDGE on the fast middle road (the bridge keeps the route open; the river FRAMES it, never
+//     severs it — the north & south loops run well clear at y≈4 / y≈19, and a FORD downstream gives
+//     the south loop its own crossing). The river reads as the reason the three roads exist.
+//   • A low CLIFF ridge (Greenvale's rocky northern shoulder) walls the gap between the north road and
+//     the central hub (x≈18–22, y≈6–7) and a small SE rocky OUTCROP edges the grove — funnels without
+//     blocking (the loops route around them; flood-repair guarantees reachability).
+//   • The HIDDEN GROVE pocket (SE) is the dense forest COPSE, dressed with the old-growth skin.
+//   • POIs scatter the shire so it feels INHABITED, all OFF the main flow: a roadside SHRINE in the
+//     orchard (heal), a BANDIT CAMP in the south meadow (an optional fight + reward), STANDING STONES
+//     on the north ridge (a flavor landmark), and a SIGNPOST at the west fork (a wayfinding hint).
+// All terrain + POIs are taught to passable/flood/soft-lock, so the mouth + every chest/lair/POI stays
+// reachable. ART FLAG (art-integrator): river/cliff/bridge/ford + the four POI kinds draw as in-palette
+// placeholder fills/emoji until bespoke sprites land (see the hand-back).
 const GREENVALE_LAYOUT: ZoneLayout = {
   w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 12 }, gateWallX: 40, boss: { x: 60, y: 11 },
   mouth: { x: 40, y: 12 }, // the dungeon mouth = the old gate tile (the Brigadier guards it)
@@ -167,6 +234,33 @@ const GREENVALE_LAYOUT: ZoneLayout = {
   ],
   lair: { x: 27, y: 20 }, // Hogger, deep in the southern grove off the south loop
   scatter: 0.06,
+  // THE HEARTHBROOK: a winding river that runs SOUTH down the x=20 gap, CROSSING the routes it meets so
+  // it SHAPES them. Its main reach (y 8–20) cuts clean across the fast MIDDLE road (y=12) and the SOUTH
+  // road (y=19) — both severed unless you take the crossing — while a short oxbow jogs east (x=21, y14–16)
+  // so it snakes rather than running ruler-straight. The NORTH loop (y≈4) stays clear, so it is the dry
+  // way round: the river forces a real choice (bridge / ford / detour north), never a soft-lock — every
+  // crossing is a walkable flood target and the north road is always open.
+  rivers: [
+    { x: 20, y: 8, w: 1, h: 12 },  // main reach: crosses the MIDDLE road (y12, bridged) AND the SOUTH road (y19, forded)
+    { x: 21, y: 14, w: 1, h: 3 },  // oxbow: the river jogs east mid-course so it winds, not runs straight
+  ],
+  // CLIFFS: the rocky northern shoulder walls the north-road↔central gap (funnels the north approach),
+  // plus a small SE outcrop edging the grove. Both pinch, never sever (loops route around; flood repairs).
+  cliffs: [
+    { x: 18, y: 6, w: 5, h: 1 },   // the northern ridge shoulder (between the north road and the hub)
+    { x: 30, y: 16, w: 2, h: 2 },  // SE rocky outcrop edging the hidden grove
+  ],
+  // CROSSINGS over the Hearthbrook — each sits on a road the river SEVERS, so it carries that crossing:
+  // the BRIDGE is the only way the middle road gets across; the FORD reconnects the south meadow↔grove loop.
+  bridges: [{ x: 20, y: 12 }],     // the middle road's only crossing (river severs y=12 here)
+  fords: [{ x: 20, y: 19 }],       // the south road's crossing — reconnects the meadow↔grove loop the river cuts
+  // POIs — the INHABITED shire, all OFF the main flow (discoveries):
+  pois: [
+    { x: 18, y: 4, kind: "shrine", name: "Wayside Shrine" },                                 // orchard — heal
+    { x: 16, y: 18, kind: "camp", name: "Bandit Camp", pack: ["gbandit", "gbandit", "kobold"] }, // south meadow — optional fight
+    { x: 30, y: 4, kind: "landmark", name: "The Standing Stones", note: "Moss-furred stones older than the shire — they hum faintly at dusk." }, // north ridge crest
+    { x: 12, y: 13, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the gate lies east." }, // west fork
+  ],
 };
 
 // ── Greenvale's PLAYABLE Areas (ADR 0009 exemplar — Area = finest identity, realized at play scale) ─

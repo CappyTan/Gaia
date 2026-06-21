@@ -204,4 +204,29 @@ lands. Names/lore flagged for Dara.
 
 ---
 
+## Varied terrain + the inhabited world (engine groundwork, 2026-06-21)
+
+Dara's "make the world alive" directive added reusable terrain + point-of-interest systems, proven on
+**Greenvale** as the exemplar (the other 9 zones get their terrain/POIs in a follow-up pass). New
+overworld tile kinds and POI markers ship as in-palette placeholder fills/emoji until sliced. All are
+wired in the generator (`data/world.buildAuthoredGrid` + `controllers/field.scatterAndWater`/`stampPois`),
+drawn in `bigGround`/`drawBig`/`draw`, and given movement/triggers in `move`/`bigMove`/`passable`.
+
+| Status | Asset | Tile/POI key | Where used | Placeholder | Notes |
+|---|---|---|---|---|---|
+| ☐ | **Cliff** ground (rocky mountain wall) | `cliff` | Greenvale north ridge + SE outcrop (any zone's `cliffs`) | grey `#5a5852` fill / ⛰️ | Impassable, visually distinct from forest `tree`. Wants a rocky-face/ridgeline tile. |
+| ☐ | **River** ground (winding watercourse) | `river` | Greenvale's Hearthbrook (any zone's `rivers`) | reuses `water` sprite / blue `#2f5b7a` / 🌊 | Impassable like `water`; a flowing-water variant tile would read as a river vs. a still pool. |
+| ☐ | **Bridge** (plank span over water) | `bridge` | Greenvale middle-road crossing (any zone's `bridges`) | plank-brown `#7a6242` fill | Walkable crossing — a wooden-plank span tile over the river. |
+| ☐ | **Ford** (shallow pale crossing) | `ford` | Greenvale south-loop crossing (any zone's `fords`) | pale `#86b0c4` fill | Walkable crossing — shallow stones/pale water tile. |
+| ☐ | **Shrine** POI marker | `shrine` | Greenvale orchard (heal POI) | ⛩️ emoji + gold caption | Roadside shrine; restores party on step. |
+| ☐ | **Camp** / encampment POI marker | `camp` | Greenvale south meadow (optional fight) | ⛺ emoji + gold caption | Tents + fire; an optional pack fight. |
+| ☐ | **Landmark** POI marker (ruin/standing-stones/statue) | `landmark` | Greenvale north ridge (The Standing Stones) | 🗿 emoji + gold caption | Flavor; a non-blocking note line. |
+| ☐ | **Signpost** POI marker | `signpost` | Greenvale west fork (Crossroads Sign) | 🪧 emoji + gold caption | Wayfinding hint line. |
+
+Sprite slots already declared in `Field.loadTiles` (`cliff`/`bridge`/`ford` + the four POI kinds), so
+dropping `app/assets/field/<key>.png` lights them up with no code change. `river` reuses the `water`
+slot until a flowing-water variant exists.
+
+---
+
 *Keep this list current as each region is built. The art pass happens after, in one go.*
