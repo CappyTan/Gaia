@@ -1161,54 +1161,82 @@ export const ZONES: Zone[] = [
   // SPINE regions (frostpeak, sunbridge) → full dungeon + boss. sunbridge is the LAST entry (run-ender).
   //
   // ── OPTIONAL: Storm Coast → a sea-cave (Lv 13–17) ──
-  { id: "stormcoast", name: "Storm Coast", mini: "warcaptain", miniAdds: ["marauder", "marauder"], boss: "warlord", // PLACEHOLDER cast
+  // CAST (encounter-designer, real roster): wreckers/pirates + sea-beasts. TEACH→COMBINE — open with the
+  // fast cutthroat + the crab tank read clean, fold in the wrecker (rust/poison bruiser) + slinger
+  // (ranged), then the brine-serpent leecher, reserving the gnarliest 4-packs for the run to the
+  // sea-cave mouth. Champion guardian = the Wrecker-Captain (boss:true cave payoff). Optional region =
+  // 4 bands (lighter than the 5-band spine). Attunements spread (NOX/SOL/QUANTA/ANIMA/UMBRAXIS).
+  { id: "stormcoast", name: "Storm Coast", mini: "wreckcaptain", miniAdds: ["cutthroat", "cutthroat"], boss: "wreckcaptain",
     envs: ["coast", "coast", "coast", "coast"], dungeon: { name: "The Smuggler's Sea-Cave", env: "seacave", layout: STORMCOAST_CAVE }, layout: STORMCOAST_LAYOUT, bands: [
-      { at: 0.0, sets: [["marauder", "wilddog"], ["wilddog", "wilddog"], ["marauder", "wilddog", "wilddog"]] },
-      { at: 0.25, sets: [["raider", "wilddog"], ["harrier", "marauder"], ["raider", "marauder", "wilddog"]] },
-      { at: 0.5, sets: [["raider", "harrier", "wilddog"], ["carrion", "marauder", "wilddog"], ["harrier", "raider", "marauder"]] },
-      { at: 0.75, sets: [["reaver", "harrier", "wilddog"], ["raider", "carrion", "marauder"], ["reaver", "raider", "harrier", "carrion"]] },
+      { at: 0.0, sets: [["cutthroat", "cutthroat"], ["shellcrab", "cutthroat"], ["cutthroat", "cutthroat", "shellcrab"]] },
+      { at: 0.25, sets: [["wrecker", "cutthroat"], ["deckhand", "cutthroat"], ["wrecker", "cutthroat", "shellcrab"], ["deckhand", "wrecker"]] },
+      { at: 0.5, sets: [["wrecker", "deckhand", "cutthroat"], ["seaserpent", "cutthroat", "shellcrab"], ["wrecker", "shellcrab", "deckhand"]] },
+      { at: 0.75, sets: [["wrecker", "deckhand", "seaserpent", "cutthroat"], ["shellcrab", "wrecker", "seaserpent"], ["wrecker", "deckhand", "shellcrab", "cutthroat"]] },
     ] },
   // ── OPTIONAL: Riverhearth outskirts → a smugglers' den (Lv 15–18); hub = the existing Riverhearth city ──
-  { id: "riverhearth", name: "Riverhearth Outskirts", mini: "warcaptain", miniAdds: ["marauder", "marauder"], boss: "warlord", // PLACEHOLDER cast
+  // CAST: road-bandits, smugglers, river-toughs. Opens tougher than Storm Coast (higher band) — start
+  // with the road-bandit + fast footpad, fold in the crossbow smuggler + river-tough wall, then the
+  // den-fence leecher, reserving full 4-packs for the den mouth. Champion = the River Crime-Lord.
+  { id: "riverhearth", name: "Riverhearth Outskirts", mini: "crimelord", miniAdds: ["roadbandit", "footpad"], boss: "crimelord",
     hub: "riverhearth", hubs: ["riverhearth"],
     envs: ["riverside", "road", "town", "riverside"], dungeon: { name: "The Smugglers' Den", env: "smuggden", layout: RIVERHEARTH_CAVE }, layout: RIVERHEARTH_LAYOUT, bands: [
-      { at: 0.0, sets: [["raider", "wilddog"], ["marauder", "wilddog", "wilddog"], ["raider", "marauder"]] },
-      { at: 0.25, sets: [["raider", "harrier", "wilddog"], ["carrion", "marauder", "wilddog"], ["raider", "marauder", "wilddog"]] },
-      { at: 0.5, sets: [["reaver", "harrier", "wilddog"], ["raider", "carrion", "marauder"], ["harrier", "raider", "carrion"]] },
-      { at: 0.75, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "raider", "marauder", "wilddog"], ["raider", "reaver", "carrion", "harrier"]] },
+      { at: 0.0, sets: [["roadbandit", "footpad"], ["footpad", "footpad"], ["roadbandit", "footpad", "footpad"]] },
+      { at: 0.25, sets: [["roadbandit", "smuggler", "footpad"], ["rivertough", "footpad"], ["smuggler", "roadbandit"], ["roadbandit", "footpad", "smuggler"]] },
+      { at: 0.5, sets: [["rivertough", "smuggler", "footpad"], ["fence", "roadbandit", "footpad"], ["rivertough", "roadbandit", "smuggler"]] },
+      { at: 0.75, sets: [["rivertough", "smuggler", "fence", "footpad"], ["rivertough", "roadbandit", "fence"], ["smuggler", "rivertough", "fence", "footpad"]] },
     ] },
   // ── SPINE: Frostpeak Highlands → the Dwarven Stronghold (Lv 16–20) ──
-  { id: "frostpeak", name: "Frostpeak Highlands", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+  // CAST: frost beasts (ice wolves, a snow-troll) + mountain reavers + awakened dwarven stone-sentinels.
+  // SPINE = full 5-band teach→combine. Open with the fast ice-wolf pack + reaver bruiser, introduce the
+  // hexing frost-shade caster (behind the fodder) + the slow stone-sentinel wall, then the snow-troll
+  // heavy, escalating to gnarly 4-packs in the stronghold. Mini = the Hold-Warden (escorted by reavers).
+  // Boss = the Glacier Guardian (ENRAGE). Attunements spread (QUANTA/NOX/UMBRAXIS/SOL/ANIMA).
+  { id: "frostpeak", name: "Frostpeak Highlands", mini: "holdwarden", miniAdds: ["mtnreaver", "mtnreaver"], boss: "frostguardian",
     envs: ["snow", "snow", "ice", "stone"], dungeon: { name: "The Dwarven Stronghold", env: "stronghold", layout: FROSTPEAK_DUNGEON }, layout: FROSTPEAK_LAYOUT, bands: [
-      { at: 0.0, sets: [["marauder", "wilddog"], ["raider", "wilddog"], ["marauder", "wilddog", "wilddog"]] },
-      { at: 0.2, sets: [["raider", "harrier", "wilddog"], ["reaver", "marauder"], ["raider", "marauder", "wilddog"]] },
-      { at: 0.4, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
-      { at: 0.6, sets: [["reaver", "raider", "harrier"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
-      { at: 0.8, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+      { at: 0.0, sets: [["icewolf", "icewolf"], ["mtnreaver", "icewolf"], ["icewolf", "icewolf", "mtnreaver"]] },
+      { at: 0.2, sets: [["mtnreaver", "icewolf", "icewolf"], ["frostshade", "icewolf"], ["mtnreaver", "frostshade", "icewolf"], ["icewolf", "icewolf", "icewolf"]] },
+      { at: 0.4, sets: [["stonesentinel", "icewolf", "icewolf"], ["frostshade", "mtnreaver", "icewolf"], ["stonesentinel", "frostshade", "icewolf"]] },
+      { at: 0.6, sets: [["snowtroll", "icewolf", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade"], ["snowtroll", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "icewolf"]] },
+      { at: 0.8, sets: [["snowtroll", "stonesentinel", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade", "icewolf"], ["snowtroll", "stonesentinel", "mtnreaver", "frostshade"]] },
     ] },
   // ── OPTIONAL: Dawnfall Hold → the breached undervault (Lv 17–21) ──
-  { id: "dawnfall", name: "Dawnfall Hold", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+  // CAST: the wilds that broke the fort + the hold's fallen watch. Open with the feral frontier-beast +
+  // the poison-spear broken-watch, fold in the garrison-ghoul leecher + the fallen-archer harrier, then
+  // the heavy rampart-hulk wall, reserving full 4-packs for the breached undervault. Champion = the
+  // Fallen Watch-Commander. Attunements spread (ANIMA/NOX/UMBRAXIS/QUANTA/SOL).
+  { id: "dawnfall", name: "Dawnfall Hold", mini: "watchcommander", miniAdds: ["brokenwatch", "fallenarcher"], boss: "watchcommander",
     envs: ["ruin", "ruin", "stone", "ruin"], dungeon: { name: "The Breached Undervault", env: "keepvault", layout: DAWNFALL_CAVE }, layout: DAWNFALL_LAYOUT, bands: [
-      { at: 0.0, sets: [["raider", "wilddog"], ["reaver", "marauder"], ["raider", "marauder", "wilddog"]] },
-      { at: 0.25, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
-      { at: 0.5, sets: [["reaver", "raider", "harrier"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
-      { at: 0.75, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+      { at: 0.0, sets: [["frontierbeast", "brokenwatch"], ["frontierbeast", "frontierbeast"], ["brokenwatch", "frontierbeast", "frontierbeast"]] },
+      { at: 0.25, sets: [["brokenwatch", "fallenarcher", "frontierbeast"], ["watchghoul", "frontierbeast"], ["brokenwatch", "watchghoul", "frontierbeast"], ["fallenarcher", "brokenwatch"]] },
+      { at: 0.5, sets: [["ruinhulk", "fallenarcher", "frontierbeast"], ["watchghoul", "brokenwatch", "fallenarcher"], ["ruinhulk", "brokenwatch", "frontierbeast"]] },
+      { at: 0.75, sets: [["ruinhulk", "brokenwatch", "watchghoul", "fallenarcher"], ["ruinhulk", "watchghoul", "brokenwatch"], ["ruinhulk", "fallenarcher", "watchghoul", "frontierbeast"]] },
     ] },
   // ── OPTIONAL: Whisper Hills → the crypt/reliquary (Lv 19–23) ──
-  { id: "whisperhills", name: "Whisper Hills", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+  // CAST: restless spirits + corrupted monks. Open with the fast flitting wraith + the chanting
+  // corrupted-monk caster (a caster-behind-fodder shape early, since the hills are eerie), fold in the
+  // poison-zealot flagellant + the soul-leech revenant, then the heavy reliquary-golem wall, reserving
+  // full 4-packs for the crypt. Champion = the Corrupted Abbot (a caster-boss, rally+hex). Attunements
+  // spread (UMBRAXIS/ANIMA/NOX/QUANTA/SOL).
+  { id: "whisperhills", name: "Whisper Hills", mini: "corruptabbot", miniAdds: ["corruptmonk", "wraith"], boss: "corruptabbot",
     envs: ["meadow", "meadow", "forest", "hollow"], dungeon: { name: "The Reliquary Crypt", env: "crypt", layout: WHISPERHILLS_CAVE }, layout: WHISPERHILLS_LAYOUT, bands: [
-      { at: 0.0, sets: [["raider", "harrier", "wilddog"], ["reaver", "marauder"], ["raider", "marauder", "wilddog"]] },
-      { at: 0.25, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
-      { at: 0.5, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
-      { at: 0.75, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+      { at: 0.0, sets: [["wraith", "wraith"], ["corruptmonk", "wraith"], ["wraith", "wraith", "corruptmonk"]] },
+      { at: 0.25, sets: [["corruptmonk", "flagellant", "wraith"], ["flagellant", "wraith"], ["corruptmonk", "wraith", "flagellant"], ["flagellant", "flagellant", "wraith"]] },
+      { at: 0.5, sets: [["revenant", "corruptmonk", "wraith"], ["flagellant", "revenant", "wraith"], ["reliquarygolem", "wraith", "wraith"]] },
+      { at: 0.75, sets: [["reliquarygolem", "corruptmonk", "revenant", "wraith"], ["reliquarygolem", "flagellant", "corruptmonk"], ["revenant", "reliquarygolem", "flagellant", "wraith"]] },
     ] },
   // ── SPINE FINALE: Sunbridge → the Besieged Citadel / Lighthouse (Lv 21–25). LAST IN ZONES = run-ender. ──
-  { id: "sunbridge", name: "Sunbridge", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+  // CAST: the besieging host + sea-raiders + something risen from the deep. SPINE FINALE = full 5-band
+  // teach→combine, the steepest curve + the only band that goes to FIVE-enemy packs (the climax). Open
+  // with the siege-trooper bruiser + the fast sea-raider boarder, fold in the ballista harrier + the
+  // poison abyssal-spawn, then the drowned leecher + the heavy siege-ram wall, escalating to brutal
+  // 5-packs in the citadel. Mini = the Siege Captain (escorted by troopers). Boss = the Risen Leviathan
+  // (ENRAGE) — the hardest fight in the game. Attunements spread (NOX/SOL/QUANTA/ANIMA/UMBRAXIS).
+  { id: "sunbridge", name: "Sunbridge", mini: "siegecaptain", miniAdds: ["siegetrooper", "searaider"], boss: "leviathan",
     envs: ["harbor", "coast", "harbor", "harbor"], dungeon: { name: "The Besieged Citadel", env: "citadel", layout: SUNBRIDGE_DUNGEON }, layout: SUNBRIDGE_LAYOUT, bands: [
-      { at: 0.0, sets: [["raider", "harrier", "wilddog"], ["reaver", "marauder"], ["raider", "reaver", "marauder"]] },
-      { at: 0.2, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
-      { at: 0.4, sets: [["reaver", "raider", "harrier"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
-      { at: 0.6, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
-      { at: 0.8, sets: [["reaver", "reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder", "wilddog"], ["reaver", "raider", "reaver", "carrion", "harrier"]] },
+      { at: 0.0, sets: [["siegetrooper", "searaider"], ["searaider", "searaider"], ["siegetrooper", "searaider", "searaider"]] },
+      { at: 0.2, sets: [["siegetrooper", "ballista", "searaider"], ["abyssspawn", "searaider"], ["siegetrooper", "abyssspawn", "searaider"], ["ballista", "siegetrooper", "searaider"]] },
+      { at: 0.4, sets: [["drowned", "ballista", "searaider"], ["siegeram", "siegetrooper", "searaider"], ["abyssspawn", "drowned", "siegetrooper"], ["siegeram", "ballista", "searaider"]] },
+      { at: 0.6, sets: [["siegeram", "ballista", "drowned", "searaider"], ["abyssspawn", "siegeram", "drowned"], ["siegeram", "siegetrooper", "ballista", "searaider"]] },
+      { at: 0.8, sets: [["siegeram", "siegetrooper", "ballista", "drowned", "searaider"], ["siegeram", "abyssspawn", "drowned", "ballista", "searaider"], ["siegeram", "siegetrooper", "abyssspawn", "drowned", "ballista"]] },
     ] },
 ];
