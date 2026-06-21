@@ -203,7 +203,7 @@ describe("continent-wide realization (Stage 2C, G22)", () => {
         return { key: z.zone!, x: pl.wx + m.x, y: pl.wy + m.y };
       });
     // flood the realized continent, bounded to a generous box around Aurelion (x 40..500, y 0..340).
-    const WALLS = new Set(["tree", "water", "uncharted"]);
+    const WALLS = new Set(["tree", "water", "uncharted", "cliff", "river"]);
     const seen = new Set<string>(); const q = [spawnW]; seen.add(spawnW.x + "," + spawnW.y);
     while (q.length) {
       const p = q.shift()!;

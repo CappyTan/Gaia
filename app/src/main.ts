@@ -8,6 +8,7 @@ import { Roster } from "./controllers/roster";
 import { UI } from "./controllers/menus";
 import { Battle } from "./controllers/battle";
 import { Field } from "./controllers/field";
+import { Minimap } from "./controllers/minimap";
 import { Screens } from "./controllers/screens";
 import { DataBrowser } from "./controllers/dataBrowser";
 import { WorldMapView } from "./controllers/worldMap";
@@ -19,12 +20,18 @@ import { Telemetry } from "./telemetry/telemetry";
 import { Save } from "./systems/save";
 
 // Publish controllers for the HTML's inline onclick handlers.
-Object.assign(window, { Game, Roster, UI, Battle, Field, Screens, DataBrowser, WorldMapView, Overlay, Dialogue, Music, Telemetry, Save });
+Object.assign(window, { Game, Roster, UI, Battle, Field, Minimap, Screens, DataBrowser, WorldMapView, Overlay, Dialogue, Music, Telemetry, Save });
 
 // Keyboard on the field: while a conversation is open, any movement/confirm key advances it;
 // otherwise the keys walk the map.
 window.addEventListener("keydown", (e) => {
   if (Screens.cur !== "field") return;
+  // Esc closes the minimap if open; otherwise let it bubble (other overlays own it).
+  if (e.key === "Escape" && Minimap.open) { Minimap.hide(); e.preventDefault(); return; }
+  // M toggles the minimap (but not while a modal overlay or a conversation owns the field).
+  if (e.key.toLowerCase() === "m" && !Overlay.isOn() && !Dialogue.isOn()) { Minimap.toggle(); e.preventDefault(); return; }
+  // While the minimap is open it captures input (no walking behind it).
+  if (Minimap.open) { e.preventDefault(); return; }
   if (Dialogue.isOn()) {
     const k = e.key.toLowerCase();
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", "enter", " ", "spacebar"].includes(k)) { Dialogue.advance(); e.preventDefault(); }

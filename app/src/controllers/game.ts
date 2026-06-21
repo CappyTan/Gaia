@@ -106,6 +106,11 @@ export const Game = {
       wx: Field.bigMapActive() ? Field.wx : 0, wy: Field.bigMapActive() ? Field.wy : 0,
       bigMap: Field.bigMapActive(),
       enteredDungeon: Field.enteredDungeon,
+      // CLEARED POIs (the inhabited world) — so a used shrine / raided camp stays spent across a reload.
+      poisCleared: Field.poisCleared,
+      // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
+      dungeonFloor: Field.dungeonFloor,
+      dungeonMiniCleared: Field.dungeonMiniCleared,
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -132,7 +137,11 @@ export const Game = {
     recalc(this.party); // refold gear/MNA (hp/mp/alive already restored, _init guards the refill)
     Telemetry.load(); Telemetry.startSession();
     // build the field for the saved zone, then place the player.
-    Field.init();                      // canvas + tiles + zone 0 baseline
+    Field.init();                      // canvas + tiles + zone 0 baseline (resets poisCleared)
+    // Restore cleared-POI state AFTER init() (which zeroes it) but BEFORE the genMap below rebuilds the
+    // grid — stampPois + the big-map authored-grid re-apply consult it, so a spent shrine / raided camp
+    // stays cleared across the reload (no infinite-heal exploit).
+    Field.poisCleared = { ...r.poisCleared };
     Field.zoneIndex = r.zoneIndex;
     if (r.inTown && r.townId) {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
@@ -141,6 +150,10 @@ export const Game = {
       Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
     } else {
       Field.enteredDungeon = r.enteredDungeon;
+      // MULTI-FLOOR: restore the beaten-gate state BEFORE genDungeon below (it reads dungeonMiniCleared
+      // to decide whether each floor's lieutenant still stands), so a resume past a beaten gate keeps
+      // the stairs live. Set even when not in a dungeon (harmless; cleared on the next fresh descent).
+      Field.dungeonMiniCleared = { ...r.dungeonMiniCleared };
       Field.resize();
       // ADR 0008 Stage 2: a new-model zone saved INSIDE its dungeon rebuilds the dungeon grid;
       // otherwise build the overworld (the mouth is enterable again if the mini was beaten). Legacy
@@ -150,13 +163,13 @@ export const Game = {
         // a save made INSIDE a dungeon then rebuilds the (always-discrete) dungeon grid on top, keeping
         // bigMap set so ascend returns to the continent surface.
         Field.genMap();
-        if (r.enteredDungeon) Field.genDungeon(Field.zoneIndex);
+        if (r.enteredDungeon) Field.genDungeon(Field.zoneIndex, r.dungeonFloor); // restore the saved floor
         else if (r.bigMap && Field.bigMapActive() && (r.wx || r.wy)) {
           Field.wx = r.wx; Field.wy = r.wy;           // restore the saved world tile + re-derive the zone
           Field.realizeAround(); Field.syncZoneFromWorld();
         }
       } else if (Field.usesNewModel() && r.enteredDungeon) {
-        Field.genDungeon(Field.zoneIndex);            // discrete: rebuild the dungeon grid
+        Field.genDungeon(Field.zoneIndex, r.dungeonFloor); // discrete: rebuild the saved dungeon floor
         this.placePlayer(r.px, r.py);
       } else {
         Field.genMap();                               // discrete: overworld / combined grid as before

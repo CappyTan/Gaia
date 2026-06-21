@@ -15,6 +15,13 @@ export const ENEMIES: Record<string, EnemyDef> = {
   kobolde: { name: "Kobold Raider", spr: "🦎", att: "UMBRAXIS", lvl: 4, hp: 108, atk: 16, spd: 11, armor: 2, mag: 0, xp: 108, gold: [16, 28], ai: "basic", art: "kobold" },
   gmage: { name: "Greenvale Mage", spr: "🧙", att: "UMBRAXIS", lvl: 4, hp: 102, atk: 15, spd: 9, armor: 1, mag: 22, xp: 116, gold: [18, 30], ai: "caster", skills: ["hex"], castChance: 0.55 },
   brigand: { name: "Bandit Brigadier", spr: "🪖", att: "NOX", lvl: 5, hp: 480, atk: 34, spd: 8, armor: 5, mag: 0, xp: 170, gold: [60, 100], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.2, art: "gbandit" },
+  // IN-DUNGEON LIEUTENANT (Bandit Warren B2 gate): the MIDDLE step of the warren's spine — the Brigadier
+  // guards the overworld MOUTH (L5/480), the Kingpin is the B3 FINALE (L6/870), this gates B2. ~L5,
+  // base hp 420/atk 30 (< both) since startFloorMini fights it at depth ~0.78 (0.45 + floor/floors), so
+  // the depth scale lifts it to a real mini-boss step WITHOUT overtaking the finale. ANIMA keeps the
+  // Warren trio spread (Brigadier NOX / lieutenant ANIMA / Kingpin SOL). DRAFT name (flag for Dara), 🔪
+  // placeholder over the gbandit sprite (flag for art-integrator).
+  lieutenant: { name: "Bandit Bloodknife", spr: "🔪", att: "ANIMA", lvl: 5, hp: 420, atk: 30, spd: 10, armor: 4, mag: 0, xp: 150, gold: [50, 90], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.22, art: "gbandit" },
   kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 6, hp: 870, atk: 35, spd: 7, armor: 7, mag: 0, xp: 240, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.16, enrage: { omega: "kingpin-omega" } },
   // ── ZONE 2: Silverwood — the Ancient Forest (levels 7-9; new region, ADR 0006). Attunements are
   //    spread (Dara's no-region-identity ruling — the forest is NOT an ANIMA theme). CD-authored

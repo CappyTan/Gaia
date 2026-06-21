@@ -58,6 +58,54 @@ export interface ZoneLayout {
    * sever, the critical path.
    */
   water?: Rect[];
+  /**
+   * VARIED TERRAIN (Dara's 2026-06-21 directive). Hard-blocking, hand-placed geography stamped over
+   * the carved ground AFTER carving, just like `water` — but read as real landscape, not a flat field:
+   *   • `rivers`  — winding WATER courses (drawn as the "river" kind, hard wall like `water`); author a
+   *     bent series of rects so it snakes, not a straight moat. Cross them at a `bridge`/`ford`.
+   *   • `cliffs`  — impassable ROCKY mountain walls (the "cliff" kind, hard wall, visually distinct from
+   *     the forest "tree"); author ridgelines that funnel routes without severing the critical path.
+   * Both are taught to passable/flood/soft-lock, so the generator still GUARANTEES the mouth + every
+   * chest/lair/POI stays reachable — anything a river or cliff walls off is repaired by the same
+   * flood-fill punch-through. Author terrain that PINCHES/FRAMES the routes, never severs them.
+   */
+  rivers?: Rect[];
+  cliffs?: Rect[];
+  /**
+   * Walkable WATER CROSSINGS stamped LAST (over river/water), so a river reads as crossable at a chosen
+   * point: `bridge` (a plank span) / `ford` (a shallow pale crossing). Both are walkable ground (NOT in
+   * the wall sets), so they re-open a route the river would otherwise sever — author one where a road
+   * meets a river. (A crossing tile sits on top of the river/water tile it spans.)
+   */
+  bridges?: Pt[];
+  fords?: Pt[];
+  /**
+   * POINTS OF INTEREST — the INHABITED world (Dara's 2026-06-21 directive). A few per zone, OFF the main
+   * flow, so the zone feels lived-in, not empty space between fights. Each is a walkable special tile
+   * (drawn as a captioned landmark) with a light `move()` interaction by `kind`:
+   *   • `shrine`   — a roadside shrine: stepping on it RESTORES the party (heal) once, then it's spent.
+   *   • `camp`     — an encampment (tents + a fire): an OPTIONAL fight vs a themed pack, then a reward +
+   *     a cleared state (reuses existing enemies — difficulty flagged for balance-tuner, no new stats).
+   *   • `landmark` — a ruin / standing-stones / statue: a non-blocking flavor line (its `name`/`note`).
+   *   • `signpost` — a wayfinding marker: a non-blocking directional hint line.
+   * POIs are halo'd + treated as flood targets so they're always reachable, and they NEVER block a
+   * required route (they sit ON walkable ground). Pure data — the controller wires the triggers.
+   */
+  pois?: Poi[];
+}
+
+/** A point of interest / encampment (the INHABITED-world layer). `kind` drives its `move()` effect. */
+export type PoiKind = "shrine" | "camp" | "landmark" | "signpost";
+export interface Poi {
+  x: number;
+  y: number;
+  kind: PoiKind;
+  /** Display name (the gold caption + the dialogue/flavor line). */
+  name: string;
+  /** Optional flavor/hint line shown for `landmark`/`signpost` (defaults to a kind-generic line). */
+  note?: string;
+  /** For a `camp`: the enemy pack to fight (existing bestiary keys). Defaults to a band-appropriate pull. */
+  pack?: string[];
 }
 
 /**
@@ -69,13 +117,28 @@ export interface ZoneLayout {
 export interface DungeonLayout {
   w: number;            // dungeon grid width  (tiles)
   h: number;            // dungeon grid height (tiles)
-  entry: Pt;            // where the player lands on descending (the mouth's inside)
-  gate: Pt;             // the door tile back out to the overworld (usually == entry)
-  boss: Pt;             // the dungeon boss tile (the zone boss lives HERE)
+  entry: Pt;            // where the player lands on arriving on this floor (the mouth's inside / the up-stair)
+  gate: Pt;             // the door tile back out / up a floor (usually == entry)
+  boss: Pt;             // the dungeon boss tile (the FINALE floor's boss; ignored on intermediate floors)
   rooms: Rect[];        // carved chambers
   paths: Path[];        // corridors joining them
   chests: Pt[];         // dungeon treasure (each gets a walkable approach)
   scatter?: number;     // cosmetic rock density (0–1)
+  /**
+   * MULTI-FLOOR ENGINE (ADR 0008 Stage 3): on an INTERMEDIATE floor (any floor that isn't the last),
+   * the tile that DESCENDS to the next floor's `entry`. Absent on the finale floor (which carries the
+   * `boss` instead). Single-floor dungeons (the other 9 zones) omit it entirely — unchanged.
+   */
+  stairsDown?: Pt;
+  /**
+   * Optional IN-DUNGEON mini-boss tile that GATES `stairsDown` until defeated — the floor's own
+   * chokepoint, mirroring the overworld mouth/miniboss pattern. While it stands, the player can't step
+   * onto `stairsDown` (it draws + reads as the gate guardian); beating it turns the stairs live. The
+   * enemy it fights comes from `Zone.dungeon.floorMini` (encounter-designer authors the real cast).
+   * Author it so the gating mini-boss can never strand the player — the flood-repair covers stairs +
+   * boss + chests + this tile, so a beaten mini always opens onto reachable stairs.
+   */
+  miniboss?: Pt;
 }
 
 export interface Zone {
@@ -88,10 +151,19 @@ export interface Zone {
   bands: EncounterBand[];
   /**
    * The dungeon past the mini-boss mouth: own name + environment, tougher enemies, and (ADR 0008
-   * Stage 2) its own decoupled tile grid (`layout`, x rebased to 0). The zone boss lives in
-   * `dungeon.layout.boss`.
+   * Stage 2) its own decoupled tile grid (`layout`, x rebased to 0). The zone boss lives in the
+   * FINALE floor's `boss`.
+   *
+   * MULTI-FLOOR (ADR 0008 Stage 3): a dungeon is EITHER single-floor (just `layout`, the other 9
+   * zones — unchanged) OR multi-floor via `floors` (the Bandit Warren: a descending B1→B2→… stack).
+   * When `floors` is present it is the source of truth and `layout` MUST equal `floors[0]` (kept so
+   * the 9 single-floor zones and all existing `dungeon.layout` readers/tests are untouched — a
+   * single-floor dungeon is just a 1-element stack). The player descends a floor's `stairsDown`
+   * (gated by that floor's `miniboss`, if any) to the next floor's `entry`, and the LAST floor holds
+   * the `boss` finale. `floorMini` is the enemy key the in-dungeon mini-boss fights (a placeholder
+   * for the encounter-designer to author).
    */
-  dungeon: { name: string; env: string; layout: DungeonLayout };
+  dungeon: { name: string; env: string; layout: DungeonLayout; floors?: DungeonLayout[]; floorMini?: string };
   /** Bespoke layout consumed by `controllers/field.genMap` (ADR 0006). */
   layout: ZoneLayout;
   /**
@@ -112,14 +184,29 @@ export interface Zone {
   hubs?: string[];
 }
 
-// Greenvale's encounter table by area depth (the further east, the tougher the roll-set).
-// The mid-zone chokepoint (Bandit Brigadier) and the final Kingpin are NOT in this table.
+// Greenvale's encounter table by depth — the SAME spine drives the open shire (depth = how far east
+// toward the gate) AND the Bandit Warren below it (in-floor progress picks the band; the dungeon's
+// floorBump scales the stats hotter per floor, B1→B2→B3). The mouth guard (Bandit Brigadier), the B2
+// LIEUTENANT (Bandit Bloodknife), and the B3 finale (Kingpin) are NOT in this table — they're the
+// authored chokepoint/boss bookends.
+//   Teach→combine + CADENCE VARIETY (encounter-designer 2026-06-21): the curve introduces one creature
+// at a time (slime/kobold → gbandit → slimebig/kobolde → gmage) and the SET SIZES vary within each band
+// so the rhythm isn't monotone — true SINGLES and PAIRS up top (gentle reads for B1's breather floor and
+// the village mouth), growing to triples, with ONE gnarly 4-pack "den swarm" reserved for the deepest
+// band (the run-up to the Kingpin / the lower Warren). Packs stay ≤5 (battle-screen + reachable() cap).
+// Inside the Warren the Area lean is OFF (the dungeon carries no Area), so every set in a band is equally
+// likely — the warren cadence lives in the sets themselves; the overworld additionally Area-leans these.
 export const ENCOUNTERS: EncounterBand[] = [
-  { at: 0.0, sets: [["slime", "slime", "kobold"], ["kobold", "kobold"], ["slime", "kobold"]] },
-  { at: 0.18, sets: [["gbandit", "kobold", "kobold"], ["slime", "slime", "kobold"], ["kobold", "gbandit"], ["slime", "kobold", "kobold"]] },
-  { at: 0.36, sets: [["gbandit", "kobold", "kobold"], ["slimebig", "kobold", "kobold"], ["gbandit", "gbandit", "kobold"], ["slime", "kobolde", "kobold"]] },
-  { at: 0.54, sets: [["slimebig", "kobold", "kobold"], ["kobolde", "gbandit", "kobold"], ["gbandit", "gmage", "kobold"], ["kobolde", "gbandit", "kobold"]] },
-  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage"]] },
+  // GENTLE INTRO / B1 breather: lone fodder + small mixes. A true single teaches the kobold clean.
+  { at: 0.0, sets: [["kobold"], ["slime", "kobold"], ["kobold", "kobold"], ["slime", "slime", "kobold"]] },
+  // BANDIT enters — first alongside the known kobold (a pair), then a small pack.
+  { at: 0.18, sets: [["gbandit"], ["kobold", "gbandit"], ["gbandit", "kobold", "kobold"], ["slime", "kobold", "kobold"]] },
+  // The tank (Bloated Slime) + the Raider (kobolde) join; bandit pairs up. A lone bruiser breaks cadence.
+  { at: 0.36, sets: [["slimebig"], ["gbandit", "kobold", "kobold"], ["slimebig", "kobold", "kobold"], ["kobolde", "gbandit"], ["gbandit", "gbandit", "kobold"]] },
+  // The MAGE arrives — taught behind a single screen of fodder before it stacks into nastier mixes.
+  { at: 0.54, sets: [["gmage", "kobold"], ["kobolde", "gbandit", "kobold"], ["gbandit", "gmage", "kobold"], ["slimebig", "kobolde", "kobold"]] },
+  // DEEP WARREN / pre-Kingpin: the meanest combos — caster behind a bandit wall, and a 4-pack den swarm.
+  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage", "kobold"]] },
 ];
 
 // ── Greenvale overworld + Bandit Warren (greenfield, OPEN-WORLD rework — Dara 2026-06-20) ─────
@@ -136,6 +223,25 @@ export const ENCOUNTERS: EncounterBand[] = [
 // before the Kingpin's arena — a loop, so you can circle through either room (each holds a chest) and
 // come back. genMap carves these + flood-fills to GUARANTEE boss + every chest/lair reachable
 // (anti-soft-lock); the loops mean you can never be walled into a pocket.
+//
+// VARIED TERRAIN + INHABITED (Dara's 2026-06-21 directive — Greenvale is the exemplar). The shire is
+// no longer a flat green field with a tree border: real geography threads the mesh and the world is
+// lived-in:
+//   • A WINDING RIVER (the Hearthbrook) snakes down the central gap between the west hub and the
+//     central hub — column x=20 above the middle road, jogging to x=21 below it — crossed by a stone
+//     BRIDGE on the fast middle road (the bridge keeps the route open; the river FRAMES it, never
+//     severs it — the north & south loops run well clear at y≈4 / y≈19, and a FORD downstream gives
+//     the south loop its own crossing). The river reads as the reason the three roads exist.
+//   • A low CLIFF ridge (Greenvale's rocky northern shoulder) walls the gap between the north road and
+//     the central hub (x≈18–22, y≈6–7) and a small SE rocky OUTCROP edges the grove — funnels without
+//     blocking (the loops route around them; flood-repair guarantees reachability).
+//   • The HIDDEN GROVE pocket (SE) is the dense forest COPSE, dressed with the old-growth skin.
+//   • POIs scatter the shire so it feels INHABITED, all OFF the main flow: a roadside SHRINE in the
+//     orchard (heal), a BANDIT CAMP in the south meadow (an optional fight + reward), STANDING STONES
+//     on the north ridge (a flavor landmark), and a SIGNPOST at the west fork (a wayfinding hint).
+// All terrain + POIs are taught to passable/flood/soft-lock, so the mouth + every chest/lair/POI stays
+// reachable. ART FLAG (art-integrator): river/cliff/bridge/ford + the four POI kinds draw as in-palette
+// placeholder fills/emoji until bespoke sprites land (see the hand-back).
 const GREENVALE_LAYOUT: ZoneLayout = {
   w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 12 }, gateWallX: 40, boss: { x: 60, y: 11 },
   mouth: { x: 40, y: 12 }, // the dungeon mouth = the old gate tile (the Brigadier guards it)
@@ -167,6 +273,33 @@ const GREENVALE_LAYOUT: ZoneLayout = {
   ],
   lair: { x: 27, y: 20 }, // Hogger, deep in the southern grove off the south loop
   scatter: 0.06,
+  // THE HEARTHBROOK: a winding river that runs SOUTH down the x=20 gap, CROSSING the routes it meets so
+  // it SHAPES them. Its main reach (y 8–20) cuts clean across the fast MIDDLE road (y=12) and the SOUTH
+  // road (y=19) — both severed unless you take the crossing — while a short oxbow jogs east (x=21, y14–16)
+  // so it snakes rather than running ruler-straight. The NORTH loop (y≈4) stays clear, so it is the dry
+  // way round: the river forces a real choice (bridge / ford / detour north), never a soft-lock — every
+  // crossing is a walkable flood target and the north road is always open.
+  rivers: [
+    { x: 20, y: 8, w: 1, h: 12 },  // main reach: crosses the MIDDLE road (y12, bridged) AND the SOUTH road (y19, forded)
+    { x: 21, y: 14, w: 1, h: 3 },  // oxbow: the river jogs east mid-course so it winds, not runs straight
+  ],
+  // CLIFFS: the rocky northern shoulder walls the north-road↔central gap (funnels the north approach),
+  // plus a small SE outcrop edging the grove. Both pinch, never sever (loops route around; flood repairs).
+  cliffs: [
+    { x: 18, y: 6, w: 5, h: 1 },   // the northern ridge shoulder (between the north road and the hub)
+    { x: 30, y: 16, w: 2, h: 2 },  // SE rocky outcrop edging the hidden grove
+  ],
+  // CROSSINGS over the Hearthbrook — each sits on a road the river SEVERS, so it carries that crossing:
+  // the BRIDGE is the only way the middle road gets across; the FORD reconnects the south meadow↔grove loop.
+  bridges: [{ x: 20, y: 12 }],     // the middle road's only crossing (river severs y=12 here)
+  fords: [{ x: 20, y: 19 }],       // the south road's crossing — reconnects the meadow↔grove loop the river cuts
+  // POIs — the INHABITED shire, all OFF the main flow (discoveries):
+  pois: [
+    { x: 18, y: 4, kind: "shrine", name: "Wayside Shrine" },                                 // orchard — heal
+    { x: 16, y: 18, kind: "camp", name: "Bandit Camp", pack: ["gbandit", "gbandit", "kobold"] }, // south meadow — optional fight
+    { x: 30, y: 4, kind: "landmark", name: "The Standing Stones", note: "Moss-furred stones older than the shire — they hum faintly at dusk." }, // north ridge crest
+    { x: 12, y: 13, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the gate lies east." }, // west fork
+  ],
 };
 
 // ── Greenvale's PLAYABLE Areas (ADR 0009 exemplar — Area = finest identity, realized at play scale) ─
@@ -222,31 +355,114 @@ export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undef
   return best;
 }
 
-// The Bandit Warren as its OWN grid (ADR 0008 Stage 2): the old Greenvale dungeon (everything east
-// of the gate wall at x=40), x rebased by -gateWallX so the gate stub at world-x 41 becomes local
-// x=1 (a clean west border at x=0). Width = 64-40 = 24; height carries over (24). The combined
-// genMap reconstructs the byte-identical old grid by adding gateWallX back. Kingpin → 20,11.
-const GREENVALE_DUNGEON: DungeonLayout = {
-  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+// ── THE BANDIT WARREN — Gaia's FIRST MULTI-FLOOR dungeon (ADR 0008 Stage 3, Lv 1-6) ─────────────
+// A descending bandit hideout in THREE floors (B1 → B2 → the Kingpin's hall). Each floor is its OWN
+// DungeonLayout on its own 24×24 grid; the player descends a floor's `stairsDown` (gated by a floor
+// `miniboss` where one stands) to the next floor's `entry`, and climbs the `entry`/up-stair back. The
+// FINALE floor (B3) holds the Kingpin `boss`. The open-world rule applies underground too: each floor
+// is a connected room-network with loops/dead-ends, not a single corridor. Anti-soft-lock: every floor
+// flood-fills so entry reaches its stairs-down (or boss) + all chests, and the gating mini can't strand.
+//
+// Floor random encounters reuse Greenvale's bands (gbandit/kobold/gmage/…). `floorMini: "lieutenant"`
+// is the in-dungeon LIEUTENANT that gates B2 — the authored Bandit Bloodknife (data/enemies.ts), a
+// step between the overworld mouth-guard (Brigadier) and the B3 Kingpin finale. (Name is DRAFT for Dara.)
+//
+// B1 — WARREN ENTRANCE (the fork): the mouth lands at the west entry hall, which forks into a NORTH
+// guard chamber and a SOUTH store room (a dead-end side cache off it). Both rejoin at a junction hub,
+// from which the STAIRS DOWN descend (no mini on B1 — the gentle intro/breather floor). Two chests on
+// the loop arms; the richest is down the store-room dead-end (reward the brave).
+const WARREN_B1: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 }, // boss unused on B1
+  stairsDown: { x: 20, y: 11 }, // descend to B2
   rooms: [
     { x: 2, y: 8, w: 6, h: 8 },     // warren entry hall (the fork)
     { x: 10, y: 3, w: 7, h: 5 },    // north guard chamber (chest, on the loop)
     { x: 10, y: 16, w: 7, h: 5 },   // south store room (chest, on the loop)
-    { x: 14, y: 8, w: 5, h: 7 },    // antechamber hub (the loop rejoins here)
-    { x: 17, y: 8, w: 6, h: 6 },    // the Kingpin's arena
+    { x: 4, y: 18, w: 4, h: 4 },    // store-room DEAD-END side cache (off the south arm — richest B1 chest)
+    { x: 14, y: 8, w: 5, h: 7 },    // junction hub (the loop rejoins here)
+    { x: 18, y: 9, w: 5, h: 5 },    // stair landing (the descent)
   ],
   paths: [
     [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → entry hall
-    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north chamber → antechamber
-    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south store → antechamber (the LOOP)
-    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north chamber → junction
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south store → junction (the LOOP)
+    [{ x: 5, y: 16 }, { x: 6, y: 19 }],                            // south store → dead-end side cache (spur)
+    [{ x: 16, y: 11 }, { x: 20, y: 11 }],                          // junction → stair landing (descend)
   ],
   chests: [
-    { x: 13, y: 18 },  // south store room (loop, richest)
+    { x: 6, y: 20 },   // store-room dead-end cache (richest B1, reward the brave)
     { x: 13, y: 4 },   // north guard chamber (loop, breather reward)
   ],
   scatter: 0.06,
 };
+// B2 — DEEPER DENS (the gated descent): the up-stair lands west; the floor loops a north den and a
+// south den around a central hall, with a DEAD-END treasure vault hidden PAST the lieutenant. The
+// LIEUTENANT (`miniboss`) guards the STAIRS DOWN at the east — beat him to open the descent AND the
+// vault spur behind him. More dead-ends + treasure than B1; the danger climbs.
+//
+// GATE-PINCH GEOMETRY (QA fix 2026-06-21): the lieutenant tile (17,12) is the SOLE walkable link from
+// the central hall (cols 13-17) to the stair-landing/vault block (cols 20-22) — the junction is a
+// SINGLE-ROW corridor on row 12: (17,12 lieutenant)→(18,12)→(19,12)→(20,12 landing). Cols 18-19 are
+// solid wall at every OTHER row, and the gated block sits ≥2 columns east of the lieutenant (its stairs
+// at x=21, vault chest at x=21) so NO stairs/chest halo can re-open a flanking tile in cols 18-19. The
+// lieutenant's OWN 3×3 halo (which would otherwise open a walkable RING around it via (17,11)/(17,13))
+// is closed off by genDungeon re-walling the gate's perpendicular flanks — so the only way east is
+// THROUGH the fight. VERIFIED by flooding with the lieutenant forced to a wall: stairs-down AND the
+// vault chest both go UNREACHABLE (and with it walkable, everything is reachable — no soft-lock).
+const WARREN_B2: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 }, // boss unused on B2
+  stairsDown: { x: 21, y: 12 },   // descend to B3 (the Kingpin's hall) — ≥2 cols east of the lieutenant
+  miniboss: { x: 17, y: 12 },     // the bandit LIEUTENANT — the SOLE link east; gates the stairs + the vault
+  rooms: [
+    { x: 2, y: 9, w: 6, h: 6 },     // up-stair landing hall (the fork)
+    { x: 10, y: 3, w: 7, h: 5 },    // north den (chest, on the loop)
+    { x: 10, y: 16, w: 7, h: 5 },   // south den (chest, on the loop)
+    { x: 13, y: 9, w: 5, h: 6 },    // central hall (cols 13-17; the loop rejoins, lieutenant at its east mouth)
+    { x: 20, y: 9, w: 3, h: 7 },    // stair landing PAST the lieutenant (cols 20-22 — cols 18-19 stay solid)
+    { x: 20, y: 3, w: 3, h: 4 },    // hidden VAULT dead-end (cols 20-22, behind the lieutenant — richest hoard)
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // up-stair → landing hall
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 15, y: 9 }],           // hall → north den → central
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 15, y: 14 }],         // hall → south den → central (the LOOP)
+    [{ x: 17, y: 12 }, { x: 21, y: 12 }],                          // central → (THROUGH lieutenant) → stair landing
+    [{ x: 21, y: 10 }, { x: 21, y: 6 }],                           // stair landing → hidden vault dead-end (spur)
+  ],
+  chests: [
+    { x: 21, y: 4 },   // hidden vault dead-end behind the lieutenant (RICHEST — reward the brave)
+    { x: 13, y: 4 },   // north den (loop)
+    { x: 13, y: 19 },  // south den (loop)
+  ],
+  scatter: 0.07,
+};
+// B3 — THE KINGPIN'S HALL (the finale): the up-stair lands west; a short antechamber loop opens onto
+// the Kingpin's arena, the richest hoard flanking the throne. The zone `boss` (Kingpin) lives HERE.
+const WARREN_B3: DungeonLayout = {
+  w: 24, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 20, y: 10 },
+  rooms: [
+    { x: 2, y: 7, w: 6, h: 8 },     // up-stair landing hall
+    { x: 10, y: 4, w: 6, h: 5 },    // north antechamber (chest, on the loop)
+    { x: 10, y: 14, w: 6, h: 5 },   // south antechamber (chest, on the loop)
+    { x: 14, y: 8, w: 4, h: 6 },    // throne approach (the loop rejoins)
+    { x: 17, y: 6, w: 6, h: 10 },   // the KINGPIN'S ARENA (richest hoard at the throne)
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 5, y: 11 }],                            // up-stair → landing hall
+    [{ x: 5, y: 9 }, { x: 12, y: 6 }, { x: 15, y: 9 }],            // hall → north antechamber → throne approach
+    [{ x: 5, y: 13 }, { x: 12, y: 16 }, { x: 15, y: 13 }],         // hall → south antechamber → approach (the LOOP)
+    [{ x: 15, y: 11 }, { x: 19, y: 11 }],                          // approach → arena (boss)
+  ],
+  chests: [
+    { x: 20, y: 13 },  // throne-side hoard (richest — by the Kingpin)
+    { x: 13, y: 5 },   // north antechamber (loop)
+    { x: 13, y: 17 },  // south antechamber (loop)
+  ],
+  scatter: 0.06,
+};
+// The Bandit Warren = the 3-floor stack. `layout` MUST equal `floors[0]` (the single-floor contract
+// every `dungeon.layout` reader/test relies on; a single-floor dungeon is just a 1-element stack).
+const GREENVALE_DUNGEON: DungeonLayout = WARREN_B1;
+const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 
 // ── Silverwood, the Ancient Forest + the Sunless Grove (OPEN-WORLD rework — Dara 2026-06-20) ──
 // Region #2 of Aurelion (world-atlas): the deep, old, hushed old-growth forest, inserted BETWEEN
@@ -287,6 +503,22 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
     [{ x: 24, y: 7 }, { x: 24, y: 10 }],   // cross-link: NE canopy ↔ central hub
   ],
   dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (SILVERWOOD_DUNGEON) — ADR 0008 Stage 2
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). A WOODED STREAM (river kind = a clear forest brook)
+  // runs the x=18 gap between the west hollow and the central crossing, SEVERING the winding MIDDLE trail
+  // (it crosses at y=13, carried by a mossy log BRIDGE) and the SOUTH mossbed trail (y=19, carried by a
+  // FORD over the stepping-roots) — the NORTH fern trail (y=5) stays dry as the redundant route. A
+  // MOSS-FURRED CLIFF (an old rockfall, the "mossy hollow" framed in stone) walls the north-trail↔central
+  // gap + edges the deep mossbed, funnelling the route between the ancient trunks.
+  rivers: [
+    { x: 18, y: 8, w: 1, h: 12 },  // the wooded stream: crosses the MIDDLE trail (y13, log bridge) + the SOUTH mossbed (y19, forded)
+    { x: 19, y: 14, w: 1, h: 3 },  // a meander so the brook winds between the roots
+  ],
+  cliffs: [
+    { x: 15, y: 7, w: 4, h: 1 },   // the moss-furred rockfall between the fern trail and the central crossing
+    { x: 27, y: 16, w: 2, h: 2 },  // SE mossy outcrop edging the deep mossbed (Mossback's lair)
+  ],
+  bridges: [{ x: 18, y: 13 }],     // the middle trail's mossy log bridge over the stream (its only crossing)
+  fords: [{ x: 18, y: 19 }],       // the stepping-root ford reconnecting the sunken-hollow↔mossbed loop
   chests: [
     { x: 14, y: 4 },   // north fern hollow (north trail)
     { x: 13, y: 20 },  // south sunken-root hollow (south trail)
@@ -294,6 +526,13 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
   ],
   lair: { x: 24, y: 20 }, // the Mossback Tortoise dens deep in the southern mossbed off the south loop
   scatter: 0.09,          // denser scatter than the shire: ferns/mushrooms thick on the floor
+  // POIs — the INHABITED ancient forest, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Grove Shrine" },                                             // north fern hollow — heal
+    { x: 14, y: 18, kind: "camp", name: "Poachers' Camp", pack: ["sylvanarcher", "dwolf", "dwolf"] },  // south sunken hollow — optional fight
+    { x: 26, y: 3, kind: "landmark", name: "The Elder Stones", note: "Standing stones swallowed by root and moss — the forest grew up around a ring older than memory." }, // NE canopy nook
+    { x: 11, y: 12, kind: "signpost", name: "Trailhead Marker", note: "Fern hollow north · sunken roots south · the Elder Treant's gate lies east." }, // west fork
+  ],
 };
 // The Sunless Grove as its own grid (data uniform with Greenvale; Silverwood stays on the LEGACY
 // combined-grid path in Chunk A, so this layout is data-only until its zone is migrated — Chunk B).
@@ -363,12 +602,34 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
     { x: 17, y: 9, w: 2, h: 4 },    // east-of-lagoon pinch
   ],
   dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (DUSKMARSH_DUNGEON) — ADR 0008 Stage 2
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). The mire already has standing-water pools; now a
+  // winding CHANNEL (river kind = a slow black watercourse) snakes down the x=15 gap and CROSSES the SOUTH
+  // causeway (y=18), SEVERING the low road unless you take the plank FORD — the NORTH causeway (y=4) stays
+  // the dry high road (the redundant route). REED-CHOKED HUMMOCKS (cliff kind = mire-rock + dense reed
+  // stands you can't push through) frame the channel + edge the sunken ruin, so the mire reads as living
+  // wetland, not flat bog. Channel/hummocks pinch, never sever (the north causeway + flood-repair guarantee).
+  rivers: [
+    { x: 15, y: 15, w: 1, h: 5 },   // the channel: crosses the SOUTH causeway (y18, forded)
+    { x: 16, y: 16, w: 1, h: 2 },   // a sluggish meander so the channel winds through the reeds
+  ],
+  cliffs: [
+    { x: 8, y: 7, w: 1, h: 2 },     // reed-hummock pinching the head fork's north shoulder
+    { x: 18, y: 16, w: 2, h: 1 },   // reed thicket edging the sunken ruin (between ruin and central hub)
+  ],
+  fords: [{ x: 15, y: 18 }],        // the plank ford carrying the south causeway over the channel
   chests: [
     { x: 12, y: 3 },   // north bog pocket (north causeway)
     { x: 13, y: 18 },  // sunken ruin (south causeway, shares the ruin with the lair)
   ],
   lair: { x: 11, y: 18 }, // the rare beast dens in the flooded ruin stones off the south road
   scatter: 0.07,
+  // POIs — the INHABITED mire, all OFF the main flow:
+  pois: [
+    { x: 8, y: 3, kind: "shrine", name: "Sunken Shrine" },                                             // north bog pocket approach — heal
+    { x: 9, y: 18, kind: "camp", name: "Cultists' Camp", pack: ["leper", "direrat", "rat"] },          // sunken ruin (west of the lair) — optional fight
+    { x: 24, y: 3, kind: "signpost", name: "Drowned Signpost", note: "A half-sunk marker, lettering scoured by the bog: 'High road north · low road south · the Vault below.'" }, // NE near central hub
+    { x: 19, y: 11, kind: "landmark", name: "The Mire-Idol", note: "A moss-slick idol on a hummock, offerings of bone and reed heaped at its base — someone still prays here." }, // central hub edge
+  ],
 };
 // The Drowned Vault as its own grid (data uniform with Greenvale; Duskmarsh stays on the LEGACY
 // combined-grid path in Chunk A — data-only until its zone is migrated in Chunk B).
@@ -452,6 +713,22 @@ const GOLDMEADOW_LAYOUT: ZoneLayout = {
     { x: 7, y: 18, w: 5, h: 4 },    // SW creek pool (the south track bridges its east lip at x≈13)
     { x: 16, y: 20, w: 4, h: 2 },   // creek run trailing SE under the farmstead
   ],
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). THE CREEK now CROSSES a road: a winding watercourse
+  // (river kind) runs the x=19 gap between the west commons and the central crossroads, SEVERING the fast
+  // MIDDLE field track (y=12, carried by a farm BRIDGE) and the SOUTH creek-meadow track (y=19, carried by
+  // a FORD) — the NORTH barn-yard track (y=4) stays dry as the redundant route. A DRYSTONE RIDGE (cliff =
+  // low field-wall escarpment) walls the north-track↔crossroads gap + edges the burned farmstead, channeling
+  // the open-field engagements (the brief's "nowhere to hide" — the ridge is the only hard cover out here).
+  rivers: [
+    { x: 19, y: 9, w: 1, h: 11 },  // the creek: crosses the MIDDLE track (y12, bridged) + the SOUTH meadow (y19, forded)
+    { x: 20, y: 14, w: 1, h: 3 },  // an oxbow so the creek winds across the plain, not runs straight
+  ],
+  cliffs: [
+    { x: 16, y: 7, w: 5, h: 1 },   // the drystone ridge between the north field track and the central crossroads
+    { x: 29, y: 16, w: 2, h: 2 },  // SE drystone outcrop edging the burned farmstead
+  ],
+  bridges: [{ x: 19, y: 12 }],     // the middle track's farm bridge over the creek (its only crossing)
+  fords: [{ x: 19, y: 19 }],       // the creek meadow's ford (reconnects the meadow↔farmstead loop)
   chests: [
     { x: 14, y: 3 },   // north barn-yard field (north track)
     { x: 13, y: 20 },  // south creek meadow (south track, by the crossing)
@@ -459,6 +736,13 @@ const GOLDMEADOW_LAYOUT: ZoneLayout = {
   ],
   lair: { x: 25, y: 20 }, // the gilded wheat-beast dens in the burned farmstead off the south loop
   scatter: 0.05,          // sparse: wide open ground, "nowhere to hide" — less cover than the forest
+  // POIs — the INHABITED breadbasket, all OFF the main flow:
+  pois: [
+    { x: 16, y: 3, kind: "shrine", name: "Harvest Shrine" },                                           // north barn-yard field — heal
+    { x: 15, y: 20, kind: "camp", name: "Raiders' Camp", pack: ["raider", "marauder", "wilddog"] },    // south creek meadow — optional fight
+    { x: 29, y: 4, kind: "landmark", name: "The Old Windmill", note: "A burned-out mill, sails snapped — the war-host fires its grain-store as a beacon." }, // NE fallow field
+    { x: 13, y: 13, kind: "signpost", name: "Field Crossroads", note: "Barn-yard road north · creek meadow south · the windmill gate lies east." }, // west fork
+  ],
 };
 // The occupied Windmill / Granary Undercroft as its own grid (sibling to Warren/Grove/Vault). The
 // undercroft forks into two looped rooms that rejoin at a threshing antechamber, with a DEAD-END VAULT
@@ -540,9 +824,31 @@ const STORMCOAST_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 6, y: 16, w: 4, h: 4 }], // SW creek/tidewater pool (the south track bridges its east lip)
+  // VARIED TERRAIN + INHABITED (Dara's 2026-06-21 roll-out). A SEA INLET (river kind = saltwater channel)
+  // floods the gap between the west hub and the central hub at x=17, SEVERING the fast MIDDLE track (y=11,
+  // bridged by a plank quay) and the SOUTH strand track (y=17, forded over the shallows) — the NORTH cliff
+  // track (y=4) stays dry as the redundant way round. SEA-CLIFFS (cliff kind) wall the north-track↔central
+  // gap, funnelling the high road. Both pinch, never sever (loops route around; flood-repair guarantees).
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // tidal inlet: crosses the MIDDLE track (y11, bridged) + the SOUTH strand (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a short backwater jog so the inlet winds, not runs straight
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // sea-cliff shoulder between the north track and the central hub
+    { x: 27, y: 14, w: 2, h: 2 },  // SE rocky headland edging the smugglers' flat
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the middle track's plank quay over the inlet (its only crossing)
+  fords: [{ x: 17, y: 17 }],       // the south strand's shallow ford (reconnects the strand↔smugglers loop)
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },               // the sea-beast dens in the SE smugglers' flat
   scatter: 0.05,
+  // POIs — the INHABITED coast, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Tide-Watcher's Shrine" },                                 // north cliff terrace — heal
+    { x: 14, y: 18, kind: "camp", name: "Wreckers' Camp", pack: ["wrecker", "cutthroat", "cutthroat"] }, // south strand — optional fight
+    { x: 27, y: 3, kind: "landmark", name: "The Broken Hull", note: "A storm-flung ship's ribs, picked clean by gulls and wreckers alike." }, // NE tidepools
+    { x: 11, y: 11, kind: "signpost", name: "Coast Road Sign", note: "Cliff path north · Wreck strand south · the sea-cave lies east." }, // west fork
+  ],
 };
 // A small sea-cave: entry hall forks into a north chamber + a tough south chamber that rejoin at the
 // guardian's arena (a loop). Champion guardian → (13,8).
@@ -590,9 +896,30 @@ const RIVERHEARTH_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 6, y: 16, w: 4, h: 4 }, { x: 17, y: 18, w: 3, h: 2 }], // the river run along the south
+  // VARIED TERRAIN + INHABITED. THE TRADE RIVER (this is the capital's river) snakes down the x=17 gap,
+  // SEVERING the fast MIDDLE trade-road (y=11, carried by a stone BRIDGE) and the SOUTH riverbank track
+  // (y=17, carried by a FORD) — the NORTH trade road (y=4) stays dry as the redundant route. A ROAD
+  // EMBANKMENT (cliff = raised stone causeway) walls the north-road↔central gap, funnelling the high road.
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // the river: crosses the MIDDLE road (y11, bridged) + the SOUTH bank (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a mid-course meander so the river winds
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // raised road embankment between the north road and the central market
+    { x: 27, y: 14, w: 2, h: 2 },  // SE wharf retaining wall edging the warehouse row
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the middle road's stone bridge over the trade river (its only crossing)
+  fords: [{ x: 17, y: 17 }],       // the riverbank track's ford (reconnects the bank↔warehouse loop)
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },
   scatter: 0.06,
+  // POIs — the INHABITED trade outskirts, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Ferryman's Shrine" },                                       // north trade road — heal
+    { x: 14, y: 18, kind: "camp", name: "Smugglers' Camp", pack: ["smuggler", "roadbandit", "footpad"] }, // south riverbank — optional fight
+    { x: 27, y: 3, kind: "signpost", name: "Capital Milestone", note: "Riverhearth gates ahead · caravan yard north · the wharves south." }, // NE caravan yard
+    { x: 11, y: 11, kind: "landmark", name: "The Toll Cairn", note: "A heaped cairn of road-tolls and traders' offerings, older than the city charter." }, // west fork
+  ],
 };
 const RIVERHEARTH_CAVE: DungeonLayout = {
   w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
@@ -634,9 +961,31 @@ const DAWNFALL_LAYOUT: ZoneLayout = {
     [{ x: 24, y: 6 }, { x: 24, y: 8 }],
   ],
   dunRects: [], dunPaths: [],
+  // VARIED TERRAIN + INHABITED. A flooded DEFENSIVE MOAT/DITCH (river kind) runs the x=17 gap, SEVERING
+  // the MIDDLE bailey track (y=11, carried by a RUINED BRIDGE — the old drawbridge stub) and the SOUTH
+  // muster-yard track (y=17, carried by a FORD where the moat has silted up) — the NORTH rampart walk
+  // (y=4) stays dry as the redundant route. BROKEN CURTAIN WALLS (cliff = fallen rampart) wall the
+  // north-walk↔bailey gap + edge the collapsed barracks, funnelling the approach through the ruin.
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // the moat: crosses the MIDDLE track (y11, ruined bridge) + the SOUTH yard (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a silted dog-leg so the ditch bends round the fallen masonry
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // the broken north curtain wall between the rampart walk and the bailey
+    { x: 27, y: 14, w: 2, h: 2 },  // SE rubble of the fallen barracks wall
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the ruined drawbridge stub over the moat (the middle track's only crossing)
+  fords: [{ x: 17, y: 17 }],       // the silted ford reconnecting the muster yard↔barracks loop
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },
   scatter: 0.08,    // rubble-strewn ruin: more cover/debris than the open coast
+  // POIs — the INHABITED ruined hold, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Garrison Chapel" },                                          // north rampart walk — heal
+    { x: 14, y: 18, kind: "camp", name: "Fallen-Watch Camp", pack: ["brokenwatch", "fallenarcher", "frontierbeast"] }, // south muster yard — optional fight
+    { x: 27, y: 3, kind: "landmark", name: "The Broken Tower", note: "The watchtower's snapped stump, its beacon long cold — it fell the night the hold was breached." }, // NE broken tower
+    { x: 11, y: 11, kind: "signpost", name: "Muster Post", note: "Rampart walk north · muster yard south · the undervault breach lies east." }, // west fork
+  ],
 };
 const DAWNFALL_CAVE: DungeonLayout = {
   w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
@@ -678,9 +1027,31 @@ const WHISPERHILLS_LAYOUT: ZoneLayout = {
     [{ x: 24, y: 6 }, { x: 24, y: 8 }],
   ],
   dunRects: [], dunPaths: [],
+  // VARIED TERRAIN + INHABITED. A clear monastic BROOK (river kind) tumbles down the x=17 gap between the
+  // cloister hubs, SEVERING the MIDDLE pilgrim path (y=11, carried by a humped stone BRIDGE) and the SOUTH
+  // orchard-slope track (y=17, carried by a FORD over the stepping-stones) — the NORTH terraced-garden walk
+  // (y=4) stays dry as the redundant route. A CLIFF ESCARPMENT (the hills' chalk scarp) walls the
+  // north-walk↔chapter-house gap + edges the silent garden, funnelling the climb to the monastery.
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // the brook: crosses the MIDDLE path (y11, bridged) + the SOUTH slope (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a babbling meander so the brook winds through the hollow
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // the chalk escarpment between the terraced gardens and the chapter house
+    { x: 27, y: 14, w: 2, h: 2 },  // SE rocky knoll edging the silent garden
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the pilgrim path's humped stone bridge over the brook (its only crossing)
+  fords: [{ x: 17, y: 17 }],       // the stepping-stone ford reconnecting the orchard slope↔silent-garden loop
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },
   scatter: 0.07,
+  // POIs — the INHABITED monastic hills, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Roadside Reliquary" },                                       // north terraced gardens — heal
+    { x: 14, y: 18, kind: "camp", name: "Corrupt-Monks' Camp", pack: ["corruptmonk", "flagellant", "wraith"] }, // south orchard slope — optional fight
+    { x: 27, y: 3, kind: "landmark", name: "The Reliquary Stone", note: "A weathered standing stone carved with a litany no living monk will read aloud." }, // NE bell-tower knoll
+    { x: 11, y: 11, kind: "signpost", name: "Pilgrim's Marker", note: "Terraced gardens north · orchard slope south · the silent crypt lies east." }, // west fork
+  ],
 };
 const WHISPERHILLS_CAVE: DungeonLayout = {
   w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
@@ -724,9 +1095,33 @@ const FROSTPEAK_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 7, y: 18, w: 5, h: 3 }], // SW frozen pool (the south track crosses its east lip)
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). This is the MOUNTAIN zone, so it LEANS INTO CLIFFS:
+  // heavy ridgelines wall and FUNNEL the routes. A frozen MELTWATER STREAM (river kind = a glacial channel)
+  // runs the x=19 gap, SEVERING the MIDDLE glacier track (y=12, carried by an ICE BRIDGE) and the SOUTH
+  // icefall track (y=19, carried by a FORD over a frozen shallow) — the NORTH frozen-ridge track (y=4) stays
+  // dry as the redundant route. Two long CLIFF RIDGELINES squeeze the central glacier hub from north and
+  // south (the peaks closing in), plus a ridge edging the hanging glacier — the cold gate's defining terrain.
+  rivers: [
+    { x: 19, y: 9, w: 1, h: 11 },  // the meltwater stream: crosses the MIDDLE track (y12, ice bridge) + the SOUTH icefall (y19, forded)
+    { x: 20, y: 14, w: 1, h: 3 },  // a frozen meander so the stream snakes between the seracs
+  ],
+  cliffs: [
+    { x: 16, y: 7, w: 6, h: 1 },   // north ridgeline closing in on the glacier hub from above
+    { x: 16, y: 16, w: 5, h: 1 },  // south ridgeline closing in from below — the two funnel the central approach
+    { x: 29, y: 16, w: 2, h: 2 },  // serac wall edging the hanging glacier (the rare lair)
+  ],
+  bridges: [{ x: 19, y: 12 }],     // the middle track's ice bridge over the meltwater (its only crossing)
+  fords: [{ x: 19, y: 19 }],       // the frozen ford reconnecting the icefall↔hanging-glacier loop
   chests: [{ x: 14, y: 3 }, { x: 13, y: 20 }, { x: 26, y: 3 }],
   lair: { x: 25, y: 20 },
   scatter: 0.05,
+  // POIs — the INHABITED frozen highlands, all OFF the main flow:
+  pois: [
+    { x: 16, y: 3, kind: "shrine", name: "Frozen Shrine" },                                            // north frozen ridge — heal
+    { x: 15, y: 20, kind: "camp", name: "Frost-Reavers' Camp", pack: ["mtnreaver", "icewolf", "icewolf"] }, // south icefall — optional fight
+    { x: 29, y: 4, kind: "landmark", name: "The Dwarven Ruin", note: "A frost-shattered dwarven cairn, runes worn smooth — a road-marker from before the hold went silent." }, // NE crystal field
+    { x: 13, y: 13, kind: "signpost", name: "Glacial Waymark", note: "Frozen ridge north · the icefall south · the Dwarven Stronghold's gate lies east." }, // west fork
+  ],
 };
 // The Dwarven Stronghold as its own grid: forks into two looped halls rejoining at a great-hall
 // antechamber, a DEAD-END treasury vault off it (richest hoard), a guarded run-up to the boss arena.
@@ -777,9 +1172,31 @@ const SUNBRIDGE_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 7, y: 18, w: 5, h: 4 }, { x: 16, y: 20, w: 4, h: 2 }], // harbor water along the south
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out — the AURELION FINALE). A HARBOR CHANNEL (river kind =
+  // tidal seaway) cuts the x=19 gap between the quay hubs, SEVERING the fast MIDDLE plaza track (y=12,
+  // carried by a QUAY BRIDGE) and the SOUTH harbor-flats track (y=19, carried by a FORD over the harbor
+  // shallows) — the NORTH seawall walk (y=4) stays dry as the redundant route. The great SEA-WALL (cliff)
+  // walls the north-walk↔plaza gap + edges the flooded docks, funnelling the siege-approach to the citadel.
+  rivers: [
+    { x: 19, y: 9, w: 1, h: 11 },  // the harbor channel: crosses the MIDDLE track (y12, quay bridge) + the SOUTH flats (y19, forded)
+    { x: 20, y: 14, w: 1, h: 3 },  // a slipway dog-leg so the channel bends round the moorings
+  ],
+  cliffs: [
+    { x: 16, y: 7, w: 6, h: 1 },   // the great sea-wall between the seawall walk and the harbor plaza
+    { x: 29, y: 16, w: 2, h: 2 },  // SE breakwater edging the flooded docks (the rare corsair lair)
+  ],
+  bridges: [{ x: 19, y: 12 }],     // the harbor plaza's quay bridge over the channel (its only crossing)
+  fords: [{ x: 19, y: 19 }],       // the harbor-flats ford reconnecting the flats↔flooded-docks loop
   chests: [{ x: 14, y: 3 }, { x: 13, y: 20 }, { x: 26, y: 3 }],
   lair: { x: 25, y: 20 },
   scatter: 0.04,    // paved quays: least cover of all six
+  // POIs — the INHABITED besieged port, all OFF the main flow:
+  pois: [
+    { x: 16, y: 3, kind: "shrine", name: "Harbor Shrine" },                                            // north seawall walk — heal
+    { x: 15, y: 20, kind: "camp", name: "Siege Camp", pack: ["siegetrooper", "searaider", "searaider"] }, // south harbor flats — optional fight
+    { x: 29, y: 4, kind: "landmark", name: "The Lighthouse", note: "The citadel's lighthouse, its great lamp dark — the siege snuffed the light that guided Aurelion's ships home." }, // NE merchant quarter
+    { x: 13, y: 13, kind: "signpost", name: "Quayside Sign", note: "Seawall walk north · harbor flats south · the besieged citadel lies east." }, // west fork
+  ],
 };
 // The Besieged Citadel / Lighthouse as its own grid: forks into two looped wings rejoining at the
 // great-hall antechamber, a DEAD-END treasure vault off it (richest hoard), a guarded run-up to the
@@ -1098,7 +1515,7 @@ export const WORLD_SETTLEMENT_NOTE = {
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "lieutenant" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
   // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
   // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
   // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to

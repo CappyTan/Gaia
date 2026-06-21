@@ -228,6 +228,14 @@ function simRun() {
         if (!fight(set, "rand", depth, champIdx)) break;
       }
     }
+    // MULTI-FLOOR (ADR 0008 Stage 3): a multi-floor dungeon adds an IN-DUNGEON mini-boss (the gating
+    // lieutenant) per gated floor before the boss — model each as one extra deep fight so the curve
+    // accounts for the added attrition. Single-floor dungeons (no `floors`) skip this, unchanged.
+    const floors = Z.dungeon.floors && Z.dungeon.floors.length ? Z.dungeon.floors : [Z.dungeon.layout];
+    if (!wiped && floors.length > 1) {
+      const key = Z.dungeon.floorMini || Z.mini;
+      floors.forEach((f, fi) => { if (!wiped && f.miniboss) fight([key], "floormini", clamp(0.45 + fi / floors.length, 0, 1)); });
+    }
     if (!wiped) fight([Z.boss], zi === ZONES.length - 1 ? "finalboss" : "boss");
   }
   return { fights, wiped, lvl: party.reduce((a, m) => a + m.level, 0) / party.length };

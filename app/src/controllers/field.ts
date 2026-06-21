@@ -3,7 +3,7 @@
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type Pt, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf,
@@ -36,7 +36,12 @@ const OPTIONAL_ZONES = new Set(["stormcoast", "riverhearth", "dawnfall", "whispe
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
-const FIELD_WALLS = new Set(["tree", "water"]);
+// VARIED TERRAIN (2026-06-21): `cliff` (rocky mountain wall) + `river` (watercourse) also hard-block;
+// the `bridge`/`ford` crossings + the POI kinds are WALKABLE (deliberately absent here).
+const FIELD_WALLS = new Set(["tree", "water", "cliff", "river"]);
+
+// POI tile kinds (the INHABITED-world layer) — walkable special tiles with a `move()` interaction.
+const POI_KINDS = new Set(["shrine", "camp", "landmark", "signpost"]);
 
 // ── Seamless big-map (ADR 0009 / Stage 2B) realization constants ──────────────────────────────
 // 32×32 world-tile chunks keyed `(wx>>5,wy>>5)`. Realized once, cached, evicted >3 Chebyshev away.
@@ -88,6 +93,9 @@ export const Field = {
   gate: { x: 30, y: 9 } as Pt,    // mid-zone chokepoint — set from the zone layout in genMap
   chests: [] as Pt[],            // set from the zone layout in genMap
   lairAt: null as Pt | null,     // rare-monster lair (Greenvale: Hogger), set from the zone layout
+  pois: [] as Poi[],             // points of interest / encampments (the INHABITED world), per-zone
+  poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
+  pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
   ENC_MIN: 10, ENC_MAX: 15, // steps between random fights (Dara: ~5 felt too frequent → 10-15)
   zoneIndex: 0,
   enteredDungeon: false,
@@ -98,6 +106,17 @@ export const Field = {
   // and `inDungeon()` falls back to the old px>gate.x test.
   mode: "overworld" as "overworld" | "dungeon",
   mouth: { x: 40, y: 12 } as Pt, // overworld dungeon-mouth POI (new model) — set in genOverworld
+  // ── MULTI-FLOOR DUNGEON (ADR 0008 Stage 3) ──────────────────────────────────────────────────
+  // Which floor of a multi-floor dungeon (the Bandit Warren) the player is on (0 = B1). 0 for the 9
+  // single-floor dungeons (their `dungeon.floors` is absent → a 1-element stack). PERSISTED in the save.
+  dungeonFloor: 0,
+  // Which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten, by floor index. A floor
+  // with no `miniboss` is implicitly open; a beaten mini turns that floor's stairs live. Reset on a fresh
+  // descent into the dungeon; PERSISTED so a resume mid-dungeon keeps a beaten gate open.
+  dungeonMiniCleared: {} as Record<number, boolean>,
+  // The floor whose in-dungeon mini-boss fight is in flight (so battle.ts → onMiniDefeated can mark
+  // THIS floor cleared, distinct from the overworld mouth guard). -1 = none / the mouth guard fight.
+  pendingFloorMini: -1,
   // TOWN: a real walkable settlement (data-driven, ADR 0006) reusing this same canvas/camera/dpad.
   // Loaded by id from data/towns.ts. No encounters; buildings are walk-in POIs; NPCs are talked to.
   townMode: false,
@@ -133,6 +152,9 @@ export const Field = {
   // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
   loadTiles(): void {
     const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "lair", "player"];
+    // VARIED TERRAIN + POI sprite slots (2026-06-21) — placeholders until art-integrator slices them
+    // (see asset-gaps.md). cliff/bridge/ford ground tiles + the four POI kinds; river reuses water.
+    for (const n of ["cliff", "bridge", "ford", "shrine", "camp", "landmark", "signpost"]) names.push(n);
     // marsh (Duskmarsh) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["water", "mire-ground", "mire-ground2", "mire-path", "deadtree", "reed", "bog"]) names.push(n);
     // ancient-forest (Silverwood) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
@@ -142,7 +164,7 @@ export const Field = {
     // five Areas read distinct; Commons/Warren reuse the base shire grass; the Grove reuses the
     // existing forest (grove-*) kinds.
     for (const n of ["orchard-ground", "orchard-ground2", "orchard-tree", "meadow-ground", "meadow-ground2", "wheat"]) names.push(n);
-    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance"]) names.push(`${set}-${c}`);
+    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance", "stairsdown", "stairsup"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
     // Miregard marsh-outpost kinds — placeholders until sliced (see asset-gaps.md)
@@ -187,6 +209,23 @@ export const Field = {
   // Whether THIS zone runs the new decoupled overworld/dungeon model (ADR 0008 Stage 2). Greenvale
   // first; the rest stay on the legacy combined-grid path until Chunk B proves the model out.
   usesNewModel(): boolean { return this.zoneIndex === 0; },
+  // ── MULTI-FLOOR helpers (ADR 0008 Stage 3) ──────────────────────────────────────────────────
+  // The floor stack for a zone's dungeon: its authored `floors` if multi-floor, else a 1-element stack
+  // of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
+  dungeonFloors(zoneIndex?: number): DungeonLayout[] {
+    const d = ZONES[zoneIndex ?? this.zoneIndex].dungeon;
+    return d.floors && d.floors.length ? d.floors : [d.layout];
+  },
+  // The DungeonLayout the player currently stands on (the current floor). Falls back to floor 0.
+  curFloor(): DungeonLayout {
+    const fl = this.dungeonFloors();
+    return fl[clamp(this.dungeonFloor, 0, fl.length - 1)];
+  },
+  // The LAST floor (the one carrying the boss finale) — true when no deeper floor remains.
+  isLastFloor(): boolean { return this.dungeonFloor >= this.dungeonFloors().length - 1; },
+  // Whether the current floor's STAIRS DOWN are live: a floor with no gating mini-boss is always open;
+  // a gated floor opens once that floor's lieutenant is beaten (tracked in dungeonMiniCleared).
+  stairsOpen(): boolean { return !this.curFloor().miniboss || !!this.dungeonMiniCleared[this.dungeonFloor]; },
   // ── ADR 0009 exemplar: Greenvale is AREA-NATIVE — its playable overworld reads as its five Areas
   // (Hearthford Commons / Orchard Ridge / Bandit Fields / The Hidden Grove / Warren Approach), each
   // with its own ground dressing + encounter lean. Whether THIS zone is the Area-aware one. (Only
@@ -220,6 +259,7 @@ export const Field = {
     this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
     this.zoneIndex = 0;
     this.enteredDungeon = false;
+    this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.resize();
     this.loadTiles();
     this.genMap(); // sets spawn (px/py) from the zone layout
@@ -303,11 +343,16 @@ export const Field = {
     // 6. chests + lair, each with a cleared 3×3 halo so they're reachable
     this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
     if (this.lairAt) { this.halo(this.lairAt); carve(this.lairAt.x, this.lairAt.y, "lair"); }
+    this.stampPois(L); // POIs (the INHABITED world)
     carve(this.boss.x, this.boss.y, "boss");
     carve(L.spawn.x, L.spawn.y, "path");
 
-    // 7. ANTI-SOFT-LOCK: flood-fill from spawn (gate walkable) and repair any walled-off feature.
+    // 7. ANTI-SOFT-LOCK: flood-fill from spawn (gate walkable) and repair any walled-off feature —
+    //    boss, chests, lair, AND every walkable crossing/POI (so river/cliff terrain can't strand them).
     const targets = [this.boss, ...this.chests]; if (this.lairAt) targets.push(this.lairAt);
+    if (L.bridges) targets.push(...L.bridges);
+    if (L.fords) targets.push(...L.fords);
+    targets.push(...this.pois.map((p) => ({ x: p.x, y: p.y })));
     this.ensureReachable(L.spawn, targets);
   },
 
@@ -337,6 +382,7 @@ export const Field = {
 
     this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
     if (this.lairAt) { this.halo(this.lairAt); carve(this.lairAt.x, this.lairAt.y, "lair"); }
+    this.stampPois(L); // POIs (the INHABITED world)
     // The mouth POI: guarded by the mini until it's beaten, then enterable.
     this.halo(this.mouth);
     this.map[this.mouth.y][this.mouth.x] = Game.miniBossDefeated ? "mouth" : "miniboss";
@@ -345,20 +391,30 @@ export const Field = {
     const village = this.zone().hub ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
     if (village) { this.halo(village); carve(village.x, village.y, "village"); }
 
-    // ANTI-SOFT-LOCK: the mouth + every overworld chest/lair must be reachable from spawn.
+    // ANTI-SOFT-LOCK: the mouth + every overworld chest/lair/crossing/POI + the hub marker reachable from spawn.
     const targets = [this.mouth, ...this.chests]; if (this.lairAt) targets.push(this.lairAt); if (village) targets.push(village);
+    if (L.bridges) targets.push(...L.bridges);
+    if (L.fords) targets.push(...L.fords);
+    targets.push(...this.pois.map((p) => ({ x: p.x, y: p.y })));
     this.ensureReachable(L.spawn, targets);
   },
 
-  // ── ADR 0008 Stage 2 (step 3): build the zone's DUNGEON as its own grid (DungeonLayout). The
-  // player lands at `entry`; the zone boss lives at `boss`. Sets mode="dungeon". Greenvale only.
-  genDungeon(zoneIndex: number): void {
+  // ── ADR 0008 Stage 2/3 (step 3): build ONE FLOOR of the zone's DUNGEON as its own grid. The player
+  // lands at `entry` (the mouth's inside on B1, the up-stair on deeper floors). Sets mode="dungeon".
+  // MULTI-FLOOR: an intermediate floor carries a `stairsDown` tile (drawn "stairsdown") gated by the
+  // floor's `miniboss` lieutenant where one stands; the LAST floor carries the zone `boss` finale. The
+  // up-stair (`entry`/`gate`) is drawn "stairsup" so the player reads the way back. Greenvale (zone 0)
+  // is the first multi-floor zone; the 9 single-floor dungeons run a 1-element stack (floor 0) unchanged.
+  genDungeon(zoneIndex: number, floorIdx = 0): void {
     this.townMode = false;
     this.mode = "dungeon";
-    const D = ZONES[zoneIndex].dungeon.layout;
+    const floors = this.dungeonFloors(zoneIndex);
+    this.dungeonFloor = clamp(floorIdx, 0, floors.length - 1);
+    const last = this.dungeonFloor >= floors.length - 1;
+    const D = floors[this.dungeonFloor];
     this.W = D.w; this.H = D.h;
-    this.gate = { ...D.gate };           // the door back out to the overworld
-    this.boss = { ...D.boss };
+    this.gate = { ...D.gate };           // the door/up-stair back out / up a floor
+    this.boss = { ...D.boss };           // only meaningful on the LAST floor
     this.chests = D.chests.map((c) => ({ ...c }));
     this.lairAt = null;                  // no rare lairs in the dungeon
     this.px = D.entry.x; this.py = D.entry.y;
@@ -377,10 +433,36 @@ export const Field = {
       if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
 
     this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
-    carve(this.boss.x, this.boss.y, "boss");
-    carve(D.entry.x, D.entry.y, "path");
+    // Anti-soft-lock targets: chests + the floor's egress (boss on the last floor, stairs-down otherwise).
+    const targets: Pt[] = [...this.chests];
+    if (last) { carve(this.boss.x, this.boss.y, "boss"); targets.push(this.boss); }
+    else if (D.stairsDown) {
+      this.halo(D.stairsDown);
+      carve(D.stairsDown.x, D.stairsDown.y, "stairsdown");
+      targets.push(D.stairsDown);
+    }
+    // IN-DUNGEON mini-boss gate (the lieutenant): while it stands, its tile reads as the guardian
+    // ("miniboss") and the player can't pass to the stairs; beaten, it reverts to floor. Always a flood
+    // target so the gated stairs/chests behind it stay reachable (the repair routes THROUGH the gate tile).
+    if (D.miniboss) {
+      this.halo(D.miniboss);
+      const beaten = !!this.dungeonMiniCleared[this.dungeonFloor];
+      carve(D.miniboss.x, D.miniboss.y, beaten ? "path" : "miniboss");
+      // TRUE GATE PINCH (anti-bypass): the lieutenant gates a HORIZONTAL (east-west) passage, but its
+      // own 3×3 halo (above) opens the 8 neighbours — leaving a walkable RING that lets the player slip
+      // AROUND the fight via the tiles directly above/below it. Re-wall those perpendicular flanks so the
+      // ONLY way through the gate is the lieutenant tile itself. Authors keep the gated rooms ≥2 cols
+      // past the gate so no OTHER halo re-opens these flanks; the flood-repair still routes THROUGH the
+      // (walkable) gate tile, so a beaten lieutenant can never strand the player.
+      carve(D.miniboss.x, D.miniboss.y - 1, "tree");
+      carve(D.miniboss.x, D.miniboss.y + 1, "tree");
+      targets.push(D.miniboss);
+    }
+    // The up-stair / way back is "stairsup" on EVERY floor — "up = out" everywhere. On a deeper floor it
+    // climbs to the previous floor; on floor 0 it IS the mouth-back door (stepping on it → ascend() → the
+    // overworld mouth), so the player always has a walk-out trigger after climbing B2→B1 (QA fix).
+    carve(D.entry.x, D.entry.y, "stairsup");
 
-    const targets = [this.boss, ...this.chests];
     this.ensureReachable(D.entry, targets);
   },
 
@@ -392,17 +474,43 @@ export const Field = {
     while (cy !== b.y) { cy += Math.sign(b.y - cy); c(cx, cy); }
   },
   halo(p: Pt): void { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (xx > 0 && yy > 0 && xx < this.W - 1 && yy < this.H - 1 && this.map[yy][xx] === "tree") this.map[yy][xx] = "grass"; } },
-  // scatter (decoration) + marsh water pools — shared by genCombined/genOverworld (the dungeon does
-  // its own scatter and has no water). Never overwrites the mouth/miniboss tile.
+  // scatter (decoration) + marsh water pools + VARIED TERRAIN (rivers/cliffs/bridges/fords) — shared by
+  // genCombined/genOverworld (the dungeon does its own scatter and has no water/terrain). Never
+  // overwrites the mouth/miniboss tile. Mirrors data/world.buildAuthoredGrid so the discrete + big-map
+  // paths realize the SAME geography.
   scatterAndWater(L: ZoneLayout): void {
     const inB = (x: number, y: number) => x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1;
+    const stamp = (rs: { x: number; y: number; w: number; h: number }[] | undefined, kind: string) => {
+      if (!rs) return;
+      for (const r of rs) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++)
+        if (inB(x, y) && this.map[y][x] !== "miniboss") this.map[y][x] = kind;
+    };
     const dens = L.scatter ?? 0.06;
     for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++)
       if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
-    if (L.water) for (const w of L.water)
-      for (let y = w.y; y < w.y + w.h; y++) for (let x = w.x; x < w.x + w.w; x++)
-        if (inB(x, y) && this.map[y][x] !== "miniboss") this.map[y][x] = "water";
+    stamp(L.water, "water");
+    stamp(L.rivers, "river");
+    stamp(L.cliffs, "cliff");
+    // walkable crossings stamp LAST (over river/water) — a bridge/ford reads on top of the watercourse.
+    if (L.bridges) for (const b of L.bridges) if (inB(b.x, b.y)) this.map[b.y][b.x] = "bridge";
+    if (L.fords) for (const f of L.fords) if (inB(f.x, f.y)) this.map[f.y][f.x] = "ford";
   },
+  // Stamp the zone's POIs (the INHABITED world) onto the carved grid: each on a cleared halo, as its
+  // own walkable kind — unless already spent (a used shrine / cleared camp reverts to plain ground so
+  // it can't be re-triggered). Shared by genCombined/genOverworld.
+  stampPois(L: ZoneLayout): void {
+    this.pois = (L.pois ?? []).map((p) => ({ ...p }));
+    const zid = this.zone().id;
+    for (const p of this.pois) {
+      this.halo(p);
+      const spent = this.poisCleared[this.poiKey(zid, p.x, p.y)];
+      this.map[p.y][p.x] = spent ? "path" : p.kind;
+    }
+  },
+  // A per-ZONE POI key ("<zoneId>:<x>,<y>") so the persisted cleared-state can't collide across zones
+  // (every zone reuses small x,y coords). Used by stampPois / runPoi and the big-map realize-apply.
+  poiKey(zoneId: string, x: number, y: number): string { return zoneId + ":" + x + "," + y; },
+  poiAt(x: number, y: number): Poi | undefined { return this.pois.find((p) => p.x === x && p.y === y); },
 
   // bush/rock are decoration (walkable); tree and water are walls; the gate/mouth is walkable.
   flood(start: Pt): boolean[][] {
@@ -514,11 +622,19 @@ export const Field = {
     this.draw(); this.hint();
     const cell = this.map[ny][nx];
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
-    if (cell === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
-    if (cell === "mouth") { this.descend(); return; }       // step onto the cleared mouth → into the dungeon
+    // MULTI-FLOOR: an in-dungeon "miniboss" tile is the FLOOR LIEUTENANT (gates the stairs); the
+    // overworld "miniboss" is the dungeon-mouth guard. Distinguish by mode so each fights its own cast.
+    if (cell === "miniboss") {
+      if (this.mode === "dungeon") { if (!this.dungeonMiniCleared[this.dungeonFloor]) this.startFloorMini(); else this.map[ny][nx] = "path"; return; }
+      if (!Game.miniBossDefeated) { this.startMiniBoss(); return; }
+    }
+    if (cell === "mouth") { this.descend(); return; }        // step onto the cleared mouth → into the dungeon
+    if (cell === "stairsdown") { if (this.stairsOpen()) this.descendFloor(); return; } // descend a floor
+    if (cell === "stairsup") { this.ascendFloor(); return; } // climb a floor (or out on floor 0)
     if (cell === "village") { const h = this.zone().hub; if (h) Game.enterTownVisit(h); return; } // step onto the village → back into the zone's hub
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
+    if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
     if (!this.usesNewModel() && this.inDungeon() && !this.enteredDungeon) {
       this.enteredDungeon = true;
@@ -534,6 +650,9 @@ export const Field = {
   // enterable (the guard is gone, not the threshold). Legacy zones keep the old "open the gate tile"
   // behaviour. Idempotent + safe to call on either model.
   onMiniDefeated(): void {
+    // MULTI-FLOOR: if the just-won fight was an IN-DUNGEON floor lieutenant, route to its handler (it
+    // opens that floor's stairs) — NOT the overworld mouth/gate, which the player already passed.
+    if (this.pendingFloorMini >= 0) { this.onFloorMiniDefeated(); return; }
     if (this.usesNewModel()) {
       if (this.mode === "overworld" && this.map[this.mouth.y]) this.map[this.mouth.y][this.mouth.x] = "mouth";
     } else if (this.gate && this.map[this.gate.y]) {
@@ -541,10 +660,13 @@ export const Field = {
     }
     this.draw?.(); this.hint?.();
   },
-  // Step onto the cleared mouth → build the dungeon grid, drop into it, show the "you descend" beat.
+  // Step onto the cleared mouth → build the dungeon grid (floor 0), drop into it, show the "you descend"
+  // beat. A FRESH descent from the overworld resets the per-floor mini-gate state (re-cleared per visit).
   descend(): void {
     this.enteredDungeon = true;
-    this.resize(); this.genDungeon(this.zoneIndex); // sets mode="dungeon" + px/py to the entry
+    this.dungeonMiniCleared = {}; // fresh run of the dungeon — re-fight each floor's gating lieutenant
+    this.pendingFloorMini = -1;   // defensive: no floor-mini fight is in flight on a fresh descent
+    this.resize(); this.genDungeon(this.zoneIndex, 0); // sets mode="dungeon" + px/py to floor 0's entry
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
@@ -554,10 +676,41 @@ export const Field = {
     if (dm && dm !== this.bigMusic) { this.bigMusic = dm; Music.play(dm); Music._renderStyleLabels?.(); }
     Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
+  // MULTI-FLOOR: step onto the (open) stairs-down → build the NEXT floor at its entry. Carries the
+  // beaten-gate state across floors (per-visit), autosaves the new floor so a resume restores it.
+  descendFloor(): void {
+    const floors = this.dungeonFloors();
+    if (this.dungeonFloor >= floors.length - 1) return; // already on the last floor — no deeper to go
+    this.resize(); this.genDungeon(this.zoneIndex, this.dungeonFloor + 1);
+    this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+    this.draw(); this.hint();
+    Game.saveNow();
+    const z = this.zone();
+    const last = this.isLastFloor();
+    const body = last
+      ? `You descend the last stair — the hideout opens into the ${ENEMIES[z.boss].name}'s hall.`
+      : `You descend deeper into ${z.dungeon.name}. The dens run hotter the lower you go.`;
+    Overlay.show(`<h2 class="title-gold">${z.dungeon.name} · B${this.dungeonFloor + 1}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+  },
+  // MULTI-FLOOR: step onto the up-stair on a deeper floor → climb back to the PREVIOUS floor, landing
+  // on that floor's stairs-down (so you arrive where you descended). On floor 0 the up-stair IS the
+  // mouth-back door → ascend out to the overworld.
+  ascendFloor(): void {
+    this.pendingFloorMini = -1; // defensive: leaving a floor cancels any in-flight floor-mini routing
+    if (this.dungeonFloor <= 0) { this.ascend(); return; }
+    const prev = this.dungeonFloor - 1;
+    this.resize(); this.genDungeon(this.zoneIndex, prev);
+    const sd = this.curFloor().stairsDown;
+    if (sd && this.passable(sd.x, sd.y)) { this.px = sd.x; this.py = sd.y; } // land back on the descent
+    this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+    this.draw(); this.hint();
+    Game.saveNow();
+  },
   // Climb back out of the dungeon to the overworld (new model). Rebuilds the overworld at the mouth.
   // BIG-MAP: restore the player onto the mouth's WORLD tile and re-enter the windowed overworld; the
   // chunk cache + authored blueprint carry over (the mouth never moved in world space).
   ascend(): void {
+    this.pendingFloorMini = -1; // defensive: back out to the overworld with no floor-mini fight pending
     if (this.bigMap) {
       this.mode = "overworld"; this.enteredDungeon = false; // back on the seamless surface
       const pl = placementOf(this.bigZone)!;
@@ -619,7 +772,14 @@ export const Field = {
   enterBigMap(startZone = "greenvale"): void {
     this.townMode = false; this.mode = "overworld"; this.bigMap = true;
     this.authoredGrids = {};
-    for (const id of this.bigBuiltZoneIds()) this.authoredGrids[id] = buildAuthoredGrid(id, Game.miniBossDefeated);
+    for (const id of this.bigBuiltZoneIds()) {
+      this.authoredGrids[id] = buildAuthoredGrid(id, Game.miniBossDefeated);
+      // Re-apply persisted cleared-POI state: a used shrine / raided camp stays gone across a reload (the
+      // authored grid is pure + always restamps every POI, so the realizer would otherwise re-spawn them).
+      const z = ZONES.find((zz) => zz.id === id);
+      for (const p of z?.layout.pois ?? [])
+        if (this.poisCleared[this.poiKey(id, p.x, p.y)] && this.authoredGrids[id][p.y]) this.authoredGrids[id][p.y][p.x] = "path";
+    }
     const z = ZONES.find((zz) => zz.id === startZone) ?? ZONES[0];
     const pl = placementOf(startZone)!, L = z.layout;
     this.wx = pl.wx + L.spawn.x; this.wy = pl.wy + L.spawn.y; // authored spawn → world coords
@@ -753,6 +913,7 @@ export const Field = {
     if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.enterTownVisit(h); return; } // step onto the village → back into the zone's hub
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
+    if (POI_KINDS.has(cell.kind)) { this.touchBigPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // OPEN CONTINENT (no built zone under the player) is backlog land — no random encounters yet (G22).
     if (!this.bigZone) return;
     this.stepsToEncounter--;
@@ -800,8 +961,10 @@ export const Field = {
     const p = this.progress(), bands = this.zone().bands;
     let band = bands[0];
     for (const e of bands) { if (p >= e.at) band = e; }
-    // the dungeon runs ~1-2 levels hotter than the overworld
-    const depth = this.inDungeon() ? clamp(p + 0.25, 0, 1) : p;
+    // the dungeon runs ~1-2 levels hotter than the overworld; in a MULTI-FLOOR dungeon the threat also
+    // CLIMBS with depth — each floor below B1 adds a step so the dens run hotter the lower you go.
+    const floorBump = this.inDungeon() ? this.dungeonFloor * 0.12 : 0;
+    const depth = this.inDungeon() ? clamp(p + 0.25 + floorBump, 0, 1) : p;
     // ULTRA-RARE: a small chance the encounter is instead a lone treasure monster (Metal-Slime /
     // Warmech tier) — exceptional loot. Eligible by zone; solo fight, no champion.
     const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
@@ -819,7 +982,10 @@ export const Field = {
     // with 1-2 extra minions. More common deeper in / in the dungeon.
     let champIdx = -1;
     const champChance = (this.inDungeon() ? 0.15 : 0.09) + p * 0.07;
-    if (p > 0.12 && Math.random() < champChance) {
+    // No champion packs in the STARTER zone (Greenvale, index 0): a fresh L1-4 party can't absorb a
+    // multi-affix pack leader on top of the elite rolls (telemetry v0.65 — early elite saturation
+    // wiped the run). Champions enter from the second zone on.
+    if (this.zoneIndex >= 1 && p > 0.12 && Math.random() < champChance) {
       champIdx = 0;
       const adds = set.slice(1); // a normal minion (not another champion), the champion is the threat
       if (set.length < 5) set.push(pick(adds.length ? adds : set));
@@ -854,10 +1020,100 @@ export const Field = {
     Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
   },
   fightLair(key: string): void { Battle.begin([key], this.envFor(this.progress()), false, false, this.progress(), -1); },
+
+  // ── POINTS OF INTEREST (the INHABITED world) ──────────────────────────────────────────────────
+  // Stepping onto a POI fires its effect by kind. shrine → full party rest (once, then spent); camp →
+  // an OPTIONAL fight vs its pack, then cleared + a reward (the pack's own loot drops); landmark /
+  // signpost → a non-blocking flavor/hint line. The cleared/spent state persists in `poisCleared` so a
+  // shrine can't be re-used and a camp can't be re-fought this visit. Discrete path (px/py).
+  touchPoi(x: number, y: number): void {
+    const poi = this.poiAt(x, y);
+    if (!poi) return;
+    this.runPoi(this.zone().id, poi, () => { this.map[y][x] = "path"; });
+  },
+  // Big-map path: the POI lives in the current zone's authored layout; clear it in BOTH the realized
+  // cell and the authored blueprint so it stays spent as chunks re-realize.
+  touchBigPoi(wx: number, wy: number): void {
+    const a = authoredAt(wx, wy);
+    const L = (a && ZONES.find((z) => z.id === a.zoneId) ? ZONES.find((z) => z.id === a.zoneId)!.layout : this.zone().layout);
+    const lp = a ? (L.pois ?? []).find((p) => p.x === a.lx && p.y === a.ly) : undefined;
+    const poi = lp ? { ...lp } : this.poiAt(wx, wy);
+    if (!poi) return;
+    // The POI's OWN zone (its authored layout's zone) keys its cleared-state — not necessarily this.zone()
+    // (which can lag a step behind on a zone seam). Falls back to the standing zone if authoredAt missed.
+    const zid = a?.zoneId ?? this.bigZone ?? this.zone().id;
+    this.runPoi(zid, poi, () => {
+      this.cellAt(wx, wy).kind = "path";
+      if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "path";
+    });
+  },
+  // Shared POI effect. `consume` reverts the tile to walkable ground (for spent shrines / cleared camps).
+  // The cleared/spent flag is keyed per-zone (poiKey) so it persists in the save without x,y collisions.
+  runPoi(zoneId: string, poi: Poi, consume: () => void): void {
+    const key = this.poiKey(zoneId, poi.x, poi.y);
+    if (poi.kind === "shrine") {
+      if (this.poisCleared[key]) { Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">The shrine's light has guttered out — its blessing is spent.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Move on</button></div>`); return; }
+      this.poisCleared[key] = true; consume(); Game.restParty(); this.draw(); this.hint(); Game.saveNow?.();
+      Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">You kneel at the wayside shrine. A warm light washes over the party — HP and MP fully restored.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Rise</button></div>`);
+      return;
+    }
+    if (poi.kind === "camp") {
+      if (this.poisCleared[key]) { Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">Cold ashes and trampled ground — you've already cleared this camp.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Move on</button></div>`); return; }
+      this.poisCleared[key] = true; consume(); this.draw(); this.hint();
+      this.pendingPack = poi.pack && poi.pack.length ? poi.pack.slice()
+        : this.pickAreaSet(this.zone().bands[Math.min(1, this.zone().bands.length - 1)].sets).slice();
+      Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">Tents, a smouldering fire, and unfriendly faces — they spot you. Their hoard is yours if you take it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightCamp()">Raid the camp</button></div>`);
+      return;
+    }
+    // landmark / signpost — a non-blocking flavor/hint line (the tile stays; no consume).
+    const line = poi.note || (poi.kind === "signpost" ? "A weathered signpost points the way." : "An old landmark, heavy with the shire's memory.");
+    Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">${line}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Move on</button></div>`);
+  },
+  // The camp encampment fight: a normal (non-boss) encounter vs the camp's themed pack (stored on
+  // pendingPack by runPoi) — reuses the existing bestiary + Battle pipeline (no new stats), so its loot
+  // drops are the reward. Difficulty flagged for balance-tuner (an optional, slightly-tougher pack:
+  // champion-led via champIdx 0). Falls back to a safe pull if pendingPack was lost (e.g. a reload).
+  fightCamp(): void {
+    const pack = this.pendingPack && this.pendingPack.length ? this.pendingPack.slice() : ["gbandit", "gbandit"];
+    this.pendingPack = null;
+    const p = this.progress();
+    // No champion-led camps in the STARTER zone (Greenvale, index 0) — same gate as the random-encounter
+    // path (v0.65: a fresh L1-4 party can't absorb a multi-affix pack leader). Zone 0 camps are a plain
+    // (still optional, still +0.1 tougher) pack; champion-led camps enter from the second zone on.
+    const champIdx = this.zoneIndex >= 1 ? 0 : -1;
+    Battle.begin(pack, this.envFor(p), false, false, clamp(p + 0.1, 0, 1), champIdx);
+  },
   startBoss(): void { Battle.begin([this.zone().boss], this.envFor(1), true, this.isLastZone(), this.progress(), -1, this.zone().id); },
   startMiniBoss(): void {
     const p = this.progress(), z = this.zone();
     Battle.begin([z.mini, ...(z.miniAdds || [])], this.envFor(p), true, false, p, -1, z.id);
+  },
+  // MULTI-FLOOR: the IN-DUNGEON mini-boss (the floor lieutenant) — distinct from the overworld mouth
+  // guard. Uses the zone's `dungeon.floorMini` key (placeholder = the Brigadier "brigand") at a depth
+  // that climbs by floor. Tracks `pendingFloorMini` so battle.ts → onMiniDefeated marks THIS floor (not
+  // the mouth) cleared. Falls back to the zone mini if no floorMini key is authored.
+  startFloorMini(): void {
+    const z = this.zone();
+    const key = z.dungeon.floorMini || z.mini;
+    this.pendingFloorMini = this.dungeonFloor;
+    // depth runs hotter the deeper the floor (mirrors the dungeon depth bump), capped at 1.
+    const fl = this.dungeonFloors().length;
+    const depth = clamp(0.45 + this.dungeonFloor / Math.max(1, fl), 0, 1);
+    Battle.begin([key], this.envFor(depth), true, false, depth, -1, z.id);
+  },
+  // The floor lieutenant fell: mark THIS floor's gate cleared (the gated stairs go live) and reveal it
+  // on the map. Called from battle.ts via onMiniDefeated when pendingFloorMini was set.
+  onFloorMiniDefeated(): void {
+    const f = this.pendingFloorMini;
+    this.pendingFloorMini = -1;
+    if (f < 0) return;
+    this.dungeonMiniCleared[f] = true;
+    // reveal: turn the lieutenant tile to floor so the stairs behind it are now walkable-through.
+    if (this.mode === "dungeon" && f === this.dungeonFloor) {
+      const mb = this.curFloor().miniboss;
+      if (mb && this.map[mb.y]) this.map[mb.y][mb.x] = "path";
+      this.draw?.(); this.hint?.();
+    }
   },
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
@@ -901,7 +1157,17 @@ export const Field = {
     const p = this.progress(), z = this.zone(), name = z.name;
     const miniNm = ENEMIES[z.mini].name, bossNm = ENEMIES[z.boss].name;
     let msg: string;
-    if (this.inDungeon()) msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+    if (this.inDungeon()) {
+      // MULTI-FLOOR cues: name the floor lieutenant / the stairs down on intermediate floors; the boss
+      // on the finale floor. Single-floor dungeons keep the original "deep in / boss ahead" read.
+      const multi = this.dungeonFloors().length > 1;
+      if (multi && !this.isLastFloor()) {
+        if (this.curFloor().miniboss && !this.stairsOpen()) msg = `A bandit lieutenant blocks the stairs down — cut him down to descend.`;
+        else msg = `Find the stairs down — ${z.dungeon.name} runs deeper still.`;
+      } else {
+        msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+      }
+    }
     else if (!Game.miniBossDefeated && p >= 0.38) msg = `A ${miniNm} guards the mouth of ${z.dungeon.name}.`;
     else if (this.usesNewModel() && Game.miniBossDefeated && p >= 0.7) msg = `Step onto the mouth of ${z.dungeon.name} to descend.`;
     else if (p < 0.12) msg = `Head east through ${name}. Search off the path for treasure.`;
@@ -921,8 +1187,9 @@ export const Field = {
     // sampled for music on the per-step path. Falls back to the zone name off the big map / in a dungeon.
     const area = this.bigMapActive() ? regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name : undefined;
     const lead = this.inDungeon() ? z.dungeon.name : name;
+    const floorTag = this.inDungeon() && this.dungeonFloors().length > 1 ? `B${this.dungeonFloor + 1} · ` : "";
     const sub = this.inDungeon()
-      ? `${Game.encountersWon} cleared`
+      ? `${floorTag}${Game.encountersWon} cleared`
       : `${area ? area + " · " : ""}Lv ${sug}+ · ${Game.encountersWon} cleared`;
     setPill(lead, sub);
   },
@@ -1019,8 +1286,15 @@ export const Field = {
   // Falls back to the base shire skin for an unknown biome. Pure mapping — no regionAt on the frame path.
   bigGround(biome: string, kind: string, variant: number): { ground: string; flat: string } {
     const T = this.tiles;
-    const isObj = kind === "chest" || kind === "miniboss" || kind === "boss" || kind === "lair" || kind === "mouth" || kind === "village";
+    const isObj = kind === "chest" || kind === "miniboss" || kind === "boss" || kind === "lair" || kind === "mouth" || kind === "village" || POI_KINDS.has(kind);
     const alt = (base: string) => (variant && T[base + "2"] ? base + "2" : base);
+    // VARIED TERRAIN (2026-06-21): the new geography kinds render the same in any biome (placeholder
+    // in-palette fills until art lands). cliff = grey rock, river = blue water, bridge = plank-brown,
+    // ford = pale shallow crossing. POI tiles sit on the biome's ground (their object draws on top).
+    if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
+    if (kind === "cliff") return { ground: "cliff", flat: "#3f4450" }; // a cliff is a WALL — clearly darker/steeper than walkable rock (#5a5a52)
+    if (kind === "bridge") return { ground: "bridge", flat: "#7a6242" };
+    if (kind === "ford") return { ground: "ford", flat: "#86b0c4" };
     // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
     if (biome === "forest") {
       const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground", water: "water" };
@@ -1088,6 +1362,47 @@ export const Field = {
     c.restore();
   },
 
+  // POI / encampment tile (the INHABITED world): a kind emoji (placeholder until art lands) + a gold
+  // caption with the POI's name — mirrors the town-POI + mouth caption pattern. The name is resolved by
+  // coord (discrete: this.pois; big-map: the authored layout via authoredAt). ART FLAG: shrine/camp/
+  // landmark/signpost sprites are placeholders (emoji) — see the hand-back.
+  poiEmoji(kind: string): string {
+    return kind === "shrine" ? "⛩️" : kind === "camp" ? "⛺" : kind === "signpost" ? "🪧" : "🗿";
+  },
+  poiNameAt(wx: number, wy: number, big: boolean): string {
+    if (big) { const a = authoredAt(wx, wy); if (a) { const z = ZONES.find((zz) => zz.id === a.zoneId); const p = z?.layout.pois?.find((q) => q.x === a.lx && q.y === a.ly); if (p) return p.name; } }
+    return this.poiAt(wx, wy)?.name ?? "";
+  },
+  drawPoiCell(c: CanvasRenderingContext2D, T: Record<string, HTMLImageElement>, kind: string, wx: number, wy: number, sx: number, sy: number, t: number, big = true): void {
+    const img = T[kind]; // placeholder sprite slot (none yet → emoji)
+    if (img) { const h = t * 1.4, w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
+    else { c.font = `${t * 0.7}px serif`; c.fillText(this.poiEmoji(kind), sx + t / 2, sy + t / 2); }
+    const name = this.poiNameAt(wx, wy, big);
+    if (name) {
+      c.save();
+      c.textAlign = "center"; c.textBaseline = "middle";
+      c.font = `bold ${Math.max(9, t * 0.24)}px system-ui`;
+      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+      const ly = sy + t * 1.02;
+      c.strokeText(name, sx + t / 2, ly); c.fillText(name, sx + t / 2, ly);
+      c.restore();
+    }
+  },
+
+  // MULTI-FLOOR stairs (placeholder until art-integrator slices warren/grove/vault-stairsdown/up): draw
+  // the sprite if present, else a clear ⬇/⬆ glyph + a small gold caption so the descent/climb reads.
+  // `up` = an up-stair (climb / out); else a down-stair (descend). ART FLAG — see the hand-back.
+  drawStairs(c: CanvasRenderingContext2D, obj: (img: HTMLImageElement | undefined, emoji: string, sc?: number) => void, img: HTMLImageElement | undefined, up: boolean, sx: number, sy: number, t: number): void {
+    obj(img, up ? "⬆️" : "⬇️", 0.9);
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const txt = up ? "Up" : "Down", ly = sy + t * 1.0;
+    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
+    c.restore();
+  },
+
   // BIG-MAP draw: iterate the WORLD-TILE viewport from the chunk cache (never calling regionAt).
   // Camera centers on the player's world tile and is clamped to the world extent (placement keeps
   // the player far from the 0/960 edges, so the clamp is effectively a no-op here). Dressing is read
@@ -1132,6 +1447,9 @@ export const Field = {
         const ly = sy + t * 1.04; c.strokeText(nm, sx + t / 2, ly); c.fillText(nm, sx + t / 2, ly); c.restore();
       }
       else if (cell.kind === "miniboss") { c.fillText("🪖", sx + t / 2, sy + t / 2); this.drawMouthLabel(c, sx, sy, t); }
+      else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
+      else if (cell.kind === "cliff" && !T.cliff) c.fillText("⛰️", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "river" && !T.water) c.fillText("🌊", sx + t / 2, sy + t / 2);
       else if (cell.kind === "tree") {
         if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
         else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);
@@ -1178,7 +1496,7 @@ export const Field = {
     const viewW = Math.ceil(this.canvas.width / t), viewH = Math.ceil(this.canvas.height / t);
     const camx = clamp(this.px - Math.floor(viewW / 2), 0, Math.max(0, this.W - viewW));
     const camy = clamp(this.py - Math.floor(viewH / 2), 0, Math.max(0, this.H - viewH));
-    const colors: Record<string, string> = { grass: "#4a7a32", grass2: "#52823a", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", rock: "#5a5a52", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226" };
+    const colors: Record<string, string> = { grass: "#4a7a32", grass2: "#52823a", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", rock: "#5a5a52", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226", river: "#2f5b7a", cliff: "#3f4450", bridge: "#7a6242", ford: "#86b0c4", shrine: "#4a7a32", camp: "#4a7a32", landmark: "#4a7a32", signpost: "#4a7a32" };
     const T = this.tiles;
     c.textAlign = "center"; c.textBaseline = "middle";
     for (let y = 0; y < viewH + 1; y++)
@@ -1198,11 +1516,16 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village";
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "stairsdown" || cell === "stairsup" || POI_KINDS.has(cell);
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
-        if (inDun) {
+        // VARIED TERRAIN (2026-06-21): the new geography kinds render the same in any zone dressing
+        // (placeholder fills until art lands). River reuses the water sprite; cliff/bridge/ford have
+        // their own slots. POI kinds draw their object on the area's normal ground (handled by isObj).
+        if (!inDun && (cell === "river" || cell === "cliff" || cell === "bridge" || cell === "ford")) {
+          ground = cell === "river" ? (T.water ? "water" : "river") : cell;
+        } else if (inDun) {
           const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock", water: "wall" };
           let base = isObj ? "floor" : (dm[cell] || "floor");
           if (base === "floor" && (mx * 7 + my * 13) % 4 === 0 && T[`${dset}-floor2`]) base = "floor2";
@@ -1269,8 +1592,13 @@ export const Field = {
           c.strokeText(nm, sx + t / 2, sy + t * 1.02); c.fillStyle = "rgba(244,210,122,.96)"; c.fillText(nm, sx + t / 2, sy + t * 1.02);
           c.font = `${t * 0.82}px serif`;
         }
+        else if (cell === "stairsdown") this.drawStairs(c, obj, T[`${dset}-stairsdown`], false, sx, sy, t); // descend a floor (placeholder — see asset-gaps.md)
+        else if (cell === "stairsup") this.drawStairs(c, obj, T[`${dset}-stairsup`], true, sx, sy, t);      // climb a floor / out
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
+        else if (POI_KINDS.has(cell)) this.drawPoiCell(c, T, cell, mx, my, sx, sy, t, false); // captioned landmark/camp/shrine/sign
+        else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
+        else if (cell === "river" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
         else if (cell === "tree") {
           if (mire) obj(T.deadtree, "🌫️", 0.95);
           else if (grove || groveArea) obj(T.oldtree, "🌲", 1.0);

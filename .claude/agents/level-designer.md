@@ -83,6 +83,26 @@ counter — is squarely your lever) and `DESIGN.md` for the locked decisions.
   Movement off the "main" axis must change *where you can go*, not just decorate a straight run. When
   you finish a zone, ask: "could I draw this as a tree with one trunk?" If yes, it's still too linear
   — add cross-links and loops until it's a network.
+- **VARIED TERRAIN & A LIVING WORLD — Dara's directive (2026-06-21), co-top rule with open-world.** A
+  zone must NOT be a flat field of one ground tile with a wall border. **Build real geography into it**,
+  matched to the cartographer's biome for each Area: **rivers** (winding `water` courses crossed at a
+  `bridge`/`ford` the player routes to — not a straight moat), **forests** (dense `tree` stands and
+  copses inside the zone, not just the perimeter), **mountains/cliffs** (`cliff` ridgelines + rocky
+  highland that wall and funnel — visually distinct from forest `tree`), **plains/meadow** (genuinely
+  open sweeps), shorelines, marsh, snowfield — whatever the Area's biome calls for. Terrain should both
+  **read as a place** and **shape the routes** (a river you cross at the bridge, a ridge you skirt, a
+  wood you thread). Define the tile kinds this needs (**`cliff`, `river`, `bridge`, `ford`, …**): add
+  the kind in the generator, draw it (placeholder fill fine — flag the sprite), give it movement
+  behavior (`river`/`cliff` block like `water`/`tree`; `bridge`/`ford` are walkable water crossings).
+- **The world is INHABITED — points of interest & encampments.** Scatter **landmarks** and **little
+  camps/settlements** through every zone so it feels lived-in, not empty space between fights: a roadside
+  **shrine**, a **ruined tower** or standing stones, a **signpost**, a **bandit/refugee/soldier
+  encampment** (tents + a fire), a hermit's hut, a **wayside camp** to rest. Author these as **POIs** in
+  the zone data (a list of `{ x, y, kind, name }`) drawn as a captioned landmark tile, with light
+  `move()` interaction where it fits (a camp = an optional fight + reward; a shrine heals/saves; a
+  signpost points the way; an NPC with a line). A few per zone, off the main flow as discoveries. Define
+  the POI/encampment kinds + the data field, wire the triggers, flag the sprites. Goal: every zone has
+  **terrain you read and places you find**, not just a path between encounters.
 - A **readable but non-linear route** to the boss — there's always a sense of "forward," but **more
   than one way through**, and branches that **interconnect and loop back**, not just dead-end at a
   chest. Treasure/POIs sit along **alternate routes you choose between**, rewarding exploration of a
