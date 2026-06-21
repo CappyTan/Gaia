@@ -194,9 +194,28 @@ describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock; ADR 0008 — dung
       };
       const redundant = (side: "field" | "dun") =>
         (side === "field" ? L.fieldPaths : D.paths).reduce((n, _p, i) => n + (reachCombinedWithout(side, i) ? 1 : 0), 0);
+      // PER-FLOOR dungeon redundancy (covers B2/B3 of a multi-floor dungeon, which the combined-grid
+      // check above only ever sees floor 0 of). Carve the floor STANDALONE (carveDungeon), remove each
+      // path in turn, and count those whose removal still leaves the floor's egress reachable from entry
+      // — the floor's own loop-redundant carriers. The egress is the boss on the last floor, the
+      // stairs-down otherwise (the gating lieutenant is walkable, so the flood routes through it).
+      const floors = floorsOf(z);
+      const redundantFloor = (F: DungeonLayout, last: boolean): number => {
+        const egress = last ? F.boss : (F.stairsDown ?? F.boss);
+        return F.paths.reduce((n, _p, i) => {
+          const fc: DungeonLayout = JSON.parse(JSON.stringify(F));
+          fc.paths.splice(i, 1);
+          const seen = reachable(carveDungeon(fc, last), fc.entry);
+          return n + (seen[egress.y]?.[egress.x] ? 1 : 0);
+        }, 0);
+      };
       it("is an OPEN-WORLD network — multiple loop-redundant routes overworld AND dungeon (not a spine)", () => {
         expect(redundant("field")).toBeGreaterThanOrEqual(2); // ≥2 alternate overworld routes
-        expect(redundant("dun")).toBeGreaterThanOrEqual(2);   // ≥2 alternate dungeon arms
+        expect(redundant("dun")).toBeGreaterThanOrEqual(2);   // ≥2 alternate dungeon arms (floor 0, combined grid)
+        // EVERY floor of a multi-floor dungeon must hold its own loop redundancy (catches a B2/B3 regression).
+        floors.forEach((F, i) => {
+          expect(redundantFloor(F, i === floors.length - 1), `floor B${i + 1} loop-redundant carriers`).toBeGreaterThanOrEqual(2);
+        });
       });
     });
   }

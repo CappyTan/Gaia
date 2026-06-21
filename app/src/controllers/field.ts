@@ -95,6 +95,7 @@ export const Field = {
   lairAt: null as Pt | null,     // rare-monster lair (Greenvale: Hogger), set from the zone layout
   pois: [] as Poi[],             // points of interest / encampments (the INHABITED world), per-zone
   poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
+  openedChests: {} as Record<string, boolean>, // chest key (overworld "<zoneId>:ow:<x>,<y>" / dungeon "<zoneId>:d<floor>:<x>,<y>") → looted; PERSISTED in the save (per-RUN, like poisCleared)
   pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
   ENC_MIN: 10, ENC_MAX: 15, // steps between random fights (Dara: ~5 felt too frequent → 10-15)
   zoneIndex: 0,
@@ -260,6 +261,7 @@ export const Field = {
     this.zoneIndex = 0;
     this.enteredDungeon = false;
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
+    this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
     this.resize();
     this.loadTiles();
     this.genMap(); // sets spawn (px/py) from the zone layout
@@ -380,7 +382,11 @@ export const Field = {
 
     this.scatterAndWater(L);
 
-    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
+    // ALREADY-LOOTED chests revert to plain path (mirrors stampPois' spent-POI handling) so a Continue
+    // can't re-spawn a looted chest; a still-sealed chest carves as "chest". An opened chest is just
+    // walkable floor, so it's also dropped from the anti-soft-lock targets (it can never strand anything).
+    const owOpened = (c: Pt) => !!this.openedChests[this.chestKey(z.id, "ow", c.x, c.y)];
+    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, owOpened(c) ? "path" : "chest"); });
     if (this.lairAt) { this.halo(this.lairAt); carve(this.lairAt.x, this.lairAt.y, "lair"); }
     this.stampPois(L); // POIs (the INHABITED world)
     // The mouth POI: guarded by the mini until it's beaten, then enterable.
@@ -391,8 +397,8 @@ export const Field = {
     const village = this.zone().hub ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
     if (village) { this.halo(village); carve(village.x, village.y, "village"); }
 
-    // ANTI-SOFT-LOCK: the mouth + every overworld chest/lair/crossing/POI + the hub marker reachable from spawn.
-    const targets = [this.mouth, ...this.chests]; if (this.lairAt) targets.push(this.lairAt); if (village) targets.push(village);
+    // ANTI-SOFT-LOCK: the mouth + every UNOPENED overworld chest/lair/crossing/POI + the hub marker reachable from spawn.
+    const targets = [this.mouth, ...this.chests.filter((c) => !owOpened(c))]; if (this.lairAt) targets.push(this.lairAt); if (village) targets.push(village);
     if (L.bridges) targets.push(...L.bridges);
     if (L.fords) targets.push(...L.fords);
     targets.push(...this.pois.map((p) => ({ x: p.x, y: p.y })));
@@ -432,9 +438,14 @@ export const Field = {
     for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++)
       if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
 
-    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
-    // Anti-soft-lock targets: chests + the floor's egress (boss on the last floor, stairs-down otherwise).
-    const targets: Pt[] = [...this.chests];
+    // ALREADY-LOOTED chests on THIS floor revert to plain path (mirrors stampPois' spent-POI handling) so
+    // a Continue can't re-spawn a looted chest; a still-sealed chest carves as "chest". An opened chest is
+    // just walkable floor, so it's also dropped from the anti-soft-lock targets (it can never strand anything).
+    const dunZid = ZONES[zoneIndex]?.id ?? this.zone().id;
+    const dunOpened = (c: Pt) => !!this.openedChests[this.chestKey(dunZid, this.dungeonFloor, c.x, c.y)];
+    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, dunOpened(c) ? "path" : "chest"); });
+    // Anti-soft-lock targets: UNOPENED chests + the floor's egress (boss on the last floor, stairs-down otherwise).
+    const targets: Pt[] = [...this.chests.filter((c) => !dunOpened(c))];
     if (last) { carve(this.boss.x, this.boss.y, "boss"); targets.push(this.boss); }
     else if (D.stairsDown) {
       this.halo(D.stairsDown);
@@ -511,6 +522,14 @@ export const Field = {
   // (every zone reuses small x,y coords). Used by stampPois / runPoi and the big-map realize-apply.
   poiKey(zoneId: string, x: number, y: number): string { return zoneId + ":" + x + "," + y; },
   poiAt(x: number, y: number): Poi | undefined { return this.pois.find((p) => p.x === x && p.y === y); },
+  // A per-CONTEXT chest key so a looted chest stays looted across a reload without colliding between an
+  // overworld chest and a dungeon-floor chest that happen to share x,y. Overworld/big-map chests live in
+  // a zone's local chest coords ("<zoneId>:ow:<x>,<y>"); dungeon chests are scoped to their floor
+  // ("<zoneId>:d<floor>:<x>,<y>"). Used by openChest/openBigChest (set) and genOverworld/genDungeon/
+  // enterBigMap (consult on regen). Mirrors poiKey's per-zone disambiguation.
+  chestKey(zoneId: string, ctx: "ow" | number, x: number, y: number): string {
+    return zoneId + ":" + (ctx === "ow" ? "ow" : "d" + ctx) + ":" + x + "," + y;
+  },
 
   // bush/rock are decoration (walkable); tree and water are walls; the gate/mouth is walkable.
   flood(start: Pt): boolean[][] {
@@ -779,6 +798,10 @@ export const Field = {
       const z = ZONES.find((zz) => zz.id === id);
       for (const p of z?.layout.pois ?? [])
         if (this.poisCleared[this.poiKey(id, p.x, p.y)] && this.authoredGrids[id][p.y]) this.authoredGrids[id][p.y][p.x] = "path";
+      // Re-apply persisted opened-chest state the same way: a looted overworld chest stays gone (carved as
+      // path) across a reload, so the realizer can't re-spawn it (chest coords are the zone's authored locals).
+      for (const c of z?.layout.chests ?? [])
+        if (this.openedChests[this.chestKey(id, "ow", c.x, c.y)] && this.authoredGrids[id][c.y]) this.authoredGrids[id][c.y][c.x] = "path";
     }
     const z = ZONES.find((zz) => zz.id === startZone) ?? ZONES[0];
     const pl = placementOf(startZone)!, L = z.layout;
@@ -923,10 +946,14 @@ export const Field = {
   openBigChest(wx: number, wy: number): void {
     this.cellAt(wx, wy).kind = "path";
     const a = authoredAt(wx, wy); if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "path";
+    // PERSIST the loot keyed by the chest's AUTHORED zone-local coords (the same coords enterBigMap re-applies
+    // over the rebuilt authored grid), so a Continue can't re-spawn this looted big-map chest.
+    if (a) this.openedChests[this.chestKey(a.zoneId, "ow", a.lx, a.ly)] = true;
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5);
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4);
     const it = rollItemAtRarity(floor, undefined, ilvl, undefined); // chests roll EQUALLY across all classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
+    Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
@@ -1117,10 +1144,16 @@ export const Field = {
   },
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
+    // PERSIST the loot: key by context so a Continue (which regenerates the grid from layout data) carves
+    // this cell as path instead of re-spawning the chest. Dungeon chests are floor-scoped; overworld chests
+    // use the "ow" context. (poiKey-style per-zone disambiguation against x,y collisions across zones/floors.)
+    const zid = this.zone().id;
+    this.openedChests[this.chestKey(zid, this.mode === "dungeon" ? this.dungeonFloor : "ow", x, y)] = true;
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5); // deeper chests = better floor
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // and a higher item level
     const it = rollItemAtRarity(floor, undefined, ilvl, undefined); // chests roll EQUALLY across all classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
+    Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
