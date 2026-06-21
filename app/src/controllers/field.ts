@@ -1403,6 +1403,49 @@ export const Field = {
     c.restore();
   },
 
+  // DUNGEON TREASURE marker (Dara QA 2026-06-21 — chests had "no icons" because the warren-chest tile
+  // is a placeholder, so nothing read as loot). Overlay a bright glint + a 💰 glyph + a small gold
+  // "loot" caption ON TOP of whatever the chest tile drew, so a chest is unmistakable on every floor
+  // regardless of the placeholder art. (Also used for the rare-lair if a dungeon ever places one.)
+  drawTreasureMark(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    // a warm glint disc behind the glyph so it pops off the dim floor even with no chest sprite
+    c.beginPath(); c.arc(sx + t / 2, sy + t * 0.46, t * 0.34, 0, Math.PI * 2);
+    c.fillStyle = "rgba(244,210,122,.22)"; c.fill();
+    c.font = `${t * 0.6}px serif`;
+    c.fillText("💰", sx + t / 2, sy + t * 0.46);
+    c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const ly = sy + t * 1.0;
+    c.strokeText("loot", sx + t / 2, ly); c.fillText("loot", sx + t / 2, ly);
+    c.restore();
+  },
+
+  // The DUNGEON BOSS FINALE marker (Dara QA 2026-06-21 — the Kingpin was unfindable because the boss
+  // tile rendered as the cave-ENTRANCE sprite, reading like a doorway). Draw a DISTINCT, unmistakable
+  // throne/boss glyph (the zone boss's own emoji, 👑 the Kingpin) on a gold glow + a bold gold "BOSS"
+  // caption beneath (mirrors the mouth/village caption pattern), so the player instantly reads the
+  // finale on the warren floor. Once cleared it flips to a planted flag. ART FLAG: a bespoke
+  // throne/boss-lair sprite per dungeon set would replace the emoji — see the hand-back.
+  drawDungeonBoss(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    // a warm glow disc so the throne pops off the dim warren floor
+    if (!Game.bossDefeated) {
+      c.beginPath(); c.arc(sx + t / 2, sy + t / 2, t * 0.46, 0, Math.PI * 2);
+      c.fillStyle = "rgba(244,210,122,.18)"; c.fill();
+      c.lineWidth = Math.max(2, t * 0.05); c.strokeStyle = "rgba(244,210,122,.6)"; c.stroke();
+    }
+    c.font = `${t * 0.8}px serif`;
+    c.fillText(Game.bossDefeated ? "🏴" : "👑", sx + t / 2, sy + t * 0.46);
+    const txt = Game.bossDefeated ? "CLEARED" : "BOSS", ly = sy + t * 1.04;
+    c.font = `bold ${Math.max(9, t * 0.27)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = Game.bossDefeated ? "rgba(170,170,170,.9)" : "rgba(244,210,122,.98)";
+    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
+    c.restore();
+  },
+
   // BIG-MAP draw: iterate the WORLD-TILE viewport from the chunk cache (never calling regionAt).
   // Camera centers on the player's world tile and is clamped to the world extent (placement keeps
   // the player far from the 0/960 edges, so the clamp is effectively a no-op here). Dressing is read
@@ -1582,7 +1625,7 @@ export const Field = {
           if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
           else c.fillText(emoji, sx + t / 2, sy + t / 2);
         };
-        if (cell === "chest") obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8);
+        if (cell === "chest") { obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); if (inDun) this.drawTreasureMark(c, sx, sy, t); }
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
         else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town
@@ -1595,7 +1638,7 @@ export const Field = {
         else if (cell === "stairsdown") this.drawStairs(c, obj, T[`${dset}-stairsdown`], false, sx, sy, t); // descend a floor (placeholder — see asset-gaps.md)
         else if (cell === "stairsup") this.drawStairs(c, obj, T[`${dset}-stairsup`], true, sx, sy, t);      // climb a floor / out
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
-        else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
+        else if (cell === "boss") { if (inDun) this.drawDungeonBoss(c, sx, sy, t); else obj(undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95); }
         else if (POI_KINDS.has(cell)) this.drawPoiCell(c, T, cell, mx, my, sx, sy, t, false); // captioned landmark/camp/shrine/sign
         else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
         else if (cell === "river" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
