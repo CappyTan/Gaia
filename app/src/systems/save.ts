@@ -90,6 +90,11 @@ export interface SavedRun {
   // raided), so a cleared point-of-interest stays cleared across a reload (no infinite-heal exploit).
   // OPTIONAL — absent on an old save = nothing cleared (back-compatible, no schema bump needed).
   poisCleared?: Record<string, boolean>;
+  // OPENED CHESTS (looted treasure): per-context keys ("<zoneId>:ow:<x>,<y>" for overworld/big-map
+  // chests, "<zoneId>:d<floor>:<x>,<y>" for dungeon chests) → looted, so a chest opened this run stays
+  // opened across a reload (no infinite-loot exploit). OPTIONAL — absent on an old save = nothing
+  // opened (back-compatible, no schema bump needed).
+  openedChests?: Record<string, boolean>;
   // MULTI-FLOOR DUNGEON (ADR 0008 Stage 3): which floor of the dungeon the player was on (0 = B1), so a
   // save made deep in the Bandit Warren resumes on the right floor. OPTIONAL + degrade-never-throw —
   // absent / out-of-range on an old or single-floor save → floor 0 (back-compatible, no schema bump).
@@ -133,6 +138,7 @@ export interface RunSnapshot {
   bigMap: boolean;
   enteredDungeon: boolean;
   poisCleared: Record<string, boolean>;
+  openedChests: Record<string, boolean>;
   dungeonFloor: number;
   dungeonMiniCleared: Record<number, boolean>;
 }
@@ -161,6 +167,7 @@ export interface LoadedRun {
   bigMap: boolean;           // resume into the seamless continent big map
   enteredDungeon: boolean;
   poisCleared: Record<string, boolean>; // cleared/spent POIs (per-zone keys); empty on an old save
+  openedChests: Record<string, boolean>; // looted chests (per-context keys); empty on an old save
   dungeonFloor: number;      // which multi-floor dungeon floor to resume on (0 if not / single-floor)
   dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
@@ -237,6 +244,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     wx: s.wx, wy: s.wy, bigMap: s.bigMap,
     enteredDungeon: s.enteredDungeon,
     poisCleared: { ...s.poisCleared },
+    openedChests: { ...s.openedChests },
     dungeonFloor: s.dungeonFloor,
     dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
   };
@@ -339,6 +347,14 @@ function revivePoisCleared(v: unknown): Record<string, boolean> {
   return out;
 }
 
+/** Sanitize the persisted opened-chest map: a plain {string→true} dict; anything else → empty (never throws). */
+function reviveOpenedChests(v: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string") out[k] = true;
+  return out;
+}
+
 /** Flatten a numeric floor→beaten map to a string-keyed dict for JSON (a Record<number> isn't JSON-native). */
 function serializeFloorFlags(v: Record<number, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -429,6 +445,8 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     enteredDungeon: resetPos ? false : !!r.enteredDungeon,
     // CLEARED POIs — keep only sane boolean-true entries (degrade-never-throw on a malformed field).
     poisCleared: revivePoisCleared(r.poisCleared),
+    // OPENED CHESTS — keep only sane boolean-true entries (degrade-never-throw on a malformed field).
+    openedChests: reviveOpenedChests(r.openedChests),
     // MULTI-FLOOR — the saved dungeon floor (clamped ≥0; clamped to the zone's floor count by the
     // controller on resume). Reset to 0 if the zone changed under us. Degrade-never-throw.
     dungeonFloor: resetPos ? 0 : Math.max(0, Math.floor(r.dungeonFloor || 0)),

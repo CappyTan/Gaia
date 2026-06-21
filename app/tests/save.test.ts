@@ -48,6 +48,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     wx: 0, wy: 0, bigMap: false,
     enteredDungeon: true,
     poisCleared: {},
+    openedChests: {},
     dungeonFloor: 1,
     dungeonMiniCleared: { 0: true },
   };
@@ -130,6 +131,34 @@ describe("save round-trip", () => {
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
     expect(r.poisCleared).toEqual({});       // absent field → empty map (back-compatible)
+  });
+
+  it("persists opened-chest state (a looted chest stays looted across a reload)", () => {
+    const { snapshot } = makeRun();
+    snapshot.openedChests = { "greenvale:ow:20,6": true, "greenvale:d1:14,9": true };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.openedChests["greenvale:ow:20,6"]).toBe(true);   // overworld chest stays opened
+    expect(r.openedChests["greenvale:d1:14,9"]).toBe(true);   // dungeon-floor chest stays opened
+    expect(r.openedChests["greenvale:ow:99,99"]).toBeUndefined();
+  });
+
+  it("a save with no openedChests field (old save) loads as nothing-opened, never throws", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).openedChests;
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.openedChests).toEqual({});      // absent field → empty map (back-compatible, no schema bump)
+  });
+
+  it("a junk openedChests map degrades cleanly (drops non-true / non-string keys, never throws)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    (env.run as any).openedChests = { "greenvale:ow:1,1": true, "bad": false, "n": 5, "greenvale:d0:2,2": true };
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    // only the boolean-true entries survive; falsey / non-true values are dropped.
+    expect(r.openedChests).toEqual({ "greenvale:ow:1,1": true, "greenvale:d0:2,2": true });
   });
 
   it("a save with no dungeonFloor/dungeonMiniCleared (old save) loads as floor 0 / nothing-beaten", () => {

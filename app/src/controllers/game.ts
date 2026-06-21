@@ -108,6 +108,8 @@ export const Game = {
       enteredDungeon: Field.enteredDungeon,
       // CLEARED POIs (the inhabited world) — so a used shrine / raided camp stays spent across a reload.
       poisCleared: Field.poisCleared,
+      // OPENED CHESTS — so a looted chest stays empty (carved as path) across a reload (no infinite-loot exploit).
+      openedChests: Field.openedChests,
       // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
       dungeonFloor: Field.dungeonFloor,
       dungeonMiniCleared: Field.dungeonMiniCleared,
@@ -142,6 +144,10 @@ export const Game = {
     // grid — stampPois + the big-map authored-grid re-apply consult it, so a spent shrine / raided camp
     // stays cleared across the reload (no infinite-heal exploit).
     Field.poisCleared = { ...r.poisCleared };
+    // Restore opened-chest state on the same footing as poisCleared (AFTER init() zeroes it, BEFORE the
+    // grid rebuild below) — genOverworld/genDungeon + the big-map authored-grid re-apply consult it, so a
+    // looted chest stays opened (carved as path) across the reload (no infinite-loot exploit).
+    Field.openedChests = { ...r.openedChests };
     Field.zoneIndex = r.zoneIndex;
     if (r.inTown && r.townId) {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
