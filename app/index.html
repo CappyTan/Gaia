@@ -191,12 +191,13 @@
   .badge.stun{background:#5a4a00; color:#ffe27a;} .badge.atkup{background:#5a2e00; color:#ffb27a;}
   .badge.champ{background:rgba(244,210,122,.18); color:var(--gold); border:1px solid var(--gold);} /* champion affixes read as a power tier */
 
-  /* combat log: a quiet 2-line ticker pinned to the field/UI seam (Dara: was a cluttered scroll
-     over the party). Right-aligned, dimmed prior line, small scrim for legibility. */
-  #log{position:absolute; left:34%; right:0; bottom:30%; height:auto; max-height:34px; overflow:hidden; pointer-events:none;
-    padding:3px 12px; font-size:12px; line-height:1.35; text-align:right; color:var(--gold2);
-    text-shadow:0 1px 3px #000, 0 0 6px #000; background:linear-gradient(transparent, rgba(6,6,11,.55));}
-  #log div{opacity:.4;} #log div:last-child{opacity:.95;}
+  /* combat log: a full-width 4-line message band pinned to the field/UI seam — it sits BETWEEN the
+     sprites' feet and the top of the party stats (Dara), so the command/roster bar below keeps its
+     full width (bars no longer squashed). A scrim keeps it legible over the battlefield art. */
+  #log{position:absolute; left:0; right:0; bottom:30%; height:auto; max-height:76px; overflow:hidden; pointer-events:none;
+    padding:5px 14px; font-size:12px; line-height:1.4; text-align:center; color:var(--gold2);
+    text-shadow:0 1px 3px #000, 0 0 6px #000; background:linear-gradient(transparent, rgba(6,6,11,.74));}
+  #log div{opacity:.5;} #log div:last-child{opacity:1;}
 
   /* ENRAGE: the alpha→omega crossfade overlay (fades in over the boss sprite on the stage layer),
      plus a menacing red pulse on the enraged boss thereafter */

@@ -512,7 +512,7 @@ export const Battle = {
       if (bars[2]) bars[2].style.width = m.atb + "%";
     });
   },
-  log(t: string): void { this.logLines.push(t); if (this.logLines.length > 2) this.logLines.shift(); this.renderLog(); }, // 2-line ticker (Dara: was cluttered)
+  log(t: string): void { this.logLines.push(t); if (this.logLines.length > 4) this.logLines.shift(); this.renderLog(); }, // 4-line band at the field/UI seam (Dara)
   renderLog(): void { const l = $("#log"); if (!l) return; l.innerHTML = this.logLines.map((x) => `<div>${x}</div>`).join(""); },
 
   /* ---- battle-screen feedback helpers ---- */
