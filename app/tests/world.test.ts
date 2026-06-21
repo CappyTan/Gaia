@@ -181,19 +181,14 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   it("every BUILT zone references a real Zone def; every region nests within its continent", () => {
     const zoneIds = new Set(ZONES.map((z) => z.id));
     const continentIds = new Set(CONTINENTS.map((c) => c.id));
-    // STAGED-BUILD EXCEPTION (Aurelion complete): the world-cartographer wires the GEOGRAPHY first —
-    // the six new Aurelion regions are LINKED here (zone set, draft dropped) and fully tiled with Areas,
-    // but their playable `Zone` defs land in zones.ts in the NEXT phase (level-designer). Until then they
-    // have no ZONES entry, so the dangling-link guard is relaxed for exactly this set; every OTHER linked
-    // zone must still resolve to a real ZONES entry. (Same staged pattern goldmeadow went through.)
-    const AWAITING_LAYOUT = new Set([
-      "stormcoast", "riverhearth", "frostpeak", "dawnfall", "whisperhills", "sunbridge",
-    ]);
+    // Every LINKED region must resolve to a real ZONES entry; every unlinked region must be draft.
+    // (The Aurelion-complete build landed all six regions' Zone defs, so the earlier staged exception
+    // is retired — the full dangling-link guard now fires for all ten built zones.)
     for (const z of ZONE_REGIONS) {
       expect(continentIds.has(z.continent), `zone "${z.id}" must have a real parent continent`).toBe(true);
-      if (z.zone && !AWAITING_LAYOUT.has(z.id))
+      if (z.zone)
         expect(zoneIds.has(z.zone), `built zone "${z.id}" must link a real ZONES entry`).toBe(true);
-      else if (!z.zone) expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
+      else expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
       const c = CONTINENTS.find((cc) => cc.id === z.continent)!;
       expect(polyContains(c.shape, z.shape), `zone "${z.id}" must nest within continent "${z.continent}"`).toBe(true);
     }

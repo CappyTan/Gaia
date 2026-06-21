@@ -1237,6 +1237,6 @@ export const ZONES: Zone[] = [
       { at: 0.2, sets: [["siegetrooper", "ballista", "searaider"], ["abyssspawn", "searaider"], ["siegetrooper", "abyssspawn", "searaider"], ["ballista", "siegetrooper", "searaider"]] },
       { at: 0.4, sets: [["drowned", "ballista", "searaider"], ["siegeram", "siegetrooper", "searaider"], ["abyssspawn", "drowned", "siegetrooper"], ["siegeram", "ballista", "searaider"]] },
       { at: 0.6, sets: [["siegeram", "ballista", "drowned", "searaider"], ["abyssspawn", "siegeram", "drowned"], ["siegeram", "siegetrooper", "ballista", "searaider"]] },
-      { at: 0.8, sets: [["siegeram", "siegetrooper", "ballista", "drowned", "searaider"], ["siegeram", "abyssspawn", "drowned", "ballista", "searaider"], ["siegeram", "siegetrooper", "abyssspawn", "drowned", "ballista"]] },
+      { at: 0.8, sets: [["siegeram", "siegetrooper", "ballista", "drowned", "searaider"], ["siegeram", "abyssspawn", "drowned", "ballista"], ["siegeram", "siegetrooper", "abyssspawn", "drowned", "ballista"]] },
     ] },
 ];
