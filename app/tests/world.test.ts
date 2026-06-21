@@ -13,7 +13,7 @@ import {
   MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, OVERWORLD_W, OVERWORLD_H,
   UNDERWORLD_ID, FORGOTTEN_ID,
   AURELION_ID, VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID,
-  regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, bbox,
+  regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, polyCentroid, bbox,
   type Polygon,
 } from "../src/data/world";
 import { ZONES } from "../src/data/zones";
@@ -181,13 +181,14 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   it("every BUILT zone references a real Zone def; every region nests within its continent", () => {
     const zoneIds = new Set(ZONES.map((z) => z.id));
     const continentIds = new Set(CONTINENTS.map((c) => c.id));
-    // Goldmeadow has now LANDED in ZONES (level-designer phase complete), so the staged-build
-    // exception is removed — the full dangling-link guard fires for EVERY linked zone again.
+    // Every LINKED region must resolve to a real ZONES entry; every unlinked region must be draft.
+    // (The Aurelion-complete build landed all six regions' Zone defs, so the earlier staged exception
+    // is retired — the full dangling-link guard now fires for all ten built zones.)
     for (const z of ZONE_REGIONS) {
       expect(continentIds.has(z.continent), `zone "${z.id}" must have a real parent continent`).toBe(true);
       if (z.zone)
         expect(zoneIds.has(z.zone), `built zone "${z.id}" must link a real ZONES entry`).toBe(true);
-      else if (!z.zone) expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
+      else expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
       const c = CONTINENTS.find((cc) => cc.id === z.continent)!;
       expect(polyContains(c.shape, z.shape), `zone "${z.id}" must nest within continent "${z.continent}"`).toBe(true);
     }
@@ -202,6 +203,31 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
     expect(Math.abs(sw.y - gv.y), "Silverwood ~ same latitude as Greenvale").toBeLessThan(20);
     expect(dm.y, "Duskmarsh is SOUTH of Greenvale").toBeGreaterThan(gv.y);
     expect(dm.x, "Duskmarsh sits in the west").toBeLessThan(sw.x);
+  });
+
+  it("the six new Aurelion regions hold their map-correct relative positions (drift-guard)", () => {
+    // Lock the Aurelion-complete six against silent re-drift, using each region's true SHOELACE
+    // centroid (polyCentroid) so a future polygon edit can't quietly slide one off Dara's overworld
+    // map: Storm Coast W coast, Frostpeak E mountain arm, Sunbridge S port, Dawnfall SW / Whisper
+    // Hills SE, Riverhearth the central crossroads between them.
+    const pc = (id: string) => polyCentroid(ZONE_REGIONS.find((z) => z.id === id)!.shape);
+    const sixIds = ["stormcoast", "riverhearth", "frostpeak", "dawnfall", "whisperhills", "sunbridge"];
+    const six = sixIds.map(pc);
+    const sc = pc("stormcoast"), rh = pc("riverhearth"), fp = pc("frostpeak");
+    const df = pc("dawnfall"), wh = pc("whisperhills"), sb = pc("sunbridge");
+
+    // Storm Coast is the WESTMOST of the six (min centroid.x) and west of Riverhearth.
+    expect(Math.min(...six.map((c) => c.x)), "Storm Coast is the westmost new region").toBe(sc.x);
+    expect(sc.x, "Storm Coast is west of Riverhearth").toBeLessThan(rh.x);
+    // Frostpeak is the EASTMOST (max centroid.x — the E mountain arm).
+    expect(Math.max(...six.map((c) => c.x)), "Frostpeak is the eastmost new region (E mountain arm)").toBe(fp.x);
+    // Sunbridge is the SOUTHERNMOST (max centroid.y — the S port toward the Coral Archipelago).
+    expect(Math.max(...six.map((c) => c.y)), "Sunbridge is the southernmost new region (S port)").toBe(sb.y);
+    // Dawnfall (SW) is west of Whisper Hills (SE).
+    expect(df.x, "Dawnfall (SW) is west of Whisper Hills (SE)").toBeLessThan(wh.x);
+    // Riverhearth is the central crossroads — its x sits between Dawnfall's and Whisper Hills'.
+    expect(rh.x, "Riverhearth sits east of Dawnfall").toBeGreaterThan(df.x);
+    expect(rh.x, "Riverhearth sits west of Whisper Hills").toBeLessThan(wh.x);
   });
 
   it("zone ids are unique", () => {
@@ -335,10 +361,12 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   });
 
   it("areasOf / zonesOf / builtZonesOf are consistent with the registry", () => {
-    // All 10 Aurelion regions (4 built + 6 backlog) are painted; the built ones live here.
+    // All 10 Aurelion regions are painted AND now linked (Aurelion complete: the 4 prior built zones +
+    // the 6 newly-wired regions whose layouts land next). So every Aurelion region is a built zone here.
     expect(zonesOf(AURELION_ID).length).toBe(10);
     expect(builtZonesOf(AURELION_ID).map((z) => z.id).sort())
-      .toEqual(["duskmarsh", "goldmeadow", "greenvale", "silverwood"]);
+      .toEqual(["dawnfall", "duskmarsh", "frostpeak", "goldmeadow", "greenvale", "riverhearth",
+        "silverwood", "stormcoast", "sunbridge", "whisperhills"]);
     // The other three continents are all backlog (no built zones yet).
     for (const id of [VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID])
       expect(builtZonesOf(id).length, `${id} has no built zones yet`).toBe(0);

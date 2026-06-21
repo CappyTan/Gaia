@@ -39,7 +39,7 @@ export const Music = {
   _timer: undefined as ReturnType<typeof setInterval> | undefined,
   LOOKAHEAD: 0.12,
   TICK: 25,
-  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", forest: "orchestral", mire: "orchestral", marsh: "orchestral", plains: "heroic", granary: "orchestral", battle: "radiant", boss: "radiant", warlord: "heroic", victory: "radiant" } as Record<string, string>,
+  styleByState: { title: "radiant", field: "radiant", village: "radiant", city: "radiant", forest: "orchestral", mire: "orchestral", marsh: "orchestral", plains: "heroic", granary: "orchestral", frostpeak: "orchestral", stronghold: "orchestral", sunbridge: "orchestral", leviathan: "heroic", stormcoast: "orchestral", riverhearth: "radiant", dawnfall: "heroic", whisperhills: "orchestral", battle: "radiant", boss: "radiant", warlord: "heroic", victory: "radiant" } as Record<string, string>,
   STYLE_ORDER: ["radiant", "orchestral", "heroic"],
 
   SONGS: {
@@ -222,6 +222,199 @@ export const Music = {
              ["G4", 4], ["C5", 4], ["E5", 6], ["G5", 2], ["F5", 4], ["E5", 4], ["D5", 6], ["C5", 2],
              ["E5", 4], ["G5", 4], ["F5", 4], ["D5", 4], ["C5", 12], ["r", 4]],
     } },
+    // ── AURELION COMPLETE — six region overworld themes (+ two spine cues) ──────────────────────
+    // Frostpeak Highlands overworld / "the cold gate east" theme — STOIC, COLD, DEEP. The spine's
+    // mountain face: where Goldmeadow's `plains` is bright open wind-over-wheat, Frostpeak is slow,
+    // vertical, white and biting — air too thin to hurry. C AEOLIAN (natural minor: C D Eb F G Ab
+    // Bb), the flat sixth (Ab) giving the cold ache, no leading-tone lift (this place doesn't warm).
+    // A glacial 72 BPM, no drums (snow swallows sound). 16-bar loop in two breathing 8-bar halves.
+    // A LOW HORN-like bass moving in slow whole/half steps along i–bVI–bVII–i (Cm·Ab·Bb·Cm) — deep,
+    // resigned, monumental; a wide close-to-open pad breathing minor-thirds/open-fifths above (frozen
+    // distance); and a sparse, lonely lead of long held tones (C–Eb–G–Ab–Bb) with wide rests, like a
+    // single horn-call carrying across a glacier and dying in the white. No arp (no chatter, no life)
+    // — the stillness IS the theme. Best through `orchestral` (soft saw pad + triangle "horn" lead,
+    // no drums) for the deepest, coldest reading. A `field`-family overworld cue keyed `frostpeak`.
+    frostpeak: { bpm: 72, roles: {
+      bass: [["C2", 8], ["C2", 8], ["Ab1", 8], ["G1", 8], ["Bb1", 8], ["Bb1", 8], ["C2", 8], ["C2", 8],
+             ["C2", 8], ["C2", 8], ["Eb2", 8], ["Bb1", 8], ["Ab1", 8], ["G1", 8], ["C2", 8], ["C2", 8]],
+      pad: [["Eb3", 16], ["G3", 16], ["Eb3", 16], ["Ab3", 16],
+            ["Bb3", 16], ["F3", 16], ["G3", 16], ["Eb3", 16]],
+      lead: [["C4", 8], ["r", 8], ["G4", 6], ["r", 10], ["Ab4", 8], ["r", 8], ["Bb4", 8], ["G4", 4], ["r", 12],
+             ["Eb4", 8], ["r", 8], ["G4", 6], ["r", 10], ["C5", 8], ["r", 8], ["Bb4", 8], ["r", 4], ["C4", 8], ["r", 4]],
+    } },
+    // Frostpeak dungeon / "the silent Dwarven Stronghold" theme — COLD, ECHOING, ENCLOSED. The
+    // overworld's stone-and-tunnel underside: the open glacial Aeolian collapses inward to C
+    // HARMONIC MINOR (C D Eb F G Ab B-nat) — the raised leading-tone (B) grinding against the Bb the
+    // peaks leaned on, an iron glint of forge-light in the dark. A slow, weighted 84 BPM, no swing. A
+    // low PULSING repeated-tone bass like a cold forge-bellows long gone still (boots in an empty
+    // hold), a close-voiced pad breathing minor-2nd/tritone clusters (Ab against G, B against C), and
+    // a SPARSE prowling lead — short anxious motifs (C–Eb–D, Ab–G, B→C) with long rests, each one an
+    // echo down a dead corridor. A bare drum: muffled kick + an occasional snare, no hats (no open
+    // air, just stone). 16-bar loop, two 8-bar halves that tighten rather than resolve. Sibling to
+    // Goldmeadow's `granary` (same enclosed-dread recipe, transposed to C). Keyed `stronghold`,
+    // selected via `forDungeon("frostpeak")`. Best through `orchestral` (no drums → pure echo).
+    stronghold: { bpm: 84, roles: {
+      bass: [["C2", 2], ["C2", 2], ["C2", 4], ["G1", 2], ["G1", 2], ["Ab1", 4], ["C2", 2], ["C2", 2], ["C2", 4], ["F1", 2], ["G1", 2], ["G1", 4],
+             ["C2", 2], ["C2", 2], ["C2", 4], ["Ab1", 2], ["Ab1", 2], ["B1", 4], ["C2", 2], ["C2", 2], ["Eb2", 4], ["G1", 2], ["G1", 2], ["G1", 4]],
+      pad: [["Eb3", 16], ["G3", 16], ["Ab3", 16], ["G3", 16], ["Eb3", 16], ["D3", 16], ["B2", 16], ["G3", 16]],
+      arp: [["C4", 2], ["r", 6], ["G3", 2], ["r", 6], ["Ab3", 2], ["r", 6], ["G3", 2], ["r", 6],
+            ["Eb3", 2], ["r", 6], ["B3", 2], ["r", 6], ["C4", 2], ["r", 6], ["G3", 2], ["r", 6]],
+      drums: [["K", 4], ["r", 4], ["K", 4], ["S", 4], ["K", 4], ["r", 4], ["K", 4], ["r", 2], ["S", 2]],
+      lead: [["C5", 4], ["Eb5", 2], ["D5", 2], ["r", 8], ["G4", 4], ["Ab4", 4], ["r", 8],
+             ["Eb5", 4], ["D5", 4], ["C5", 4], ["B4", 4], ["C5", 6], ["r", 10],
+             ["G4", 4], ["Ab4", 2], ["G4", 2], ["r", 8], ["Eb4", 4], ["F4", 4], ["r", 8],
+             ["Ab4", 4], ["G4", 4], ["B4", 4], ["C5", 4], ["r", 16]],
+    } },
+    // Sunbridge overworld / "the besieged port-city dirge" theme — GRAND and TRAGIC, the build's
+    // BIGGEST, MOST CINEMATIC overworld statement (the continent's southern gateway under siege).
+    // A slow, processional D AEOLIAN dirge (D E F G A Bb C) — a great sea-city tolling, not yet
+    // fallen but mourning. Funereal 66 BPM, no drums on the overworld (the tolling IS the pulse). A
+    // 16-bar loop in two grand 8-bar halves. A DEEP, slow octave-stepping bass that walks the tragic
+    // cadence i–bVI–iv–bVII–i (D–Bb–Gm–C–D), monumental and sinking; a wide brass-like pad swelling
+    // full triads above (the city's great walls and bells); and a SOARING, long-breathed lead — a
+    // lament that climbs (D–F–A–Bb–C–D) and falls back, the noblest, saddest tune in the build,
+    // wide-spaced so each phrase rings out over the harbor. A slow, sparse "bell" arp tolls bare
+    // octaves/fifths on the half-bar (the alarm bells over the quays). Reads as doomed grandeur:
+    // beautiful, vast, and losing. Keyed `sunbridge`; a `field`-family cue but the most cinematic.
+    // Best through `orchestral` (swelling saw pad + triangle lead) for the full tragic sweep.
+    sunbridge: { bpm: 66, roles: {
+      bass: [["D2", 4], ["D1", 4], ["A1", 4], ["D2", 4], ["Bb1", 4], ["Bb0", 4], ["F1", 4], ["Bb1", 4],
+             ["G1", 4], ["G2", 4], ["D2", 4], ["G1", 4], ["C2", 4], ["C1", 4], ["G1", 4], ["A1", 4],
+             ["D2", 4], ["D1", 4], ["A1", 4], ["D2", 4], ["Bb1", 4], ["F1", 4], ["Bb1", 4], ["G1", 4],
+             ["C2", 4], ["G1", 4], ["A1", 4], ["A2", 4], ["D2", 4], ["A1", 4], ["D2", 4], ["D1", 4]],
+      pad: [["F3", 16], ["A3", 16], ["D4", 16], ["Bb3", 16], ["F3", 16], ["G3", 16], ["E3", 16], ["A3", 16]],
+      arp: [["D4", 2], ["r", 14], ["Bb3", 2], ["r", 14], ["G3", 2], ["r", 14], ["A3", 2], ["r", 14],
+            ["D4", 2], ["r", 14], ["F4", 2], ["r", 14], ["A3", 2], ["r", 14], ["A4", 2], ["r", 14]],
+      lead: [["D5", 6], ["r", 2], ["F5", 4], ["A5", 4], ["G5", 8], ["F5", 6], ["E5", 2], ["D5", 8], ["r", 8],
+             ["A4", 4], ["Bb4", 4], ["C5", 4], ["D5", 4], ["F5", 8], ["E5", 6], ["D5", 2], ["C5", 8], ["A4", 8],
+             ["Bb4", 8], ["A4", 6], ["G4", 2], ["F4", 8], ["G4", 4], ["A4", 4], ["D5", 8], ["r", 8],
+             ["F5", 6], ["E5", 2], ["D5", 4], ["C5", 4], ["Bb4", 6], ["A4", 2], ["D5", 12], ["r", 4]],
+    } },
+    // Sunbridge boss / "the Aurelion Finale — the Drowned Warlord" theme — the HARDEST, GRANDEST,
+    // MOST TRAGIC fight in the game so far (the continent climax, enrage-flagged). The shared `boss`
+    // cue and Goldmeadow's `warlord` made vaster and more doomed: same D tonal centre so it reads as
+    // kin to both, but built on the Sunbridge dirge's D AEOLIAN war-tragedy rather than harmonic
+    // minor — grief turned to violence, not just menace. A pounding, processional 138 BPM. A
+    // RELENTLESS funeral-march drum (kick on the beat, doubled, snare backbeat hammering). A heavy
+    // octave-pumping root bass (the tide and the host both rising), a great brass-stab pad on the
+    // tragic chords (Dm·Bb·F·Gm·C·A — i–bVI–bIII–iv–bVII–V, the lone A-major V the one cruel glint of
+    // a leading-tone), and a TOWERING lead that climbs the aeolian scale, hammers the tonic, then
+    // breaks into the dirge-lament motif at the turn — the city's fall set to a war-cry. 16 bars, no
+    // let-up. Keyed `leviathan`, selected via `forBoss("sunbridge")`. Best through `heroic` (square
+    // lead + full drums) for maximum weight; this is meant to feel like the end of an era.
+    leviathan: { bpm: 138, roles: {
+      bass: [["D2", 2], ["D1", 2], ["D2", 2], ["D1", 2], ["D2", 2], ["A1", 2], ["D2", 2], ["F2", 2],
+             ["Bb1", 2], ["Bb0", 2], ["Bb1", 2], ["F2", 2], ["Bb1", 2], ["D2", 2], ["F2", 2], ["F1", 2],
+             ["G1", 2], ["G2", 2], ["G1", 2], ["D2", 2], ["C2", 2], ["C1", 2], ["C2", 2], ["G2", 2],
+             ["A1", 2], ["A2", 2], ["A1", 2], ["E2", 2], ["A1", 2], ["C#2", 2], ["A1", 2], ["A2", 2]],
+      pad: [["F3", 4], ["A3", 4], ["D4", 8], ["D3", 4], ["F3", 4], ["Bb3", 8],
+            ["A2", 4], ["C3", 4], ["F3", 8], ["G2", 4], ["Bb2", 4], ["D3", 8],
+            ["C3", 4], ["G3", 4], ["C4", 8], ["A2", 4], ["C#3", 4], ["E3", 8]],
+      drums: [["K", 2], ["K", 2], ["S", 2], ["K", 2], ["K", 2], ["K", 2], ["S", 2], ["S", 2],
+              ["K", 2], ["K", 2], ["S", 2], ["K", 2], ["K", 2], ["S", 2], ["S", 2], ["S", 2]],
+      lead: [["D4", 2], ["F4", 2], ["A4", 2], ["D5", 2], ["C5", 2], ["D5", 2], ["A4", 4],
+             ["Bb4", 2], ["A4", 2], ["G4", 2], ["F4", 2], ["E4", 4], ["F4", 2], ["A4", 2],
+             ["D5", 4], ["F5", 4], ["A5", 4], ["G5", 4], ["F5", 6], ["E5", 2], ["D5", 4],
+             ["C5", 2], ["Bb4", 2], ["A4", 2], ["F4", 2], ["G4", 4], ["A4", 4], ["D5", 4], ["D4", 4]],
+    } },
+    // Storm Coast overworld / "Seafarer's Rest — the wrecker coast" theme — WIND, BREAKERS, RESTLESS
+    // UNEASE. An optional side-region: a storm-lashed rock coast of wrecked hulls. The `field`'s wet,
+    // dangerous cousin — never settling, like a swell that won't break clean. E DORIAN (E F# G A B C#
+    // D): the minor third (G) gives the grey churn, the natural sixth (C#) the salt-spray brightness,
+    // the flat seventh (D) the unresolved roll. A choppy, mid 108 BPM, no drums (the surf is the
+    // rhythm). 16-bar loop, two restless 8-bar halves that never land home. A rolling, SWELLING bass
+    // that surges and recedes along i–bVII–IV–v (Em–D–A–Bm) like breakers on rock; a wide pad that
+    // breathes open fifths with a slow detuned drift (wind in the rigging); a fast, churning
+    // 8th/16th arp = spray and chop, rising and falling. The lead is a wary, wind-snatched sailor's
+    // motif (E–G–B–D–C#) — phrases that start to sing and get cut off by rests (gusts). Reads
+    // restless, wet, watchful. Keyed `stormcoast`. Best through `orchestral` (detuned saw = wind).
+    stormcoast: { bpm: 108, roles: {
+      bass: [["E2", 4], ["B2", 4], ["E2", 4], ["B1", 4], ["D2", 4], ["A2", 4], ["D2", 4], ["A1", 4],
+             ["A1", 4], ["E2", 4], ["A1", 4], ["E2", 4], ["B1", 4], ["F#2", 4], ["B1", 4], ["E2", 4]],
+      pad: [["B3", 8], ["G3", 8], ["A3", 8], ["F#3", 8], ["A3", 8], ["E3", 8], ["B3", 8], ["F#3", 8],
+            ["A3", 8], ["E3", 8], ["G3", 8], ["D3", 8], ["F#3", 8], ["D3", 8], ["E3", 8], ["B3", 8]],
+      arp: [["E4", 2], ["G4", 2], ["B4", 2], ["G4", 2], ["A4", 2], ["B4", 2], ["D5", 2], ["B4", 2],
+            ["D4", 2], ["F#4", 2], ["A4", 2], ["F#4", 2], ["C#4", 2], ["E4", 2], ["A4", 2], ["E4", 2],
+            ["A4", 2], ["E4", 2], ["G4", 2], ["E4", 2], ["D4", 2], ["F#4", 2], ["A4", 2], ["F#4", 2],
+            ["B3", 2], ["D4", 2], ["F#4", 2], ["D4", 2], ["B3", 2], ["E4", 2], ["G4", 2], ["E4", 2]],
+      lead: [["E5", 4], ["B4", 2], ["D5", 2], ["r", 4], ["C#5", 4], ["B4", 4], ["r", 4], ["G4", 4], ["A4", 4],
+             ["B4", 6], ["A4", 2], ["G4", 4], ["E4", 4], ["F#4", 8], ["r", 8],
+             ["A4", 4], ["D5", 2], ["E5", 2], ["r", 4], ["C#5", 4], ["B4", 4], ["r", 4], ["D5", 4], ["B4", 4],
+             ["A4", 6], ["G4", 2], ["F#4", 4], ["E4", 4], ["E4", 8], ["r", 8]],
+    } },
+    // Riverhearth (outskirts) overworld / "the beset trade-roads" theme — a TENSER VARIANT of the
+    // bustling `city` theme. Derived directly from the C-major `city` cue (same trade-capital
+    // identity, the war's chaos creeping into its outskirts): same 112 BPM and the same walking-bass
+    // / flowing-arp shape, but soured to C DORIAN-ish minor (C D Eb F G A Bb) — the proud major
+    // turned wary. The city's confident I–vi–IV–V becomes a restless i–bVII–iv–v (Cm·Bb·Fm·Gm) that
+    // never quite struts home; the market-pulse drum stays but stripped to a tighter kick+hat (busy
+    // but on edge, not celebrating). The walking root-fifth bass keeps commerce moving; the fast 16th
+    // arp keeps the river-and-crowd current — but the lead, once a proud civic tune, now circles the
+    // minor third (Eb) and keeps glancing over its shoulder. Unmistakably the SAME city, gone tense:
+    // trade still flows, but bandits and smugglers prey at the edges. Keyed `riverhearth`. A
+    // `field`-family overworld cue (the beset outskirts), distinct from the warm hub `city` theme.
+    riverhearth: { bpm: 112, roles: {
+      bass: [["C2", 4], ["G2", 4], ["A1", 4], ["Eb2", 4], ["F2", 4], ["C2", 4], ["G2", 4], ["Bb1", 4],
+             ["C2", 4], ["G2", 4], ["F2", 4], ["C2", 4], ["F2", 4], ["G2", 4], ["C2", 4], ["G1", 4]],
+      pad: [["Eb3", 8], ["C3", 8], ["A3", 8], ["Eb3", 8], ["Ab3", 8], ["F3", 8], ["Bb3", 8], ["G3", 8],
+            ["Eb3", 8], ["C3", 8], ["A3", 8], ["F3", 8], ["Ab3", 8], ["F3", 8], ["G3", 8], ["G3", 8]],
+      arp: [["C4", 2], ["Eb4", 2], ["G4", 2], ["Eb4", 2], ["A3", 2], ["C4", 2], ["Eb4", 2], ["C4", 2],
+            ["F3", 2], ["Ab3", 2], ["C4", 2], ["Ab3", 2], ["G3", 2], ["Bb3", 2], ["D4", 2], ["Bb3", 2],
+            ["C4", 2], ["Eb4", 2], ["G4", 2], ["Eb4", 2], ["F3", 2], ["Ab3", 2], ["C4", 2], ["Ab3", 2],
+            ["G3", 2], ["Bb3", 2], ["D4", 2], ["Bb3", 2], ["C4", 2], ["G4", 2], ["Eb4", 2], ["G4", 2]],
+      drums: [["K", 4], ["H", 2], ["H", 2], ["K", 4], ["H", 2], ["S", 2], ["K", 4], ["H", 2], ["H", 2], ["S", 4], ["H", 2], ["H", 2]],
+      lead: [["G4", 4], ["C5", 4], ["Eb5", 6], ["D5", 2], ["C5", 4], ["Eb5", 4], ["A4", 6], ["C5", 2],
+             ["F5", 4], ["Eb5", 4], ["D5", 4], ["Bb4", 4], ["C5", 8], ["G4", 4], ["Eb4", 4],
+             ["G4", 4], ["C5", 4], ["Eb5", 6], ["G5", 2], ["F5", 4], ["Eb5", 4], ["D5", 6], ["C5", 2],
+             ["Eb5", 4], ["G5", 4], ["F5", 4], ["D5", 4], ["C5", 12], ["r", 4]],
+    } },
+    // Dawnfall Hold overworld / "the fallen Frontier Watch" theme — MARTIAL, GRIM, WATCHFUL. A
+    // breached frontier fortress that held the wilds and lost. The `plains` march's defeated mirror:
+    // where Goldmeadow strides bright across open country, Dawnfall paces a grim ruin — a watch that
+    // still walks its wall though the wall is broken. E PHRYGIAN (E F G A B C D): the flat-second (F)
+    // gives the dark martial menace, no brightness, all grim resolve. A measured, weighted 96 BPM
+    // with a SOMBRE MARCH drum (kick on the beat, snare backbeat, NO hats — a tired patrol, not a
+    // charge). 16-bar loop, two 8-bar halves that hold the line but never advance. A steady,
+    // tread-like root-fifth bass walking i–bII–bvii–i (Em·F·Dm·Em), the bII (F) souring every step;
+    // a cold, close pad (grey stone and torch-smoke); a sparse, watchful arp of bare fifths (a sentry
+    // pacing). The lead is a grim, falling watch-horn motif (E–G–F–E, B–A–G) — a call that keeps
+    // sinking back to the tonic, mourning what broke through. Keyed `dawnfall`. Best through `heroic`
+    // (square lead + march drum) for the martial grit; `orchestral` reads it as the lament beneath.
+    dawnfall: { bpm: 96, roles: {
+      bass: [["E2", 4], ["B2", 4], ["E2", 4], ["B1", 4], ["F2", 4], ["C2", 4], ["F2", 4], ["C2", 4],
+             ["D2", 4], ["A2", 4], ["D2", 4], ["A1", 4], ["E2", 4], ["B1", 4], ["E2", 4], ["E1", 4]],
+      pad: [["G3", 8], ["E3", 8], ["G3", 8], ["B3", 8], ["F3", 8], ["A3", 8], ["F3", 8], ["C3", 8],
+            ["F3", 8], ["D3", 8], ["A3", 8], ["F3", 8], ["G3", 8], ["E3", 8], ["B3", 8], ["E3", 8]],
+      arp: [["E4", 2], ["r", 6], ["B4", 2], ["r", 6], ["F4", 2], ["r", 6], ["C5", 2], ["r", 6],
+            ["D4", 2], ["r", 6], ["A4", 2], ["r", 6], ["E4", 2], ["r", 6], ["B4", 2], ["r", 6]],
+      drums: [["K", 4], ["r", 4], ["S", 4], ["r", 4], ["K", 4], ["K", 4], ["S", 4], ["r", 2], ["S", 2]],
+      lead: [["E4", 4], ["G4", 4], ["F4", 4], ["E4", 4], ["B4", 6], ["A4", 2], ["G4", 4], ["E4", 4],
+             ["F4", 4], ["E4", 4], ["D4", 8], ["E4", 8], ["r", 8],
+             ["B4", 4], ["A4", 4], ["G4", 4], ["F4", 4], ["E4", 6], ["D4", 2], ["E4", 4], ["G4", 4],
+             ["F4", 4], ["E4", 2], ["D4", 2], ["E4", 8], ["E4", 8], ["r", 8]],
+    } },
+    // Whisper Hills overworld / "the silent Monastery" theme — HUSHED, SACRED, EERIE: BELLS and
+    // BREATH. Quiet green monastic hills hiding a dark secret — sacred turned wrong. The most
+    // still and reverent cue in the build, and the most unsettling beneath it. A AEOLIAN (A B C D E
+    // F G) for the modal, chant-like calm, but laced with the flat-fifth/flat-second colour that
+    // makes the holy feel haunted. A breath-slow 60 BPM, no drums. 16-bar loop in two long 8-bar
+    // exhalations. A deep, almost motionless drone-bass that barely shifts (A–F–G–A, i–bVI–bVII–i)
+    // like a held organ pedal; a "BREATH" pad swelling and fading on slow whole notes (the monks'
+    // chant rising and falling); a sparse "BELL" arp tolling bare high octaves/fifths far apart (a
+    // cloister bell across empty cloisters); and a thread-thin, chant-like lead of long modal tones
+    // (A–C–E–F–G) with vast rests — plainsong half-heard down a stone nave, beautiful and wrong.
+    // Reads sacred, hushed, and quietly dreadful. Keyed `whisperhills`. Best through `orchestral`
+    // (soft swelling saw pad + pure triangle "bell"/chant) for the held-breath sanctity.
+    whisperhills: { bpm: 60, roles: {
+      bass: [["A1", 16], ["A1", 16], ["F1", 16], ["F1", 16],
+             ["G1", 16], ["G1", 16], ["A1", 16], ["A1", 16]],
+      pad: [["E3", 16], ["C3", 16], ["A3", 16], ["F3", 16],
+            ["G3", 16], ["D3", 16], ["E3", 16], ["A3", 16]],
+      arp: [["A4", 2], ["r", 14], ["E4", 2], ["r", 14], ["A4", 2], ["r", 14], ["C5", 2], ["r", 14],
+            ["G4", 2], ["r", 14], ["D4", 2], ["r", 14], ["E4", 2], ["r", 14], ["A4", 2], ["r", 14]],
+      lead: [["A4", 8], ["r", 8], ["C5", 6], ["r", 10], ["E5", 8], ["r", 8], ["F5", 6], ["E5", 2], ["r", 8],
+             ["E4", 8], ["r", 8], ["G4", 6], ["r", 10], ["F4", 8], ["r", 8], ["E4", 4], ["C4", 4], ["A4", 8]],
+    } },
     battle: { bpm: 152, roles: {
       bass: [["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["E2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["A2", 2], ["G2", 2], ["G2", 2], ["G2", 2], ["G2", 2]],
       drums: [["K", 2], ["H", 2], ["S", 2], ["H", 2], ["K", 2], ["H", 2], ["S", 2], ["H", 2], ["K", 2], ["H", 2], ["S", 2], ["H", 2], ["K", 2], ["H", 2], ["S", 2], ["H", 2]],
@@ -282,8 +475,8 @@ export const Music = {
     set("#st-title", "title");
     // The field HUD's style pill reflects whichever overworld track is playing — the open-field /
     // grim-mire zone theme, or the village / fog-bound-outpost theme while in a settlement.
-    set("#st-field", (["village", "city", "mire", "marsh", "forest", "plains", "granary"].includes(this.cur || "") ? this.cur : "field") as string);
-    set("#st-battle", this.cur === "boss" || this.cur === "warlord" || this.cur === "battle" ? this.cur : "battle");
+    set("#st-field", (["village", "city", "mire", "marsh", "forest", "plains", "granary", "frostpeak", "stronghold", "sunbridge", "stormcoast", "riverhearth", "dawnfall", "whisperhills"].includes(this.cur || "") ? this.cur : "field") as string);
+    set("#st-battle", this.cur === "boss" || this.cur === "warlord" || this.cur === "leviathan" || this.cur === "battle" ? this.cur : "battle");
   },
   unlock(): void {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -340,6 +533,13 @@ export const Music = {
     if (zoneId === "silverwood") return "forest";
     if (zoneId === "duskmarsh") return "mire";
     if (zoneId === "goldmeadow") return "plains";
+    // Aurelion-complete regions — zone-id fallbacks (Area `music` keys above take precedence).
+    if (zoneId === "frostpeak") return "frostpeak";
+    if (zoneId === "sunbridge") return "sunbridge";
+    if (zoneId === "stormcoast") return "stormcoast";
+    if (zoneId === "riverhearth") return "riverhearth";
+    if (zoneId === "dawnfall") return "dawnfall";
+    if (zoneId === "whisperhills") return "whisperhills";
     return "field"; // open continent / unknown → the ambient overworld cue
   },
   // Per-zone BOSS cue selector. Most bosses share the generic `boss` SONG; a zone can claim its own
@@ -347,6 +547,7 @@ export const Music = {
   // battle controller calls this in place of the hard-coded "boss" key when starting a boss fight.
   forBoss(zoneId?: string): string {
     if (zoneId === "goldmeadow") return "warlord";
+    if (zoneId === "sunbridge") return "leviathan"; // the Aurelion finale / continent-boss theme
     return "boss";
   },
   // Per-zone DUNGEON cue selector. Most dungeons ride the overworld cue (return ""); a zone can claim
@@ -355,6 +556,13 @@ export const Music = {
   // overworld cue via the normal key-compare). "" means "keep the current cue".
   forDungeon(zoneId?: string): string {
     if (zoneId === "goldmeadow") return "granary";
+    if (zoneId === "frostpeak") return "stronghold"; // the silent Dwarven Stronghold (cold, echoing)
+    // Sunbridge's finale dungeon (the Besieged Citadel / Lighthouse) keeps its grand overworld
+    // dirge `sunbridge` on descent (no separate enclosed cue) so the climb to the boss stays
+    // cinematic and continuous; the `leviathan` boss cue then lands as the payoff.
+    // The four OPTIONAL regions use small caves — they reuse the existing enclosed `granary` dread
+    // cue (transposed-feel close enough; no bespoke dungeon theme per ADR 0009's light-cave weight).
+    if (zoneId === "stormcoast" || zoneId === "riverhearth" || zoneId === "dawnfall" || zoneId === "whisperhills") return "granary";
     return "";
   },
   _switch(state: string): void {

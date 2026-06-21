@@ -185,6 +185,39 @@ describe("continent-wide realization (Stage 2C, G22)", () => {
     expect(unreachableContinentTargets(OVERWORLD_ID, grids, spawnW, targets)).toEqual([]);
   });
 
+  it("every built Aurelion zone's mouth is reachable from Greenvale's spawn across the open continent", () => {
+    // The seamless soft-lock proof for ALL ten zones (not just by-construction): flood the realized
+    // continent from Greenvale's spawn and confirm each built zone's authored dungeon/cave mouth — the
+    // spine progression POI — is reachable across the open ground that bridges the cores (G22). We BFS
+    // over a box covering ALL of Aurelion (not the tight spawn↔target bbox `unreachableContinentTargets`
+    // uses — the W-coast path to Storm Coast hugs the coastline well outside that), matching how the game
+    // lets the player roam the whole continent with no bound.
+    const grids = continentGrids();
+    const gv = placementOf(GV)!;
+    const spawnW = { x: gv.wx + layout.spawn.x, y: gv.wy + layout.spawn.y };
+    const mouths = builtZonesOf(AURELION_ID)
+      .filter((z) => placementOf(z.zone!))
+      .map((z) => {
+        const pl = placementOf(z.zone!)!;
+        const m = ZONES.find((zz) => zz.id === z.zone!)!.layout.mouth;
+        return { key: z.zone!, x: pl.wx + m.x, y: pl.wy + m.y };
+      });
+    // flood the realized continent, bounded to a generous box around Aurelion (x 40..500, y 0..340).
+    const WALLS = new Set(["tree", "water", "uncharted"]);
+    const seen = new Set<string>(); const q = [spawnW]; seen.add(spawnW.x + "," + spawnW.y);
+    while (q.length) {
+      const p = q.shift()!;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = p.x + dx, ny = p.y + dy, k = nx + "," + ny;
+        if (nx < 40 || ny < 0 || nx > 500 || ny > 340 || seen.has(k)) continue;
+        if (WALLS.has(realizeKindWorld(OVERWORLD_ID, grids, nx, ny))) continue;
+        seen.add(k); q.push({ x: nx, y: ny });
+      }
+    }
+    const unreachable = mouths.filter((m) => !seen.has(m.x + "," + m.y)).map((m) => m.key);
+    expect(unreachable).toEqual([]);
+  });
+
   it("continent realization is deterministic (realize a world tile twice → identical kind)", () => {
     const grids = continentGrids();
     for (const [x, y] of [[230, 72], [129, 74], [295, 71], [2, 2]] as const)

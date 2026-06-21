@@ -402,7 +402,9 @@ export const Battle = {
     // Painterly terrain backgrounds (sliced from Dara's terrain sheet). Game env -> bg slug;
     // a dark scrim keeps sprites + bars legible over the bright art. Falls back to the original
     // CSS gradient if the image isn't present.
-    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave", warren: "warren", vault: "vault", granary: "vault" };
+    const ENV_BG: Record<string, string> = { plains: "plains", forest: "forest", desert: "desert", mountains: "mountains", mire: "swamp", hollow: "cave", warren: "warren", vault: "vault", granary: "vault",
+      // Aurelion-complete dungeon/cave envs → closest existing enclosed backdrop until bespoke art lands.
+      seacave: "cave", smuggden: "cave", crypt: "cave", stronghold: "vault", keepvault: "vault", citadel: "vault" };
     const fallback: Record<string, string> = {
       plains: "radial-gradient(130% 95% at 50% 22%, #34465a 0%, #131a26 50%, #06090f 100%)",
       forest: "radial-gradient(130% 95% at 50% 22%, #243a2a 0%, #0d1611 50%, #060a07 100%)",
