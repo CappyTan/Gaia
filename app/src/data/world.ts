@@ -280,11 +280,16 @@ const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
     shape: ring([150, 124], [188, 120], [212, 138], [212, 166], [190, 182], [160, 180], [140, 162],
                 [138, 138]) },
 
-  // ── BACKLOG (named on the map; draft) ──
-  // #3 Goldmeadow Plains (Breadbasket) — center, S of Silverwood.
-  { id: "goldmeadow", name: "Goldmeadow Plains", continent: AURELION_ID, draft: true,
+  // #3 Goldmeadow Plains (Breadbasket) — center, S of Silverwood. BUILT (first backlog fill): rolling
+  // open farmland, the breadbasket war-front (L11–15). Organic plains blob — a broad NW open lobe, a
+  // tapering NE shoulder under Silverwood, and a dipping S/SE coast toward Riverhearth — sitting inside
+  // the Aurelion interior with no overlap of greenvale/silverwood/duskmarsh/riverhearth. Centroid
+  // ≈ (299,149); bbox 120×72 comfortably hosts a ~60×24 authored core (level-designer places it).
+  { id: "goldmeadow", name: "Goldmeadow Plains", continent: AURELION_ID, zone: "goldmeadow",
     shape: ring([248, 122], [300, 114], [344, 128], [360, 152], [348, 176], [312, 186], [272, 178],
                 [246, 160], [240, 140]) },
+
+  // ── BACKLOG (named on the map; draft) ──
   // #4 Storm Coast (Seafarer's Rest) — WEST coast, mid-latitude.
   { id: "stormcoast", name: "Storm Coast", continent: AURELION_ID, draft: true,
     shape: ring([100, 178], [136, 170], [156, 188], [158, 216], [138, 234], [110, 230], [96, 208],
@@ -470,6 +475,30 @@ export const AREAS: Area[] = [
   { id: "dm-vault-approach", name: "Drowned-Vault Approach", zone: "duskmarsh", draft: true,
     shape: ring([189, 119], [213, 138], [213, 166], [191, 183], [176, 182], [188, 162], [192, 144], [174, 138], [196, 134]),
     identity: { biome: "mire", tileset: "mire", encounterLean: "miniboss-gate", music: "field" } },
+
+  // ── Goldmeadow Plains (the Breadbasket) — wide, bright, exposed war-front farmland (L11–15). The
+  //    open mesh of the prior zones, now long-sightline plains. The NW/W Open Wheat (spawn commons), the
+  //    N farm-track shoulder (drystone walls/roads under Silverwood), the SW Creek Line (the crossing),
+  //    the S burned Farmstead pocket (rare-monster lair), and the E Windmill Approach (the dungeon mouth
+  //    — occupied windmill/granary). They TILE the plains blob (100% interior coverage, 0% overlap at the
+  //    test grid); seams are the central farm-track, the creek bank, and the wall-line E of the farmstead.
+  //    Plains/"goldmeadow" family on the placeholder "shire" tileset until Dara's wheat/wall/windmill art
+  //    lands. Leans are CREATURE/TERRAIN flavor only (no Attunement — Dara's ruling). Names = DRAFT. ──
+  { id: "gm-wheatfields", name: "The Open Wheat", zone: "goldmeadow", draft: true,
+    shape: ring([239, 139], [247, 121], [300, 113], [300, 159], [266, 158], [245, 161]),
+    identity: { biome: "plains", tileset: "shire", encounterLean: "raider-skirmisher", music: "plains" } },
+  { id: "gm-farmtracks", name: "The Farm Tracks", zone: "goldmeadow", draft: true,
+    shape: ring([300, 113], [345, 127], [331, 148], [300, 150]),
+    identity: { biome: "farmland", tileset: "shire", encounterLean: "raider-harrier", music: "plains" } },
+  { id: "gm-creek", name: "The Creek Line", zone: "goldmeadow", draft: true,
+    shape: ring([245, 161], [266, 158], [300, 159], [303, 171], [289, 184], [271, 179], [244, 162]),
+    identity: { biome: "creek", tileset: "shire", encounterLean: "wolfpack-carrionbird", music: "plains" } },
+  { id: "gm-farmstead", name: "The Burned Farmstead", zone: "goldmeadow", draft: true,
+    shape: ring([300, 150], [300, 159], [303, 171], [289, 184], [313, 187], [332, 172], [331, 148]),
+    identity: { biome: "ruin", tileset: "shire", encounterLean: "rare-lair", music: "plains" } },
+  { id: "gm-windmill-approach", name: "Windmill Approach", zone: "goldmeadow", draft: true,
+    shape: ring([345, 127], [361, 152], [349, 177], [313, 187], [332, 172], [331, 148]),
+    identity: { biome: "farmland", tileset: "shire", encounterLean: "miniboss-gate", music: "plains" } },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -710,10 +739,12 @@ export function polyCentroid(poly: Polygon): Point {
 //   duskmarsh  (56×22) centroid ≈ (176, 151) → wx,wy = (148, 140)  rect [148,140)..[204,162)
 // (Hard-coded — pure data the engine reads at startup — but derived exactly by `polyCentroid` above;
 // the test recomputes them from the polygons + ZoneLayouts to guard against drift.)
+//   goldmeadow (60×24) centroid ≈ (299, 149) → wx,wy = (269, 137)  rect [269,137)..[329,161)
 export const WORLD_PLACEMENT: Record<string, ZonePlacement> = {
   greenvale: { wx: 127, wy: 62, scale: 1 },
   silverwood: { wx: 265, wy: 59, scale: 1 },
   duskmarsh: { wx: 148, wy: 140, scale: 1 },
+  goldmeadow: { wx: 269, wy: 137, scale: 1 },
 };
 
 /** A built zone's authored-grid placement in world space, or undefined if the zone isn't placed. */

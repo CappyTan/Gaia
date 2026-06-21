@@ -395,6 +395,99 @@ const DUSKMARSH_DUNGEON: DungeonLayout = {
   scatter: 0.07,
 };
 
+// ── Goldmeadow Plains + the occupied Windmill (OPEN-WORLD, first backlog fill — brief 2026-06-21) ─
+// Aurelion #3, "The Breadbasket": L11–15, the journey's step PAST the Duskmarsh — WIDE, BRIGHT and
+// EXPOSED after the marsh's pinch (the brief's "nowhere to hide"). NOT a west→east spine: it's an
+// open PLAINS MESH of broad wheat commons joined by farm tracks that LOOP and rejoin. Spawn feeds a
+// WEST WHEAT COMMONS hub; THREE farm tracks run east to a CENTRAL CROSSROADS hub — a NORTH track
+// (along the field tracks, past the hedge maze + a barn-yard chest), a fast EXPOSED MIDDLE track
+// (open ground, long sightlines), and a SOUTH track (down to the CREEK CROSSING, past the burned
+// FARMSTEAD). The three rejoin at the central crossroads (two big loops), so roaming is a CIRCUIT,
+// not an out-and-back. DRYSTONE WALLS / HEDGES (authored as the tree-canvas negative space between
+// the wide rects) channel the open-field engagements; a CREEK (water) cuts the SW and is bridged on
+// the south track. Chests sit on routes you CHOOSE BETWEEN (barn-yard chest north, creek chest on
+// the south track, a fallow-field chest off the middle track); the rare gilded-beast lair dens in
+// the burned farmstead off the south loop. From the central crossroads a staging green leads EAST to
+// the war-captain's gate at the windmill MOUTH (x=36, like Silverwood).
+//   East of the mouth, THE WINDMILL / GRANARY UNDERCROFT is a connected room-network, not dead-end
+// cells: the undercroft entry hall forks into a north GRANARY LOFT and a south MILLSTONE CELLAR that
+// BOTH rejoin at a threshing-floor antechamber hub before the warlord's arena — a loop (each room
+// holds a chest), so you circle through either and come back. A DEEP DEAD-END VAULT hangs off the
+// antechamber holding the RICHEST hoard (reward-the-brave). genMap carves + flood-fills to GUARANTEE
+// boss + every chest/lair reachable (anti-soft-lock); the loops mean no pocket can wall you in.
+//
+// NOTE: tile KINDS reuse the shire/plains family (grass/path/bush/rock/water/tree) as PLACEHOLDERS.
+// FLAG FOR ART-INTEGRATOR: this region wants new flavor tiles — WHEAT FIELD (tall golden crop, soft
+// cover), DRYSTONE WALL (low impassable field boundary), WINDMILL/BARN landmark — drawn as recolored
+// shire tiles until Dara's art lands (logged in docs/design/asset-gaps.md). The creek uses the
+// existing hard-blocking "water" kind already taught to passable/flood/soft-lock.
+const GOLDMEADOW_LAYOUT: ZoneLayout = {
+  w: 60, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 36, y: 12 }, gateWallX: 36, boss: { x: 56, y: 11 },
+  mouth: { x: 36, y: 12 }, // the dungeon mouth = the gate tile (the war-captain guards the windmill)
+  fieldRects: [
+    { x: 1, y: 10, w: 6, h: 6 },    // spawn commons (the wheat-road mouth, WEST)
+    { x: 9, y: 9, w: 7, h: 7 },     // WEST WHEAT COMMONS hub — three farm tracks leave it
+    { x: 11, y: 2, w: 8, h: 5 },    // north barn-yard field (chest)
+    { x: 10, y: 17, w: 9, h: 5 },   // south creek meadow (chest) + bridged creek crossing
+    { x: 22, y: 9, w: 7, h: 7 },    // CENTRAL CROSSROADS hub — the three tracks rejoin
+    { x: 23, y: 2, w: 8, h: 5 },    // NE fallow field (chest, off the middle track)
+    { x: 21, y: 17, w: 9, h: 5 },   // the burned farmstead (the rare lair, off the south loop)
+    { x: 30, y: 10, w: 5, h: 5 },   // east staging green before the windmill gate
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 12 }, { x: 11, y: 12 }],                                    // spawn → west commons
+    [{ x: 12, y: 9 }, { x: 14, y: 4 }, { x: 26, y: 4 }, { x: 26, y: 9 }],   // NORTH track: hub → barn-yard → NE fallow → central
+    [{ x: 15, y: 12 }, { x: 18, y: 12 }, { x: 22, y: 12 }],                 // MIDDLE track: hub → central (fast, exposed)
+    [{ x: 12, y: 15 }, { x: 13, y: 19 }, { x: 26, y: 19 }, { x: 26, y: 15 }], // SOUTH track: hub → creek meadow → farmstead → central
+    [{ x: 28, y: 12 }, { x: 32, y: 12 }, { x: 35, y: 12 }],                 // central → staging → gate
+    [{ x: 14, y: 4 }, { x: 14, y: 9 }],   // cross-link: barn-yard ↔ west hub
+    [{ x: 13, y: 17 }, { x: 13, y: 15 }], // cross-link: creek meadow ↔ west hub
+    [{ x: 26, y: 6 }, { x: 26, y: 9 }],   // cross-link: NE fallow ↔ central hub
+  ],
+  dunRects: [], dunPaths: [], // dungeon lives in dungeon.layout (GOLDMEADOW_DUNGEON) — ADR 0008 Stage 2
+  // The CREEK (hard-blocking water) cuts the SW between the west hub and the south meadow, framing the
+  // south track's bridged crossing without severing it (the south path L-carves across the gap; the
+  // flood-repair guarantees it stays open). Open author wedges, not a wall across the critical path.
+  water: [
+    { x: 7, y: 18, w: 5, h: 4 },    // SW creek pool (the south track bridges its east lip at x≈13)
+    { x: 16, y: 20, w: 4, h: 2 },   // creek run trailing SE under the farmstead
+  ],
+  chests: [
+    { x: 14, y: 3 },   // north barn-yard field (north track)
+    { x: 13, y: 20 },  // south creek meadow (south track, by the crossing)
+    { x: 26, y: 3 },   // NE fallow field (off the middle/north loop crest)
+  ],
+  lair: { x: 25, y: 20 }, // the gilded wheat-beast dens in the burned farmstead off the south loop
+  scatter: 0.05,          // sparse: wide open ground, "nowhere to hide" — less cover than the forest
+};
+// The occupied Windmill / Granary Undercroft as its own grid (sibling to Warren/Grove/Vault). The
+// undercroft forks into two looped rooms that rejoin at a threshing antechamber, with a DEAD-END VAULT
+// off the antechamber (richest hoard) and a guarded run-up to the warlord's arena. Warlord → 20,11.
+const GOLDMEADOW_DUNGEON: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  rooms: [
+    { x: 2, y: 8, w: 6, h: 8 },     // undercroft entry hall (the fork)
+    { x: 10, y: 3, w: 7, h: 5 },    // north granary loft (chest, on the loop)
+    { x: 10, y: 16, w: 7, h: 5 },   // south millstone cellar (chest, on the loop)
+    { x: 14, y: 8, w: 5, h: 7 },    // threshing-floor antechamber hub (the loop rejoins)
+    { x: 9, y: 11, w: 4, h: 3 },    // the deep dead-end vault (RICHEST hoard, off the antechamber)
+    { x: 17, y: 8, w: 6, h: 6 },    // the warlord's arena
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → entry hall
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north loft → antechamber
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south cellar → antechamber (the LOOP)
+    [{ x: 14, y: 12 }, { x: 12, y: 12 }],                          // antechamber → dead-end vault (spur)
+    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+  ],
+  chests: [
+    { x: 13, y: 4 },   // north granary loft (loop, breather reward)
+    { x: 13, y: 18 },  // south millstone cellar (loop)
+    { x: 10, y: 12 },  // the dead-end vault (deepest, RICHEST — reward the brave)
+  ],
+  scatter: 0.06,
+};
+
 // ── World-space placement + region graph (ADR 0008, Stage 1 — world-cartographer) ────────────
 // SEAMLESS CONTINUOUS OVERWORLD foundation. Today the engine treats each zone as an isolated grid
 // reached by a linear hub chain (`hubs` above) + `loadZone` (controllers/field.ts). ADR 0008's
@@ -521,6 +614,18 @@ export const WORLD_REGIONS: WorldRegion[] = [
       { dir: "N", to: "silverwood", border: { axis: "y", at: 24, from: 64, to: 120 }, cross: { wx: 88, wy: 24 } },
       // NW diagonal: the Duskmarsh's NW corner (64,24) is Greenvale's SE corner — corner-touch only.
       { dir: "NW", to: "greenvale", border: { axis: "x", at: 64, from: 24, to: 24 } },
+      // East edge (world-x = 64+56 = 120) meets Goldmeadow's west edge (the journey presses on E into
+      // the plains). Shared y-overlap = the Duskmarsh's full height (the shorter rect): [24,46).
+      { dir: "E", to: "goldmeadow", border: { axis: "x", at: 120, from: 24, to: 46 }, cross: { wx: 120, wy: 35 } },
+    ],
+  },
+  {
+    // Goldmeadow Plains (60×24) — EAST of the Duskmarsh, continuing the journey into the breadbasket.
+    // (Legacy Stage-1 rect frame; the authoritative organic geography lives in data/world.ts.)
+    id: "goldmeadow", origin: { wx: 120, wy: 24 },
+    edges: [
+      // West edge (world-x = 120) meets the Duskmarsh's east edge (reciprocal of Duskmarsh —E→).
+      { dir: "W", to: "duskmarsh", border: { axis: "x", at: 120, from: 24, to: 46 }, cross: { wx: 120, wy: 35 } },
     ],
   },
 ];
@@ -651,5 +756,30 @@ export const ZONES: Zone[] = [
       { at: 0.4, sets: [["leper", "rat", "spider"], ["spider", "bonespider", "rat"], ["direrat", "spider", "rat"]] },
       { at: 0.6, sets: [["leper", "direrat", "rat"], ["bonespider", "spider", "rat"], ["rat", "rat", "leper"]] },
       { at: 0.8, sets: [["bonespider", "leper", "rat"], ["direrat", "direrat", "rat"], ["leper", "bonespider", "spider"]] },
+    ] },
+  // ── ZONE 4 (index 3): Goldmeadow Plains → the occupied Windmill (Lv 11–15) ──
+  // First BACKLOG FILL (world-builder brief 2026-06-21): the journey's step PAST the Duskmarsh into
+  // Aurelion's breadbasket war-front. Inbound hub is a PLACEHOLDER ("miregard") — narrative-writer
+  // assigns the real plains doorstep settlement next. dungeon env = "granary" (the audio layer already
+  // maps Goldmeadow's dungeon to the granary theme; no render-env for it yet — art/render falls back
+  // to the closest tileset until Dara's granary art lands; FLAG for art-integrator).
+  //
+  // CAST — the real plains war-host roster is wired (encounter-designer authored, names DRAFT per
+  // Dara): Plains Raider / Field Marauder / Plains Harrier / Wild Dog / Carrion Bird / Iron Reaver
+  // skirmish the open fields; the Raider War-Captain gates the windmill mouth (escorted by marauders);
+  // The Reaping Warlord crowns the host as the run-ender; the Gilded Sow is the wheat's rare beast.
+  // mini/miniAdds/boss are the live roster. balance-tuner owns the numbers.
+  { id: "goldmeadow", name: "Goldmeadow Plains", mini: "warcaptain", miniAdds: ["marauder", "marauder"], boss: "warlord",
+    hub: "miregard", hubs: ["miregard"], // PLACEHOLDER doorstep — narrative-writer assigns the real plains hub
+    envs: ["plains", "plains", "plains", "plains"], dungeon: { name: "The Windmill Undercroft", env: "granary", layout: GOLDMEADOW_DUNGEON }, layout: GOLDMEADOW_LAYOUT, bands: [
+      // TEACH→COMBINE: open the plains with the fast predators (marauder/wilddog) read clean, then
+      // fold in the torch-bruiser (raider) + ranged harrier, then the leecher (carrion), and reserve
+      // the armored wall (reaver) + full war-host packs for the run to the mouth gate. Set sizes vary
+      // per band so cadence isn't monotone. Attunements stay spread (no region identity).
+      { at: 0.0, sets: [["marauder", "wilddog"], ["wilddog", "wilddog"], ["marauder", "wilddog", "wilddog"]] },
+      { at: 0.2, sets: [["raider", "wilddog"], ["harrier", "marauder"], ["raider", "marauder", "wilddog"], ["wilddog", "wilddog", "marauder"]] },
+      { at: 0.4, sets: [["raider", "harrier", "wilddog"], ["carrion", "marauder", "wilddog"], ["raider", "carrion"], ["harrier", "raider", "marauder", "wilddog"]] },
+      { at: 0.6, sets: [["reaver", "harrier", "wilddog"], ["raider", "carrion", "marauder"], ["reaver", "raider", "wilddog"], ["harrier", "carrion", "marauder", "wilddog"]] },
+      { at: 0.8, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "raider", "marauder", "wilddog"], ["reaver", "harrier", "carrion", "wilddog", "marauder"], ["raider", "reaver", "carrion", "harrier"]] },
     ] },
 ];
