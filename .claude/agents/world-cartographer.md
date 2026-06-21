@@ -80,6 +80,16 @@ the maps, the maps win — realign it and flag the drift.**
   fronts — not grid-aligned boxes. A rectangle is a smell; allow one only as a deliberate, justified
   exception. Borders between neighbors should be a shared natural line (a coast, a mountain spine), not
   a straight cut. Shape the world like a mapmaker, not a spreadsheet.
+- **VARIED TERRAIN WITHIN A ZONE — Dara's directive (2026-06-21).** Don't paint a zone as one flat
+  biome. Carve its **Areas with DISTINCT terrain** so the zone reads as real country — e.g. a wooded
+  Area, a river-valley Area, a highland/ridge Area, an open-meadow Area within the same zone — and run
+  **geographic features through it**: a **river** course (an Area seam / `water` ribbon the level-designer
+  realizes with a bridge crossing), a **mountain ridge** or **coastline** as an organic border, a
+  **forest belt**, a marsh, a snowfield. Set each Area's `biome`/`tileset`/`encounterLean` to that
+  terrain, and note in your hand-off the features the level-designer must build (river here, ridge along
+  this seam, a place for an encampment by the ford). You set the terrain *identity + geography*; the
+  level-designer realizes it in tiles and places the POIs/encampments. The aim is a continent of varied,
+  legible, lived-in places — not ten same-looking fields.
 - **Orientation must match the map.** A connection's direction is dictated by the regions' relative
   positions on the map. If Silverwood sits north of Greenvale, then Greenvale exits **N → Silverwood**
   and Silverwood exits **S → Greenvale**. Never let the player go a direction that contradicts the

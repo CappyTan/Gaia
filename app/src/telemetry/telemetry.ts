@@ -80,13 +80,15 @@ export const Telemetry = {
   encounterStart(set: string[], _env: string, boss: boolean): void {
     if (!this.s) return;
     this.s.encounters++; this._encStart = Date.now(); this._encBoss = boss;
-    if (set.length && this._eliteThisFight) this.s.eliteFights++;
-    this._eliteThisFight = false;
+    this._eliteThisFight = false;   // fresh fight; the flag is banked at encounterEnd (below)
     this._persist(true);
   },
   noteElite(): void { if (this.s) this._eliteThisFight = true; },
   encounterEnd(result: "won" | "fled" | "wipe"): void {
     if (!this.s) return;
+    // Bank the elite flag HERE (not on the next encounterStart) so a wipe/fled-ending fight — which
+    // never fires another encounterStart — still counts. Fixes the eliteFights undercount-by-one.
+    if (this._eliteThisFight) { this.s.eliteFights++; this._eliteThisFight = false; }
     const d = Date.now() - (this._encStart || Date.now());
     this.s.encMs.push(d);
     if (result === "won") this.s.won++;

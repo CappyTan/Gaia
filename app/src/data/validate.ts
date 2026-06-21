@@ -36,6 +36,7 @@ export function validateContent(): string[] {
     const refs = new Set<string>();
     z.bands.forEach((b) => b.sets.forEach((s) => { if (!s.length) issues.push(`zone ${zi} "${z.name}": empty encounter set`); s.forEach((k) => refs.add(k)); }));
     refs.add(z.mini); (z.miniAdds || []).forEach((k) => refs.add(k)); refs.add(z.boss);
+    if (z.dungeon.floorMini) refs.add(z.dungeon.floorMini); // multi-floor in-dungeon lieutenant (Bandit Warren)
     refs.forEach((k) => { if (!ENEMIES[k]) issues.push(`zone ${zi} "${z.name}": missing enemy "${k}"`); });
     if (!ENEMIES[z.boss]?.boss) issues.push(`zone ${zi} "${z.name}": boss "${z.boss}" is not flagged boss`);
   });

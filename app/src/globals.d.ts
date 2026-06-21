@@ -7,6 +7,7 @@ import type { Roster } from "./controllers/roster";
 import type { UI } from "./controllers/menus";
 import type { Battle } from "./controllers/battle";
 import type { Field } from "./controllers/field";
+import type { Minimap } from "./controllers/minimap";
 import type { Screens } from "./controllers/screens";
 import type { DataBrowser } from "./controllers/dataBrowser";
 import type { WorldMapView } from "./controllers/worldMap";
@@ -23,6 +24,7 @@ declare global {
     UI: typeof UI;
     Battle: typeof Battle;
     Field: typeof Field;
+    Minimap: typeof Minimap;
     Screens: typeof Screens;
     DataBrowser: typeof DataBrowser;
     WorldMapView: typeof WorldMapView;
