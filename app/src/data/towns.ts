@@ -178,8 +178,9 @@ const MIREGARD: Settlement = {
     "#~t~~~~~~~~~~~~~~~~~~~t~#",
     "#########################",
   ],
-  // spawn on the spine boardwalk near the south end, facing up the lantern causeway
-  spawn: { x: 11, y: 13 },
+  // spawn on the spine/cross-walk junction (a 4-way-open plank) so you can move freely on arrival —
+  // NOT the dead-end stub at (11,13) where bog walls you in on two sides (down + right).
+  spawn: { x: 11, y: 12 },
   npcs: [
     { id: "warden", name: "Marsh-Warden Coll", spr: "🪖", x: 10, y: 7,
       lines: [
