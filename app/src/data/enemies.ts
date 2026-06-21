@@ -50,12 +50,12 @@ export const ENEMIES: Record<string, EnemyDef> = {
   //    fast skirmishers (marauder/wilddog), a ranged harrier, a rust-bladed bruiser (raider, whose
   //    NOX cuts fester — the onHit DoT is a rotting wound, not a burn), a scavenger leecher (carrion),
   //    and a slow armored wall (reaver) so packs play as different shapes. ──
-  raider: { name: "Plains Raider", spr: "🗡️", att: "NOX", lvl: 11, hp: 400, atk: 35, spd: 9, armor: 3, mag: 0, xp: 150, gold: [22, 40], ai: "basic", onHit: { poison: 4 } },
-  marauder: { name: "Field Marauder", spr: "🏃", att: "SOL", lvl: 11, hp: 300, atk: 34, spd: 16, armor: 2, mag: 0, xp: 152, gold: [22, 40], ai: "basic" },
-  harrier: { name: "Plains Harrier", spr: "🏹", att: "QUANTA", lvl: 12, hp: 272, atk: 36, spd: 13, armor: 1, mag: 0, xp: 158, gold: [24, 42], ai: "basic" },
-  wilddog: { name: "Wild Dog", spr: "🐕", att: "ANIMA", lvl: 11, hp: 252, atk: 33, spd: 17, armor: 1, mag: 0, xp: 144, gold: [16, 30], ai: "basic" },
-  carrion: { name: "Carrion Bird", spr: "🦅", att: "UMBRAXIS", lvl: 12, hp: 232, atk: 32, spd: 18, armor: 1, mag: 0, xp: 156, gold: [20, 38], ai: "basic", leech: 28 },
-  reaver: { name: "Iron Reaver", spr: "🪓", att: "QUANTA", lvl: 13, hp: 500, atk: 38, spd: 6, armor: 8, mag: 0, xp: 200, gold: [28, 48], ai: "basic" },
+  raider: { name: "Plains Raider", spr: "🗡️", att: "NOX", lvl: 11, hp: 400, atk: 35, spd: 9, armor: 3, mag: 0, xp: 172, gold: [22, 40], ai: "basic", onHit: { poison: 4 } },
+  marauder: { name: "Field Marauder", spr: "🏃", att: "SOL", lvl: 11, hp: 300, atk: 34, spd: 16, armor: 2, mag: 0, xp: 175, gold: [22, 40], ai: "basic" },
+  harrier: { name: "Plains Harrier", spr: "🏹", att: "QUANTA", lvl: 12, hp: 272, atk: 36, spd: 13, armor: 1, mag: 0, xp: 182, gold: [24, 42], ai: "basic" },
+  wilddog: { name: "Wild Dog", spr: "🐕", att: "ANIMA", lvl: 11, hp: 252, atk: 33, spd: 17, armor: 1, mag: 0, xp: 166, gold: [16, 30], ai: "basic" },
+  carrion: { name: "Carrion Bird", spr: "🦅", att: "UMBRAXIS", lvl: 12, hp: 232, atk: 32, spd: 18, armor: 1, mag: 0, xp: 179, gold: [20, 38], ai: "basic", leech: 28 },
+  reaver: { name: "Iron Reaver", spr: "🪓", att: "QUANTA", lvl: 13, hp: 500, atk: 38, spd: 6, armor: 8, mag: 0, xp: 230, gold: [28, 48], ai: "basic" },
   // Mini-boss (mouth gate): a raider war-captain who rallies his band; escorted by marauders.
   warcaptain: { name: "Raider War-Captain", spr: "⚔️", att: "NOX", lvl: 13, hp: 2100, atk: 80, spd: 10, armor: 6, mag: 0, xp: 340, gold: [140, 220], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "raider" },
   // Zone boss (the windmill): the warlord who leads the host — the run-ender. ENRAGE-flagged like the
@@ -78,11 +78,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
 
   // ── ZONE 5 (index 4): Storm Coast (L13–17) — wreckers/pirates + sea-beasts. Fast flankers (cutthroat),
   //    a poison-crab tank, a ranged slinger (deckhand), a serpent leecher; champion = a wrecker-captain. ──
-  wrecker: { name: "Coast Wrecker", spr: "🪝", att: "NOX", lvl: 13, hp: 950, atk: 38, spd: 9, armor: 4, mag: 0, xp: 180, gold: [24, 44], ai: "basic", onHit: { poison: 4 } },
-  cutthroat: { name: "Tide Cutthroat", spr: "🗡️", att: "SOL", lvl: 13, hp: 650, atk: 34, spd: 17, armor: 2, mag: 0, xp: 178, gold: [24, 44], ai: "basic" },
-  deckhand: { name: "Pirate Slinger", spr: "🏹", att: "QUANTA", lvl: 14, hp: 620, atk: 38, spd: 13, armor: 1, mag: 0, xp: 186, gold: [26, 46], ai: "basic" },
-  shellcrab: { name: "Reef Crab", spr: "🦀", att: "ANIMA", lvl: 14, hp: 1140, atk: 39, spd: 6, armor: 9, mag: 0, xp: 200, gold: [28, 50], ai: "basic", onHit: { poison: 3 } },
-  seaserpent: { name: "Brine Serpent", spr: "🐍", att: "UMBRAXIS", lvl: 15, hp: 850, atk: 39, spd: 14, armor: 2, mag: 0, xp: 210, gold: [26, 48], ai: "basic", leech: 30 },
+  wrecker: { name: "Coast Wrecker", spr: "🪝", att: "NOX", lvl: 13, hp: 950, atk: 38, spd: 9, armor: 4, mag: 0, xp: 206, gold: [24, 44], ai: "basic", onHit: { poison: 4 } },
+  cutthroat: { name: "Tide Cutthroat", spr: "🗡️", att: "SOL", lvl: 13, hp: 650, atk: 34, spd: 17, armor: 2, mag: 0, xp: 204, gold: [24, 44], ai: "basic" },
+  deckhand: { name: "Pirate Slinger", spr: "🏹", att: "QUANTA", lvl: 14, hp: 620, atk: 38, spd: 13, armor: 1, mag: 0, xp: 213, gold: [26, 46], ai: "basic" },
+  shellcrab: { name: "Reef Crab", spr: "🦀", att: "ANIMA", lvl: 14, hp: 1140, atk: 39, spd: 6, armor: 9, mag: 0, xp: 228, gold: [28, 50], ai: "basic", onHit: { poison: 3 } },
+  seaserpent: { name: "Brine Serpent", spr: "🐍", att: "UMBRAXIS", lvl: 15, hp: 850, atk: 39, spd: 14, armor: 2, mag: 0, xp: 240, gold: [26, 48], ai: "basic", leech: 30 },
   // Champion guardian (the sea-cave payoff): a tanky multi-threat wrecker-captain. boss:true so the engine
   // routes it through startBoss as the cave's finale — NOT enrage (champion-tier, not a spine boss).
   wreckcaptain: { name: "Wrecker-Captain", spr: "🏴‍☠️", att: "NOX", lvl: 16, hp: 5400, atk: 124, spd: 11, armor: 7, mag: 0, xp: 420, gold: [180, 280], ai: "boss", boss: true, skills: ["rally"], castChance: 0.28, art: "wrecker" },

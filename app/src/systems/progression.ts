@@ -93,7 +93,7 @@ export function recalc(party: Member[]): void {
 }
 
 export function xpForLevel(l: number): number {
-  return Math.round(26 * Math.pow(l, 1.94)); // steepened 1.65->1.73->1.85->1.92->1.94: real playtest over-leveled (party ~L9 BEFORE the city/boss, ~L12.8 final). A modestly steeper late cost lands the city run-up nearer L8-9 and the finale ~L12 without over-taxing HP into wipe territory
+  return Math.round(26 * Math.pow(l, 1.91)); // 1.94->1.91: the level-scaled elite roll + champ-gate (combat.ts v0.65 first-run-wipe fix) thinned early-elite/champ XP, dropping the party ~2 levels under-band for the deep zones (sim ~L17.6, was ~L19.5; full-clear wipe ~49%->58%). Easing the curve ~11% restores the pace (sim ~L19-20, in-band arrivals) WITHOUT re-inflating early-game difficulty (the fix survives). Was steepened 1.65->...->1.94 to stop over-leveling; this is a measured walk-back to offset the lost elite XP only
 }
 
 export interface LevelUp {
