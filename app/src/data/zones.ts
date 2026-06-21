@@ -381,6 +381,22 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
     [{ x: 24, y: 7 }, { x: 24, y: 10 }],   // cross-link: NE canopy ↔ central hub
   ],
   dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (SILVERWOOD_DUNGEON) — ADR 0008 Stage 2
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). A WOODED STREAM (river kind = a clear forest brook)
+  // runs the x=18 gap between the west hollow and the central crossing, SEVERING the winding MIDDLE trail
+  // (it crosses at y=13, carried by a mossy log BRIDGE) and the SOUTH mossbed trail (y=19, carried by a
+  // FORD over the stepping-roots) — the NORTH fern trail (y=5) stays dry as the redundant route. A
+  // MOSS-FURRED CLIFF (an old rockfall, the "mossy hollow" framed in stone) walls the north-trail↔central
+  // gap + edges the deep mossbed, funnelling the route between the ancient trunks.
+  rivers: [
+    { x: 18, y: 8, w: 1, h: 12 },  // the wooded stream: crosses the MIDDLE trail (y13, log bridge) + the SOUTH mossbed (y19, forded)
+    { x: 19, y: 14, w: 1, h: 3 },  // a meander so the brook winds between the roots
+  ],
+  cliffs: [
+    { x: 15, y: 7, w: 4, h: 1 },   // the moss-furred rockfall between the fern trail and the central crossing
+    { x: 27, y: 16, w: 2, h: 2 },  // SE mossy outcrop edging the deep mossbed (Mossback's lair)
+  ],
+  bridges: [{ x: 18, y: 13 }],     // the middle trail's mossy log bridge over the stream (its only crossing)
+  fords: [{ x: 18, y: 19 }],       // the stepping-root ford reconnecting the sunken-hollow↔mossbed loop
   chests: [
     { x: 14, y: 4 },   // north fern hollow (north trail)
     { x: 13, y: 20 },  // south sunken-root hollow (south trail)
@@ -388,6 +404,13 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
   ],
   lair: { x: 24, y: 20 }, // the Mossback Tortoise dens deep in the southern mossbed off the south loop
   scatter: 0.09,          // denser scatter than the shire: ferns/mushrooms thick on the floor
+  // POIs — the INHABITED ancient forest, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Grove Shrine" },                                             // north fern hollow — heal
+    { x: 14, y: 18, kind: "camp", name: "Poachers' Camp", pack: ["sylvanarcher", "dwolf", "dwolf"] },  // south sunken hollow — optional fight
+    { x: 26, y: 3, kind: "landmark", name: "The Elder Stones", note: "Standing stones swallowed by root and moss — the forest grew up around a ring older than memory." }, // NE canopy nook
+    { x: 11, y: 12, kind: "signpost", name: "Trailhead Marker", note: "Fern hollow north · sunken roots south · the Elder Treant's gate lies east." }, // west fork
+  ],
 };
 // The Sunless Grove as its own grid (data uniform with Greenvale; Silverwood stays on the LEGACY
 // combined-grid path in Chunk A, so this layout is data-only until its zone is migrated — Chunk B).
@@ -457,12 +480,34 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
     { x: 17, y: 9, w: 2, h: 4 },    // east-of-lagoon pinch
   ],
   dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (DUSKMARSH_DUNGEON) — ADR 0008 Stage 2
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). The mire already has standing-water pools; now a
+  // winding CHANNEL (river kind = a slow black watercourse) snakes down the x=15 gap and CROSSES the SOUTH
+  // causeway (y=18), SEVERING the low road unless you take the plank FORD — the NORTH causeway (y=4) stays
+  // the dry high road (the redundant route). REED-CHOKED HUMMOCKS (cliff kind = mire-rock + dense reed
+  // stands you can't push through) frame the channel + edge the sunken ruin, so the mire reads as living
+  // wetland, not flat bog. Channel/hummocks pinch, never sever (the north causeway + flood-repair guarantee).
+  rivers: [
+    { x: 15, y: 15, w: 1, h: 5 },   // the channel: crosses the SOUTH causeway (y18, forded)
+    { x: 16, y: 16, w: 1, h: 2 },   // a sluggish meander so the channel winds through the reeds
+  ],
+  cliffs: [
+    { x: 8, y: 7, w: 1, h: 2 },     // reed-hummock pinching the head fork's north shoulder
+    { x: 18, y: 16, w: 2, h: 1 },   // reed thicket edging the sunken ruin (between ruin and central hub)
+  ],
+  fords: [{ x: 15, y: 18 }],        // the plank ford carrying the south causeway over the channel
   chests: [
     { x: 12, y: 3 },   // north bog pocket (north causeway)
     { x: 13, y: 18 },  // sunken ruin (south causeway, shares the ruin with the lair)
   ],
   lair: { x: 11, y: 18 }, // the rare beast dens in the flooded ruin stones off the south road
   scatter: 0.07,
+  // POIs — the INHABITED mire, all OFF the main flow:
+  pois: [
+    { x: 8, y: 3, kind: "shrine", name: "Sunken Shrine" },                                             // north bog pocket approach — heal
+    { x: 9, y: 18, kind: "camp", name: "Cultists' Camp", pack: ["leper", "direrat", "rat"] },          // sunken ruin (west of the lair) — optional fight
+    { x: 24, y: 3, kind: "signpost", name: "Drowned Signpost", note: "A half-sunk marker, lettering scoured by the bog: 'High road north · low road south · the Vault below.'" }, // NE near central hub
+    { x: 19, y: 11, kind: "landmark", name: "The Mire-Idol", note: "A moss-slick idol on a hummock, offerings of bone and reed heaped at its base — someone still prays here." }, // central hub edge
+  ],
 };
 // The Drowned Vault as its own grid (data uniform with Greenvale; Duskmarsh stays on the LEGACY
 // combined-grid path in Chunk A — data-only until its zone is migrated in Chunk B).
@@ -546,6 +591,22 @@ const GOLDMEADOW_LAYOUT: ZoneLayout = {
     { x: 7, y: 18, w: 5, h: 4 },    // SW creek pool (the south track bridges its east lip at x≈13)
     { x: 16, y: 20, w: 4, h: 2 },   // creek run trailing SE under the farmstead
   ],
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). THE CREEK now CROSSES a road: a winding watercourse
+  // (river kind) runs the x=19 gap between the west commons and the central crossroads, SEVERING the fast
+  // MIDDLE field track (y=12, carried by a farm BRIDGE) and the SOUTH creek-meadow track (y=19, carried by
+  // a FORD) — the NORTH barn-yard track (y=4) stays dry as the redundant route. A DRYSTONE RIDGE (cliff =
+  // low field-wall escarpment) walls the north-track↔crossroads gap + edges the burned farmstead, channeling
+  // the open-field engagements (the brief's "nowhere to hide" — the ridge is the only hard cover out here).
+  rivers: [
+    { x: 19, y: 9, w: 1, h: 11 },  // the creek: crosses the MIDDLE track (y12, bridged) + the SOUTH meadow (y19, forded)
+    { x: 20, y: 14, w: 1, h: 3 },  // an oxbow so the creek winds across the plain, not runs straight
+  ],
+  cliffs: [
+    { x: 16, y: 7, w: 5, h: 1 },   // the drystone ridge between the north field track and the central crossroads
+    { x: 29, y: 16, w: 2, h: 2 },  // SE drystone outcrop edging the burned farmstead
+  ],
+  bridges: [{ x: 19, y: 12 }],     // the middle track's farm bridge over the creek (its only crossing)
+  fords: [{ x: 19, y: 19 }],       // the creek meadow's ford (reconnects the meadow↔farmstead loop)
   chests: [
     { x: 14, y: 3 },   // north barn-yard field (north track)
     { x: 13, y: 20 },  // south creek meadow (south track, by the crossing)
@@ -553,6 +614,13 @@ const GOLDMEADOW_LAYOUT: ZoneLayout = {
   ],
   lair: { x: 25, y: 20 }, // the gilded wheat-beast dens in the burned farmstead off the south loop
   scatter: 0.05,          // sparse: wide open ground, "nowhere to hide" — less cover than the forest
+  // POIs — the INHABITED breadbasket, all OFF the main flow:
+  pois: [
+    { x: 16, y: 3, kind: "shrine", name: "Harvest Shrine" },                                           // north barn-yard field — heal
+    { x: 15, y: 20, kind: "camp", name: "Raiders' Camp", pack: ["raider", "marauder", "wilddog"] },    // south creek meadow — optional fight
+    { x: 29, y: 4, kind: "landmark", name: "The Old Windmill", note: "A burned-out mill, sails snapped — the war-host fires its grain-store as a beacon." }, // NE fallow field
+    { x: 13, y: 13, kind: "signpost", name: "Field Crossroads", note: "Barn-yard road north · creek meadow south · the windmill gate lies east." }, // west fork
+  ],
 };
 // The occupied Windmill / Granary Undercroft as its own grid (sibling to Warren/Grove/Vault). The
 // undercroft forks into two looped rooms that rejoin at a threshing antechamber, with a DEAD-END VAULT
@@ -634,9 +702,31 @@ const STORMCOAST_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 6, y: 16, w: 4, h: 4 }], // SW creek/tidewater pool (the south track bridges its east lip)
+  // VARIED TERRAIN + INHABITED (Dara's 2026-06-21 roll-out). A SEA INLET (river kind = saltwater channel)
+  // floods the gap between the west hub and the central hub at x=17, SEVERING the fast MIDDLE track (y=11,
+  // bridged by a plank quay) and the SOUTH strand track (y=17, forded over the shallows) — the NORTH cliff
+  // track (y=4) stays dry as the redundant way round. SEA-CLIFFS (cliff kind) wall the north-track↔central
+  // gap, funnelling the high road. Both pinch, never sever (loops route around; flood-repair guarantees).
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // tidal inlet: crosses the MIDDLE track (y11, bridged) + the SOUTH strand (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a short backwater jog so the inlet winds, not runs straight
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // sea-cliff shoulder between the north track and the central hub
+    { x: 27, y: 14, w: 2, h: 2 },  // SE rocky headland edging the smugglers' flat
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the middle track's plank quay over the inlet (its only crossing)
+  fords: [{ x: 17, y: 17 }],       // the south strand's shallow ford (reconnects the strand↔smugglers loop)
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },               // the sea-beast dens in the SE smugglers' flat
   scatter: 0.05,
+  // POIs — the INHABITED coast, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Tide-Watcher's Shrine" },                                 // north cliff terrace — heal
+    { x: 14, y: 18, kind: "camp", name: "Wreckers' Camp", pack: ["wrecker", "cutthroat", "cutthroat"] }, // south strand — optional fight
+    { x: 27, y: 3, kind: "landmark", name: "The Broken Hull", note: "A storm-flung ship's ribs, picked clean by gulls and wreckers alike." }, // NE tidepools
+    { x: 11, y: 11, kind: "signpost", name: "Coast Road Sign", note: "Cliff path north · Wreck strand south · the sea-cave lies east." }, // west fork
+  ],
 };
 // A small sea-cave: entry hall forks into a north chamber + a tough south chamber that rejoin at the
 // guardian's arena (a loop). Champion guardian → (13,8).
@@ -684,9 +774,30 @@ const RIVERHEARTH_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 6, y: 16, w: 4, h: 4 }, { x: 17, y: 18, w: 3, h: 2 }], // the river run along the south
+  // VARIED TERRAIN + INHABITED. THE TRADE RIVER (this is the capital's river) snakes down the x=17 gap,
+  // SEVERING the fast MIDDLE trade-road (y=11, carried by a stone BRIDGE) and the SOUTH riverbank track
+  // (y=17, carried by a FORD) — the NORTH trade road (y=4) stays dry as the redundant route. A ROAD
+  // EMBANKMENT (cliff = raised stone causeway) walls the north-road↔central gap, funnelling the high road.
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // the river: crosses the MIDDLE road (y11, bridged) + the SOUTH bank (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a mid-course meander so the river winds
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // raised road embankment between the north road and the central market
+    { x: 27, y: 14, w: 2, h: 2 },  // SE wharf retaining wall edging the warehouse row
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the middle road's stone bridge over the trade river (its only crossing)
+  fords: [{ x: 17, y: 17 }],       // the riverbank track's ford (reconnects the bank↔warehouse loop)
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },
   scatter: 0.06,
+  // POIs — the INHABITED trade outskirts, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Ferryman's Shrine" },                                       // north trade road — heal
+    { x: 14, y: 18, kind: "camp", name: "Smugglers' Camp", pack: ["smuggler", "roadbandit", "footpad"] }, // south riverbank — optional fight
+    { x: 27, y: 3, kind: "signpost", name: "Capital Milestone", note: "Riverhearth gates ahead · caravan yard north · the wharves south." }, // NE caravan yard
+    { x: 11, y: 11, kind: "landmark", name: "The Toll Cairn", note: "A heaped cairn of road-tolls and traders' offerings, older than the city charter." }, // west fork
+  ],
 };
 const RIVERHEARTH_CAVE: DungeonLayout = {
   w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
@@ -728,9 +839,31 @@ const DAWNFALL_LAYOUT: ZoneLayout = {
     [{ x: 24, y: 6 }, { x: 24, y: 8 }],
   ],
   dunRects: [], dunPaths: [],
+  // VARIED TERRAIN + INHABITED. A flooded DEFENSIVE MOAT/DITCH (river kind) runs the x=17 gap, SEVERING
+  // the MIDDLE bailey track (y=11, carried by a RUINED BRIDGE — the old drawbridge stub) and the SOUTH
+  // muster-yard track (y=17, carried by a FORD where the moat has silted up) — the NORTH rampart walk
+  // (y=4) stays dry as the redundant route. BROKEN CURTAIN WALLS (cliff = fallen rampart) wall the
+  // north-walk↔bailey gap + edge the collapsed barracks, funnelling the approach through the ruin.
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // the moat: crosses the MIDDLE track (y11, ruined bridge) + the SOUTH yard (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a silted dog-leg so the ditch bends round the fallen masonry
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // the broken north curtain wall between the rampart walk and the bailey
+    { x: 27, y: 14, w: 2, h: 2 },  // SE rubble of the fallen barracks wall
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the ruined drawbridge stub over the moat (the middle track's only crossing)
+  fords: [{ x: 17, y: 17 }],       // the silted ford reconnecting the muster yard↔barracks loop
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },
   scatter: 0.08,    // rubble-strewn ruin: more cover/debris than the open coast
+  // POIs — the INHABITED ruined hold, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Garrison Chapel" },                                          // north rampart walk — heal
+    { x: 14, y: 18, kind: "camp", name: "Fallen-Watch Camp", pack: ["brokenwatch", "fallenarcher", "frontierbeast"] }, // south muster yard — optional fight
+    { x: 27, y: 3, kind: "landmark", name: "The Broken Tower", note: "The watchtower's snapped stump, its beacon long cold — it fell the night the hold was breached." }, // NE broken tower
+    { x: 11, y: 11, kind: "signpost", name: "Muster Post", note: "Rampart walk north · muster yard south · the undervault breach lies east." }, // west fork
+  ],
 };
 const DAWNFALL_CAVE: DungeonLayout = {
   w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
@@ -772,9 +905,31 @@ const WHISPERHILLS_LAYOUT: ZoneLayout = {
     [{ x: 24, y: 6 }, { x: 24, y: 8 }],
   ],
   dunRects: [], dunPaths: [],
+  // VARIED TERRAIN + INHABITED. A clear monastic BROOK (river kind) tumbles down the x=17 gap between the
+  // cloister hubs, SEVERING the MIDDLE pilgrim path (y=11, carried by a humped stone BRIDGE) and the SOUTH
+  // orchard-slope track (y=17, carried by a FORD over the stepping-stones) — the NORTH terraced-garden walk
+  // (y=4) stays dry as the redundant route. A CLIFF ESCARPMENT (the hills' chalk scarp) walls the
+  // north-walk↔chapter-house gap + edges the silent garden, funnelling the climb to the monastery.
+  rivers: [
+    { x: 17, y: 8, w: 1, h: 10 },  // the brook: crosses the MIDDLE path (y11, bridged) + the SOUTH slope (y17, forded)
+    { x: 18, y: 13, w: 1, h: 3 },  // a babbling meander so the brook winds through the hollow
+  ],
+  cliffs: [
+    { x: 15, y: 6, w: 4, h: 1 },   // the chalk escarpment between the terraced gardens and the chapter house
+    { x: 27, y: 14, w: 2, h: 2 },  // SE rocky knoll edging the silent garden
+  ],
+  bridges: [{ x: 17, y: 11 }],     // the pilgrim path's humped stone bridge over the brook (its only crossing)
+  fords: [{ x: 17, y: 17 }],       // the stepping-stone ford reconnecting the orchard slope↔silent-garden loop
   chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
   lair: { x: 23, y: 18 },
   scatter: 0.07,
+  // POIs — the INHABITED monastic hills, all OFF the main flow:
+  pois: [
+    { x: 15, y: 3, kind: "shrine", name: "Roadside Reliquary" },                                       // north terraced gardens — heal
+    { x: 14, y: 18, kind: "camp", name: "Corrupt-Monks' Camp", pack: ["corruptmonk", "flagellant", "wraith"] }, // south orchard slope — optional fight
+    { x: 27, y: 3, kind: "landmark", name: "The Reliquary Stone", note: "A weathered standing stone carved with a litany no living monk will read aloud." }, // NE bell-tower knoll
+    { x: 11, y: 11, kind: "signpost", name: "Pilgrim's Marker", note: "Terraced gardens north · orchard slope south · the silent crypt lies east." }, // west fork
+  ],
 };
 const WHISPERHILLS_CAVE: DungeonLayout = {
   w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
@@ -818,9 +973,33 @@ const FROSTPEAK_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 7, y: 18, w: 5, h: 3 }], // SW frozen pool (the south track crosses its east lip)
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). This is the MOUNTAIN zone, so it LEANS INTO CLIFFS:
+  // heavy ridgelines wall and FUNNEL the routes. A frozen MELTWATER STREAM (river kind = a glacial channel)
+  // runs the x=19 gap, SEVERING the MIDDLE glacier track (y=12, carried by an ICE BRIDGE) and the SOUTH
+  // icefall track (y=19, carried by a FORD over a frozen shallow) — the NORTH frozen-ridge track (y=4) stays
+  // dry as the redundant route. Two long CLIFF RIDGELINES squeeze the central glacier hub from north and
+  // south (the peaks closing in), plus a ridge edging the hanging glacier — the cold gate's defining terrain.
+  rivers: [
+    { x: 19, y: 9, w: 1, h: 11 },  // the meltwater stream: crosses the MIDDLE track (y12, ice bridge) + the SOUTH icefall (y19, forded)
+    { x: 20, y: 14, w: 1, h: 3 },  // a frozen meander so the stream snakes between the seracs
+  ],
+  cliffs: [
+    { x: 16, y: 7, w: 6, h: 1 },   // north ridgeline closing in on the glacier hub from above
+    { x: 16, y: 16, w: 5, h: 1 },  // south ridgeline closing in from below — the two funnel the central approach
+    { x: 29, y: 16, w: 2, h: 2 },  // serac wall edging the hanging glacier (the rare lair)
+  ],
+  bridges: [{ x: 19, y: 12 }],     // the middle track's ice bridge over the meltwater (its only crossing)
+  fords: [{ x: 19, y: 19 }],       // the frozen ford reconnecting the icefall↔hanging-glacier loop
   chests: [{ x: 14, y: 3 }, { x: 13, y: 20 }, { x: 26, y: 3 }],
   lair: { x: 25, y: 20 },
   scatter: 0.05,
+  // POIs — the INHABITED frozen highlands, all OFF the main flow:
+  pois: [
+    { x: 16, y: 3, kind: "shrine", name: "Frozen Shrine" },                                            // north frozen ridge — heal
+    { x: 15, y: 20, kind: "camp", name: "Frost-Reavers' Camp", pack: ["mtnreaver", "icewolf", "icewolf"] }, // south icefall — optional fight
+    { x: 29, y: 4, kind: "landmark", name: "The Dwarven Ruin", note: "A frost-shattered dwarven cairn, runes worn smooth — a road-marker from before the hold went silent." }, // NE crystal field
+    { x: 13, y: 13, kind: "signpost", name: "Glacial Waymark", note: "Frozen ridge north · the icefall south · the Dwarven Stronghold's gate lies east." }, // west fork
+  ],
 };
 // The Dwarven Stronghold as its own grid: forks into two looped halls rejoining at a great-hall
 // antechamber, a DEAD-END treasury vault off it (richest hoard), a guarded run-up to the boss arena.
@@ -871,9 +1050,31 @@ const SUNBRIDGE_LAYOUT: ZoneLayout = {
   ],
   dunRects: [], dunPaths: [],
   water: [{ x: 7, y: 18, w: 5, h: 4 }, { x: 16, y: 20, w: 4, h: 2 }], // harbor water along the south
+  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out — the AURELION FINALE). A HARBOR CHANNEL (river kind =
+  // tidal seaway) cuts the x=19 gap between the quay hubs, SEVERING the fast MIDDLE plaza track (y=12,
+  // carried by a QUAY BRIDGE) and the SOUTH harbor-flats track (y=19, carried by a FORD over the harbor
+  // shallows) — the NORTH seawall walk (y=4) stays dry as the redundant route. The great SEA-WALL (cliff)
+  // walls the north-walk↔plaza gap + edges the flooded docks, funnelling the siege-approach to the citadel.
+  rivers: [
+    { x: 19, y: 9, w: 1, h: 11 },  // the harbor channel: crosses the MIDDLE track (y12, quay bridge) + the SOUTH flats (y19, forded)
+    { x: 20, y: 14, w: 1, h: 3 },  // a slipway dog-leg so the channel bends round the moorings
+  ],
+  cliffs: [
+    { x: 16, y: 7, w: 6, h: 1 },   // the great sea-wall between the seawall walk and the harbor plaza
+    { x: 29, y: 16, w: 2, h: 2 },  // SE breakwater edging the flooded docks (the rare corsair lair)
+  ],
+  bridges: [{ x: 19, y: 12 }],     // the harbor plaza's quay bridge over the channel (its only crossing)
+  fords: [{ x: 19, y: 19 }],       // the harbor-flats ford reconnecting the flats↔flooded-docks loop
   chests: [{ x: 14, y: 3 }, { x: 13, y: 20 }, { x: 26, y: 3 }],
   lair: { x: 25, y: 20 },
   scatter: 0.04,    // paved quays: least cover of all six
+  // POIs — the INHABITED besieged port, all OFF the main flow:
+  pois: [
+    { x: 16, y: 3, kind: "shrine", name: "Harbor Shrine" },                                            // north seawall walk — heal
+    { x: 15, y: 20, kind: "camp", name: "Siege Camp", pack: ["siegetrooper", "searaider", "searaider"] }, // south harbor flats — optional fight
+    { x: 29, y: 4, kind: "landmark", name: "The Lighthouse", note: "The citadel's lighthouse, its great lamp dark — the siege snuffed the light that guided Aurelion's ships home." }, // NE merchant quarter
+    { x: 13, y: 13, kind: "signpost", name: "Quayside Sign", note: "Seawall walk north · harbor flats south · the besieged citadel lies east." }, // west fork
+  ],
 };
 // The Besieged Citadel / Lighthouse as its own grid: forks into two looped wings rejoining at the
 // great-hall antechamber, a DEAD-END treasure vault off it (richest hoard), a guarded run-up to the
