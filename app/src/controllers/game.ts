@@ -92,6 +92,11 @@ export const Game = {
   // serialize/validate lives in systems/save.ts. Never saves the title screen / a dead run.
   saveNow(): void {
     if (this.state === "title" || !this.party.length) return;
+    // wx/wy is the seamless-world tile — meaningful while roaming the continent AND while standing in a
+    // big-map TOWN (there it's the overworld RETURN point you stepped in from; genTown leaves it intact).
+    // Persist it in both so leaving the town after a reload returns you there, not to a zone spawn. A
+    // dungeon leaves it 0 (px/py is truth in the dungeon).
+    const owReturn = Field.bigMap && !Field.enteredDungeon;
     Save.save({
       gold: this.gold, steps: this.steps, encountersWon: this.encountersWon,
       bossDefeated: this.bossDefeated, miniBossDefeated: this.miniBossDefeated,
@@ -101,9 +106,9 @@ export const Game = {
       zoneIndex: Field.zoneIndex,
       townId: this._inTown ? (Field.town?.id ?? this._hubChain[this._hubIx] ?? null) : null,
       px: Field.px, py: Field.py,
-      // WORLD COORDS (Stage 2C): persist the seamless big-map position when roaming the continent (and
-      // not in a dungeon). Discrete/town/dungeon saves leave these at 0 + bigMap false (px/py is truth).
-      wx: Field.bigMapActive() ? Field.wx : 0, wy: Field.bigMapActive() ? Field.wy : 0,
+      // WORLD COORDS (Stage 2C): persist the seamless big-map position when roaming the continent OR in a
+      // big-map town (the overworld return tile). A dungeon/discrete save leaves these at 0 (px/py truth).
+      wx: owReturn ? Field.wx : 0, wy: owReturn ? Field.wy : 0,
       bigMap: Field.bigMapActive(),
       enteredDungeon: Field.enteredDungeon,
       // CLEARED POIs (the inhabited world) — so a used shrine / raided camp stays spent across a reload.
@@ -153,6 +158,9 @@ export const Game = {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
       Field.genTown(r.townId);
       this.placePlayer(r.px, r.py);
+      // Restore the big-map RETURN tile (where you stepped into the town) so LEAVING heads back there —
+      // not to a zone spawn. genTown doesn't touch wx/wy; returnToOverworld reads them on leave.
+      Field.wx = r.wx; Field.wy = r.wy;
       Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
     } else {
       Field.enteredDungeon = r.enteredDungeon;
