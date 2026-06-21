@@ -385,7 +385,7 @@ export const Battle = {
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal), 500);
   },
   showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean): void {
-    let h = `<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +${gold} gold</p>`;
+    let h = `<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +◈ ${gold} Aether</p>`;
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
       leveled.forEach((l) => { h += `<div class="small">${l.name} → Lv ${l.level} · +1 MNA point${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`; });

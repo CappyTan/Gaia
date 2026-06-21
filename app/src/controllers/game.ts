@@ -167,7 +167,7 @@ export const Game = {
     }
     const noteHtml = r.notes.length ? `<p class="small" style="opacity:.8">${r.notes.join("<br>")}</p>` : "";
     Overlay.show(`<h2 class="title-gold">Welcome back</h2>
-      <p class="small">Your run resumes — party, gear, and gold intact.</p>${noteHtml}
+      <p class="small">Your run resumes — party, gear, and Aether intact.</p>${noteHtml}
       <div class="row"><button class="btn gold" onclick="Overlay.hide()">Continue</button></div>`);
   },
   // Place the player at the saved tile IF it's passable on the (possibly changed) map; otherwise
@@ -208,7 +208,7 @@ export const Game = {
     Overlay.show(`
     <h2 class="title-gold">Gaia is saved</h2>
     <p>Mirelord Vorn falls. You have cut a path through every zone of the slice.</p>
-    <p class="small">Run complete — encounters won: ${this.encountersWon}. Gold: ${this.gold}.</p>
+    <p class="small">Run complete — encounters won: ${this.encountersWon}. Aether: ◈ ${this.gold}.</p>
     <div class="row"><button class="btn gold" onclick="Overlay.hide();Game.start()">Play again</button>
       <button class="btn" onclick="Overlay.hide()">Home</button></div>`);
   },
@@ -260,7 +260,7 @@ export const Game = {
     const fullHp = this.party.every((m) => !m.alive || (m.hp >= m.maxhp && m.mp >= m.maxmp));
     const hpSum = this.party.reduce((n, m) => n + Math.max(0, m.hp), 0), maxSum = this.party.reduce((n, m) => n + m.maxhp, 0);
     const cost = this.restCost(), canPay = this.gold >= cost;
-    const label = fullHp ? "Fully rested" : canPay ? `Rest · ${cost}g` : `Rest · ${cost}g (need gold)`;
+    const label = fullHp ? "Fully rested" : canPay ? `Rest · ◈ ${cost}` : `Rest · ◈ ${cost} (need Aether)`;
     Overlay.show(`<h2 class="title-gold">🏠 The Inn</h2>
       <p class="small">Rest by the hearth — restore HP and MP for every living hero for a small fee.</p>
       <div class="card" style="margin:8px 0"><b style="color:var(--gold2)">Party HP</b> ${hpSum}/${maxSum} · <b style="color:var(--gold2)">Gold</b> ${this.gold}
@@ -296,9 +296,9 @@ export const Game = {
     let h = `<h2 class="title-gold">🔮 The Revive Shrine</h2>`;
     if (!dead.length) h += `<p class="small">No fallen heroes. May it stay that way.</p>`;
     else {
-      h += `<p class="small">Channel the shrine's Aether to bring the fallen back. Gold: <b>${this.gold}</b></p><div class="scroll">`;
+      h += `<p class="small">Channel the shrine's Aether to bring the fallen back. Aether: <b>◈ ${this.gold}</b></p><div class="scroll">`;
       h += dead.map((m) => { const c = this.reviveCostFor(m), can = this.gold >= c;
-        return `<button class="btn${can ? " gold" : ""}" ${can ? "" : "disabled"} onclick="Game.reviveMember('${m.id}')">Revive ${m.spr} ${m.name} · ${c}g</button>`; }).join(" ");
+        return `<button class="btn${can ? " gold" : ""}" ${can ? "" : "disabled"} onclick="Game.reviveMember('${m.id}')">Revive ${m.spr} ${m.name} · ◈ ${c}</button>`; }).join(" ");
       if (dead.length > 1) h += `<div class="small" style="opacity:.6;margin-top:4px">Total to revive all: ${reviveAll}g</div>`;
       h += `</div>`;
     }
@@ -423,11 +423,11 @@ export const Game = {
   },
   renderMerchant(): void {
     this._inMerchant = true;
-    let h = `<h2 class="title-gold">Wandering Merchant</h2><div class="small">"Spoils for the road ahead." Gold: <b>${this.gold}</b></div><div class="scroll">`;
+    let h = `<h2 class="title-gold">Wandering Merchant</h2><div class="small">"Spoils for the road ahead." Aether: <b>◈ ${this.gold}</b></div><div class="scroll">`;
     if (!this._stock.length) h += `<p class="small">Sold out. Safe travels.</p>`;
     this._stock.forEach((it, idx) => {
       const price = priceOf(it), afford = this.gold >= price;
-      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${afford ? " gold" : ""}" ${afford ? "" : "disabled"} onclick="Game.buyItem(${idx})">Buy · ${price}g</button></div>`);
+      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${afford ? " gold" : ""}" ${afford ? "" : "disabled"} onclick="Game.buyItem(${idx})">Buy · ◈ ${price}</button></div>`);
     });
     h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">Party</button><button class="btn" onclick="UI.openInventory()">Bag / Sell</button>`;
     h += `<button class="btn gold" onclick="Game.leaveMerchant()">◂ Back to town</button></div>`;
