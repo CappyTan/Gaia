@@ -48,7 +48,9 @@
   /* ---- Field map ---- */
   #fieldScreen{background:#0c1208;}
   #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
-  #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; pointer-events:none;}
+  #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; flex-direction:column; gap:6px; align-items:stretch; pointer-events:none;}
+  .hud-row{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;}
+  #fieldPartyWrap{align-self:flex-start; max-width:100%;} /* its own line below the zone/controls row — flows, never overlaps */
   .hud-pill{background:rgba(8,8,16,.78); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; pointer-events:auto;}
   /* Zone pill hierarchy: region name leads (larger/gold), sub-area + counts demote to a dimmer token. */
   #fieldZone .zone-lead{font-size:13px; font-weight:bold; color:var(--gold2);}
@@ -367,17 +369,17 @@
   <div id="fieldScreen" class="screen">
     <canvas id="fieldCanvas"></canvas>
     <div id="fieldHud">
-      <div class="hud-pill" id="fieldZone"><span class="zone-lead">Greenvale</span></div>
-      <div class="hud-grp">
-        <div class="hud-pill">◈ <span id="fieldGold">0</span> Aether</div>
-        <button class="hud-pill audiobtn" id="egressBtn" title="Return instantly to town" style="display:none" onclick="Game.egress()">⮌ EGRESS</button>
-        <button class="hud-pill audiobtn" title="Map (M)" onclick="Minimap.toggle()">🗺 Map</button>
-        <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
-        <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle(Music.cur === 'village' ? 'village' : 'field')">♪ <span id="st-field">Radiant</span></button>
+      <div class="hud-row">
+        <div class="hud-pill" id="fieldZone"><span class="zone-lead">Greenvale</span></div>
+        <div class="hud-grp">
+          <div class="hud-pill">◈ <span id="fieldGold">0</span> Aether</div>
+          <button class="hud-pill audiobtn" id="egressBtn" title="Return instantly to town" style="display:none" onclick="Game.egress()">⮌ EGRESS</button>
+          <button class="hud-pill audiobtn" title="Map (M)" onclick="Minimap.toggle()">🗺 Map</button>
+          <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
+          <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle(Music.cur === 'village' ? 'village' : 'field')">♪ <span id="st-field">Radiant</span></button>
+        </div>
       </div>
-    </div>
-    <div class="hud-pill" id="fieldPartyWrap" style="position:absolute;top:40px;left:8px;">
-      <div id="fieldParty"></div>
+      <div class="hud-pill" id="fieldPartyWrap"><div id="fieldParty"></div></div>
     </div>
     <div id="fieldHint"></div>
     <div id="menuBtns">
