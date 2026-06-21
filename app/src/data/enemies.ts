@@ -44,22 +44,27 @@ export const ENEMIES: Record<string, EnemyDef> = {
   //    drawn to the carnage. Attunements stay SPREAD across the ring (Dara's no-region-identity
   //    ruling — surface regions carry no Attunement theme; the lean here is creature/terrain flavor
   //    only). CD-authored under granted authority — names DRAFT, FLAGGED for Dara / requiem-canon-keeper.
-  //    Sprites are emoji placeholders (see asset-gaps.md). Stats are a first pass on the curve PAST the
-  //    Duskmarsh (L11 base → scales to L15 at depth) — balance-tuner owns the final numbers. Role mix:
+  //    Sprites are emoji placeholders (see asset-gaps.md). Stats are TUNED (balance-sim 200-run) on the
+  //    curve PAST the Duskmarsh (L11 base → scales to L15 at depth): the trash got a modest ATK/HP lift
+  //    off the encounter-pass first-pass so plains packs chip a bit harder. Role mix:
   //    fast skirmishers (marauder/wilddog), a ranged harrier, a rust-bladed bruiser (raider, whose
   //    NOX cuts fester — the onHit DoT is a rotting wound, not a burn), a scavenger leecher (carrion),
   //    and a slow armored wall (reaver) so packs play as different shapes. ──
-  raider: { name: "Plains Raider", spr: "🗡️", att: "NOX", lvl: 11, hp: 360, atk: 32, spd: 9, armor: 3, mag: 0, xp: 150, gold: [22, 40], ai: "basic", onHit: { poison: 4 } },
-  marauder: { name: "Field Marauder", spr: "🏃", att: "SOL", lvl: 11, hp: 268, atk: 31, spd: 16, armor: 2, mag: 0, xp: 152, gold: [22, 40], ai: "basic" },
-  harrier: { name: "Plains Harrier", spr: "🪨", att: "QUANTA", lvl: 12, hp: 244, atk: 33, spd: 13, armor: 1, mag: 0, xp: 158, gold: [24, 42], ai: "basic" },
-  wilddog: { name: "Wild Dog", spr: "🐕", att: "ANIMA", lvl: 11, hp: 224, atk: 30, spd: 17, armor: 1, mag: 0, xp: 144, gold: [16, 30], ai: "basic" },
-  carrion: { name: "Carrion Bird", spr: "🦅", att: "UMBRAXIS", lvl: 12, hp: 206, atk: 29, spd: 18, armor: 1, mag: 0, xp: 156, gold: [20, 38], ai: "basic", leech: 28 },
-  reaver: { name: "Iron Reaver", spr: "🛡️", att: "QUANTA", lvl: 13, hp: 452, atk: 35, spd: 6, armor: 8, mag: 0, xp: 200, gold: [28, 48], ai: "basic" },
+  raider: { name: "Plains Raider", spr: "🗡️", att: "NOX", lvl: 11, hp: 400, atk: 35, spd: 9, armor: 3, mag: 0, xp: 150, gold: [22, 40], ai: "basic", onHit: { poison: 4 } },
+  marauder: { name: "Field Marauder", spr: "🏃", att: "SOL", lvl: 11, hp: 300, atk: 34, spd: 16, armor: 2, mag: 0, xp: 152, gold: [22, 40], ai: "basic" },
+  harrier: { name: "Plains Harrier", spr: "🪨", att: "QUANTA", lvl: 12, hp: 272, atk: 36, spd: 13, armor: 1, mag: 0, xp: 158, gold: [24, 42], ai: "basic" },
+  wilddog: { name: "Wild Dog", spr: "🐕", att: "ANIMA", lvl: 11, hp: 252, atk: 33, spd: 17, armor: 1, mag: 0, xp: 144, gold: [16, 30], ai: "basic" },
+  carrion: { name: "Carrion Bird", spr: "🦅", att: "UMBRAXIS", lvl: 12, hp: 232, atk: 32, spd: 18, armor: 1, mag: 0, xp: 156, gold: [20, 38], ai: "basic", leech: 28 },
+  reaver: { name: "Iron Reaver", spr: "🛡️", att: "QUANTA", lvl: 13, hp: 500, atk: 38, spd: 6, armor: 8, mag: 0, xp: 200, gold: [28, 48], ai: "basic" },
   // Mini-boss (mouth gate): a raider war-captain who rallies his band; escorted by marauders.
   warcaptain: { name: "Raider War-Captain", spr: "⚔️", att: "NOX", lvl: 13, hp: 2100, atk: 80, spd: 10, armor: 6, mag: 0, xp: 340, gold: [140, 220], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "raider" },
   // Zone boss (the windmill): the warlord who leads the host — the run-ender. ENRAGE-flagged like the
   // Kingpin/Cave Troll (omega art TBD; the swap no-ops gracefully until art-integrator supplies it).
-  warlord: { name: "The Reaping Warlord", spr: "👹", att: "SOL", lvl: 15, hp: 4600, atk: 92, spd: 10, armor: 11, mag: 0, xp: 480, gold: [300, 460], ai: "boss", boss: true, skills: ["rally"], castChance: 0.2, enrage: { omega: "warlord-omega" } },
+  // TUNED to BITE: the encounter-pass first cut (hp 4600 / atk 92) read soft (~75% mean party HP).
+  // Raised hp→5400 (survives the party's burst → more turns of pressure) + atk→132 (each landed hit,
+  // amplified by rally/enrage, actually hurts) so the climax dips the party to ~55% mean / can wipe a
+  // mis-played run — without becoming a slog (boss-fight enemy actions stay ~4.5-5, not a sponge).
+  warlord: { name: "The Reaping Warlord", spr: "👹", att: "SOL", lvl: 15, hp: 5400, atk: 132, spd: 11, armor: 11, mag: 0, xp: 480, gold: [300, 460], ai: "boss", boss: true, skills: ["rally"], castChance: 0.2, enrage: { omega: "warlord-omega" } },
   // ── ULTRA-RARE treasure monsters (Metal-Slime / Warmech tier): very rare spawns, exceptional
   //    loot. Tough but beatable, with outsized XP/gold. ──
   hogger: { name: "Hogger", spr: "🐗", att: "ANIMA", lvl: 4, hp: 440, atk: 24, spd: 10, armor: 6, mag: 0, xp: 620, gold: [90, 170], ai: "basic", rare: true },
