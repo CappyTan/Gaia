@@ -18,7 +18,7 @@ import {
 } from "../src/data/world";
 import { ZONES } from "../src/data/zones";
 
-const BUILT = ["greenvale", "silverwood", "duskmarsh"] as const;
+const BUILT = ["greenvale", "silverwood", "duskmarsh", "goldmeadow"] as const;
 
 const layoutOf = (id: string) => ZONES.find((z) => z.id === id)!.layout;
 const polyOf = (id: string): Polygon => ZONE_REGIONS.find((z) => z.id === id && z.zone)!.shape;

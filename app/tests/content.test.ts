@@ -350,9 +350,10 @@ describe("Riverhearth — the Trade Capital (city)", () => {
 describe("zone hub chains (flow can't strand the player)", () => {
   const hubsFor = (z: typeof ZONES[number]) => (z.hubs && z.hubs.length ? z.hubs : [z.hub ?? "hearthford"]);
 
-  it("Greenvale → [Riverhearth] → Silverwood → [Miregard] → the Duskmarsh, in that order", () => {
-    // zone order is greenvale, silverwood, duskmarsh.
-    expect(ZONES.map((z) => z.id)).toEqual(["greenvale", "silverwood", "duskmarsh"]);
+  it("Greenvale → [Riverhearth] → Silverwood → [Miregard] → the Duskmarsh → Goldmeadow, in that order", () => {
+    // zone order is greenvale, silverwood, duskmarsh, goldmeadow (Goldmeadow continues the journey
+    // PAST the marsh and is now the run-ender — per the brief's flagged continuation).
+    expect(ZONES.map((z) => z.id)).toEqual(["greenvale", "silverwood", "duskmarsh", "goldmeadow"]);
     // The starting zone's chain is its opening village.
     expect(hubsFor(ZONES[0])).toEqual(["hearthford"]);
     // Inbound to Silverwood you pass through the grand trade capital.
