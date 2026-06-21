@@ -23,7 +23,7 @@ import { Telemetry } from "../telemetry/telemetry";
 // Per-zone dungeon tileset prefix (east of the gate), indexed by zoneIndex: Greenvale -> Bandit
 // Warren, Silverwood -> the Sunless Grove, Duskmarsh -> Drowned Vault. Matches ZONES order + the
 // per-zone `dungeon.env`.
-const DUNGEON_SETS = ["warren", "grove", "vault"];
+const DUNGEON_SETS = ["warren", "grove", "vault", "vault"]; // [0]Greenvale [1]Silverwood [2]Duskmarsh [3]Goldmeadow (granary undercroft → enclosed-stone vault skin until granary art lands)
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
@@ -549,7 +549,7 @@ export const Field = {
   // Render+roam the whole AURELION continent as a WINDOW into the 960×640 world (G22). `wx/wy` is the
   // source of truth; the viewport is iterated from a 32×32 chunk cache (realized on move, evicted when
   // far); each cell caches its identity (Area→biome/tileset/lean/music) at realize time so `draw()`
-  // never calls regionAt. The three built cores (Greenvale/Silverwood/the Duskmarsh) and the open
+  // never calls regionAt. The built cores (Greenvale/Silverwood/the Duskmarsh/Goldmeadow) and the open
   // continent between them are all roamable; position derives the zone (NO loadZone, ever).
 
   /** Is the windowed big-map overworld currently the active surface? (flag on + not in a dungeon/town.) */
@@ -834,7 +834,12 @@ export const Field = {
     else if (p > 0.88) msg = `${z.dungeon.name} lies just ahead.`;
     else msg = `${Math.round(p * 100)}% through ${name}. Keep moving east.`;
     set("#fieldHint", msg);
-    set("#fieldZone", `${this.inDungeon() ? z.dungeon.name : name} · ${Game.encountersWon} cleared`);
+    // On the seamless map, name the Area you're standing in (Goldmeadow's Open Wheat, the Creek Line, …)
+    // so crossing its sub-spaces reads as moving through real places, not one flat zone. Cheap — already
+    // sampled for music on the per-step path. Falls back to the zone name off the big map / in a dungeon.
+    const area = this.bigMapActive() ? regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name : undefined;
+    const place = this.inDungeon() ? z.dungeon.name : area ? `${name} · ${area}` : name;
+    set("#fieldZone", `${place} · ${Game.encountersWon} cleared`);
   },
   // One town tile: a ground sprite (cobble / grass; wall has none) under a building/decoration
   // object with a gold label. Everything falls back to emoji/flat-colour until the tileset is

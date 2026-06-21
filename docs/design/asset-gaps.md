@@ -179,6 +179,29 @@ requiem-canon-keeper to vet.
 | ◐ | Mossback Tortoise (`mossback`) | Silverwood rare (grove lair + random) | 🐢 emoji | ANIMA ultra-rare, huge armor / huge XP (Metal-Slime tier). |
 | | _(more filled in as the bestiary expands)_ | | | |
 
+## Goldmeadow Plains (v0.64 — Aurelion #3, "The Breadbasket")
+The first backlog region built into a seamless zone (L11–15, the run-ender past the Duskmarsh). The
+plains/windmill tilesets and the war-host bestiary ship as gold-on-dark placeholders. The wheat Areas
+reuse the existing golden **`meadow`** dressing (`meadow-ground` + `wheat` scatter) so the breadbasket
+reads as wheat today; the dungeon reuses the enclosed **`vault`** skin + backdrop until granary art
+lands. Names/lore flagged for Dara.
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Wheat-field ground / drystone wall / windmill / barn tiles | Goldmeadow Areas (Open Wheat, Farm Tracks, Windmill Approach, Burned Farmstead) | recolored `meadow` (golden) shire tiles | Dedicated wheat/wall/windmill art would give the region its own read vs. Greenvale's meadow. |
+| ☐ | Burned-farmstead / scorched tiles | `gm-farmstead` (rare-lair pocket) | `meadow` (warm, in-palette) | Wants a scorched/ruined-homestead look; on warm meadow placeholder for now (was reading as cold swamp). |
+| ◐ | Granary undercroft tileset + dungeon-mouth (windmill) sprite | The Windmill Undercroft dungeon | `vault` (enclosed-stone) tiles + entrance | `DUNGEON_SETS[3]="vault"`; battle backdrop `granary→vault`. Bespoke granary art later. |
+| ◐ | Plains Raider (`raider`) | Goldmeadow random | 🗡️ emoji | NOX, rust-bladed (festering on-hit). |
+| ◐ | Field Marauder (`marauder`) | Goldmeadow random | (emoji) | SOL, fast skirmisher (the opener). |
+| ◐ | Plains Harrier (`harrier`) | Goldmeadow random | 🏹 emoji | QUANTA ranged/sling. |
+| ◐ | Wild Dog (`wilddog`) | Goldmeadow random | (emoji) | ANIMA fast pack beast. |
+| ◐ | Carrion Bird (`carrion`) | Goldmeadow random | (emoji) | UMBRAXIS flyer, leech scavenger. |
+| ◐ | Iron Reaver (`reaver`) | Goldmeadow random | 🪓 emoji | QUANTA armored wall. |
+| ◐ | Raider War-Captain (`warcaptain`) | Goldmeadow mini (windmill mouth) | shares `raider` slice | Gate mini-boss. |
+| ◐ | The Reaping Warlord (`warlord`) | Goldmeadow boss (undercroft) | 👹 emoji | SOL run-ender boss; **enrages**. |
+| ☐ | **`warlord-omega`** (enrage form) | Warlord at ≤20% HP | _none — enrage art-swap no-ops_ | The Kingpin/Troll have omega forms; the headline boss should get its alpha→omega crossfade. Degrades gracefully (keeps 👹) meanwhile. |
+| ◐ | Gilded Sow (`goldsow`) | Goldmeadow rare (wheat) | (emoji) | ANIMA treasure-tier (Metal-Slime), huge XP/gold. |
+
 ---
 
 *Keep this list current as each region is built. The art pass happens after, in one go.*

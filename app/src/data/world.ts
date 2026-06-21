@@ -486,19 +486,19 @@ export const AREAS: Area[] = [
   //    lands. Leans are CREATURE/TERRAIN flavor only (no Attunement — Dara's ruling). Names = DRAFT. ──
   { id: "gm-wheatfields", name: "The Open Wheat", zone: "goldmeadow", draft: true,
     shape: ring([239, 139], [247, 121], [300, 113], [300, 159], [266, 158], [245, 161]),
-    identity: { biome: "plains", tileset: "shire", encounterLean: "raider-skirmisher", music: "plains" } },
+    identity: { biome: "meadow", tileset: "shire", encounterLean: "raider-skirmisher", music: "plains" } },
   { id: "gm-farmtracks", name: "The Farm Tracks", zone: "goldmeadow", draft: true,
     shape: ring([300, 113], [345, 127], [331, 148], [300, 150]),
-    identity: { biome: "farmland", tileset: "shire", encounterLean: "raider-harrier", music: "plains" } },
+    identity: { biome: "meadow", tileset: "shire", encounterLean: "raider-harrier", music: "plains" } },
   { id: "gm-creek", name: "The Creek Line", zone: "goldmeadow", draft: true,
     shape: ring([245, 161], [266, 158], [300, 159], [303, 171], [289, 184], [271, 179], [244, 162]),
     identity: { biome: "creek", tileset: "shire", encounterLean: "wolfpack-carrionbird", music: "plains" } },
   { id: "gm-farmstead", name: "The Burned Farmstead", zone: "goldmeadow", draft: true,
     shape: ring([300, 150], [300, 159], [303, 171], [289, 184], [313, 187], [332, 172], [331, 148]),
-    identity: { biome: "ruin", tileset: "shire", encounterLean: "rare-lair", music: "plains" } },
+    identity: { biome: "meadow", tileset: "shire", encounterLean: "rare-lair", music: "plains" } },
   { id: "gm-windmill-approach", name: "Windmill Approach", zone: "goldmeadow", draft: true,
     shape: ring([345, 127], [361, 152], [349, 177], [313, 187], [332, 172], [331, 148]),
-    identity: { biome: "farmland", tileset: "shire", encounterLean: "miniboss-gate", music: "plains" } },
+    identity: { biome: "meadow", tileset: "shire", encounterLean: "miniboss-gate", music: "plains" } },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

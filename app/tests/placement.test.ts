@@ -24,7 +24,7 @@ const layoutOf = (id: string) => ZONES.find((z) => z.id === id)!.layout;
 const polyOf = (id: string): Polygon => ZONE_REGIONS.find((z) => z.id === id && z.zone)!.shape;
 
 describe("placement bridge (Stage 2A)", () => {
-  it("places exactly the three built zones, each at scale 1", () => {
+  it("places exactly the built zones, each at scale 1", () => {
     expect(Object.keys(WORLD_PLACEMENT).sort()).toEqual([...BUILT].sort());
     for (const id of BUILT) {
       const p = placementOf(id)!;
