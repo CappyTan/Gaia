@@ -345,6 +345,15 @@ export const Game = {
           <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
       return;
     }
+    // A REVISIT of Hearthford (reached via the overworld village marker — start-village handled above):
+    // leaving heads back out onto the Greenvale overworld, not on down the hub chain.
+    if (Field.town?.id === "hearthford") {
+      Overlay.show(`<h2 class="title-gold">⚔️ Leave Hearthford</h2>
+        <p class="small">Head back out into Greenvale?</p>
+        <div class="row"><button class="btn gold" onclick="Game.leaveTown()">Back to Greenvale →</button>
+          <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
+      return;
+    }
     const dest = this.nextLeaveDest();
     Overlay.show(`<h2 class="title-gold">⚔️ Leave ${Field.town?.name ?? "Town"}</h2>
       <p class="small">${dest.label}</p>
@@ -368,6 +377,8 @@ export const Game = {
     this._inTown = false; this._inMerchant = false; Field.townMode = false;
     Overlay.hide();
     if (this._startVillage) { this._startVillage = false; Field.enterZoneFromVillage(); this.saveNow(); return; }
+    // Revisit leave (Hearthford via the overworld marker): step back out onto the Greenvale overworld.
+    if (Field.town?.id === "hearthford") { Field.returnToOverworld(); this.saveNow(); return; }
     // Advance the hub chain: if another settlement remains, walk into it; else load the next zone.
     const nextHub = this._hubChain[this._hubIx + 1];
     if (nextHub) { this._hubIx++; this.openTown(nextHub); Field.draw(); return; } // openTown saves
