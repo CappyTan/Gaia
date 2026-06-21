@@ -488,6 +488,323 @@ const GOLDMEADOW_DUNGEON: DungeonLayout = {
   scatter: 0.06,
 };
 
+// ════ AURELION COMPLETE — the remaining six regions (world-builder build 2026-06-21) ═══════════
+// Six new zones built to ONE recipe, replicating Goldmeadow: an OPEN-WORLD overworld mesh (a west hub
+// feeding THREE tracks — north field / fast middle / south field — that rejoin at a central hub, two
+// big LOOPS so roaming is a circuit, not an out-and-back; cross-links knit the pockets back to the
+// hubs; chests sit on routes you CHOOSE BETWEEN; the rare LAIR dens off the south loop; an east staging
+// green leads to the mini-boss GATE at the dungeon MOUTH), plus a discrete dungeon east of the mouth.
+//   The two SPINE regions (Frostpeak, Sunbridge) get the FULL multi-room dungeon (two looped rooms
+// rejoining at an antechamber, a DEAD-END richest-hoard VAULT off it, a guarded boss arena — like the
+// Windmill Undercroft). The four OPTIONAL regions get a SMALL single-floor CAVE: an entry hall that
+// forks into a north chamber and a tough south chamber that BOTH rejoin at the boss arena (a loop), each
+// holding one strong reward. Compact, but still a valid networked DungeonLayout (≥2 loop-redundant arms).
+//   genMap carves + flood-repairs to GUARANTEE boss + every chest/lair reachable (anti-soft-lock); the
+// loops mean no pocket can wall you in. Water pools (the hard-blocking "water" kind) frame creeks/
+// harbors where a region's flavor wants them — authored to pinch, never sever, the critical path.
+//
+// TILE KINDS reuse the existing family (grass/path/bush/rock/water/tree) as PLACEHOLDERS — the new
+// biomes (snow/ice/coast/harbor/stone/etc.) fall back to default shire ground in bigGround, which is
+// fine for now. FLAG FOR ART-INTEGRATOR: each region wants bespoke flavor tiles (snow/ice/dwarven-stone
+// for Frostpeak; rock-coast/wreck/sea-cliff for Storm Coast; wharf/trade-road for Riverhearth; ruined
+// rampart/rubble for Dawnfall; monastic green/cloister-stone for Whisper Hills; quay/sea-wall/lighthouse
+// for Sunbridge) — drawn as recolored existing tiles until Dara's art lands.
+//   FLAG FOR ME (Phase B / battle.ts): the new dungeon `env` strings (seacave, smuggden, stronghold,
+// keepvault, crypt, citadel) need ENV_BG backdrops; they map to "plains" via the fallback meanwhile —
+// for now point them at the closest existing backdrop (cave/vault) when wiring ENV_BG.
+
+// ── Optional-region OVERWORLD template (52×22 mesh) + small CAVE (16×16 loop) ──────────────────
+// Storm Coast — storm-lashed rock coast: a SW creek (water) wedges the south field; sparse scatter
+// reads as "exposed wet rock, nowhere to hide". Mouth = the sea-cave at the east staging.
+const STORMCOAST_LAYOUT: ZoneLayout = {
+  w: 52, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 34, y: 11 }, gateWallX: 34, boss: { x: 48, y: 10 },
+  mouth: { x: 34, y: 11 },
+  fieldRects: [
+    { x: 1, y: 9, w: 6, h: 5 },     // spawn cove (WEST)
+    { x: 8, y: 8, w: 7, h: 6 },     // WEST hub — three coast tracks leave it
+    { x: 10, y: 2, w: 8, h: 5 },    // north cliff terrace (chest)
+    { x: 9, y: 15, w: 9, h: 5 },    // south wreck strand (chest) + creek crossing
+    { x: 20, y: 8, w: 7, h: 6 },    // CENTRAL hub — the tracks rejoin
+    { x: 21, y: 2, w: 8, h: 5 },    // NE tidepools (chest, off the north loop)
+    { x: 20, y: 15, w: 9, h: 5 },   // SE smugglers' flat (the rare lair, off the south loop)
+    { x: 28, y: 9, w: 5, h: 5 },    // east staging before the sea-cave mouth
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 11 }, { x: 10, y: 11 }],                                   // spawn → west hub
+    [{ x: 11, y: 8 }, { x: 13, y: 4 }, { x: 24, y: 4 }, { x: 24, y: 8 }],  // NORTH track: west → cliffs → tidepools → central
+    [{ x: 14, y: 11 }, { x: 20, y: 11 }],                                  // MIDDLE track (fast, exposed)
+    [{ x: 11, y: 13 }, { x: 12, y: 17 }, { x: 24, y: 17 }, { x: 24, y: 13 }], // SOUTH track: west → strand → smugglers → central
+    [{ x: 26, y: 11 }, { x: 33, y: 11 }],                                  // central → staging → gate
+    [{ x: 13, y: 4 }, { x: 13, y: 8 }],   // cross-link: cliffs ↔ west hub
+    [{ x: 24, y: 6 }, { x: 24, y: 8 }],   // cross-link: tidepools ↔ central hub
+  ],
+  dunRects: [], dunPaths: [],
+  water: [{ x: 6, y: 16, w: 4, h: 4 }], // SW creek/tidewater pool (the south track bridges its east lip)
+  chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
+  lair: { x: 23, y: 18 },               // the sea-beast dens in the SE smugglers' flat
+  scatter: 0.05,
+};
+// A small sea-cave: entry hall forks into a north chamber + a tough south chamber that rejoin at the
+// guardian's arena (a loop). Champion guardian → (13,8).
+const STORMCOAST_CAVE: DungeonLayout = {
+  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+  rooms: [
+    { x: 2, y: 8, w: 5, h: 6 },     // entry hall (the fork)
+    { x: 8, y: 3, w: 5, h: 4 },     // north chamber (chest)
+    { x: 8, y: 11, w: 5, h: 3 },    // tough south chamber (chest)
+    { x: 10, y: 6, w: 5, h: 5 },    // the guardian's arena
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 4, y: 11 }],                  // mouth → entry hall
+    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],  // hall → north chamber → arena
+    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],// hall → south chamber → arena (the LOOP)
+    [{ x: 11, y: 8 }, { x: 12, y: 8 }],                  // arena → boss spur
+  ],
+  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
+  scatter: 0.06,
+};
+
+// Riverhearth outskirts — trade-road/river wharves: water frames the south wharf; the EXISTING
+// Riverhearth city is the hub (set on the Zone). Mouth = the smugglers' den under the wharves.
+const RIVERHEARTH_LAYOUT: ZoneLayout = {
+  w: 52, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 34, y: 11 }, gateWallX: 34, boss: { x: 48, y: 10 },
+  mouth: { x: 34, y: 11 },
+  fieldRects: [
+    { x: 1, y: 9, w: 6, h: 5 },     // spawn wharves (WEST)
+    { x: 8, y: 8, w: 7, h: 6 },     // WEST hub
+    { x: 10, y: 2, w: 8, h: 5 },    // north trade road (chest)
+    { x: 9, y: 15, w: 9, h: 5 },    // south riverbank (chest) + river crossing
+    { x: 20, y: 8, w: 7, h: 6 },    // CENTRAL market commons hub
+    { x: 21, y: 2, w: 8, h: 5 },    // NE caravan yard (chest)
+    { x: 20, y: 15, w: 9, h: 5 },   // SE warehouse row (the rare lair)
+    { x: 28, y: 9, w: 5, h: 5 },    // east staging before the den mouth
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 11 }, { x: 10, y: 11 }],
+    [{ x: 11, y: 8 }, { x: 13, y: 4 }, { x: 24, y: 4 }, { x: 24, y: 8 }],
+    [{ x: 14, y: 11 }, { x: 20, y: 11 }],
+    [{ x: 11, y: 13 }, { x: 12, y: 17 }, { x: 24, y: 17 }, { x: 24, y: 13 }],
+    [{ x: 26, y: 11 }, { x: 33, y: 11 }],
+    [{ x: 13, y: 4 }, { x: 13, y: 8 }],
+    [{ x: 24, y: 6 }, { x: 24, y: 8 }],
+  ],
+  dunRects: [], dunPaths: [],
+  water: [{ x: 6, y: 16, w: 4, h: 4 }, { x: 17, y: 18, w: 3, h: 2 }], // the river run along the south
+  chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
+  lair: { x: 23, y: 18 },
+  scatter: 0.06,
+};
+const RIVERHEARTH_CAVE: DungeonLayout = {
+  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+  rooms: [
+    { x: 2, y: 8, w: 5, h: 6 }, { x: 8, y: 3, w: 5, h: 4 }, { x: 8, y: 11, w: 5, h: 3 }, { x: 10, y: 6, w: 5, h: 5 },
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 4, y: 11 }],
+    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],
+    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],
+    [{ x: 11, y: 8 }, { x: 12, y: 8 }],
+  ],
+  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
+  scatter: 0.06,
+};
+
+// Dawnfall Hold — breached frontier fortress: grim martial ruin, no water, denser scatter (rubble of
+// the fallen rampart). Mouth = the keep's breached undervault.
+const DAWNFALL_LAYOUT: ZoneLayout = {
+  w: 52, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 34, y: 11 }, gateWallX: 34, boss: { x: 48, y: 10 },
+  mouth: { x: 34, y: 11 },
+  fieldRects: [
+    { x: 1, y: 9, w: 6, h: 5 },     // spawn watchwall (WEST)
+    { x: 8, y: 8, w: 7, h: 6 },     // WEST muster hub
+    { x: 10, y: 2, w: 8, h: 5 },    // north rampart walk (chest)
+    { x: 9, y: 15, w: 9, h: 5 },    // south muster yard (chest)
+    { x: 20, y: 8, w: 7, h: 6 },    // CENTRAL bailey hub
+    { x: 21, y: 2, w: 8, h: 5 },    // NE broken tower (chest)
+    { x: 20, y: 15, w: 9, h: 5 },   // SE collapsed barracks (the rare lair)
+    { x: 28, y: 9, w: 5, h: 5 },    // east staging before the undervault mouth
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 11 }, { x: 10, y: 11 }],
+    [{ x: 11, y: 8 }, { x: 13, y: 4 }, { x: 24, y: 4 }, { x: 24, y: 8 }],
+    [{ x: 14, y: 11 }, { x: 20, y: 11 }],
+    [{ x: 11, y: 13 }, { x: 12, y: 17 }, { x: 24, y: 17 }, { x: 24, y: 13 }],
+    [{ x: 26, y: 11 }, { x: 33, y: 11 }],
+    [{ x: 13, y: 4 }, { x: 13, y: 8 }],
+    [{ x: 24, y: 6 }, { x: 24, y: 8 }],
+  ],
+  dunRects: [], dunPaths: [],
+  chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
+  lair: { x: 23, y: 18 },
+  scatter: 0.08,    // rubble-strewn ruin: more cover/debris than the open coast
+};
+const DAWNFALL_CAVE: DungeonLayout = {
+  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+  rooms: [
+    { x: 2, y: 8, w: 5, h: 6 }, { x: 8, y: 3, w: 5, h: 4 }, { x: 8, y: 11, w: 5, h: 3 }, { x: 10, y: 6, w: 5, h: 5 },
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 4, y: 11 }],
+    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],
+    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],
+    [{ x: 11, y: 8 }, { x: 12, y: 8 }],
+  ],
+  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
+  scatter: 0.06,
+};
+
+// Whisper Hills — quiet monastic green hills hiding a dark crypt: open green commons, medium scatter.
+// Mouth = the reliquary/crypt below the silent monastery.
+const WHISPERHILLS_LAYOUT: ZoneLayout = {
+  w: 52, h: 22, spawn: { x: 2, y: 11 }, gate: { x: 34, y: 11 }, gateWallX: 34, boss: { x: 48, y: 10 },
+  mouth: { x: 34, y: 11 },
+  fieldRects: [
+    { x: 1, y: 9, w: 6, h: 5 },     // spawn cloister green (WEST)
+    { x: 8, y: 8, w: 7, h: 6 },     // WEST hub
+    { x: 10, y: 2, w: 8, h: 5 },    // north terraced gardens (chest)
+    { x: 9, y: 15, w: 9, h: 5 },    // south orchard slope (chest)
+    { x: 20, y: 8, w: 7, h: 6 },    // CENTRAL chapter-house hub
+    { x: 21, y: 2, w: 8, h: 5 },    // NE bell-tower knoll (chest)
+    { x: 20, y: 15, w: 9, h: 5 },   // SE silent garden (the rare lair)
+    { x: 28, y: 9, w: 5, h: 5 },    // east staging before the crypt mouth
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 11 }, { x: 10, y: 11 }],
+    [{ x: 11, y: 8 }, { x: 13, y: 4 }, { x: 24, y: 4 }, { x: 24, y: 8 }],
+    [{ x: 14, y: 11 }, { x: 20, y: 11 }],
+    [{ x: 11, y: 13 }, { x: 12, y: 17 }, { x: 24, y: 17 }, { x: 24, y: 13 }],
+    [{ x: 26, y: 11 }, { x: 33, y: 11 }],
+    [{ x: 13, y: 4 }, { x: 13, y: 8 }],
+    [{ x: 24, y: 6 }, { x: 24, y: 8 }],
+  ],
+  dunRects: [], dunPaths: [],
+  chests: [{ x: 13, y: 3 }, { x: 12, y: 18 }, { x: 24, y: 3 }],
+  lair: { x: 23, y: 18 },
+  scatter: 0.07,
+};
+const WHISPERHILLS_CAVE: DungeonLayout = {
+  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+  rooms: [
+    { x: 2, y: 8, w: 5, h: 6 }, { x: 8, y: 3, w: 5, h: 4 }, { x: 8, y: 11, w: 5, h: 3 }, { x: 10, y: 6, w: 5, h: 5 },
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 4, y: 11 }],
+    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],
+    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],
+    [{ x: 11, y: 8 }, { x: 12, y: 8 }],
+  ],
+  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
+  scatter: 0.06,
+};
+
+// ── SPINE region OVERWORLD template (60×24 mesh) + FULL multi-room dungeon (24×24) ─────────────
+// Frostpeak Highlands — the cold gate east: frozen peaks + a silent dwarven hold. A frozen pool (water)
+// cuts the SW; sparse scatter (white, biting). Mouth = the hold-gate to the Dwarven Stronghold.
+const FROSTPEAK_LAYOUT: ZoneLayout = {
+  w: 60, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 36, y: 12 }, gateWallX: 36, boss: { x: 56, y: 11 },
+  mouth: { x: 36, y: 12 },
+  fieldRects: [
+    { x: 1, y: 10, w: 6, h: 6 },    // spawn glacial pass mouth (WEST)
+    { x: 9, y: 9, w: 7, h: 7 },     // WEST pass hub — three tracks leave it
+    { x: 11, y: 2, w: 8, h: 5 },    // north frozen ridge (chest)
+    { x: 10, y: 17, w: 9, h: 5 },   // south icefall (chest) + frozen-pool crossing
+    { x: 22, y: 9, w: 7, h: 7 },    // CENTRAL glacier hub — the tracks rejoin
+    { x: 23, y: 2, w: 8, h: 5 },    // NE crystal field (chest, off the north loop)
+    { x: 21, y: 17, w: 9, h: 5 },   // the hanging glacier (the rare crystalline beast lair)
+    { x: 30, y: 10, w: 5, h: 5 },   // east staging before the hold-gate
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 12 }, { x: 11, y: 12 }],
+    [{ x: 12, y: 9 }, { x: 14, y: 4 }, { x: 26, y: 4 }, { x: 26, y: 9 }],
+    [{ x: 15, y: 12 }, { x: 18, y: 12 }, { x: 22, y: 12 }],
+    [{ x: 12, y: 15 }, { x: 13, y: 19 }, { x: 26, y: 19 }, { x: 26, y: 15 }],
+    [{ x: 28, y: 12 }, { x: 32, y: 12 }, { x: 35, y: 12 }],
+    [{ x: 14, y: 4 }, { x: 14, y: 9 }],
+    [{ x: 26, y: 6 }, { x: 26, y: 9 }],
+  ],
+  dunRects: [], dunPaths: [],
+  water: [{ x: 7, y: 18, w: 5, h: 3 }], // SW frozen pool (the south track crosses its east lip)
+  chests: [{ x: 14, y: 3 }, { x: 13, y: 20 }, { x: 26, y: 3 }],
+  lair: { x: 25, y: 20 },
+  scatter: 0.05,
+};
+// The Dwarven Stronghold as its own grid: forks into two looped halls rejoining at a great-hall
+// antechamber, a DEAD-END treasury vault off it (richest hoard), a guarded run-up to the boss arena.
+const FROSTPEAK_DUNGEON: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  rooms: [
+    { x: 2, y: 8, w: 6, h: 8 },     // hold-gate entry hall (the fork)
+    { x: 10, y: 3, w: 7, h: 5 },    // north forge-hall (chest, on the loop)
+    { x: 10, y: 16, w: 7, h: 5 },   // south mine-gallery (chest, on the loop)
+    { x: 14, y: 8, w: 5, h: 7 },    // great-hall antechamber hub (the loop rejoins)
+    { x: 9, y: 11, w: 4, h: 3 },    // the dead-end treasury vault (RICHEST hoard)
+    { x: 17, y: 8, w: 6, h: 6 },    // the guardian's arena
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 5, y: 12 }],
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],
+    [{ x: 14, y: 12 }, { x: 12, y: 12 }],
+    [{ x: 16, y: 11 }, { x: 19, y: 11 }],
+  ],
+  chests: [{ x: 13, y: 4 }, { x: 13, y: 18 }, { x: 10, y: 12 }],
+  scatter: 0.06,
+};
+
+// Sunbridge — the grand southern port under siege (AURELION FINALE). Harbor water everywhere (two
+// pools); sparse scatter (paved quays). Mouth = the citadel/lighthouse the finale dungeon descends from.
+const SUNBRIDGE_LAYOUT: ZoneLayout = {
+  w: 60, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 36, y: 12 }, gateWallX: 36, boss: { x: 56, y: 11 },
+  mouth: { x: 36, y: 12 },
+  fieldRects: [
+    { x: 1, y: 10, w: 6, h: 6 },    // spawn quays (WEST)
+    { x: 9, y: 9, w: 7, h: 7 },     // WEST quay hub — three tracks leave it
+    { x: 11, y: 2, w: 8, h: 5 },    // north seawall walk (chest)
+    { x: 10, y: 17, w: 9, h: 5 },   // south harbor flats (chest) + harbor-water crossing
+    { x: 22, y: 9, w: 7, h: 7 },    // CENTRAL harbor plaza hub
+    { x: 23, y: 2, w: 8, h: 5 },    // NE merchant quarter (chest, off the north loop)
+    { x: 21, y: 17, w: 9, h: 5 },   // the flooded docks (the rare corsair lair)
+    { x: 30, y: 10, w: 5, h: 5 },   // east staging before the citadel mouth
+  ],
+  fieldPaths: [
+    [{ x: 4, y: 12 }, { x: 11, y: 12 }],
+    [{ x: 12, y: 9 }, { x: 14, y: 4 }, { x: 26, y: 4 }, { x: 26, y: 9 }],
+    [{ x: 15, y: 12 }, { x: 18, y: 12 }, { x: 22, y: 12 }],
+    [{ x: 12, y: 15 }, { x: 13, y: 19 }, { x: 26, y: 19 }, { x: 26, y: 15 }],
+    [{ x: 28, y: 12 }, { x: 32, y: 12 }, { x: 35, y: 12 }],
+    [{ x: 14, y: 4 }, { x: 14, y: 9 }],
+    [{ x: 26, y: 6 }, { x: 26, y: 9 }],
+  ],
+  dunRects: [], dunPaths: [],
+  water: [{ x: 7, y: 18, w: 5, h: 4 }, { x: 16, y: 20, w: 4, h: 2 }], // harbor water along the south
+  chests: [{ x: 14, y: 3 }, { x: 13, y: 20 }, { x: 26, y: 3 }],
+  lair: { x: 25, y: 20 },
+  scatter: 0.04,    // paved quays: least cover of all six
+};
+// The Besieged Citadel / Lighthouse as its own grid: forks into two looped wings rejoining at the
+// great-hall antechamber, a DEAD-END treasure vault off it (richest hoard), a guarded run-up to the
+// finale boss arena (the lighthouse summit). The continent finale fight lives here.
+const SUNBRIDGE_DUNGEON: DungeonLayout = {
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  rooms: [
+    { x: 2, y: 8, w: 6, h: 8 },     // citadel entry hall (the fork)
+    { x: 10, y: 3, w: 7, h: 5 },    // north barracks wing (chest, on the loop)
+    { x: 10, y: 16, w: 7, h: 5 },   // south cistern wing (chest, on the loop)
+    { x: 14, y: 8, w: 5, h: 7 },    // great-hall antechamber hub
+    { x: 9, y: 11, w: 4, h: 3 },    // the dead-end treasure vault (RICHEST hoard)
+    { x: 17, y: 8, w: 6, h: 6 },    // the lighthouse-summit boss arena
+  ],
+  paths: [
+    [{ x: 1, y: 12 }, { x: 5, y: 12 }],
+    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],
+    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],
+    [{ x: 14, y: 12 }, { x: 12, y: 12 }],
+    [{ x: 16, y: 11 }, { x: 19, y: 11 }],
+  ],
+  chests: [{ x: 13, y: 4 }, { x: 13, y: 18 }, { x: 10, y: 12 }],
+  scatter: 0.06,
+};
+
 // ── World-space placement + region graph (ADR 0008, Stage 1 — world-cartographer) ────────────
 // SEAMLESS CONTINUOUS OVERWORLD foundation. Today the engine treats each zone as an isolated grid
 // reached by a linear hub chain (`hubs` above) + `loadZone` (controllers/field.ts). ADR 0008's
@@ -626,6 +943,58 @@ export const WORLD_REGIONS: WorldRegion[] = [
     edges: [
       // West edge (world-x = 120) meets the Duskmarsh's east edge (reciprocal of Duskmarsh —E→).
       { dir: "W", to: "duskmarsh", border: { axis: "x", at: 120, from: 24, to: 46 }, cross: { wx: 120, wy: 35 } },
+      // AURELION COMPLETE: the journey branches on from the breadbasket. East edge (world-x = 180) meets
+      // Frostpeak's west edge (the SPINE pushes east into the cold mountains).
+      { dir: "E", to: "frostpeak", border: { axis: "x", at: 180, from: 24, to: 48 }, cross: { wx: 180, wy: 36 } },
+      // South edge (world-y = 48) meets Riverhearth's north edge (the optional center detour).
+      { dir: "S", to: "riverhearth", border: { axis: "y", at: 48, from: 120, to: 172 }, cross: { wx: 146, wy: 48 } },
+    ],
+  },
+  // ── AURELION COMPLETE — the remaining six in the legacy stitched-grid frame (world-builder 2026-06-21) ──
+  // Geography authority is the organic polygons in data/world.ts; this rect frame is only the Stage-2
+  // seam-blend ENGINE scaffolding (worldspace/worldmap tests exercise it), so the layout is a clean,
+  // contiguous, non-overlapping stitch that mirrors the journey graph, NOT the polygon map exactly.
+  // SPINE row east of Goldmeadow: Frostpeak [180,240)×[24,48) → Sunbridge [240,300)×[24,48).
+  // OPTIONAL row south (y=48 seam): Storm Coast [68,120) · Riverhearth [120,172) · Dawnfall [172,224) ·
+  //   Whisper Hills [224,276), each ×[48,70).
+  {
+    id: "frostpeak", origin: { wx: 180, wy: 24 },
+    edges: [
+      { dir: "W", to: "goldmeadow", border: { axis: "x", at: 180, from: 24, to: 48 }, cross: { wx: 180, wy: 36 } },
+      { dir: "E", to: "sunbridge", border: { axis: "x", at: 240, from: 24, to: 48 }, cross: { wx: 240, wy: 36 } },
+    ],
+  },
+  {
+    id: "sunbridge", origin: { wx: 240, wy: 24 },
+    edges: [
+      { dir: "W", to: "frostpeak", border: { axis: "x", at: 240, from: 24, to: 48 }, cross: { wx: 240, wy: 36 } },
+    ],
+  },
+  {
+    id: "stormcoast", origin: { wx: 68, wy: 48 },
+    edges: [
+      { dir: "E", to: "riverhearth", border: { axis: "x", at: 120, from: 48, to: 70 }, cross: { wx: 120, wy: 59 } },
+    ],
+  },
+  {
+    id: "riverhearth", origin: { wx: 120, wy: 48 },
+    edges: [
+      { dir: "N", to: "goldmeadow", border: { axis: "y", at: 48, from: 120, to: 172 }, cross: { wx: 146, wy: 48 } },
+      { dir: "W", to: "stormcoast", border: { axis: "x", at: 120, from: 48, to: 70 }, cross: { wx: 120, wy: 59 } },
+      { dir: "E", to: "dawnfall", border: { axis: "x", at: 172, from: 48, to: 70 }, cross: { wx: 172, wy: 59 } },
+    ],
+  },
+  {
+    id: "dawnfall", origin: { wx: 172, wy: 48 },
+    edges: [
+      { dir: "W", to: "riverhearth", border: { axis: "x", at: 172, from: 48, to: 70 }, cross: { wx: 172, wy: 59 } },
+      { dir: "E", to: "whisperhills", border: { axis: "x", at: 224, from: 48, to: 70 }, cross: { wx: 224, wy: 59 } },
+    ],
+  },
+  {
+    id: "whisperhills", origin: { wx: 224, wy: 48 },
+    edges: [
+      { dir: "W", to: "dawnfall", border: { axis: "x", at: 224, from: 48, to: 70 }, cross: { wx: 224, wy: 59 } },
     ],
   },
 ];
@@ -781,5 +1150,65 @@ export const ZONES: Zone[] = [
       { at: 0.4, sets: [["raider", "harrier", "wilddog"], ["carrion", "marauder", "wilddog"], ["raider", "carrion"], ["harrier", "raider", "marauder", "wilddog"]] },
       { at: 0.6, sets: [["reaver", "harrier", "wilddog"], ["raider", "carrion", "marauder"], ["reaver", "raider", "wilddog"], ["harrier", "carrion", "marauder", "wilddog"]] },
       { at: 0.8, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "raider", "marauder", "wilddog"], ["reaver", "harrier", "carrion", "wilddog", "marauder"], ["raider", "reaver", "carrion", "harrier"]] },
+    ] },
+  // ══ AURELION COMPLETE — the remaining six regions (world-builder build 2026-06-21) ════════════
+  // SCAFFOLD ONLY: layouts + slots are authored (level-designer, Phase A); the bands/mini/miniAdds/boss
+  // borrow the GOLDMEADOW war-host roster (raider/marauder/harrier/wilddog/carrion/reaver/warcaptain/
+  // warlord) as PLACEHOLDER enemy keys so the data compiles + sims. encounter-designer (Phase next)
+  // replaces every key with each region's real cast (spread Attunements, no region identity). The bands
+  // simply ramp set sizes by depth — they are NOT the final encounter curve; balance-tuner owns numbers.
+  // OPTIONAL regions (stormcoast/riverhearth/dawnfall/whisperhills) → small CAVE + champion guardian.
+  // SPINE regions (frostpeak, sunbridge) → full dungeon + boss. sunbridge is the LAST entry (run-ender).
+  //
+  // ── OPTIONAL: Storm Coast → a sea-cave (Lv 13–17) ──
+  { id: "stormcoast", name: "Storm Coast", mini: "warcaptain", miniAdds: ["marauder", "marauder"], boss: "warlord", // PLACEHOLDER cast
+    envs: ["coast", "coast", "coast", "coast"], dungeon: { name: "The Smuggler's Sea-Cave", env: "seacave", layout: STORMCOAST_CAVE }, layout: STORMCOAST_LAYOUT, bands: [
+      { at: 0.0, sets: [["marauder", "wilddog"], ["wilddog", "wilddog"], ["marauder", "wilddog", "wilddog"]] },
+      { at: 0.25, sets: [["raider", "wilddog"], ["harrier", "marauder"], ["raider", "marauder", "wilddog"]] },
+      { at: 0.5, sets: [["raider", "harrier", "wilddog"], ["carrion", "marauder", "wilddog"], ["harrier", "raider", "marauder"]] },
+      { at: 0.75, sets: [["reaver", "harrier", "wilddog"], ["raider", "carrion", "marauder"], ["reaver", "raider", "harrier", "carrion"]] },
+    ] },
+  // ── OPTIONAL: Riverhearth outskirts → a smugglers' den (Lv 15–18); hub = the existing Riverhearth city ──
+  { id: "riverhearth", name: "Riverhearth Outskirts", mini: "warcaptain", miniAdds: ["marauder", "marauder"], boss: "warlord", // PLACEHOLDER cast
+    hub: "riverhearth", hubs: ["riverhearth"],
+    envs: ["riverside", "road", "town", "riverside"], dungeon: { name: "The Smugglers' Den", env: "smuggden", layout: RIVERHEARTH_CAVE }, layout: RIVERHEARTH_LAYOUT, bands: [
+      { at: 0.0, sets: [["raider", "wilddog"], ["marauder", "wilddog", "wilddog"], ["raider", "marauder"]] },
+      { at: 0.25, sets: [["raider", "harrier", "wilddog"], ["carrion", "marauder", "wilddog"], ["raider", "marauder", "wilddog"]] },
+      { at: 0.5, sets: [["reaver", "harrier", "wilddog"], ["raider", "carrion", "marauder"], ["harrier", "raider", "carrion"]] },
+      { at: 0.75, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "raider", "marauder", "wilddog"], ["raider", "reaver", "carrion", "harrier"]] },
+    ] },
+  // ── SPINE: Frostpeak Highlands → the Dwarven Stronghold (Lv 16–20) ──
+  { id: "frostpeak", name: "Frostpeak Highlands", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+    envs: ["snow", "snow", "ice", "stone"], dungeon: { name: "The Dwarven Stronghold", env: "stronghold", layout: FROSTPEAK_DUNGEON }, layout: FROSTPEAK_LAYOUT, bands: [
+      { at: 0.0, sets: [["marauder", "wilddog"], ["raider", "wilddog"], ["marauder", "wilddog", "wilddog"]] },
+      { at: 0.2, sets: [["raider", "harrier", "wilddog"], ["reaver", "marauder"], ["raider", "marauder", "wilddog"]] },
+      { at: 0.4, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
+      { at: 0.6, sets: [["reaver", "raider", "harrier"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
+      { at: 0.8, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+    ] },
+  // ── OPTIONAL: Dawnfall Hold → the breached undervault (Lv 17–21) ──
+  { id: "dawnfall", name: "Dawnfall Hold", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+    envs: ["ruin", "ruin", "stone", "ruin"], dungeon: { name: "The Breached Undervault", env: "keepvault", layout: DAWNFALL_CAVE }, layout: DAWNFALL_LAYOUT, bands: [
+      { at: 0.0, sets: [["raider", "wilddog"], ["reaver", "marauder"], ["raider", "marauder", "wilddog"]] },
+      { at: 0.25, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
+      { at: 0.5, sets: [["reaver", "raider", "harrier"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
+      { at: 0.75, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+    ] },
+  // ── OPTIONAL: Whisper Hills → the crypt/reliquary (Lv 19–23) ──
+  { id: "whisperhills", name: "Whisper Hills", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+    envs: ["meadow", "meadow", "forest", "hollow"], dungeon: { name: "The Reliquary Crypt", env: "crypt", layout: WHISPERHILLS_CAVE }, layout: WHISPERHILLS_LAYOUT, bands: [
+      { at: 0.0, sets: [["raider", "harrier", "wilddog"], ["reaver", "marauder"], ["raider", "marauder", "wilddog"]] },
+      { at: 0.25, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
+      { at: 0.5, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
+      { at: 0.75, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+    ] },
+  // ── SPINE FINALE: Sunbridge → the Besieged Citadel / Lighthouse (Lv 21–25). LAST IN ZONES = run-ender. ──
+  { id: "sunbridge", name: "Sunbridge", mini: "warcaptain", miniAdds: ["reaver", "reaver"], boss: "warlord", // PLACEHOLDER cast
+    envs: ["harbor", "coast", "harbor", "harbor"], dungeon: { name: "The Besieged Citadel", env: "citadel", layout: SUNBRIDGE_DUNGEON }, layout: SUNBRIDGE_LAYOUT, bands: [
+      { at: 0.0, sets: [["raider", "harrier", "wilddog"], ["reaver", "marauder"], ["raider", "reaver", "marauder"]] },
+      { at: 0.2, sets: [["reaver", "harrier", "wilddog"], ["carrion", "raider", "marauder"], ["reaver", "raider", "wilddog"]] },
+      { at: 0.4, sets: [["reaver", "raider", "harrier"], ["reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "wilddog"]] },
+      { at: 0.6, sets: [["reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "carrion", "marauder"], ["reaver", "raider", "carrion", "harrier"]] },
+      { at: 0.8, sets: [["reaver", "reaver", "raider", "harrier", "carrion"], ["reaver", "reaver", "raider", "marauder", "wilddog"], ["reaver", "raider", "reaver", "carrion", "harrier"]] },
     ] },
 ];

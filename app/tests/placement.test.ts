@@ -18,7 +18,11 @@ import {
 } from "../src/data/world";
 import { ZONES } from "../src/data/zones";
 
-const BUILT = ["greenvale", "silverwood", "duskmarsh", "goldmeadow"] as const;
+const BUILT = [
+  "greenvale", "silverwood", "duskmarsh", "goldmeadow",
+  // AURELION COMPLETE (2026-06-21) — the remaining six, now placed + authored.
+  "stormcoast", "riverhearth", "frostpeak", "dawnfall", "whisperhills", "sunbridge",
+] as const;
 
 const layoutOf = (id: string) => ZONES.find((z) => z.id === id)!.layout;
 const polyOf = (id: string): Polygon => ZONE_REGIONS.find((z) => z.id === id && z.zone)!.shape;

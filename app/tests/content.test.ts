@@ -350,10 +350,14 @@ describe("Riverhearth — the Trade Capital (city)", () => {
 describe("zone hub chains (flow can't strand the player)", () => {
   const hubsFor = (z: typeof ZONES[number]) => (z.hubs && z.hubs.length ? z.hubs : [z.hub ?? "hearthford"]);
 
-  it("Greenvale → [Riverhearth] → Silverwood → [Miregard] → the Duskmarsh → Goldmeadow, in that order", () => {
-    // zone order is greenvale, silverwood, duskmarsh, goldmeadow (Goldmeadow continues the journey
-    // PAST the marsh and is now the run-ender — per the brief's flagged continuation).
-    expect(ZONES.map((z) => z.id)).toEqual(["greenvale", "silverwood", "duskmarsh", "goldmeadow"]);
+  it("Greenvale → [Riverhearth] → Silverwood → [Miregard] → the Duskmarsh → Goldmeadow → the Aurelion six, in order", () => {
+    // AURELION COMPLETE (2026-06-21): the journey now extends past Goldmeadow through the remaining six
+    // regions, with SUNBRIDGE as the LAST element (the continent finale / run-ender) per the brief.
+    expect(ZONES.map((z) => z.id)).toEqual([
+      "greenvale", "silverwood", "duskmarsh", "goldmeadow",
+      "stormcoast", "riverhearth", "frostpeak", "dawnfall", "whisperhills", "sunbridge",
+    ]);
+    expect(ZONES[ZONES.length - 1].id).toBe("sunbridge"); // the run-ender is last
     // The starting zone's chain is its opening village.
     expect(hubsFor(ZONES[0])).toEqual(["hearthford"]);
     // Inbound to Silverwood you pass through the grand trade capital.

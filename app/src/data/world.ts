@@ -879,11 +879,25 @@ export function polyCentroid(poly: Polygon): Point {
 // (Hard-coded — pure data the engine reads at startup — but derived exactly by `polyCentroid` above;
 // the test recomputes them from the polygons + ZoneLayouts to guard against drift.)
 //   goldmeadow (60×24) centroid ≈ (299, 149) → wx,wy = (269, 137)  rect [269,137)..[329,161)
+// AURELION COMPLETE (world-builder 2026-06-21) — the remaining six, each centered on its polygon
+// centroid (round(centroid − dims/2)); all fit inside their polygon bbox + the placement test recomputes:
+//   stormcoast   (52×22) centroid ≈ (121.9,204.3) → (96, 193)   rect [96,193)..[148,215)
+//   riverhearth  (52×22) centroid ≈ (302.5,227.8) → (277, 217)  rect [277,217)..[329,239)
+//   frostpeak    (60×24) centroid ≈ (413.5,180.3) → (384, 168)  rect [384,168)..[444,192)
+//   dawnfall     (52×22) centroid ≈ (183.7,269.7) → (158, 259)  rect [158,259)..[210,281)
+//   whisperhills (52×22) centroid ≈ (386.8,271.9) → (361, 261)  rect [361,261)..[413,283)
+//   sunbridge    (60×24) centroid ≈ (304.9,290.0) → (275, 278)  rect [275,278)..[335,302)
 export const WORLD_PLACEMENT: Record<string, ZonePlacement> = {
   greenvale: { wx: 127, wy: 62, scale: 1 },
   silverwood: { wx: 265, wy: 59, scale: 1 },
   duskmarsh: { wx: 148, wy: 140, scale: 1 },
   goldmeadow: { wx: 269, wy: 137, scale: 1 },
+  stormcoast: { wx: 96, wy: 193, scale: 1 },
+  riverhearth: { wx: 277, wy: 217, scale: 1 },
+  frostpeak: { wx: 384, wy: 168, scale: 1 },
+  dawnfall: { wx: 158, wy: 259, scale: 1 },
+  whisperhills: { wx: 361, wy: 261, scale: 1 },
+  sunbridge: { wx: 275, wy: 278, scale: 1 },
 };
 
 /** A built zone's authored-grid placement in world space, or undefined if the zone isn't placed. */

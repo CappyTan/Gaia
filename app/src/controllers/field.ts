@@ -23,7 +23,11 @@ import { Telemetry } from "../telemetry/telemetry";
 // Per-zone dungeon tileset prefix (east of the gate), indexed by zoneIndex: Greenvale -> Bandit
 // Warren, Silverwood -> the Sunless Grove, Duskmarsh -> Drowned Vault. Matches ZONES order + the
 // per-zone `dungeon.env`.
-const DUNGEON_SETS = ["warren", "grove", "vault", "vault"]; // [0]Greenvale [1]Silverwood [2]Duskmarsh [3]Goldmeadow (granary undercroft → enclosed-stone vault skin until granary art lands)
+// [0]Greenvale=warren [1]Silverwood=grove [2]Duskmarsh=vault [3]Goldmeadow=vault (granary).
+// AURELION COMPLETE (2026-06-21) — the new six reuse the nearest existing skin until bespoke art lands:
+//   [4]stormcoast(seacave)=warren  [5]riverhearth(smuggden)=warren  [6]frostpeak(stronghold)=vault
+//   [7]dawnfall(keepvault)=vault   [8]whisperhills(crypt)=grove     [9]sunbridge(citadel)=vault
+const DUNGEON_SETS = ["warren", "grove", "vault", "vault", "warren", "warren", "vault", "vault", "grove", "vault"];
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
