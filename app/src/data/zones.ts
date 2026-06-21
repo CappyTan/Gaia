@@ -184,14 +184,29 @@ export interface Zone {
   hubs?: string[];
 }
 
-// Greenvale's encounter table by area depth (the further east, the tougher the roll-set).
-// The mid-zone chokepoint (Bandit Brigadier) and the final Kingpin are NOT in this table.
+// Greenvale's encounter table by depth — the SAME spine drives the open shire (depth = how far east
+// toward the gate) AND the Bandit Warren below it (in-floor progress picks the band; the dungeon's
+// floorBump scales the stats hotter per floor, B1→B2→B3). The mouth guard (Bandit Brigadier), the B2
+// LIEUTENANT (Bandit Bloodknife), and the B3 finale (Kingpin) are NOT in this table — they're the
+// authored chokepoint/boss bookends.
+//   Teach→combine + CADENCE VARIETY (encounter-designer 2026-06-21): the curve introduces one creature
+// at a time (slime/kobold → gbandit → slimebig/kobolde → gmage) and the SET SIZES vary within each band
+// so the rhythm isn't monotone — true SINGLES and PAIRS up top (gentle reads for B1's breather floor and
+// the village mouth), growing to triples, with ONE gnarly 4-pack "den swarm" reserved for the deepest
+// band (the run-up to the Kingpin / the lower Warren). Packs stay ≤5 (battle-screen + reachable() cap).
+// Inside the Warren the Area lean is OFF (the dungeon carries no Area), so every set in a band is equally
+// likely — the warren cadence lives in the sets themselves; the overworld additionally Area-leans these.
 export const ENCOUNTERS: EncounterBand[] = [
-  { at: 0.0, sets: [["slime", "slime", "kobold"], ["kobold", "kobold"], ["slime", "kobold"]] },
-  { at: 0.18, sets: [["gbandit", "kobold", "kobold"], ["slime", "slime", "kobold"], ["kobold", "gbandit"], ["slime", "kobold", "kobold"]] },
-  { at: 0.36, sets: [["gbandit", "kobold", "kobold"], ["slimebig", "kobold", "kobold"], ["gbandit", "gbandit", "kobold"], ["slime", "kobolde", "kobold"]] },
-  { at: 0.54, sets: [["slimebig", "kobold", "kobold"], ["kobolde", "gbandit", "kobold"], ["gbandit", "gmage", "kobold"], ["kobolde", "gbandit", "kobold"]] },
-  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage"]] },
+  // GENTLE INTRO / B1 breather: lone fodder + small mixes. A true single teaches the kobold clean.
+  { at: 0.0, sets: [["kobold"], ["slime", "kobold"], ["kobold", "kobold"], ["slime", "slime", "kobold"]] },
+  // BANDIT enters — first alongside the known kobold (a pair), then a small pack.
+  { at: 0.18, sets: [["gbandit"], ["kobold", "gbandit"], ["gbandit", "kobold", "kobold"], ["slime", "kobold", "kobold"]] },
+  // The tank (Bloated Slime) + the Raider (kobolde) join; bandit pairs up. A lone bruiser breaks cadence.
+  { at: 0.36, sets: [["slimebig"], ["gbandit", "kobold", "kobold"], ["slimebig", "kobold", "kobold"], ["kobolde", "gbandit"], ["gbandit", "gbandit", "kobold"]] },
+  // The MAGE arrives — taught behind a single screen of fodder before it stacks into nastier mixes.
+  { at: 0.54, sets: [["gmage", "kobold"], ["kobolde", "gbandit", "kobold"], ["gbandit", "gmage", "kobold"], ["slimebig", "kobolde", "kobold"]] },
+  // DEEP WARREN / pre-Kingpin: the meanest combos — caster behind a bandit wall, and a 4-pack den swarm.
+  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage", "kobold"]] },
 ];
 
 // ── Greenvale overworld + Bandit Warren (greenfield, OPEN-WORLD rework — Dara 2026-06-20) ─────
@@ -1501,7 +1516,7 @@ export const WORLD_SETTLEMENT_NOTE = {
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "brigand" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "lieutenant" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
   // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
   // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
   // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to
