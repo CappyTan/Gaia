@@ -821,11 +821,16 @@ export const Field = {
     const res = regionAt(OVERWORLD_ID, this.wx, this.wy);
     const zid = res.zone?.zone; // a BUILT zone id, or undefined (backlog/open continent)
     const builtId = zid && placementOf(zid) ? zid : "";
-    if (builtId !== this.bigZone) {
-      this.bigZone = builtId;
-      if (builtId) {
-        const zi = ZONES.findIndex((z) => z.id === builtId);
-        if (zi >= 0) this.zoneIndex = zi;
+    this.bigZone = builtId;
+    // Keep zoneIndex in LOCKSTEP with the player's POSITION whenever they're over a built zone — gate on
+    // the zoneIndex actually differing, NOT on bigZone *changing*. (A prior desync — bigZone already
+    // "greenvale" but zoneIndex still stuck on the Duskmarsh — otherwise pinned the region pill + level
+    // to the wrong zone: "The Duskmarsh · Lv 7+" while standing in Greenvale.) Open continent (builtId="")
+    // keeps the last entered zone (there's no zone out in the wilds).
+    if (builtId) {
+      const zi = ZONES.findIndex((z) => z.id === builtId);
+      if (zi >= 0 && zi !== this.zoneIndex) {
+        this.zoneIndex = zi;
         const L = this.zone().layout;
         this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
       }
