@@ -114,10 +114,14 @@ function spikeRarity(floor: number, ceil: number, step = 0.4): number {
 // Slot distribution for drops/loot: weapon weighted x2, every armor-family slot + trinket once.
 const DROP_SLOTS: Slot[] = ["weapon", "weapon", "helmet", "armor", "gloves", "boots", "trinket"];
 
-// drop: rarity from the enemy's level band + boss/elite bonus. prefCls/prefAtt bias the drop
-// toward a party member's class/attunement (so it's useful) while a slice of drops roll wild
-// (variety + cross-attunement reclassing). Weapons span all five attunements — not SOL-only.
-export function rollDrop(enemy: Enemy, prefCls?: string, prefAtt?: Attunement): Item {
+/** A party member's class identity for loot biasing: their weapon archetype + attunement. */
+export interface RosterClass { cls: string; att: Attunement; }
+
+// VICTORY drop: rarity from the enemy's level band + boss/elite bonus. When a WEAPON drops, 75% of
+// the time it rolls an EXACT class a party member already wields (same attunement + archetype) so
+// the player can farm upgrades for their current comp; the other 25% roll wild across all classes
+// (so loot still offers reclass options). Armor/trinket att is cosmetic, biased to a roster att.
+export function rollDrop(enemy: Enemy, roster?: RosterClass[]): Item {
   const lvl = enemy.lvl || 1;
   let { floor, ceil } = rarityBand(lvl);
   if (enemy.elite) { floor += 1; ceil = Math.min(5, ceil + 1); }
@@ -127,8 +131,13 @@ export function rollDrop(enemy: Enemy, prefCls?: string, prefAtt?: Attunement): 
   ceil = clamp(Math.max(ceil, floor), 0, 5);
   const r = spikeRarity(floor, ceil);
   const slot = pick(DROP_SLOTS);
-  const wc = slot === "weapon" ? rollWeaponClass(prefCls) : null;
-  return makeItem(null, slot, r, wc, lvl, rollAtt(prefAtt)); // drops scale to the enemy's level
+  if (slot === "weapon" && roster && roster.length && Math.random() < 0.75) {
+    const m = pick(roster);                                   // matches a party member's exact class
+    return makeItem(null, "weapon", r, m.cls, lvl, m.att);
+  }
+  if (slot === "weapon") return makeItem(null, "weapon", r, pick(ART_ARCHETYPES), lvl, pick(ATTUNEMENTS)); // wild
+  const att = roster && roster.length ? pick(roster).att : pick(ATTUNEMENTS); // armor/trinket: cosmetic att
+  return makeItem(null, slot, r, null, lvl, att);
 }
 
 // chest / merchant loot: roll around a target rarity floor, scaled to an item level

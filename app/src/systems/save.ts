@@ -71,6 +71,7 @@ export interface SavedRun {
   // hub / town flow
   inTown: boolean;
   startVillage: boolean;
+  revisitTown?: boolean;        // entered a hub via the overworld marker (leaving returns to the overworld)
   hubChain: string[];           // settlement ids
   hubIx: number;
   // field position — by STABLE id, best-effort px/py
@@ -106,6 +107,7 @@ export interface RunSnapshot {
   defs: MemberDef[] | null;
   inTown: boolean;
   startVillage: boolean;
+  revisitTown?: boolean;        // entered a hub via the overworld marker (leaving returns to the overworld)
   hubChain: string[];
   hubIx: number;
   zoneIndex: number;
@@ -130,6 +132,7 @@ export interface LoadedRun {
   defs: MemberDef[] | null;
   inTown: boolean;
   startVillage: boolean;
+  revisitTown?: boolean;        // entered a hub via the overworld marker (leaving returns to the overworld)
   hubChain: string[];
   hubIx: number;
   zoneIndex: number;
@@ -207,7 +210,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     party: s.party.map(serializeMember),
     inventory: s.inventory.map(serializeItem),
     defs: s.defs,
-    inTown: s.inTown, startVillage: s.startVillage, hubChain: s.hubChain, hubIx: s.hubIx,
+    inTown: s.inTown, startVillage: s.startVillage, revisitTown: s.revisitTown, hubChain: s.hubChain, hubIx: s.hubIx,
     zoneId: ZONES[s.zoneIndex]?.id ?? ZONES[0].id,
     townId: s.townId,
     px: s.px, py: s.py,
@@ -370,7 +373,7 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     miniBossDefeated: !!r.miniBossDefeated,
     party, inventory,
     defs: Array.isArray(r.defs) ? r.defs : null,
-    inTown, startVillage: !!r.startVillage,
+    inTown, startVillage: !!r.startVillage, revisitTown: !!r.revisitTown,
     hubChain, hubIx,
     zoneIndex, townId,
     px, py,

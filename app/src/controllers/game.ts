@@ -45,6 +45,7 @@ export const Game = {
   continueAfterBattle: null as (() => void) | null,
   _inMerchant: false,
   _inTown: false,
+  _revisitTown: false, // entered a hub via the overworld marker → leaving returns to the overworld
   // The starting village (Hearthford) drops you into the CURRENT zone on exit; the between-zone
   // hub advances to the NEXT zone. This flag distinguishes the two so the gate routes correctly.
   _startVillage: false,
@@ -95,7 +96,7 @@ export const Game = {
       gold: this.gold, steps: this.steps, encountersWon: this.encountersWon,
       bossDefeated: this.bossDefeated, miniBossDefeated: this.miniBossDefeated,
       party: this.party, inventory: this.inventory, defs: this._lastDefs,
-      inTown: this._inTown, startVillage: this._startVillage,
+      inTown: this._inTown, startVillage: this._startVillage, revisitTown: this._revisitTown,
       hubChain: this._hubChain, hubIx: this._hubIx,
       zoneIndex: Field.zoneIndex,
       townId: this._inTown ? (Field.town?.id ?? this._hubChain[this._hubIx] ?? null) : null,
@@ -126,7 +127,7 @@ export const Game = {
     this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
     this.party = r.party; this.inventory = r.inventory;
     this.continueAfterBattle = null; this._inMerchant = false;
-    this._inTown = r.inTown; this._startVillage = r.startVillage;
+    this._inTown = r.inTown; this._startVillage = r.startVillage; this._revisitTown = !!r.revisitTown;
     this._hubChain = r.hubChain; this._hubIx = r.hubIx;
     recalc(this.party); // refold gear/MNA (hp/mp/alive already restored, _init guards the refill)
     Telemetry.load(); Telemetry.startSession();
@@ -219,10 +220,17 @@ export const Game = {
   // Open a specific walkable settlement by id (no resolution here — the caller picks the place; the
   // hub-chain machinery below decides WHICH settlement at each step).
   openTown(id = "hearthford"): void {
-    this._inTown = true; this._inMerchant = false;
+    this._inTown = true; this._inMerchant = false; this._revisitTown = false;
     this.rollMerchantStock(); // stock is rolled once per town visit (no reroll by re-entering the shop)
     Field.enterTown(id);
     this.saveNow(); // autosave on entering a settlement (ADR 0007)
+  },
+  // Enter a hub town as a REVISIT (stepped onto the overworld village marker) — leaving returns to the
+  // overworld where you were, not on down the hub/zone chain.
+  enterTownVisit(id: string): void {
+    this.openTown(id);
+    this._revisitTown = true; // openTown cleared it; this entry IS a revisit
+    this.saveNow();
   },
   // After a zone boss falls (battle.ts), begin walking the NEXT zone's hub chain — the ordered
   // settlements the player passes through before that zone loads (e.g. Riverhearth → Miregard before
@@ -237,18 +245,26 @@ export const Game = {
   },
   // Close an in-town overlay and return to the walkable town field.
   backToTown(): void { this._inMerchant = false; Overlay.hide(); Screens.show("field"); },
-  // The Inn — free full rest for living heroes.
+  // The Inn — a small fee fully restores HP/MP for every living hero (Dara: resting now costs a bit).
+  // Scales with the highest party level so it stays meaningful but affordable as you grow.
+  restCost(): number { return 8 * this.party.reduce((n, m) => Math.max(n, m.level), 1); },
   openInn(): void {
     const fullHp = this.party.every((m) => !m.alive || (m.hp >= m.maxhp && m.mp >= m.maxmp));
     const hpSum = this.party.reduce((n, m) => n + Math.max(0, m.hp), 0), maxSum = this.party.reduce((n, m) => n + m.maxhp, 0);
+    const cost = this.restCost(), canPay = this.gold >= cost;
+    const label = fullHp ? "Fully rested" : canPay ? `Rest · ${cost}g` : `Rest · ${cost}g (need gold)`;
     Overlay.show(`<h2 class="title-gold">🏠 The Inn</h2>
-      <p class="small">Rest by the hearth — restore HP and MP for every living hero. Free.</p>
-      <div class="card" style="margin:8px 0"><b style="color:var(--gold2)">Party HP</b> ${hpSum}/${maxSum}
+      <p class="small">Rest by the hearth — restore HP and MP for every living hero for a small fee.</p>
+      <div class="card" style="margin:8px 0"><b style="color:var(--gold2)">Party HP</b> ${hpSum}/${maxSum} · <b style="color:var(--gold2)">Gold</b> ${this.gold}
         <div class="small" style="margin-top:6px">${this.party.map((m) => `${m.spr} ${m.name} ${m.alive ? `${Math.max(0, m.hp)}/${m.maxhp}` : `<span class="r-rare">fallen</span>`}`).join(" · ")}</div></div>
-      <div class="row"><button class="btn${fullHp ? "" : " gold"}" ${fullHp ? "disabled" : ""} onclick="Game.restAtInn()">${fullHp ? "Fully rested" : "Rest (free)"}</button>
+      <div class="row"><button class="btn${fullHp || !canPay ? "" : " gold"}" ${fullHp || !canPay ? "disabled" : ""} onclick="Game.restAtInn()">${label}</button>
         <button class="btn" onclick="Game.backToTown()">◂ Leave</button></div>`);
   },
-  restAtInn(): void { this.restParty(); this.openInn(); },
+  restAtInn(): void {
+    const cost = this.restCost();
+    if (this.gold < cost) { this.openInn(); return; }
+    this.gold -= cost; this.restParty(); this.openInn();
+  },
   rollMerchantStock(): void {
     const floor = clamp(1 + Field.zoneIndex * 2, 0, 5); // deeper zone = better base stock
     const ilvl = 6 + Field.zoneIndex * 6; // stock the road ahead (gear for the next zone)
@@ -345,12 +361,13 @@ export const Game = {
           <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
       return;
     }
-    // A REVISIT of Hearthford (reached via the overworld village marker — start-village handled above):
-    // leaving heads back out onto the Greenvale overworld, not on down the hub chain.
-    if (Field.town?.id === "hearthford") {
-      Overlay.show(`<h2 class="title-gold">⚔️ Leave Hearthford</h2>
-        <p class="small">Head back out into Greenvale?</p>
-        <div class="row"><button class="btn gold" onclick="Game.leaveTown()">Back to Greenvale →</button>
+    // A REVISIT (reached via the overworld village marker — start-village handled above): leaving heads
+    // back out onto the overworld where you were, not on down the hub/zone chain.
+    if (this._revisitTown) {
+      const where = ZONES[Field.zoneIndex]?.name ?? "the overworld";
+      Overlay.show(`<h2 class="title-gold">⚔️ Leave ${Field.town?.name ?? "Town"}</h2>
+        <p class="small">Head back out into ${where}?</p>
+        <div class="row"><button class="btn gold" onclick="Game.leaveTown()">Back to ${where} →</button>
           <button class="btn" onclick="Game.backToTown()">◂ Not yet</button></div>`);
       return;
     }
@@ -378,7 +395,7 @@ export const Game = {
     Overlay.hide();
     if (this._startVillage) { this._startVillage = false; Field.enterZoneFromVillage(); this.saveNow(); return; }
     // Revisit leave (Hearthford via the overworld marker): step back out onto the Greenvale overworld.
-    if (Field.town?.id === "hearthford") { Field.returnToOverworld(); this.saveNow(); return; }
+    if (this._revisitTown) { this._revisitTown = false; Field.returnToOverworld(); this.saveNow(); return; }
     // Advance the hub chain: if another settlement remains, walk into it; else load the next zone.
     const nextHub = this._hubChain[this._hubIx + 1];
     if (nextHub) { this._hubIx++; this.openTown(nextHub); Field.draw(); return; } // openTown saves

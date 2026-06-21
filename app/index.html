@@ -179,10 +179,14 @@
 
   /* combat log: a quiet 2-line ticker pinned to the field/UI seam (Dara: was a cluttered scroll
      over the party). Right-aligned, dimmed prior line, small scrim for legibility. */
-  #log{position:absolute; left:34%; right:0; bottom:30%; height:auto; max-height:34px; overflow:hidden; pointer-events:none;
+  /* tap the log to expand it into a scrollable battle history (who hit whom for how much) — Dara */
+  #log{position:absolute; left:34%; right:0; bottom:30%; height:auto; max-height:34px; overflow:hidden; pointer-events:auto; cursor:pointer;
     padding:3px 12px; font-size:12px; line-height:1.35; text-align:right; color:var(--gold2);
     text-shadow:0 1px 3px #000, 0 0 6px #000; background:linear-gradient(transparent, rgba(6,6,11,.55));}
   #log div{opacity:.4;} #log div:last-child{opacity:.95;}
+  #log.expanded{bottom:8%; max-height:46%; overflow-y:auto; text-align:left; pointer-events:auto;
+    background:rgba(6,6,12,.92); border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.6);}
+  #log.expanded div{opacity:.92;}
 
   /* ENRAGE: the alpha→omega crossfade overlay (fades in over the boss sprite on the stage layer),
      plus a menacing red pulse on the enraged boss thereafter */
@@ -197,12 +201,13 @@
   @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
   /* crit burst: Dara's per-Attunement spark, popped + faded over a struck unit (screen-blended
      so the knocked-out glow reads as light, not a flat decal) */
+  /* size is set inline (≈half the struck sprite); centred exactly over the sprite via translate(-50%,-50%) */
   .crit-fx{position:absolute; width:96px; height:96px; pointer-events:none; z-index:6;
-    transform:translate(-50%,-55%); transform-origin:center; mix-blend-mode:screen;
+    transform:translate(-50%,-50%); transform-origin:center; mix-blend-mode:screen;
     animation:critpop .45s cubic-bezier(.2,.7,.3,1) forwards;}
-  @keyframes critpop{0%{opacity:0; transform:translate(-50%,-55%) scale(.4);}
-    35%{opacity:1; transform:translate(-50%,-55%) scale(1.08);}
-    100%{opacity:0; transform:translate(-50%,-55%) scale(1.25);}}
+  @keyframes critpop{0%{opacity:0; transform:translate(-50%,-50%) scale(.4);}
+    35%{opacity:1; transform:translate(-50%,-50%) scale(1.08);}
+    100%{opacity:0; transform:translate(-50%,-50%) scale(1.25);}}
 
   /* ---- Overlays: loot / levelup / menus ---- */
   .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;

@@ -112,8 +112,12 @@ ROSTER={
 }
 out={}
 im=Image.open(os.path.join(REF,"enemies-roster.png"))
+# Kobold faces LEFT on the source sheet; every other combatant reads facing the party (right). Mirror
+# it so the roster is consistent (Dara). `kobolde` reuses this art, so it flips too.
+FLIP={"kobold"}
 for key,(box,luma) in ROSTER.items():
     c=slice_cell(im, box, luma=luma)
+    if key in FLIP: c=c.transpose(Image.FLIP_LEFT_RIGHT)
     save(c, key); out[key]=c
 
 # ---- SOURCE 2: rare-hogger.png. Single creature on near-black; "Hogger (Rare)" title at top is
