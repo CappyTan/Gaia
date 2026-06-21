@@ -13,7 +13,7 @@ import {
   MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID, OVERWORLD_W, OVERWORLD_H,
   UNDERWORLD_ID, FORGOTTEN_ID,
   AURELION_ID, VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID,
-  regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, bbox,
+  regionAt, areasOf, zonesOf, builtZonesOf, worldMap, pointInPolygon, polyArea2, polyCentroid, bbox,
   type Polygon,
 } from "../src/data/world";
 import { ZONES } from "../src/data/zones";
@@ -208,6 +208,31 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
     expect(Math.abs(sw.y - gv.y), "Silverwood ~ same latitude as Greenvale").toBeLessThan(20);
     expect(dm.y, "Duskmarsh is SOUTH of Greenvale").toBeGreaterThan(gv.y);
     expect(dm.x, "Duskmarsh sits in the west").toBeLessThan(sw.x);
+  });
+
+  it("the six new Aurelion regions hold their map-correct relative positions (drift-guard)", () => {
+    // Lock the Aurelion-complete six against silent re-drift, using each region's true SHOELACE
+    // centroid (polyCentroid) so a future polygon edit can't quietly slide one off Dara's overworld
+    // map: Storm Coast W coast, Frostpeak E mountain arm, Sunbridge S port, Dawnfall SW / Whisper
+    // Hills SE, Riverhearth the central crossroads between them.
+    const pc = (id: string) => polyCentroid(ZONE_REGIONS.find((z) => z.id === id)!.shape);
+    const sixIds = ["stormcoast", "riverhearth", "frostpeak", "dawnfall", "whisperhills", "sunbridge"];
+    const six = sixIds.map(pc);
+    const sc = pc("stormcoast"), rh = pc("riverhearth"), fp = pc("frostpeak");
+    const df = pc("dawnfall"), wh = pc("whisperhills"), sb = pc("sunbridge");
+
+    // Storm Coast is the WESTMOST of the six (min centroid.x) and west of Riverhearth.
+    expect(Math.min(...six.map((c) => c.x)), "Storm Coast is the westmost new region").toBe(sc.x);
+    expect(sc.x, "Storm Coast is west of Riverhearth").toBeLessThan(rh.x);
+    // Frostpeak is the EASTMOST (max centroid.x — the E mountain arm).
+    expect(Math.max(...six.map((c) => c.x)), "Frostpeak is the eastmost new region (E mountain arm)").toBe(fp.x);
+    // Sunbridge is the SOUTHERNMOST (max centroid.y — the S port toward the Coral Archipelago).
+    expect(Math.max(...six.map((c) => c.y)), "Sunbridge is the southernmost new region (S port)").toBe(sb.y);
+    // Dawnfall (SW) is west of Whisper Hills (SE).
+    expect(df.x, "Dawnfall (SW) is west of Whisper Hills (SE)").toBeLessThan(wh.x);
+    // Riverhearth is the central crossroads — its x sits between Dawnfall's and Whisper Hills'.
+    expect(rh.x, "Riverhearth sits east of Dawnfall").toBeGreaterThan(df.x);
+    expect(rh.x, "Riverhearth sits west of Whisper Hills").toBeLessThan(wh.x);
   });
 
   it("zone ids are unique", () => {

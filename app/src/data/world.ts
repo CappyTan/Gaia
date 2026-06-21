@@ -541,8 +541,15 @@ export const AREAS: Area[] = [
     shape: ring([94, 176], [124, 168], [146, 178], [136, 196], [118, 208], [116, 182]),
     identity: { biome: "rock", tileset: "coast", encounterLean: "seabeast-crab", music: "stormcoast" } },
   { id: "sc-strand", name: "The Wreck Strand", zone: "stormcoast", draft: true,
-    shape: ring([92, 224], [108, 228], [126, 222], [136, 240], [110, 240]),
+    shape: ring([92, 224], [108, 228], [117, 225], [120, 240], [110, 240]),
     identity: { biome: "beach", tileset: "coast", encounterLean: "serpent-wrecker", music: "stormcoast" } },
+  // Rare-lair pocket split off the SE of the strand lobe: a half-buried wrecked hull, the lair of a rare
+  // wrecker-beast (Goldmeadow's gm-farmstead pattern). Re-cut from the strand on the shared
+  // [117,225]→[120,240] seam so the Areas still TILE the zone; sits WEST of the sea-cave mouth so the
+  // mouth stays the EAST lobe. [117,225] rides the strand's old top edge ([108,228]→[126,222]). ──
+  { id: "sc-hulkwreck", name: "The Hulk Wreck", zone: "stormcoast", draft: true,
+    shape: ring([108, 228], [126, 222], [136, 240], [120, 240], [117, 225]),
+    identity: { biome: "beach", tileset: "coast", encounterLean: "rare-lair", music: "stormcoast" } },
   { id: "sc-seacave", name: "The Sea-Cave Approach", zone: "stormcoast", draft: true,
     shape: ring([124, 168], [152, 180], [160, 202], [154, 226], [136, 240], [126, 222], [108, 228],
                 [118, 208], [136, 196], [146, 178]),
@@ -632,8 +639,15 @@ export const AREAS: Area[] = [
     shape: ring([274, 272], [306, 266], [318, 272], [310, 288], [298, 300], [296, 276]),
     identity: { biome: "coast", tileset: "port", encounterLean: "besieger-captain", music: "sunbridge" } },
   { id: "sb-plaza", name: "The Harbor Plaza", zone: "sunbridge", draft: true,
-    shape: ring([298, 300], [310, 288], [320, 302], [308, 314], [286, 308]),
+    shape: ring([298, 300], [310, 288], [320, 302], [314, 308], [292, 304]),
     identity: { biome: "harbor", tileset: "port", encounterLean: "raider-deepthing", music: "sunbridge" } },
+  // Rare-lair pocket carved into the S harbor corner of the plaza: a scuttled hulk where a rare
+  // drowned-corsair captain lurks (Goldmeadow's gm-farmstead pattern). Re-cut from the plaza on the
+  // shared [292,304]→[314,308] seam so the Areas still TILE the zone; centred mid-zone, WEST of the
+  // citadel mouth so the mouth stays the EAST lobe. ──
+  { id: "sb-drownhulk", name: "The Drowned Hulk", zone: "sunbridge", draft: true,
+    shape: ring([292, 304], [314, 308], [308, 314], [286, 308]),
+    identity: { biome: "harbor", tileset: "port", encounterLean: "rare-lair", music: "sunbridge" } },
   { id: "sb-citadel", name: "The Citadel Approach", zone: "sunbridge", draft: true,
     shape: ring([306, 266], [332, 278], [342, 296], [332, 308], [308, 314], [320, 302], [310, 288],
                 [318, 272]),
