@@ -185,6 +185,22 @@ describe("continent-wide realization (Stage 2C, G22)", () => {
     expect(unreachableContinentTargets(OVERWORLD_ID, grids, spawnW, targets)).toEqual([]);
   });
 
+  // GUARD (added for the Drowned Vault accessibility check): inside EVERY built zone's own realized grid,
+  // the spawn must reach the dungeon MOUTH + every chest. This is the reliable per-zone soft-lock guard
+  // (a small, in-grid flood — no bounding-box artifacts), so terrain added to a zone (rivers, cliffs,
+  // reed-hummocks) can pinch but never SEVER the route to its dungeon. Catches a walled-off Vault/cave.
+  it("every built zone's own grid: spawn reaches its mouth + chests (no terrain severance)", () => {
+    for (const z of builtZonesOf(AURELION_ID)) {
+      const id = z.zone!; if (!placementOf(id)) continue;
+      const L = ZONES.find((zz) => zz.id === id)!.layout;
+      if (!L.mouth) continue;
+      const ww = (p: { x: number; y: number }) => ({ x: placementOf(id)!.wx + p.x, y: placementOf(id)!.wy + p.y });
+      const grid = buildAuthoredGrid(id, true); // mini beaten → the mouth tile is walkable
+      const targets = [ww(L.mouth), ...(L.chests ?? []).map(ww)];
+      expect(unreachableWorldTargets(id, grid, ww(L.spawn), targets)).toEqual([]);
+    }
+  });
+
   it("every built Aurelion zone's mouth is reachable from Greenvale's spawn across the open continent", () => {
     // The seamless soft-lock proof for ALL ten zones (not just by-construction): flood the realized
     // continent from Greenvale's spawn and confirm each built zone's authored dungeon/cave mouth — the
