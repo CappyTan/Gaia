@@ -10,6 +10,7 @@ import { className } from "../data/classes";
 import { ATT } from "../data/attunements";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
 import { itemScore } from "../systems/loot";
+import { gearScore } from "../systems/gearScore";
 import { itemHtml, classBody } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Game, sellPriceOf } from "./game";
@@ -127,8 +128,15 @@ export const UI = {
       const btn = `<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="btn" style="padding:6px 12px;font-size:12px" onclick="UI.equipPicker('${m.id}','${slot}')">${it ? "Swap" : "Equip"} ${slot} ▸</button></div>`;
       return it ? itemHtml(it, btn) : `<div class="item" style="opacity:.7"><span class="tag">${slot}</span> — empty —${btn}</div>`;
     }).join("");
+    const gs = gearScore(m);
     const totals = `<div class="card pm-eq-tot" style="text-align:left">
       <b class="title-gold">${m.name} — Totals</b>
+      <div class="gscore">
+        <span><span class="gs-k">Offense</span><b>${gs.offense}</b></span>
+        <span><span class="gs-k">Defense</span><b>${gs.defense}</b></span>
+        <span><span class="gs-k">Overall</span><b class="title-gold">${gs.overall}</b></span>
+      </div>
+      <div class="small" style="opacity:.55;margin-top:2px">Higher is better · Overall = Offense + Defense</div>
       <div class="small" style="margin-top:6px;line-height:1.7">HP <b>${m.maxhp}</b><br>MP <b>${m.maxmp}</b><br>ATK <b>${m.atk}</b><br>MAG <b>${m.mag}</b><br>SPD <b>${m.spd}</b><br>ARM <b>${m.armor}</b><br>Crit <b>${m.critPct}%</b>${m.leech ? `<br>Leech <b>${m.leech}%</b>` : ""}</div>
       <div class="psec">+MNA</div>
       <div class="small">${ATTUNEMENTS.filter((a) => m.mna[a] > 0).map((a) => `<span style="color:${ATT[a].color}">${a} ${m.mna[a]}</span>`).join(" · ") || "—"}</div>
@@ -215,7 +223,11 @@ export const UI = {
       const idx = Game.inventory.indexOf(it);
       // a weapon of a different attunement reclasses the hero — say so up front
       const reclass = slot === "weapon" && it.att && it.att !== m.att ? `<br><span class="r-legendary" style="font-size:11px">Reclass → ${className(it.att, it.cls)}</span>` : "";
-      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="UI.doEquip('${memberId}','${slot}',${idx})">Equip (score ${itemScore(it)})${reclass}</button></div>`);
+      // Show the OVERALL gear-score delta (the "is this an upgrade?" signal) instead of an opaque raw score,
+      // matching the bag→equip flow (equipChooser). Green up / red down.
+      const ov = gearScore(m).overall, nv = gearScore(this._equipPreview(m, it)).overall;
+      const od = nv === ov ? `Overall ${nv}` : `Overall <span style="color:${nv > ov ? "#aef0a0" : "#e8888c"}">${ov}→${nv}${nv > ov ? "↑" : "↓"}</span>`;
+      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="UI.doEquip('${memberId}','${slot}',${idx})">Equip · ${od}${reclass}</button></div>`);
     });
     h += `</div><div class="row"><button class="btn" onclick="UI.partyEquipment('${memberId}')">◂ Equipment</button></div>`;
     Overlay.show(h);
@@ -324,6 +336,11 @@ export const UI = {
       cur === nxt ? "" : `<span style="color:${nxt > cur ? "#aef0a0" : "#e8888c"}">${label} ${cur}→${nxt}${nxt > cur ? "↑" : "↓"}</span>`;
     Game.party.forEach((m) => {
       const c = this._equipPreview(m, it);
+      const gNow = gearScore(m), gNext = gearScore(c);
+      const score = [
+        stat("Offense", gNow.offense, gNext.offense), stat("Defense", gNow.defense, gNext.defense),
+        stat("Overall", gNow.overall, gNext.overall),
+      ].filter(Boolean).join(" · ");
       const deltas = [
         stat("HP", m.maxhp, c.maxhp), stat("ATK", m.atk, c.atk), stat("MAG", m.mag, c.mag),
         stat("DEF", m.armor, c.armor), stat("SPD", m.spd, c.spd), stat("MP", m.maxmp, c.maxmp),
@@ -335,6 +352,7 @@ export const UI = {
       const replaces = m.equip[it.slot] ? `<span class="small" style="opacity:.6"> (replaces ${m.equip[it.slot]!.name})</span>` : "";
       h += `<div class="card" style="margin:6px 0;text-align:left">
         <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${m.cls}</span>${reclass}${replaces}
+        ${score ? `<div class="small" style="margin-top:4px;font-weight:bold">${score}</div>` : ""}
         <div class="small" style="margin-top:4px">${deltas || "no stat change"}</div>
         <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.doEquipFromBag('${m.id}',${invIdx})">Equip on ${m.name}</button></div>
       </div>`;

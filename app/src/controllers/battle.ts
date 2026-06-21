@@ -7,7 +7,7 @@ import { $, el } from "../core/dom";
 import { cap, ri, pick } from "../core/rng";
 import { SKILLS } from "../data/skills";
 import { combatDamage, damage, heal, applyStatus, makeEnemy, stunImmune } from "../systems/combat";
-import { ATT } from "../data/attunements";
+import { ATT, RING } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
@@ -443,7 +443,21 @@ export const Battle = {
   },
   renderAll(): void {
     this.renderEnemies(!!this.selecting && this.selecting.kind === "enemy");
-    this.renderParty(); this.renderRoster(); this.renderLog();
+    this.renderParty(); this.renderRoster(); this.renderLog(); this.renderChain();
+  },
+  // The affinity ring at the top of the field: 5 colored Attunement nodes joined by "beats →"
+  // arrows in ring order (each beats the NEXT, wrapping back to SOL). Attunements actually present
+  // in THIS fight (party + living enemies) are lit; absent ones are dimmed — so the player reads
+  // which matchups are live. Pure presentation; redrawn with every battle render.
+  renderChain(): void {
+    const host = $("#affinityChain"); if (!host) return;
+    const live = new Set([...Game.party, ...this.enemies].filter((u) => u.alive).map((u) => u.att));
+    // 3-letter labels keep it legible at phone size + clear of the music button; the leading "beats"
+    // tells the player the arrows mean prey-order (each node beats the next), not just sequence.
+    const ABBR: Record<string, string> = { SOL: "SOL", NOX: "NOX", ANIMA: "ANI", QUANTA: "QUA", UMBRAXIS: "UMB" };
+    host.innerHTML = '<span class="ac-beats">beats</span>' + RING.map((a) =>
+      `<span class="ac-node${live.has(a) ? " live" : ""}" style="color:${ATT[a].color}" title="${a}">${ABBR[a]}</span>`
+    ).join('<span class="ac-arrow">▸</span>') + '<span class="ac-arrow">↺</span>';
   },
   renderEnemies(targetable: boolean): void {
     const z = $("#enemyZone")!; z.innerHTML = "";

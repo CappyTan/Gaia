@@ -94,6 +94,18 @@
   /* ---- Battle ---- */
   #battleScreen{background:#06060b;}
   #battleStyleBtn{position:absolute; top:6px; right:6px; z-index:6; font-size:11px; padding:4px 8px; opacity:.82;}
+  /* affinity ring read-out: a compact single-row chain at the top-left of the field, stopping clear
+     of the music-style button (top-right, ~100px wide at "Orchestral"). Each node BEATS the next (▸),
+     back round to SOL (↺); a leading "beats" labels the arrows. 3-letter labels stay legible on phones. */
+  #affinityChain{position:absolute; top:6px; left:8px; right:104px; z-index:5; display:flex;
+    align-items:center; gap:3px; flex-wrap:nowrap; pointer-events:none; user-select:none;}
+  #affinityChain .ac-beats{font-size:9px; color:var(--dim); opacity:.7; flex:0 0 auto; margin-right:1px; font-style:italic;}
+  #affinityChain .ac-node{display:inline-flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:bold; letter-spacing:.2px; line-height:1; padding:2px 4px; border-radius:5px;
+    border:1px solid currentColor; background:#0a0a12dd; opacity:.45; transition:opacity .2s;}
+  #affinityChain .ac-node.live{opacity:1; box-shadow:0 0 6px -1px currentColor, inset 0 0 0 1px currentColor;}
+  #affinityChain .ac-arrow{font-size:10px; color:var(--dim); opacity:.65; flex:0 0 auto;}
+  @media (max-width:430px){ #affinityChain{gap:2px;} #affinityChain .ac-node{font-size:9px; padding:2px 3px;} #affinityChain .ac-beats{display:none;} }
   #battleField{position:absolute; top:0; left:0; right:0; height:70%; overflow:hidden;}
   #battleBg{position:absolute; inset:0;}
   /* combatants stand on the lower "ground" band — clear of the sky, bottom-anchored so a lone
@@ -307,6 +319,12 @@
   .pm-eq{display:flex; gap:10px; text-align:left; align-items:flex-start; flex-wrap:wrap; margin-top:6px;}
   .pm-eq-gear{flex:1 1 300px; min-width:0; max-height:54vh;}
   .pm-eq-tot{flex:1 1 180px; min-width:160px; align-self:flex-start;}
+  /* gear-score trio: Offense / Defense / Overall */
+  .gscore{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .gscore > span{flex:1 1 0; min-width:48px; display:flex; flex-direction:column; align-items:center;
+    padding:5px 4px; border:1px solid var(--line); border-radius:6px; background:#ffffff08;}
+  .gscore b{font-size:16px;}
+  .gs-k{font-size:9px; letter-spacing:.6px; text-transform:uppercase; color:var(--dim); margin-bottom:2px;}
   /* Abilities + Formation rows */
   .pm-ab{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; padding:4px 2px; border-bottom:1px solid #ffffff10;}
   .pm-ab.locked{opacity:.6;}
@@ -380,6 +398,7 @@
   <div id="battleScreen" class="screen">
     <div id="battleField">
       <div id="battleBg"></div>
+      <div id="affinityChain" aria-label="Attunement affinity ring"></div>
       <div id="enemyZone"></div>
       <div id="partyZone"></div>
       <button id="battleStyleBtn" class="btn" title="Battle music style" onclick="Music.cycleStyle(Music.cur)">♪ <span id="st-battle">Radiant</span></button>
