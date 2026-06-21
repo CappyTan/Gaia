@@ -94,7 +94,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   footpad: { name: "Wharf Footpad", spr: "🏃", att: "ANIMA", lvl: 15, hp: 360, atk: 41, spd: 18, armor: 2, mag: 0, xp: 208, gold: [28, 50], ai: "basic" },
   smuggler: { name: "Smuggler Crossbow", spr: "🏹", att: "SOL", lvl: 16, hp: 340, atk: 44, spd: 13, armor: 2, mag: 0, xp: 218, gold: [30, 52], ai: "basic" },
   rivertough: { name: "River Tough", spr: "🪓", att: "QUANTA", lvl: 16, hp: 640, atk: 45, spd: 7, armor: 9, mag: 0, xp: 236, gold: [32, 56], ai: "basic" },
-  fence: { name: "Den Fence", spr: "🦝", att: "UMBRAXIS", lvl: 17, hp: 440, atk: 44, spd: 15, armor: 3, mag: 0, xp: 240, gold: [34, 58], ai: "basic", leech: 32 },
+  fence: { name: "Wharf Fence", spr: "🦝", att: "UMBRAXIS", lvl: 17, hp: 440, atk: 44, spd: 15, armor: 3, mag: 0, xp: 240, gold: [34, 58], ai: "basic", leech: 32 },
   crimelord: { name: "River Crime-Lord", spr: "🎩", att: "UMBRAXIS", lvl: 18, hp: 3000, atk: 100, spd: 12, armor: 8, mag: 0, xp: 480, gold: [220, 340], ai: "boss", boss: true, skills: ["rally"], castChance: 0.3, art: "roadbandit" },
 
   // ── ZONE 7 (index 6): Frostpeak Highlands → the Dwarven Stronghold (L16–20, SPINE). Frost beasts
@@ -115,8 +115,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   //    + the fallen watch. A feral wild-thing (reuse wilddog-tier as a frontier predator), a broken-watch
   //    poison-spear, a ghoul leecher of the fallen garrison, a ruin-beast wall, a fallen-archer harrier;
   //    champion = a fallen watch-commander. ──
-  frontierbeast: { name: "Frontier Maw", spr: "🐗", att: "ANIMA", lvl: 17, hp: 560, atk: 47, spd: 14, armor: 3, mag: 0, xp: 250, gold: [30, 54], ai: "basic" },
-  brokenwatch: { name: "Broken Watch", spr: "🛡️", att: "NOX", lvl: 17, hp: 620, atk: 48, spd: 10, armor: 6, mag: 0, xp: 258, gold: [32, 56], ai: "basic", onHit: { poison: 5 } },
+  frontierbeast: { name: "Frontier Stalker", spr: "🐗", att: "ANIMA", lvl: 17, hp: 560, atk: 47, spd: 14, armor: 3, mag: 0, xp: 250, gold: [30, 54], ai: "basic" },
+  brokenwatch: { name: "Broken Sentry", spr: "🛡️", att: "NOX", lvl: 17, hp: 620, atk: 48, spd: 10, armor: 6, mag: 0, xp: 258, gold: [32, 56], ai: "basic", onHit: { poison: 5 } },
   watchghoul: { name: "Garrison Ghoul", spr: "🧟", att: "UMBRAXIS", lvl: 18, hp: 520, atk: 47, spd: 9, armor: 4, mag: 0, xp: 266, gold: [32, 58], ai: "basic", leech: 34 },
   ruinhulk: { name: "Rampart Hulk", spr: "🗿", att: "QUANTA", lvl: 19, hp: 880, atk: 52, spd: 6, armor: 13, mag: 0, xp: 300, gold: [38, 66], ai: "basic" },
   fallenarcher: { name: "Fallen Sentry", spr: "🏹", att: "SOL", lvl: 19, hp: 460, atk: 50, spd: 14, armor: 2, mag: 0, xp: 296, gold: [36, 62], ai: "basic" },
