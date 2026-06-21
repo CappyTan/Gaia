@@ -199,6 +199,16 @@
     text-shadow:0 1px 3px #000, 0 0 6px #000; background:linear-gradient(transparent, rgba(6,6,11,.74));}
   #log div{opacity:.5;} #log div:last-child{opacity:1;}
 
+  /* ── DESKTOP / wide screens — split from mobile (Dara, 2026-06-21). The stage caps at 920px, so a
+     roomy screen keeps the PREVIOUS battle layout that reads well there: a compact right-aligned log
+     ticker at the seam (the wide bar already gives the roster + HP/MP bars plenty of room). MOBILE
+     (the base rules above) uses the full-width 4-line band so the narrow bar isn't squashed. This is
+     the first mobile/desktop split — extend it with the same `min-width:760px` breakpoint. ── */
+  @media (min-width:760px){
+    #log{left:34%; max-height:36px; text-align:right; padding:3px 12px;
+      background:linear-gradient(transparent, rgba(6,6,11,.55));}
+  }
+
   /* ENRAGE: the alpha→omega crossfade overlay (fades in over the boss sprite on the stage layer),
      plus a menacing red pulse on the enraged boss thereafter */
   .enrage-omega{position:absolute; object-fit:contain; opacity:0; transition:opacity 1s ease; z-index:5;
