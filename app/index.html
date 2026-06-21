@@ -86,7 +86,7 @@
      enemy/boss isn't floating mid-air (Dara's note) */
   /* enemies share the heroes' vertical band and are CENTRED in it, so enemy + hero sprites line up
      vertically across the field (Dara) */
-  #enemyZone{position:absolute; left:3%; top:18%; bottom:5%; width:46%; display:flex; flex-direction:column; justify-content:center; gap:6px;}
+  #enemyZone{position:absolute; left:9%; top:18%; bottom:5%; width:44%; display:flex; flex-direction:column; justify-content:center; gap:6px;}
   /* heroes occupy the same grounded band but in a tidy, evenly-spaced formation (Dara: "more
      organized and harmonious") — front line forward (left), back line behind (right), staggered up */
   #partyZone{position:absolute; right:3%; top:18%; bottom:5%; width:40%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:stretch;}
@@ -102,7 +102,7 @@
      "lack contrast / maybe outlines" note) — a doubled tight shadow builds the outline */
   .enemy .spr-img{width:72px; height:78px; object-fit:contain; image-rendering:auto;
     filter:contrast(1.06) saturate(1.05) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 1px 1px #000) drop-shadow(0 5px 6px rgba(0,0,0,.7));}
-  .enemy .ebar{flex:1; min-width:60px;}
+  .enemy .ebar{flex:0 0 auto; width:110px; min-width:0;}  /* short HP bar (Dara: ~60% shorter) */
   .enemy.dead{opacity:.18; filter:grayscale(1);}
   .enemy.targetable{outline:2px dashed var(--gold); outline-offset:4px; border-radius:6px;}
   .enemy.elite .ename{color:var(--legendary); font-weight:bold;}
@@ -152,10 +152,11 @@
   .bar.atb{height:5px;} .bar.atb > i{background:linear-gradient(var(--atb),var(--atbf)); transition:width .08s linear;}
   .bartxt{position:absolute; right:4px; top:-3px; font-size:11px; color:#fff; text-shadow:0 0 3px #000, 0 1px 2px #000; font-weight:bold;}
 
+  /* lower battle window: THREE equal columns — hero commands | hero HP/MP bars | battle log (Dara) */
   #battleUi{position:absolute; bottom:0; left:0; right:0; height:30%; display:flex; border-top:2px solid var(--gold);
     background:linear-gradient(#10101e,#0a0a14);}
-  #cmdPanel{width:34%; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px; transition:width .15s;}
-  #cmdPanel.cmd-wide{width:62%;}  /* widen while choosing a skill so descriptions are readable */
+  #cmdPanel{flex:1 1 0; min-width:0; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px;}
+  #cmdPanel.cmd-wide{}  /* (kept for JS toggle; columns stay equal now) */
   #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
   #cmdList{flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:5px;
     -webkit-mask-image:linear-gradient(#000 calc(100% - 14px), transparent);}  /* fade hints at more */
@@ -164,7 +165,7 @@
   .cmd:disabled{opacity:.55; cursor:default;}
   .cmd .cost.low{color:#e87a7a;}
   .cmd .cost{float:right; font-size:11px; color:var(--mp);}
-  #rosterPanel{flex:1; display:flex; flex-direction:column; justify-content:flex-end; padding:6px 8px; gap:4px; overflow:hidden;}
+  #rosterPanel{flex:1 1 0; min-width:0; border-right:1px solid var(--line); display:flex; flex-direction:column; justify-content:flex-end; padding:6px 8px; gap:4px; overflow-y:auto;}
   .prow{display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; font-size:12px;}
   .prow.turn{background:rgba(244,185,66,.12); outline:1px solid var(--gold);}
   .prow.downed{opacity:.4;}
@@ -177,16 +178,11 @@
   .badge.stun{background:#5a4a00; color:#ffe27a;} .badge.atkup{background:#5a2e00; color:#ffb27a;}
   .badge.champ{background:rgba(244,210,122,.18); color:var(--gold); border:1px solid var(--gold);} /* champion affixes read as a power tier */
 
-  /* combat log: a quiet 2-line ticker pinned to the field/UI seam (Dara: was a cluttered scroll
-     over the party). Right-aligned, dimmed prior line, small scrim for legibility. */
-  /* tap the log to expand it into a scrollable battle history (who hit whom for how much) — Dara */
-  #log{position:absolute; left:34%; right:0; bottom:30%; height:auto; max-height:34px; overflow:hidden; pointer-events:auto; cursor:pointer;
-    padding:3px 12px; font-size:12px; line-height:1.35; text-align:right; color:var(--gold2);
-    text-shadow:0 1px 3px #000, 0 0 6px #000; background:linear-gradient(transparent, rgba(6,6,11,.55));}
-  #log div{opacity:.4;} #log div:last-child{opacity:.95;}
-  #log.expanded{bottom:8%; max-height:46%; overflow-y:auto; text-align:left; pointer-events:auto;
-    background:rgba(6,6,12,.92); border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.6);}
-  #log.expanded div{opacity:.92;}
+  /* battle log: the right column of the lower window — a scrollable history (who hit whom for how
+     much, buffs/debuffs applied + resisted). Newest at the bottom (Dara). */
+  #log{flex:1 1 0; min-width:0; padding:6px 8px; overflow-y:auto; font-size:11.5px; line-height:1.4;
+    text-align:left; color:var(--gold2); text-shadow:0 1px 2px #000; display:flex; flex-direction:column; gap:1px;}
+  #log div{opacity:.85;} #log div:last-child{opacity:1; color:var(--gold2);}
 
   /* ENRAGE: the alpha→omega crossfade overlay (fades in over the boss sprite on the stage layer),
      plus a menacing red pulse on the enraged boss thereafter */
@@ -303,6 +299,7 @@
       <div class="hud-pill" id="fieldZone"><span class="zone-lead">Greenvale</span></div>
       <div class="hud-grp">
         <div class="hud-pill"><span id="fieldGold">0</span> gold</div>
+        <button class="hud-pill audiobtn" id="egressBtn" title="Return instantly to town" style="display:none" onclick="Game.egress()">⮌ EGRESS</button>
         <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
         <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle(Music.cur === 'village' ? 'village' : 'field')">♪ <span id="st-field">Radiant</span></button>
       </div>
@@ -333,10 +330,10 @@
       <div id="partyZone"></div>
       <button id="battleStyleBtn" class="btn" title="Battle music style" onclick="Music.cycleStyle(Music.cur)">♪ <span id="st-battle">Radiant</span></button>
     </div>
-    <div id="log"></div>
     <div id="battleUi">
       <div id="cmdPanel"><div class="who" id="cmdWho"></div><div id="cmdList"></div></div>
       <div id="rosterPanel"></div>
+      <div id="log" aria-label="battle log"></div>
     </div>
   </div>
 

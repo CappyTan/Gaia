@@ -34,7 +34,7 @@ export const Battle = {
   isBoss: false,
   finalBoss: false,
   logLines: [] as string[],
-  logExpanded: false,
+  STATUS_NAMES: { burn: "Burn", poison: "Poison", decay: "Decay", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", def: "Guard", wardArmor: "Ward" } as Record<string, string>,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
@@ -46,9 +46,8 @@ export const Battle = {
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
-    this.awaiting = false; this.current = null; this.logLines = []; this.logExpanded = false;
+    this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
-    const logEl = $("#log"); if (logEl) (logEl as HTMLElement).onclick = () => this.toggleLog(); // tap to expand/scroll history
     this.renderBg(); this.renderAll();
     this.lockInput(700); // swallow taps bleeding over from the field D-pad as the screen swaps in
     const lead = this.enemies.find((e) => e.boss) || this.enemies[0];
@@ -181,12 +180,17 @@ export const Battle = {
     if (s && s.type === "heal") {
       targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
     } else if (s && s.type === "buff") {
+      const applied: string[] = [];
+      if (s.buff?.def) applied.push("Guard");
+      if (s.buff?.atkup) applied.push("+ATK");
+      if (s.buff?.wardArmor) applied.push("Ward");
       targets.forEach((t) => {
         if (s.buff?.def) t.guarding = true;
         if (s.buff?.atkup) applyStatus(t, { atkup: s.buff.turns ?? 0 });
         if (s.buff?.wardArmor) { applyStatus(t, { wardArmor: s.buff.turns ?? 0 }); t.wardAmt = s.buff.wardArmor; }
       });
-      this.log(`${actor.name} uses ${s.name}.`);
+      const who = targets.length > 1 ? "the party" : targets[0]?.name ?? actor.name;
+      this.log(`${actor.name}'s ${s.name}${applied.length ? ` grants ${applied.join(", ")} to ${who}` : ""}`);
     } else if (s && s.type === "util" && s.cleanse) {
       targets.forEach((t) => { t.status = {}; this.float(t, "cleansed", "#9cd1ff"); });
       this.log(`${actor.name} cleanses ${targets[0].name}.`);
@@ -220,11 +224,13 @@ export const Battle = {
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
     if (s && s.status) {
       let st = s.status;
-      if (st.stun && stunImmune(target)) { st = { ...st }; delete st.stun; this.float(target, "resist", "#ccc"); }
+      if (st.stun && stunImmune(target)) { st = { ...st }; delete st.stun; this.float(target, "resist", "#ccc"); this.log(`${target.name} resists Stun`); }
       applyStatus(target, st);
+      const names = Object.keys(st).map((k) => this.STATUS_NAMES[k] || k);
+      if (names.length) this.log(`${target.name} is afflicted with ${names.join(", ")}`);
     }
-    if (actor.bonusBurn) applyStatus(target, { burn: 2 });
-    if (actor.onHitPoison) applyStatus(target, { poison: actor.onHitPoison });
+    if (actor.bonusBurn) { applyStatus(target, { burn: 2 }); this.log(`${target.name} is afflicted with Burn`); }
+    if (actor.onHitPoison) { applyStatus(target, { poison: actor.onHitPoison }); this.log(`${target.name} is afflicted with Poison`); }
     this.markHurt(target);
     if (target.alive) this.maybeEnrage(target);
     if (!target.alive) this.onDeath(target);
@@ -513,17 +519,14 @@ export const Battle = {
       if (bars[2]) bars[2].style.width = m.atb + "%";
     });
   },
-  // Keep the FULL fight history (capped); the ticker shows the last 2, tapping expands it to a
-  // scrollable log of everything that happened (who hit whom for how much) — Dara.
+  // The battle log lives in the right column of the lower window: a scrollable history (capped),
+  // newest at the bottom (Dara).
   log(t: string): void { this.logLines.push(t); if (this.logLines.length > 200) this.logLines.shift(); this.renderLog(); },
   renderLog(): void {
     const l = $("#log"); if (!l) return;
-    const lines = this.logExpanded ? this.logLines : this.logLines.slice(-2);
-    l.innerHTML = lines.map((x) => `<div>${x}</div>`).join("");
-    l.classList.toggle("expanded", this.logExpanded);
-    if (this.logExpanded) l.scrollTop = l.scrollHeight; // newest at the bottom
+    l.innerHTML = this.logLines.map((x) => `<div>${x}</div>`).join("");
+    l.scrollTop = l.scrollHeight; // auto-scroll to the latest
   },
-  toggleLog(): void { this.logExpanded = !this.logExpanded; this.renderLog(); },
 
   /* ---- battle-screen feedback helpers ---- */
   markActing(u: Unit): void { u.acting = true; this.renderAll(); },
