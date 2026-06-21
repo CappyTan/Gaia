@@ -19,8 +19,22 @@ import {
   MAPS, CONTINENTS, ZONE_REGIONS, AREAS, OVERWORLD_ID,
   worldMap, regionAt, bbox, type WorldMap, type Polygon, type BBox,
 } from "../data/world";
+import { ZONES } from "../data/zones";
+import { ENEMIES } from "../data/enemies";
 import { GAME_VERSION } from "../data/version";
 import { Overlay } from "../ui/overlay";
+
+// A built zone's SUGGESTED LEVEL: the min enemy level across its opening band's sets (band[0]) — the
+// relative-danger signal, derived cheaply from the existing encounter data (no new data). Mirrors
+// Field.suggestedLevel; kept local so the World Map can label built zones without a controller import.
+function suggestedLevelOf(zoneId: string): number | undefined {
+  const z = ZONES.find((zz) => zz.id === zoneId);
+  const sets = z?.bands[0]?.sets;
+  if (!sets) return undefined;
+  let min = Infinity;
+  for (const s of sets) for (const k of s) { const lv = ENEMIES[k]?.lvl; if (lv != null && lv < min) min = lv; }
+  return min === Infinity ? undefined : min;
+}
 
 // Palette (gold-on-dark, matches index.html CSS vars).
 const C = {
@@ -267,7 +281,11 @@ export const WorldMapView = {
         ctx.fillStyle = built ? C.zoneLine : C.draftLine;
         ctx.font = `${built ? "bold " : ""}11px system-ui, sans-serif`;
         ctx.textBaseline = "top";
-        ctx.fillText((built ? "" : "·") + z.name, px(bb.minX) + 3, py(bb.minY) + 2);
+        // BUILT zones append their suggested entry level ("Greenvale  Lv 1+") so the map signals
+        // relative danger; backlog regions stay bare (no encounter data).
+        const sug = built && z.zone ? suggestedLevelOf(z.zone) : undefined;
+        const label = (built ? "" : "·") + z.name + (sug != null ? `  Lv ${sug}+` : "");
+        ctx.fillText(label, px(bb.minX) + 3, py(bb.minY) + 2);
       }
     }
 

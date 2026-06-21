@@ -3,7 +3,7 @@
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri, pick } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type ZoneLayout, type Pt, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type Pt, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf,
@@ -28,6 +28,11 @@ import { Telemetry } from "../telemetry/telemetry";
 //   [4]stormcoast(seacave)=warren  [5]riverhearth(smuggden)=warren  [6]frostpeak(stronghold)=vault
 //   [7]dawnfall(keepvault)=vault   [8]whisperhills(crypt)=grove     [9]sunbridge(citadel)=vault
 const DUNGEON_SETS = ["warren", "grove", "vault", "vault", "warren", "warren", "vault", "vault", "grove", "vault"];
+
+// OPTIONAL (side) zones vs SPINE (mainline progression). The mouth caption distinguishes the two
+// (a spine dungeon reads `↦ <name>`; an optional one reads `<name> (optional)`). The Aurelion-complete
+// review names the optional set; everything else is spine-ish (the mainline ladder to Sunbridge).
+const OPTIONAL_ZONES = new Set(["stormcoast", "riverhearth", "dawnfall", "whisperhills"]);
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
@@ -155,6 +160,23 @@ export const Field = {
 
   zone() { return ZONES[this.zoneIndex]; },
   isLastZone(): boolean { return this.zoneIndex >= ZONES.length - 1; },
+  // SUGGESTED LEVEL (relative-danger signal): the entry difficulty of a built zone, derived cheaply
+  // from the MIN enemy level across its opening band's sets (band[0]). No new data — auto-corrects if
+  // the encounter tables change. Used by hint()/worldMap to surface "Lv N+" and warn under-levelled
+  // players. Defaults to the current zone.
+  suggestedLevel(zz?: Zone): number {
+    const z = zz ?? this.zone();
+    const sets = z.bands[0]?.sets ?? [];
+    let min = Infinity;
+    for (const s of sets) for (const k of s) { const lv = ENEMIES[k]?.lvl; if (lv != null && lv < min) min = lv; }
+    return min === Infinity ? 1 : min;
+  },
+  // Party average level — the player's footing against a zone's suggested level.
+  partyAvgLevel(): number {
+    const p = Game.party;
+    if (!p.length) return 1;
+    return Math.round(p.reduce((n, m) => n + m.level, 0) / p.length);
+  },
   // A grim mire reads differently from the shire: the overworld dresses its ground/walls/scatter as
   // a marsh (bog water, dead trees, reeds) when the zone's overworld env leads with "mire".
   isMire(): boolean { return this.zone().envs[0] === "mire"; },
@@ -820,12 +842,28 @@ export const Field = {
   },
   hint(): void {
     const set = (sel: string, txt: string) => { const e = $(sel); if (e) e.textContent = txt; };
+    const hintEl = $("#fieldHint");
+    if (hintEl) hintEl.style.color = ""; // reset any prior danger tint to the gold default
+    // The zone pill, lead by region name (larger) + a dimmer sub token (Area · suggested-lv · cleared).
+    const setPill = (lead: string, sub: string) => {
+      const e = $("#fieldZone");
+      if (e) e.innerHTML = `<span class="zone-lead">${lead}</span>${sub ? `<span class="zone-sub">${sub}</span>` : ""}`;
+    };
     const party = $("#fieldParty");
     if (party) party.innerHTML = Game.party.map((m) => `<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
     set("#fieldGold", String(Game.gold));
     if (this.townMode) {
       set("#fieldHint", "Walk into a townsperson to talk; onto a building to use it; through the north gate to head out.");
-      set("#fieldZone", this.town?.name ?? "Town");
+      setPill(this.town?.name ?? "Town", "");
+      return;
+    }
+    // OPEN CONTINENT (big map, between built cores): zone() is the STALE last-entered zone — don't reuse
+    // its name/progress. Give an honest "open wilds" pill + a compass cue toward the nearest built zone.
+    if (this.bigMapActive() && !this.bigZone) {
+      const area = regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name;
+      setPill("Open Aurelion", area ? `${area} · wilds` : "wilds");
+      const near = this.nearestBuiltZone();
+      set("#fieldHint", near ? `${near.name} lies ${near.dir}.` : "Open wilds — no roads here. Strike out toward a settled land.");
       return;
     }
     const p = this.progress(), z = this.zone(), name = z.name;
@@ -837,13 +875,45 @@ export const Field = {
     else if (p < 0.12) msg = `Head east through ${name}. Search off the path for treasure.`;
     else if (p > 0.88) msg = `${z.dungeon.name} lies just ahead.`;
     else msg = `${Math.round(p * 100)}% through ${name}. Keep moving east.`;
+    // RELATIVE-DANGER WARNING (overworld only): if the party is well below the zone's suggested level,
+    // override the hint with a clear in-palette danger state so a wanderer isn't blindsided.
+    const sug = this.suggestedLevel(z);
+    if (!this.inDungeon()) {
+      const gap = sug - this.partyAvgLevel();
+      if (gap >= 3 && hintEl) { msg = `⚠ Dangerous — foes here far outmatch you (Lv ${sug}+).`; hintEl.style.color = "#ff5a5a"; }
+      else if (gap >= 1 && hintEl) { msg = `${msg} Foes here are tougher than you (Lv ${sug}+).`; hintEl.style.color = "var(--rare)"; }
+    }
     set("#fieldHint", msg);
     // On the seamless map, name the Area you're standing in (Goldmeadow's Open Wheat, the Creek Line, …)
     // so crossing its sub-spaces reads as moving through real places, not one flat zone. Cheap — already
     // sampled for music on the per-step path. Falls back to the zone name off the big map / in a dungeon.
     const area = this.bigMapActive() ? regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name : undefined;
-    const place = this.inDungeon() ? z.dungeon.name : area ? `${name} · ${area}` : name;
-    set("#fieldZone", `${place} · ${Game.encountersWon} cleared`);
+    const lead = this.inDungeon() ? z.dungeon.name : name;
+    const sub = this.inDungeon()
+      ? `${Game.encountersWon} cleared`
+      : `${area ? area + " · " : ""}Lv ${sug}+ · ${Game.encountersWon} cleared`;
+    setPill(lead, sub);
+  },
+  // The nearest BUILT zone to the player's world position (big-map open continent) + a compass word for
+  // it — drives the honest "X lies east" cue. Uses each placed zone's authored-grid origin as its anchor.
+  nearestBuiltZone(): { name: string; dir: string } | undefined {
+    let best: { name: string; dir: string } | undefined, bd = Infinity;
+    for (const id of this.bigBuiltZoneIds()) {
+      const pl = placementOf(id); if (!pl) continue;
+      const z = ZONES.find((zz) => zz.id === id); if (!z) continue;
+      const tx = pl.wx + z.layout.spawn.x, ty = pl.wy + z.layout.spawn.y;
+      const dx = tx - this.wx, dy = ty - this.wy, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = { name: z.name, dir: this.compass(dx, dy) }; }
+    }
+    return best;
+  },
+  // An 8-way compass word for a (dx,dy) world-tile vector (y grows south).
+  compass(dx: number, dy: number): string {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    const ns = dy < 0 ? "north" : "south", ew = dx < 0 ? "west" : "east";
+    if (ax > ay * 2) return ew;
+    if (ay > ax * 2) return ns;
+    return ns + ew;
   },
   // One town tile: a ground sprite (cobble / grass; wall has none) under a building/decoration
   // object with a gold label. Everything falls back to emoji/flat-colour until the tileset is
@@ -935,14 +1005,55 @@ export const Field = {
       const g = isObj ? "orchard-ground" : (gm[kind] || "orchard-ground");
       return { ground: g === "orchard-ground" ? alt("orchard-ground") : g, flat: "#557a30" };
     }
-    if (biome === "meadow") {
+    if (biome === "meadow" || biome === "creek") {
       const gm: Record<string, string> = { grass: "meadow-ground", grass2: "meadow-ground2", path: "path", bush: "wheat", tree: "meadow-ground" };
       const g = isObj ? "meadow-ground" : (gm[kind] || "meadow-ground");
-      return { ground: g === "meadow-ground" ? alt("meadow-ground") : g, flat: "#7a8a36" };
+      // a creek (Goldmeadow's bank) reads a hair cooler/greyer than open wheat.
+      return { ground: g === "meadow-ground" ? alt("meadow-ground") : g, flat: biome === "creek" ? "#5f7a4a" : "#7a8a36" };
+    }
+    // AURELION-COMPLETE biome fills (no bespoke art yet — distinct in-palette flat fills give wayfinding).
+    // COLD highlands (Frostpeak): snow/ice/stone → pale cold blue-greys, water stays the cold pool blue.
+    if (biome === "snow" || biome === "ice" || biome === "stone") {
+      const flat = kind === "water" ? "#5a7896" : biome === "snow" ? "#cfe0ec" : biome === "ice" ? "#aebfd0" : "#6a7080";
+      const g = isObj ? "grass" : kind;
+      return { ground: g === "grass" ? alt("grass") : g, flat };
+    }
+    // COAST / shore (Storm Coast, Sunbridge): sand + teal sea — beaches sandy, water teal, rock dark grey.
+    if (biome === "coast" || biome === "beach" || biome === "harbor" || biome === "rock") {
+      const flat = kind === "water" ? "#2f5b7a" : biome === "rock" ? "#5a6068" : "#cdb98a";
+      const g = isObj ? "grass" : kind;
+      return { ground: g === "grass" ? alt("grass") : g, flat };
+    }
+    // RIVER trade-roads (Riverhearth): sand banks + teal river; road/town are stone tan.
+    if (biome === "riverside" || biome === "road" || biome === "town") {
+      const flat = kind === "water" ? "#2f5b7a" : biome === "riverside" ? "#cdb98a" : "#8a7a54";
+      const g = isObj ? "grass" : kind;
+      return { ground: g === "grass" ? alt("grass") : g, flat };
+    }
+    // SAGE hills / highland (Whisper Hills, Dawnfall highland): muted sage green.
+    if (biome === "hills" || biome === "highland") {
+      const g = isObj ? "grass" : kind;
+      return { ground: g === "grass" ? alt("grass") : g, flat: "#6f8a5a" };
     }
     // plains / unknown = base shire grass + road + hedge-tree.
     const g = isObj ? "grass" : kind;
     return { ground: g === "grass" ? alt("grass") : g, flat: "#4a7a32" };
+  },
+
+  // The dungeon/cave MOUTH gets a gold caption (like town POIs) so the east-spine POI reads as a named
+  // destination, not a bare door. Spine dungeons read `↦ <name>`; OPTIONAL side zones read
+  // `<name> (optional)`. Name comes from the zone the player currently stands in (this.zone()).
+  drawMouthLabel(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
+    const z = this.zone();
+    const optional = OPTIONAL_ZONES.has(z.id);
+    const txt = optional ? `${z.dungeon.name} (optional)` : `↦ ${z.dungeon.name}`;
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const ly = sy + t * 1.04;
+    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
+    c.restore();
   },
 
   // BIG-MAP draw: iterate the WORLD-TILE viewport from the chunk cache (never calling regionAt).
@@ -979,21 +1090,31 @@ export const Field = {
       const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
       if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
       else if (cell.kind === "lair") obj(T.lair, "🕳️", 0.85);
-      else if (cell.kind === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95);
-      else if (cell.kind === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); this.drawMouthLabel(c, sx, sy, t); }
+      else if (cell.kind === "miniboss") { c.fillText("🪖", sx + t / 2, sy + t / 2); this.drawMouthLabel(c, sx, sy, t); }
       else if (cell.kind === "tree") {
         if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
         else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);
         else if (biome === "mire" || biome === "ruin") obj(T.deadtree, "🌫️", 0.95);
+        else if (biome === "snow" || biome === "ice") c.fillText("🌲", sx + t / 2, sy + t / 2);      // snow-laden conifers
+        else if (biome === "stone" || biome === "rock") c.fillText("⛰️", sx + t / 2, sy + t / 2);    // crags
+        else if (biome === "coast" || biome === "beach" || biome === "harbor") c.fillText("🌴", sx + t / 2, sy + t / 2);
         else if (!gimg) c.fillText("🌲", sx + t / 2, sy + t / 2);
       }
       else if (cell.kind === "water" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
       else if (cell.kind === "bush") {
         if (biome === "forest") obj(T.fern, "🌿", 0.85);
-        else if (biome === "meadow") obj(T.wheat, "🌾", 0.85);
+        else if (biome === "meadow" || biome === "creek") obj(T.wheat, "🌾", 0.85);
+        else if (biome === "snow" || biome === "ice") c.fillText("❄️", sx + t / 2, sy + t / 2);
+        else if (biome === "coast" || biome === "beach" || biome === "harbor") c.fillText("🐚", sx + t / 2, sy + t / 2);
+        else if (biome === "hills" || biome === "highland") c.fillText("🌾", sx + t / 2, sy + t / 2);
         else if (!gimg) c.fillText("🌿", sx + t / 2, sy + t / 2);
       }
-      else if (cell.kind === "rock") { if (biome === "forest") obj(T.mushroom, "🍄", 0.8); }
+      else if (cell.kind === "rock") {
+        if (biome === "forest") obj(T.mushroom, "🍄", 0.8);
+        else if (biome === "snow" || biome === "ice" || biome === "stone" || biome === "rock") c.fillText("🪨", sx + t / 2, sy + t / 2);
+        else if (biome === "coast" || biome === "beach" || biome === "harbor") c.fillText("⛰️", sx + t / 2, sy + t / 2);
+      }
     }
     // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback).
     const cx = (this.wx - camx) * t + t / 2, cy = (this.wy - camy) * t + t / 2;
