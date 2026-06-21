@@ -181,11 +181,17 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   it("every BUILT zone references a real Zone def; every region nests within its continent", () => {
     const zoneIds = new Set(ZONES.map((z) => z.id));
     const continentIds = new Set(CONTINENTS.map((c) => c.id));
-    // Goldmeadow has now LANDED in ZONES (level-designer phase complete), so the staged-build
-    // exception is removed — the full dangling-link guard fires for EVERY linked zone again.
+    // STAGED-BUILD EXCEPTION (Aurelion complete): the world-cartographer wires the GEOGRAPHY first —
+    // the six new Aurelion regions are LINKED here (zone set, draft dropped) and fully tiled with Areas,
+    // but their playable `Zone` defs land in zones.ts in the NEXT phase (level-designer). Until then they
+    // have no ZONES entry, so the dangling-link guard is relaxed for exactly this set; every OTHER linked
+    // zone must still resolve to a real ZONES entry. (Same staged pattern goldmeadow went through.)
+    const AWAITING_LAYOUT = new Set([
+      "stormcoast", "riverhearth", "frostpeak", "dawnfall", "whisperhills", "sunbridge",
+    ]);
     for (const z of ZONE_REGIONS) {
       expect(continentIds.has(z.continent), `zone "${z.id}" must have a real parent continent`).toBe(true);
-      if (z.zone)
+      if (z.zone && !AWAITING_LAYOUT.has(z.id))
         expect(zoneIds.has(z.zone), `built zone "${z.id}" must link a real ZONES entry`).toBe(true);
       else if (!z.zone) expect(z.draft, `backlog zone "${z.id}" must be marked draft`).toBe(true);
       const c = CONTINENTS.find((cc) => cc.id === z.continent)!;
@@ -335,10 +341,12 @@ describe("world hierarchy registry (ADR 0009, organic polygons)", () => {
   });
 
   it("areasOf / zonesOf / builtZonesOf are consistent with the registry", () => {
-    // All 10 Aurelion regions (4 built + 6 backlog) are painted; the built ones live here.
+    // All 10 Aurelion regions are painted AND now linked (Aurelion complete: the 4 prior built zones +
+    // the 6 newly-wired regions whose layouts land next). So every Aurelion region is a built zone here.
     expect(zonesOf(AURELION_ID).length).toBe(10);
     expect(builtZonesOf(AURELION_ID).map((z) => z.id).sort())
-      .toEqual(["duskmarsh", "goldmeadow", "greenvale", "silverwood"]);
+      .toEqual(["dawnfall", "duskmarsh", "frostpeak", "goldmeadow", "greenvale", "riverhearth",
+        "silverwood", "stormcoast", "sunbridge", "whisperhills"]);
     // The other three continents are all backlog (no built zones yet).
     for (const id of [VARKHAZ_ID, MYRTHALAS_ID, SUNDERING_ID])
       expect(builtZonesOf(id).length, `${id} has no built zones yet`).toBe(0);

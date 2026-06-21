@@ -289,28 +289,44 @@ const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
     shape: ring([248, 122], [300, 114], [344, 128], [360, 152], [348, 176], [312, 186], [272, 178],
                 [246, 160], [240, 140]) },
 
-  // ── BACKLOG (named on the map; draft) ──
-  // #4 Storm Coast (Seafarer's Rest) — WEST coast, mid-latitude.
-  { id: "stormcoast", name: "Storm Coast", continent: AURELION_ID, draft: true,
-    shape: ring([100, 178], [136, 170], [156, 188], [158, 216], [138, 234], [110, 230], [96, 208],
-                [94, 192]) },
-  // #5 Riverhearth (Trade Capital) — CENTER hub of the continent.
-  { id: "riverhearth", name: "Riverhearth", continent: AURELION_ID, draft: true,
-    shape: ring([264, 206], [308, 198], [344, 210], [356, 232], [342, 254], [306, 264], [272, 254],
-                [254, 230]) },
-  // #6 Frostpeak Highlands (Dwarven Strongholds) — EAST arm, mid-latitude.
-  { id: "frostpeak", name: "Frostpeak Highlands", continent: AURELION_ID, draft: true,
-    shape: ring([388, 152], [428, 146], [452, 166], [452, 196], [430, 214], [398, 210], [380, 188],
-                [378, 168]) },
-  // #7 Dawnfall Hold (Frontier Watch) — SW.
-  { id: "dawnfall", name: "Dawnfall Hold", continent: AURELION_ID, draft: true,
-    shape: ring([150, 246], [188, 242], [214, 258], [212, 282], [190, 292], [162, 288], [144, 270]) },
-  // #8 Whisper Hills (Monastery Land) — SE.
-  { id: "whisperhills", name: "Whisper Hills", continent: AURELION_ID, draft: true,
-    shape: ring([366, 256], [398, 254], [418, 268], [414, 288], [392, 296], [366, 290], [352, 274]) },
-  // #9 Sunbridge (Port City) — S-center, southernmost (toward the Coral Archipelago).
-  { id: "sunbridge", name: "Sunbridge", continent: AURELION_ID, draft: true,
-    shape: ring([268, 270], [304, 266], [326, 282], [324, 296], [302, 298], [288, 290], [272, 286]) },
+  // ── BUILT (this build — Aurelion complete; all six linked, polygons refined to host their cores) ──
+  // #4 Storm Coast (Seafarer's Rest) — WEST coast, mid-latitude. OPTIONAL (L13–17). A storm-lashed rock
+  // coast: a NW cove spawn, N cliffs, a S wreck strand, the E sea-cave mouth. Hugs Aurelion's western
+  // coastline; centroid ≈ (122,204); bbox 76×72 hosts a ~52×22 authored core.
+  { id: "stormcoast", name: "Storm Coast", continent: AURELION_ID, zone: "stormcoast",
+    shape: ring([94, 176], [124, 168], [152, 180], [160, 202], [154, 226], [136, 240], [110, 240],
+                [92, 224], [84, 202], [86, 186]) },
+  // #5 Riverhearth (Trade Capital) — CENTER hub of the continent. OPTIONAL (L15–18). Trade-road/river
+  // outskirts of the capital: W wharves spawn, N trade road, central market, S riverbank, E smugglers'
+  // den mouth. Broad central blob (the crossroads); centroid ≈ (303,228); bbox 112×72 hosts a ~56×22 core.
+  { id: "riverhearth", name: "Riverhearth", continent: AURELION_ID, zone: "riverhearth",
+    shape: ring([258, 200], [300, 192], [342, 202], [360, 224], [352, 248], [326, 262], [294, 264],
+                [266, 254], [248, 232], [248, 214]) },
+  // #6 Frostpeak Highlands (Dwarven Strongholds) — EAST arm, mid-latitude. SPINE (L16–20). A vertical
+  // frozen mountain arm: W glacial pass, N frozen ridge, central glacier, S undervault, the E hold-gate
+  // mouth. Eastern arm of Aurelion; centroid ≈ (414,180); bbox 88×76 comfortably hosts a 60×24 core.
+  { id: "frostpeak", name: "Frostpeak Highlands", continent: AURELION_ID, zone: "frostpeak",
+    shape: ring([380, 150], [414, 142], [446, 152], [458, 176], [452, 202], [432, 218], [402, 218],
+                [380, 204], [370, 182], [370, 166]) },
+  // #7 Dawnfall Hold (Frontier Watch) — SW. OPTIONAL (L17–21). A breached frontier fortress: W watchwall
+  // spawn, N rampart, S muster yard, E breached-undervault mouth. SW interior; centroid ≈ (184,270);
+  // bbox 74×52 hosts a ~50×22 core.
+  { id: "dawnfall", name: "Dawnfall Hold", continent: AURELION_ID, zone: "dawnfall",
+    shape: ring([148, 250], [182, 244], [210, 254], [222, 272], [214, 288], [192, 296], [170, 294],
+                [156, 280], [148, 266]) },
+  // #8 Whisper Hills (Monastery Land) — SE. OPTIONAL (L19–23). Quiet monastic green hills: W cloister
+  // spawn, N greens, S crypt path, E reliquary mouth. SE interior; centroid ≈ (387,272); bbox 82×56
+  // hosts a ~52×22 core.
+  { id: "whisperhills", name: "Whisper Hills", continent: AURELION_ID, zone: "whisperhills",
+    shape: ring([356, 250], [390, 244], [418, 256], [428, 276], [418, 292], [396, 300], [370, 296],
+                [352, 282], [346, 266]) },
+  // #9 Sunbridge (Port City) — S-center, southernmost (toward the Coral Archipelago). SPINE FINALE
+  // (L21–25). The great southern sea-port: W quays spawn, N seawall, central plaza, S harbor, the E
+  // citadel/lighthouse mouth (the finale dungeon). S peninsula; centroid ≈ (305,290); bbox 72×48 hosts
+  // a 60×24 core.
+  { id: "sunbridge", name: "Sunbridge", continent: AURELION_ID, zone: "sunbridge",
+    shape: ring([274, 272], [306, 266], [332, 278], [342, 296], [332, 308], [308, 314], [286, 308],
+                [274, 296], [270, 284]) },
 
   // ══ VARKHAZ (#10–15) — The Untamed Frontier (NE) ══════════════════════════════════════════════
   // #10 Dunes of Khar (Shifting Sands) — top-center/NW of the continent.
@@ -383,6 +399,12 @@ const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
 ];
 
 // FLAGS FOR DARA (geography the canon map leaves open or this rough pass had to infer):
+//   • AURELION COMPLETE (this build): the six remaining Aurelion regions (#4 Storm Coast, #5 Riverhearth,
+//     #6 Frostpeak Highlands, #7 Dawnfall Hold, #8 Whisper Hills, #9 Sunbridge) are now LINKED (zone set,
+//     draft dropped) with refined organic polygons + tiling Areas. Their positions still trace your
+//     overworld map (Storm Coast W coast, Frostpeak E mountain arm, Sunbridge S port toward the Coral
+//     Archipelago, Dawnfall SW, Whisper Hills SE, Riverhearth center). All region/Area NAMES are DRAFT —
+//     yours to bless. Nudge any polygon on your word and I'll re-trace.
 //   • THE DUSKMARSH IS NOT ON YOUR MAP. Built zone by your "it's in Aurelion" ruling; placed as a low
 //     wet basin SOUTH of Greenvale (centroid ≈ world (178,150)), between Storm Coast and Goldmeadow.
 //     Tell me where the marsh actually sits and I'll re-trace it.
@@ -499,6 +521,123 @@ export const AREAS: Area[] = [
   { id: "gm-windmill-approach", name: "Windmill Approach", zone: "goldmeadow", draft: true,
     shape: ring([345, 127], [361, 152], [349, 177], [313, 187], [332, 172], [331, 148]),
     identity: { biome: "meadow", tileset: "shire", encounterLean: "miniboss-gate", music: "plains" } },
+
+  // ══ AURELION COMPLETE — the six newly-wired regions (world-cartographer, this build) ════════════════
+  // Each is an ORGANIC TILING of its refined zone polygon (≥4 Areas, 100%/99.6% interior coverage, 0%
+  // mutual overlap — verified in app/tests/world.test.ts), EAST lobe = the mouth/cave Area with the
+  // "miniboss-gate" lean (the level-designer puts the entrance there). Biomes match the World Brief's
+  // visuals; biome strings the field renderer doesn't yet special-case fall back to default ground (fine,
+  // placeholder — art/level-designer dress them later). Leans are CREATURE/TERRAIN flavor only (no
+  // Attunement — Dara's ruling). Names = DRAFT (flagged for Dara). Music keys per region are noted in the
+  // hand-back so audio + the zone wiring align.
+
+  // ── Storm Coast (Seafarer's Rest, W coast, L13–17, OPT) — a storm-lashed rock coast of wrecked hulls
+  //    and smugglers' coves. W cove spawn, N cliffs, S wreck strand, E sea-cave (the optional cave mouth).
+  //    Biome = rocky shore / breakers; music "stormcoast". ──
+  { id: "sc-cove", name: "Smuggler's Cove", zone: "stormcoast", draft: true,
+    shape: ring([86, 186], [94, 176], [116, 182], [118, 208], [108, 228], [92, 224], [84, 202]),
+    identity: { biome: "coast", tileset: "coast", encounterLean: "wrecker-skirmisher", music: "stormcoast" } },
+  { id: "sc-cliffs", name: "The Windward Cliffs", zone: "stormcoast", draft: true,
+    shape: ring([94, 176], [124, 168], [146, 178], [136, 196], [118, 208], [116, 182]),
+    identity: { biome: "rock", tileset: "coast", encounterLean: "seabeast-crab", music: "stormcoast" } },
+  { id: "sc-strand", name: "The Wreck Strand", zone: "stormcoast", draft: true,
+    shape: ring([92, 224], [108, 228], [126, 222], [136, 240], [110, 240]),
+    identity: { biome: "beach", tileset: "coast", encounterLean: "serpent-wrecker", music: "stormcoast" } },
+  { id: "sc-seacave", name: "The Sea-Cave Approach", zone: "stormcoast", draft: true,
+    shape: ring([124, 168], [152, 180], [160, 202], [154, 226], [136, 240], [126, 222], [108, 228],
+                [118, 208], [136, 196], [146, 178]),
+    identity: { biome: "coast", tileset: "coast", encounterLean: "miniboss-gate", music: "stormcoast" } },
+
+  // ── Riverhearth (Trade Capital, center, L15–18, OPT) — the capital's beset trade-road/river-wharf
+  //    outskirts (the existing Riverhearth city is its hub). W wharves spawn, N trade road, central
+  //    market, S riverbank, E smugglers' den (the optional cave mouth). Biome = riverside/road; music
+  //    "riverhearth". ──
+  { id: "rh-wharves", name: "The River Wharves", zone: "riverhearth", draft: true,
+    shape: ring([258, 200], [286, 196], [290, 228], [270, 254], [266, 254], [248, 232], [248, 214]),
+    identity: { biome: "riverside", tileset: "town", encounterLean: "rivertough-smuggler", music: "riverhearth" } },
+  { id: "rh-tradeway", name: "The Trade Road", zone: "riverhearth", draft: true,
+    shape: ring([258, 200], [300, 192], [330, 198], [322, 220], [290, 228], [286, 196]),
+    identity: { biome: "road", tileset: "town", encounterLean: "roadbandit-skirmisher", music: "riverhearth" } },
+  { id: "rh-market", name: "The Market Commons", zone: "riverhearth", draft: true,
+    shape: ring([290, 228], [322, 220], [324, 244], [300, 252], [270, 254]),
+    identity: { biome: "town", tileset: "town", encounterLean: "bandit-cutpurse", music: "riverhearth" } },
+  { id: "rh-riverbank", name: "The Lower Riverbank", zone: "riverhearth", draft: true,
+    shape: ring([270, 254], [300, 252], [324, 244], [326, 262], [294, 264]),
+    identity: { biome: "riverside", tileset: "town", encounterLean: "rare-lair", music: "riverhearth" } },
+  { id: "rh-smuggden", name: "The Smugglers' Den Approach", zone: "riverhearth", draft: true,
+    shape: ring([330, 198], [342, 202], [360, 224], [352, 248], [326, 262], [324, 244], [322, 220]),
+    identity: { biome: "riverside", tileset: "town", encounterLean: "miniboss-gate", music: "riverhearth" } },
+
+  // ── Frostpeak Highlands (Dwarven Strongholds, E mountains, L16–20, SPINE) — the cold gate east: frozen
+  //    peaks, glacial passes, the tunnels of a silent dwarven hold. W glacial pass spawn, N frozen ridge,
+  //    central glacier, S undervault, E hold-gate (the SPINE dungeon mouth). Biome = snow/ice/stone;
+  //    music "frostpeak". ──
+  { id: "fp-pass", name: "The Glacial Pass", zone: "frostpeak", draft: true,
+    shape: ring([380, 150], [400, 151], [396, 184], [380, 204], [370, 182], [370, 166]),
+    identity: { biome: "snow", tileset: "frost", encounterLean: "icewolf-reaver", music: "frostpeak" } },
+  { id: "fp-ridge", name: "The Frozen Ridge", zone: "frostpeak", draft: true,
+    shape: ring([380, 150], [414, 142], [446, 152], [438, 170], [412, 172], [400, 151]),
+    identity: { biome: "snow", tileset: "frost", encounterLean: "reaver-sentinel", music: "frostpeak" } },
+  { id: "fp-glacier", name: "The Hanging Glacier", zone: "frostpeak", draft: true,
+    shape: ring([400, 151], [412, 172], [418, 200], [396, 184]),
+    identity: { biome: "ice", tileset: "frost", encounterLean: "frostbeast-yeti", music: "frostpeak" } },
+  { id: "fp-undervault", name: "The Sunken Hold", zone: "frostpeak", draft: true,
+    shape: ring([380, 204], [396, 184], [418, 200], [420, 218], [402, 218]),
+    identity: { biome: "stone", tileset: "frost", encounterLean: "rare-lair", music: "frostpeak" } },
+  { id: "fp-holdgate", name: "The Hold-Gate Approach", zone: "frostpeak", draft: true,
+    shape: ring([446, 152], [458, 176], [452, 202], [432, 218], [420, 218], [418, 200], [412, 172],
+                [438, 170]),
+    identity: { biome: "stone", tileset: "frost", encounterLean: "miniboss-gate", music: "frostpeak" } },
+
+  // ── Dawnfall Hold (Frontier Watch, SW, L17–21, OPT) — a breached frontier fortress that held back the
+  //    wilds and lost. W watchwall spawn, N rampart, S muster yard, E breached undervault (the optional
+  //    cave mouth). Biome = ruined-keep / grim highland; music "dawnfall". ──
+  { id: "df-wall", name: "The Watchwall", zone: "dawnfall", draft: true,
+    shape: ring([148, 250], [176, 246], [180, 272], [170, 294], [156, 280], [148, 266]),
+    identity: { biome: "highland", tileset: "ruin", encounterLean: "fallenwatch-wildthing", music: "dawnfall" } },
+  { id: "df-rampart", name: "The Broken Rampart", zone: "dawnfall", draft: true,
+    shape: ring([148, 250], [182, 244], [202, 250], [196, 270], [180, 272], [176, 246]),
+    identity: { biome: "ruin", tileset: "ruin", encounterLean: "wildthing-reaver", music: "dawnfall" } },
+  { id: "df-muster", name: "The Muster Yard", zone: "dawnfall", draft: true,
+    shape: ring([170, 294], [180, 272], [196, 270], [200, 288], [192, 296]),
+    identity: { biome: "ruin", tileset: "ruin", encounterLean: "rare-lair", music: "dawnfall" } },
+  { id: "df-undervault", name: "The Undervault Approach", zone: "dawnfall", draft: true,
+    shape: ring([202, 250], [210, 254], [222, 272], [214, 288], [192, 296], [200, 288], [196, 270]),
+    identity: { biome: "ruin", tileset: "ruin", encounterLean: "miniboss-gate", music: "dawnfall" } },
+
+  // ── Whisper Hills (Monastery Land, SE, L19–23, OPT) — quiet green monastic hills hiding a dark secret
+  //    beneath a silent monastery. W cloister spawn, N greens, S crypt path, E reliquary (the optional
+  //    cave mouth). Biome = green hills / sacred; music "whisperhills". ──
+  { id: "wh-cloister", name: "The Silent Cloister", zone: "whisperhills", draft: true,
+    shape: ring([346, 266], [356, 250], [378, 254], [384, 276], [372, 290], [352, 282]),
+    identity: { biome: "hills", tileset: "monastery", encounterLean: "spirit-monk", music: "whisperhills" } },
+  { id: "wh-greens", name: "The Monastery Greens", zone: "whisperhills", draft: true,
+    shape: ring([356, 250], [390, 244], [418, 256], [410, 270], [384, 276], [378, 254]),
+    identity: { biome: "hills", tileset: "monastery", encounterLean: "monk-wraith", music: "whisperhills" } },
+  { id: "wh-cryptpath", name: "The Crypt Path", zone: "whisperhills", draft: true,
+    shape: ring([352, 282], [372, 290], [396, 294], [396, 300], [370, 296]),
+    identity: { biome: "hills", tileset: "monastery", encounterLean: "rare-lair", music: "whisperhills" } },
+  { id: "wh-reliquary", name: "The Reliquary Approach", zone: "whisperhills", draft: true,
+    shape: ring([418, 256], [428, 276], [418, 292], [396, 300], [396, 294], [372, 290], [384, 276],
+                [410, 270]),
+    identity: { biome: "hills", tileset: "monastery", encounterLean: "miniboss-gate", music: "whisperhills" } },
+
+  // ── Sunbridge (Port City, S port, L21–25, SPINE FINALE) — the grand southern sea-port under siege,
+  //    Aurelion's climax. W quays spawn, N seawall, central plaza, S harbor, E citadel/lighthouse (the
+  //    FINALE dungeon mouth). Biome = harbor/city-coast; music "sunbridge". ──
+  { id: "sb-quays", name: "The Quays", zone: "sunbridge", draft: true,
+    shape: ring([270, 284], [274, 272], [296, 276], [298, 300], [286, 308], [274, 296]),
+    identity: { biome: "harbor", tileset: "port", encounterLean: "searaider-besieger", music: "sunbridge" } },
+  { id: "sb-seawall", name: "The Seawall", zone: "sunbridge", draft: true,
+    shape: ring([274, 272], [306, 266], [318, 272], [310, 288], [298, 300], [296, 276]),
+    identity: { biome: "coast", tileset: "port", encounterLean: "besieger-captain", music: "sunbridge" } },
+  { id: "sb-plaza", name: "The Harbor Plaza", zone: "sunbridge", draft: true,
+    shape: ring([298, 300], [310, 288], [320, 302], [308, 314], [286, 308]),
+    identity: { biome: "harbor", tileset: "port", encounterLean: "raider-deepthing", music: "sunbridge" } },
+  { id: "sb-citadel", name: "The Citadel Approach", zone: "sunbridge", draft: true,
+    shape: ring([306, 266], [332, 278], [342, 296], [332, 308], [308, 314], [320, 302], [310, 288],
+                [318, 272]),
+    identity: { biome: "harbor", tileset: "port", encounterLean: "miniboss-gate", music: "sunbridge" } },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
