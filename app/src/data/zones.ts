@@ -363,10 +363,9 @@ export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undef
 // is a connected room-network with loops/dead-ends, not a single corridor. Anti-soft-lock: every floor
 // flood-fills so entry reaches its stairs-down (or boss) + all chests, and the gating mini can't strand.
 //
-// ENCOUNTER-DESIGNER FLAG: floor enemies reuse Greenvale bandits as PLACEHOLDERS (gbandit/kobold/
-// gmage/brigand via the bands). `floorMini: "brigand"` is the in-dungeon LIEUTENANT (B2's gate) — a
-// placeholder reusing the existing Bandit Brigadier; author the real bandit-lieutenant + the Warren's
-// own cast, and confirm the Kingpin finale, in data/enemies.ts + zones bands.
+// Floor random encounters reuse Greenvale's bands (gbandit/kobold/gmage/…). `floorMini: "lieutenant"`
+// is the in-dungeon LIEUTENANT that gates B2 — the authored Bandit Bloodknife (data/enemies.ts), a
+// step between the overworld mouth-guard (Brigadier) and the B3 Kingpin finale. (Name is DRAFT for Dara.)
 //
 // B1 — WARREN ENTRANCE (the fork): the mouth lands at the west entry hall, which forks into a NORTH
 // guard chamber and a SOUTH store room (a dead-end side cache off it). Both rejoin at a junction hub,
