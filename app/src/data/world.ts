@@ -1012,7 +1012,13 @@ export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[
   if (L.lair) { halo(L.lair); carve(L.lair.x, L.lair.y, "lair"); }
   halo(L.mouth); grid[L.mouth.y][L.mouth.x] = miniDefeated ? "mouth" : "miniboss";
   carve(L.spawn.x, L.spawn.y, "path");
-  const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair);
+  // RE-ENTERABLE HUB MARKER: a "village" POI just inside the entrance that walks the player back into
+  // the zone's starting settlement (Greenvale → Hearthford). Placed one tile in from spawn so the
+  // player doesn't stand on it at set-out. Scoped to the starting zone for now (other zones' hubs are
+  // reached via the hub chain). It's walkable; reachability is guaranteed by the repair below.
+  const village: Pt | null = zoneId === "greenvale" ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
+  if (village) { halo(village); grid[village.y][village.x] = "village"; }
+  const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair); if (village) targets.push(village);
   repairAuthoredGrid(grid, L.spawn, targets);
   return grid;
 }

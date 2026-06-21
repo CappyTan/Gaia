@@ -341,9 +341,12 @@ export const Field = {
     this.halo(this.mouth);
     this.map[this.mouth.y][this.mouth.x] = Game.miniBossDefeated ? "mouth" : "miniboss";
     carve(L.spawn.x, L.spawn.y, "path");
+    // Re-enterable hub marker (Greenvale → Hearthford), one tile in from spawn (mirrors buildAuthoredGrid).
+    const village = this.zone().id === "greenvale" ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
+    if (village) { this.halo(village); carve(village.x, village.y, "village"); }
 
     // ANTI-SOFT-LOCK: the mouth + every overworld chest/lair must be reachable from spawn.
-    const targets = [this.mouth, ...this.chests]; if (this.lairAt) targets.push(this.lairAt);
+    const targets = [this.mouth, ...this.chests]; if (this.lairAt) targets.push(this.lairAt); if (village) targets.push(village);
     this.ensureReachable(L.spawn, targets);
   },
 
@@ -513,6 +516,7 @@ export const Field = {
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
     if (cell === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell === "mouth") { this.descend(); return; }       // step onto the cleared mouth → into the dungeon
+    if (cell === "village") { Game.openTown("hearthford"); return; } // step onto the village → back into Hearthford
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
@@ -570,6 +574,31 @@ export const Field = {
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
+  },
+  // Return to the seamless overworld from a HUB REVISIT (the village marker) — land back on the tile
+  // we entered from (wx/wy were left untouched while in town). Mirrors enterBigMap but keeps the
+  // player's world position; falls back to the zone spawn if the world tile is unknown (e.g. resumed
+  // from a save made inside the town). Discrete fallback rebuilds the overworld when big-map is off.
+  returnToOverworld(): void {
+    if (this.bigMapEnabled) {
+      this.townMode = false; this.mode = "overworld"; this.bigMap = true;
+      this.authoredGrids = {};
+      for (const id of this.bigBuiltZoneIds()) this.authoredGrids[id] = buildAuthoredGrid(id, Game.miniBossDefeated);
+      this.chunks.clear();
+      if (!this.wx && !this.wy) { // unknown world tile → drop at Greenvale's authored spawn
+        const L = (ZONES.find((z) => z.id === "greenvale") ?? this.zone()).layout, pl = placementOf("greenvale")!;
+        this.wx = pl.wx + L.spawn.x; this.wy = pl.wy + L.spawn.y;
+      }
+      this.resize();
+      this.syncZoneFromWorld();
+      this.realizeAround();
+      Screens.show("field");
+      this.draw(); this.hint();
+      return;
+    }
+    this.townMode = false; this.mode = "overworld";
+    this.resize(); this.genOverworld(this.zone().id);
+    Screens.show("field"); this.draw(); this.hint();
   },
   // ═══ SEAMLESS BIG-MAP (ADR 0009 / Stage 2C) — CONTINENT-WIDE, behind `bigMap` ═══════════════════
   // Render+roam the whole AURELION continent as a WINDOW into the 960×640 world (G22). `wx/wy` is the
@@ -721,6 +750,7 @@ export const Field = {
     const cell = this.cellAt(nx, ny);
     if (cell.kind === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell.kind === "mouth") { this.descend(); return; }
+    if (cell.kind === "village") { Game.openTown("hearthford"); return; } // step onto the village → back into Hearthford
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
     // OPEN CONTINENT (no built zone under the player) is backlog land — no random encounters yet (G22).
@@ -987,7 +1017,7 @@ export const Field = {
   // Falls back to the base shire skin for an unknown biome. Pure mapping — no regionAt on the frame path.
   bigGround(biome: string, kind: string, variant: number): { ground: string; flat: string } {
     const T = this.tiles;
-    const isObj = kind === "chest" || kind === "miniboss" || kind === "boss" || kind === "lair" || kind === "mouth";
+    const isObj = kind === "chest" || kind === "miniboss" || kind === "boss" || kind === "lair" || kind === "mouth" || kind === "village";
     const alt = (base: string) => (variant && T[base + "2"] ? base + "2" : base);
     // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
     if (biome === "forest") {
@@ -1091,6 +1121,12 @@ export const Field = {
       if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
       else if (cell.kind === "lair") obj(T.lair, "🕳️", 0.85);
       else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); this.drawMouthLabel(c, sx, sy, t); }
+      else if (cell.kind === "village") {
+        obj(T["town-inn"], "🏘️", 0.95);
+        c.save(); c.textAlign = "center"; c.textBaseline = "middle";
+        c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+        const ly = sy + t * 1.04; c.strokeText("Hearthford", sx + t / 2, ly); c.fillText("Hearthford", sx + t / 2, ly); c.restore();
+      }
       else if (cell.kind === "miniboss") { c.fillText("🪖", sx + t / 2, sy + t / 2); this.drawMouthLabel(c, sx, sy, t); }
       else if (cell.kind === "tree") {
         if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
@@ -1158,7 +1194,7 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth";
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village";
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
@@ -1222,6 +1258,12 @@ export const Field = {
         if (cell === "chest") obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8);
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
+        else if (cell === "village") { // re-enterable hub marker → back into Hearthford
+          obj(T["town-inn"], "🏘️", 0.95);
+          c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)";
+          c.strokeText("Hearthford", sx + t / 2, sy + t * 1.02); c.fillStyle = "rgba(244,210,122,.96)"; c.fillText("Hearthford", sx + t / 2, sy + t * 1.02);
+          c.font = `${t * 0.82}px serif`;
+        }
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
         else if (cell === "boss") obj(inDun ? T[`${dset}-entrance`] : undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95);
         else if (cell === "tree") {
