@@ -34,6 +34,7 @@ export const Battle = {
   isBoss: false,
   finalBoss: false,
   logLines: [] as string[],
+  logExpanded: false,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
@@ -45,8 +46,9 @@ export const Battle = {
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
-    this.awaiting = false; this.current = null; this.logLines = [];
+    this.awaiting = false; this.current = null; this.logLines = []; this.logExpanded = false;
     Screens.show("battle");
+    const logEl = $("#log"); if (logEl) (logEl as HTMLElement).onclick = () => this.toggleLog(); // tap to expand/scroll history
     this.renderBg(); this.renderAll();
     this.lockInput(700); // swallow taps bleeding over from the field D-pad as the screen swaps in
     const lead = this.enemies.find((e) => e.boss) || this.enemies[0];
@@ -177,8 +179,7 @@ export const Battle = {
     this.markActing(actor);
 
     if (s && s.type === "heal") {
-      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); });
-      this.log(`${actor.name} casts ${s.name}.`);
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
     } else if (s && s.type === "buff") {
       targets.forEach((t) => {
         if (s.buff?.def) t.guarding = true;
@@ -190,10 +191,8 @@ export const Battle = {
       targets.forEach((t) => { t.status = {}; this.float(t, "cleansed", "#9cd1ff"); });
       this.log(`${actor.name} cleanses ${targets[0].name}.`);
     } else {
-      // damage (attack or offensive skill)
+      // damage (attack or offensive skill) — each strike() logs who it hit for how much
       const hits = s ? s.hits || 1 : 1;
-      const name = s ? s.name : "attacks";
-      this.log(`${actor.name} ${s ? `uses ${name}` : "attacks"}.`);
       targets.forEach((t) => {
         for (let h = 0; h < hits; h++) { if (!t.alive) break; this.strike(actor, t, act); }
       });
@@ -206,7 +205,7 @@ export const Battle = {
   strike(actor: Unit, target: Unit, act: CombatAct): void {
     const s = act.skill;
     const r = combatDamage(actor, target, act);
-    if (r.miss) { this.float(target, "miss", "#bbb"); this.log(`${actor.name} is blinded — misses!`); return; }
+    if (r.miss) { this.float(target, "miss", "#bbb"); this.log(`${actor.name} misses ${target.name}.`); return; }
     const { crit, mult } = r;
     let dmg = r.dmg;
     if (actor.side === "enemy" && (actor as Enemy).enraged) dmg = Math.round(dmg * 2); // enrage: double damage
@@ -214,9 +213,10 @@ export const Battle = {
     Telemetry.dmg(actor.side, dmg, crit, mult);
     this.float(target, (crit ? "✦" : "") + dmg, mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff");
     if (crit) this.critFx(target, s && s.sol ? "SOL" : actor.att); // burst in the attacking power's color
-    if (mult > 1) this.log(`  ${target.name}: ${dmg} (${s && s.sol ? "SOL" : actor.att} surges!)`);
-    else if (mult < 1) this.log(`  ${target.name} resists: ${dmg}`);
-    if (crit) this.log(`  Critical! ${dmg} to ${target.name}`);
+    // FULL combat log line: who hit whom for how much (both directions) — the scrollable history.
+    const power = s && s.sol ? "SOL" : actor.att;
+    const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";
+    this.log(`${s ? `${actor.name}'s ${s.name}` : actor.name} hits ${target.name} for ${dmg}${tag}`);
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
     if (s && s.status) {
       let st = s.status;
@@ -293,8 +293,7 @@ export const Battle = {
           this.log(`${e.name} unleashes a wild swing!`);
           party.forEach((t) => this.strike(e, t, { aoe: true }));
         } else {
-          this.log(`${e.name} strikes ${target.name}.`);
-          this.strike(e, target, {});
+          this.strike(e, target, {}); // strike() logs who took how much
         }
       }
       recalc(Game.party);
@@ -352,8 +351,10 @@ export const Battle = {
     const drops: Item[] = [];
     for (const e of this.enemies) {
       xp += e.xpReward; gold += ri(e.goldRange[0], e.goldRange[1]);
-      // drops bias toward a random party member's class+attunement (useful), with built-in variety
-      const drop = () => { const m = pick(Game.party); return rollDrop(e, m.cls, m.att); };
+      // victory drops: weapons match a party member's exact class 75% of the time (farmable upgrades),
+      // 25% wild — see rollDrop. Pass the whole roster so any member's class can be the match.
+      const roster = Game.party.map((p) => ({ cls: p.cls, att: p.att }));
+      const drop = () => rollDrop(e, roster);
       const chance = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
       if (Math.random() < chance) drops.push(drop());
       if (e.champion) drops.push(drop()); // a leader's hoard
@@ -512,38 +513,54 @@ export const Battle = {
       if (bars[2]) bars[2].style.width = m.atb + "%";
     });
   },
-  log(t: string): void { this.logLines.push(t); if (this.logLines.length > 2) this.logLines.shift(); this.renderLog(); }, // 2-line ticker (Dara: was cluttered)
-  renderLog(): void { const l = $("#log"); if (!l) return; l.innerHTML = this.logLines.map((x) => `<div>${x}</div>`).join(""); },
+  // Keep the FULL fight history (capped); the ticker shows the last 2, tapping expands it to a
+  // scrollable log of everything that happened (who hit whom for how much) — Dara.
+  log(t: string): void { this.logLines.push(t); if (this.logLines.length > 200) this.logLines.shift(); this.renderLog(); },
+  renderLog(): void {
+    const l = $("#log"); if (!l) return;
+    const lines = this.logExpanded ? this.logLines : this.logLines.slice(-2);
+    l.innerHTML = lines.map((x) => `<div>${x}</div>`).join("");
+    l.classList.toggle("expanded", this.logExpanded);
+    if (this.logExpanded) l.scrollTop = l.scrollHeight; // newest at the bottom
+  },
+  toggleLog(): void { this.logExpanded = !this.logExpanded; this.renderLog(); },
 
   /* ---- battle-screen feedback helpers ---- */
   markActing(u: Unit): void { u.acting = true; this.renderAll(); },
   markHurt(u: Unit): void { u._hurt = true; this.renderAll(); setTimeout(() => { u._hurt = false; }, 260); },
+  // The DOM node for a unit, and the SPRITE element within it (enemies: the .spr-img; party: the doll).
+  unitNode(u: Unit): Element | null | undefined {
+    if (u.side === "enemy") { const i = (this.enemies as Unit[]).indexOf(u); return $("#enemyZone")!.children[i]; }
+    return $(`#partyZone .pchar[data-mid="${(u as Member).id}"]`);
+  },
+  spriteEl(u: Unit): Element | null | undefined {
+    const node = this.unitNode(u);
+    return node ? (node.querySelector(".spr-img") || node.querySelector("img") || node) : node;
+  },
   float(u: Unit, txt: string, color: string): void {
-    let node: Element | null | undefined;
-    if (u.side === "enemy") { const i = (this.enemies as Unit[]).indexOf(u); node = $("#enemyZone")!.children[i]; }
-    else node = $(`#partyZone .pchar[data-mid="${(u as Member).id}"]`);
-    if (!node) return;
+    const anchor = this.spriteEl(u); // damage/heal number floats above the SPRITE (Dara: not the HP bar)
+    if (!anchor) return;
     const f = el("div", "float", txt); f.style.color = color || "#fff";
-    const r = node.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
+    const r = anchor.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
     f.style.left = r.left - s.left + r.width / 2 + "px";
     f.style.top = r.top - s.top + "px";
     $("#stage")!.appendChild(f);
     setTimeout(() => f.remove(), 1000);
   },
-  // Pop-and-fade crit burst, centered on the struck unit, tinted to the attacking Attunement.
-  // Single still (Dara's art) animated via CSS — no-op if that sprite isn't sliced yet.
+  // Pop-and-fade crit burst, CENTERED on the struck sprite and sized to ~half of it (Dara), tinted to
+  // the attacking Attunement. Single still (Dara's art) animated via CSS — no-op if not sliced yet.
   critFx(u: Unit, att: Unit["att"]): void {
     const url = critFxUrl(att);
     if (!url) return;
-    let node: Element | null | undefined;
-    if (u.side === "enemy") { const i = (this.enemies as Unit[]).indexOf(u); node = $("#enemyZone")!.children[i]; }
-    else node = $(`#partyZone .pchar[data-mid="${(u as Member).id}"]`);
-    if (!node) return;
+    const anchor = this.spriteEl(u);
+    if (!anchor) return;
     const img = el("img", "crit-fx") as HTMLImageElement;
     img.src = url;
-    const r = node.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
+    const r = anchor.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
+    const sz = Math.round(Math.max(r.width, r.height) * 0.6); // proportional: about half the sprite
+    img.style.width = sz + "px"; img.style.height = sz + "px";
     img.style.left = r.left - s.left + r.width / 2 + "px";
-    img.style.top = r.top - s.top + r.height / 2 + "px";
+    img.style.top = r.top - s.top + r.height / 2 + "px"; // centred on the sprite
     $("#stage")!.appendChild(img);
     setTimeout(() => img.remove(), 500);
   },

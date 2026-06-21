@@ -62,7 +62,7 @@ export const UI = {
         <div class="psec">Gear</div>
         <div class="grid2">${EQUIP_SLOTS.map((slot) => {
         const it = m.equip[slot];
-        return `<div class="equip-slot"><span><span class="tag">${slot}</span><br>${it ? `<span class="r-${it.rarity}">${it.name}</span>` : "<span class='small'>— empty —</span>"}</span>
+        return `<div class="equip-slot"><span><span class="tag">${slot}</span><br>${it ? `<span class="r-${it.rarity} gear-link" style="cursor:pointer;text-decoration:underline dotted" onclick="UI.showGear('${m.id}','${slot}')">${it.name}</span>` : "<span class='small'>— empty —</span>"}</span>
             <button class="btn" onclick="UI.equipPicker('${m.id}','${slot}')">Swap</button></div>`;
       }).join("")}</div>
         <div class="psec">Abilities</div>
@@ -71,6 +71,16 @@ export const UI = {
     });
     h += `</div><div class="row"><button class="btn gold" onclick="UI.close()">Close</button></div>`;
     Overlay.show(h);
+  },
+  // Clicking an equipped item opens a window with its full stats (Dara). Swap from here too.
+  showGear(memberId: string, slot: Slot): void {
+    const m = Game.party.find((x) => x.id === memberId);
+    const it = m?.equip[slot];
+    if (!m || !it) return;
+    Overlay.show(`<h2 class="title-gold">${cap(slot)} — ${m.name}</h2>${itemHtml(it)}
+      <div class="small" style="opacity:.7;margin-top:4px">Score ${itemScore(it)}</div>
+      <div class="row"><button class="btn gold" onclick="UI.equipPicker('${m.id}','${slot}')">Swap ▸</button>
+        <button class="btn" onclick="UI.openParty()">◂ Back</button></div>`);
   },
   equipPicker(memberId: string, slot: Slot): void {
     const m = Game.party.find((x) => x.id === memberId);

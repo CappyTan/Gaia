@@ -167,7 +167,7 @@ function gearUp(party: Member[], enemies: Enemy[]): void {
   const drops: Item[] = [];
   enemies.forEach((e) => {
     const ch = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
-    const drop = () => { const m = pick(party); return rollDrop(e, m.cls, m.att); };
+    const drop = () => rollDrop(e, party.map((p) => ({ cls: p.cls, att: p.att })));
     if (Math.random() < ch) drops.push(drop());
     if (e.champion) drops.push(drop());
     if (e.miniboss) drops.push(drop());

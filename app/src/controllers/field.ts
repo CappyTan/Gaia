@@ -88,7 +88,7 @@ export const Field = {
   gate: { x: 30, y: 9 } as Pt,    // mid-zone chokepoint — set from the zone layout in genMap
   chests: [] as Pt[],            // set from the zone layout in genMap
   lairAt: null as Pt | null,     // rare-monster lair (Greenvale: Hogger), set from the zone layout
-  ENC_MIN: 3, ENC_MAX: 6,
+  ENC_MIN: 10, ENC_MAX: 15, // steps between random fights (Dara: ~5 felt too frequent → 10-15)
   zoneIndex: 0,
   enteredDungeon: false,
   // ADR 0008 Stage 2 (step 3): which decoupled space we're in. "overworld" = the seamless region
@@ -341,8 +341,8 @@ export const Field = {
     this.halo(this.mouth);
     this.map[this.mouth.y][this.mouth.x] = Game.miniBossDefeated ? "mouth" : "miniboss";
     carve(L.spawn.x, L.spawn.y, "path");
-    // Re-enterable hub marker (Greenvale → Hearthford), one tile in from spawn (mirrors buildAuthoredGrid).
-    const village = this.zone().id === "greenvale" ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
+    // Re-enterable hub marker (any zone with a hub), one tile in from spawn (mirrors buildAuthoredGrid).
+    const village = this.zone().hub ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
     if (village) { this.halo(village); carve(village.x, village.y, "village"); }
 
     // ANTI-SOFT-LOCK: the mouth + every overworld chest/lair must be reachable from spawn.
@@ -516,7 +516,7 @@ export const Field = {
     if (cell === "boss" && !Game.bossDefeated) { this.startBoss(); return; }
     if (cell === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell === "mouth") { this.descend(); return; }       // step onto the cleared mouth → into the dungeon
-    if (cell === "village") { Game.openTown("hearthford"); return; } // step onto the village → back into Hearthford
+    if (cell === "village") { const h = this.zone().hub; if (h) Game.enterTownVisit(h); return; } // step onto the village → back into the zone's hub
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
@@ -585,9 +585,9 @@ export const Field = {
       this.authoredGrids = {};
       for (const id of this.bigBuiltZoneIds()) this.authoredGrids[id] = buildAuthoredGrid(id, Game.miniBossDefeated);
       this.chunks.clear();
-      if (!this.wx && !this.wy) { // unknown world tile → drop at Greenvale's authored spawn
-        const L = (ZONES.find((z) => z.id === "greenvale") ?? this.zone()).layout, pl = placementOf("greenvale")!;
-        this.wx = pl.wx + L.spawn.x; this.wy = pl.wy + L.spawn.y;
+      if (!this.wx && !this.wy) { // unknown world tile (e.g. resumed in town) → drop at this zone's spawn
+        const z = this.zone(), pl = placementOf(z.id) ?? placementOf("greenvale")!;
+        this.wx = pl.wx + z.layout.spawn.x; this.wy = pl.wy + z.layout.spawn.y;
       }
       this.resize();
       this.syncZoneFromWorld();
@@ -750,7 +750,7 @@ export const Field = {
     const cell = this.cellAt(nx, ny);
     if (cell.kind === "miniboss" && !Game.miniBossDefeated) { this.startMiniBoss(); return; }
     if (cell.kind === "mouth") { this.descend(); return; }
-    if (cell.kind === "village") { Game.openTown("hearthford"); return; } // step onto the village → back into Hearthford
+    if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.enterTownVisit(h); return; } // step onto the village → back into the zone's hub
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
     // OPEN CONTINENT (no built zone under the player) is backlog land — no random encounters yet (G22).
@@ -764,8 +764,7 @@ export const Field = {
     const a = authoredAt(wx, wy); if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "path";
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5);
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4);
-    const m = pick(Game.party);
-    const it = rollItemAtRarity(floor, m.cls, ilvl, m.att);
+    const it = rollItemAtRarity(floor, undefined, ilvl, undefined); // chests roll EQUALLY across all classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
@@ -864,8 +863,7 @@ export const Field = {
     this.map[y][x] = "path";
     const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5); // deeper chests = better floor
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // and a higher item level
-    const m = pick(Game.party);
-    const it = rollItemAtRarity(floor, m.cls, ilvl, m.att);
+    const it = rollItemAtRarity(floor, undefined, ilvl, undefined); // chests roll EQUALLY across all classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
@@ -1123,9 +1121,11 @@ export const Field = {
       else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); this.drawMouthLabel(c, sx, sy, t); }
       else if (cell.kind === "village") {
         obj(T["town-inn"], "🏘️", 0.95);
+        const zid = authoredAt(wx, wy)?.zoneId, hub = zid ? ZONES.find((z) => z.id === zid)?.hub : undefined;
+        const nm = hub ? settlement(hub).name : "Town";
         c.save(); c.textAlign = "center"; c.textBaseline = "middle";
         c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
-        const ly = sy + t * 1.04; c.strokeText("Hearthford", sx + t / 2, ly); c.fillText("Hearthford", sx + t / 2, ly); c.restore();
+        const ly = sy + t * 1.04; c.strokeText(nm, sx + t / 2, ly); c.fillText(nm, sx + t / 2, ly); c.restore();
       }
       else if (cell.kind === "miniboss") { c.fillText("🪖", sx + t / 2, sy + t / 2); this.drawMouthLabel(c, sx, sy, t); }
       else if (cell.kind === "tree") {
@@ -1258,10 +1258,11 @@ export const Field = {
         if (cell === "chest") obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8);
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
-        else if (cell === "village") { // re-enterable hub marker → back into Hearthford
+        else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town
           obj(T["town-inn"], "🏘️", 0.95);
+          const nm = this.zone().hub ? settlement(this.zone().hub!).name : "Town";
           c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)";
-          c.strokeText("Hearthford", sx + t / 2, sy + t * 1.02); c.fillStyle = "rgba(244,210,122,.96)"; c.fillText("Hearthford", sx + t / 2, sy + t * 1.02);
+          c.strokeText(nm, sx + t / 2, sy + t * 1.02); c.fillStyle = "rgba(244,210,122,.96)"; c.fillText(nm, sx + t / 2, sy + t * 1.02);
           c.font = `${t * 0.82}px serif`;
         }
         else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
