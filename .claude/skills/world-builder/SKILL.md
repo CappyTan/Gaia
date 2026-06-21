@@ -61,6 +61,12 @@ stage until its reviewer is satisfied** (no open Blocking findings). Loop Blocki
 back to the producer, then re-review. These per-stage reviewers each defer code→`code-reviewer`,
 canon→`requiem-canon-keeper`, UI→`ux-designer`, so they don't duplicate the cross-cutting gates.
 
+This gate is **auto-enforced**: a `PostToolUse` hook on the Agent/Task tool
+(`.claude/hooks/reviewer-gate.sh`, wired in `.claude/settings.json`) fires after every producer
+agent and injects a reminder to run that producer's paired reviewer before advancing. It maps
+producer→reviewer per the table below; non-producer agents (and the reviewers themselves) emit
+nothing, so it never loops. Treat the reminder as the gate — don't skip it.
+
 | Producer | QA reviewer (the gate) |
 |---|---|
 | world-cartographer | **`cartography-reviewer`** |
