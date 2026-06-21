@@ -111,6 +111,14 @@ export const UI = {
     Game.saveNow(); // autosave on equip change (ADR 0007)
     this.equipPicker(memberId, slot);
   },
+  // Re-render the Party screen but KEEP the scroll position (so rapid +/- clicks don't jump to the
+  // top — Dara). Overlay.show replaces the markup, so we snapshot/restore the scroller's scrollTop.
+  reopenPartyKeepScroll(): void {
+    const top = document.querySelector<HTMLElement>("#overlayInner .scroll")?.scrollTop ?? 0;
+    this.openParty();
+    const sc = document.querySelector<HTMLElement>("#overlayInner .scroll");
+    if (sc) sc.scrollTop = top;
+  },
   // Spend one earned MNA point into an Attunement tree (manual allocation).
   allocMna(memberId: string, att: Attunement): void {
     const m = Game.party.find((x) => x.id === memberId);
@@ -118,7 +126,7 @@ export const UI = {
     m.mnaAlloc[att] += 1;
     m.mnaPoints -= 1;
     recalc(Game.party);
-    this.openParty();
+    this.reopenPartyKeepScroll();
   },
   // Take one point back out of a tree (free undo for a mis-tap; whole-tree respec still costs gold).
   deallocMna(memberId: string, att: Attunement): void {
@@ -127,7 +135,7 @@ export const UI = {
     m.mnaAlloc[att] -= 1;
     m.mnaPoints += 1;
     recalc(Game.party);
-    this.openParty();
+    this.reopenPartyKeepScroll();
   },
   // Refund all allocated points (back to the spend pool) for a gold fee.
   respec(memberId: string): void {

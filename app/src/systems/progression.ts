@@ -124,11 +124,11 @@ export function grantXp(party: Member[], xp: number): LevelUp[] {
       const entry = [...leveled].reverse().find((l) => l.name === m.name);
       if (entry) entry.newSkill = SKILLS[opened].name;
     }
-    // level-up fully heals (FF-style)
-    if (leveled.find((l) => l.name === m.name)) {
+    // level-up fully heals (FF-style) — but a FALLEN hero stays dead until revived in town (Dara);
+    // never resurrect on level-up.
+    if (m.alive && leveled.find((l) => l.name === m.name)) {
       m.hp = m.maxhp;
       m.mp = m.maxmp;
-      m.alive = true;
     }
   });
   return leveled;

@@ -232,6 +232,14 @@ export const Game = {
     this._revisitTown = true; // openTown cleared it; this entry IS a revisit
     this.saveNow();
   },
+  // EGRESS: a convenience button on the overworld — instantly retreat to the current zone's hub town.
+  // Same as the village marker (a revisit), so leaving returns you to where you egressed from.
+  egress(): void {
+    if (this._inTown) return;
+    const hub = Field.zone().hub;
+    if (!hub) return;
+    this.enterTownVisit(hub);
+  },
   // After a zone boss falls (battle.ts), begin walking the NEXT zone's hub chain — the ordered
   // settlements the player passes through before that zone loads (e.g. Riverhearth → Miregard before
   // the Duskmarsh). Opens the first; `leaveTown` advances the chain and only loads the zone at its end.

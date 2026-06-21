@@ -880,6 +880,10 @@ export const Field = {
     const party = $("#fieldParty");
     if (party) party.innerHTML = Game.party.map((m) => `<span class="pm">${m.spr} ${m.name} <span class="small">L${m.level}</span></span>`).join("");
     set("#fieldGold", String(Game.gold));
+    // EGRESS: instant return to town — only on the overworld of a zone that has a hub (not in town/dungeon/open wilds).
+    const egress = $("#egressBtn");
+    if (egress) (egress as HTMLElement).style.display =
+      (!this.townMode && !this.inDungeon() && !!this.zone().hub && (!this.bigMapActive() || !!this.bigZone)) ? "" : "none";
     if (this.townMode) {
       set("#fieldHint", "Walk into a townsperson to talk; onto a building to use it; through the north gate to head out.");
       setPill(this.town?.name ?? "Town", "");

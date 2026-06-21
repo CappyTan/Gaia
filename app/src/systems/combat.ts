@@ -88,7 +88,10 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
   const d = ENEMIES[key];
   const champHp = champion ? 1.4 : 1;
   const champAtk = champion ? 1.3 : 1;
-  const hp = Math.round(d.hp * depthHpScale(depth) * champHp);
+  // STANDARD enemies (not bosses/mini-bosses/rare treasure monsters) had their HP cut ~35% to ease
+  // the difficulty (Dara). Bosses/mini/rares keep full HP. Elites/champions scale off the reduced base.
+  const stdHp = (d.boss || d.miniboss || d.rare) ? 1 : 0.65;
+  const hp = Math.round(d.hp * depthHpScale(depth) * champHp * stdHp);
   const atk = Math.round(d.atk * depthAtkScale(depth) * champAtk);
   const mag = Math.round((d.mag || 0) * depthAtkScale(depth) * champAtk);
   const e: Enemy = {
