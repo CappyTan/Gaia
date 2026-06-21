@@ -1,5 +1,9 @@
 # REQUIEM — Battle Mechanics (Ascension · Soul Burn · Harmonic Ascension · Archon Types)
 
+> **See also:** [`../battle-system-2.0.md`](../battle-system-2.0.md) — the newer, buildable spec for
+> Ascension / Soul Burn (the *Ascension Matrix* affix, the 4-category ability rework, MP removal).
+> That draft is the design intent to implement toward; this file remains the original concept capture.
+
 Canon from Dara Saadat, captured 2026-06-18 (design notes + IRL STONKS chat). This is the
 combat-systems layer that sits **on top of** the class compendium
 ([`REQUIEM-classes.md`](REQUIEM-classes.md)) — it is not yet in the compendium HTML, so it
