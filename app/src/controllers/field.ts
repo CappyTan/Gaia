@@ -790,7 +790,10 @@ export const Field = {
     // with 1-2 extra minions. More common deeper in / in the dungeon.
     let champIdx = -1;
     const champChance = (this.inDungeon() ? 0.15 : 0.09) + p * 0.07;
-    if (p > 0.12 && Math.random() < champChance) {
+    // No champion packs in the STARTER zone (Greenvale, index 0): a fresh L1-4 party can't absorb a
+    // multi-affix pack leader on top of the elite rolls (telemetry v0.65 — early elite saturation
+    // wiped the run). Champions enter from the second zone on.
+    if (this.zoneIndex >= 1 && p > 0.12 && Math.random() < champChance) {
       champIdx = 0;
       const adds = set.slice(1); // a normal minion (not another champion), the champion is the threat
       if (set.length < 5) set.push(pick(adds.length ? adds : set));

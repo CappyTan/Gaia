@@ -1,6 +1,6 @@
 import type { Attunement, CombatAct, DamageResult, Enemy, StatusMap, Unit } from "../types";
 import type { Rng } from "../core/rng";
-import { ri, pick } from "../core/rng";
+import { ri, pick, clamp } from "../core/rng";
 import { affinity } from "./affinity";
 import { mnaBonus } from "./progression";
 import { ENEMIES, depthHpScale, depthAtkScale } from "../data/enemies";
@@ -102,6 +102,10 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
   };
   if (e.boss || e.miniboss || e.rare) return e; // rares are their own tier — no random elite roll
   if (champion) { e.champion = true; e.elite = true; applyAffixes(e, 3); }
-  else if (Math.random() < 0.22) { e.elite = true; applyAffixes(e, ri(1, 2)); } // elite roll
+  // ELITE ROLL — scaled by the enemy's LEVEL so the OPENING zones aren't elite-saturated (telemetry
+  // v0.65: a flat 0.22 made ~47% of Greenvale packs carry a stun-immune elite, wiping fresh L1-4
+  // parties). Thinned only for the early band (Greenvale/Silverwood/Duskmarsh ≈ L1-10) and back to
+  // the old 0.22 by ~L13 (Goldmeadow on) — so deeper-zone elite XP/pacing is preserved.
+  else if (Math.random() < clamp(0.04 + d.lvl * 0.014, 0.08, 0.22)) { e.elite = true; applyAffixes(e, ri(1, 2)); }
   return e;
 }
