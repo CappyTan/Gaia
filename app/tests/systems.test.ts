@@ -3,6 +3,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { affinity } from "../src/systems/affinity";
+import { gearScore } from "../src/systems/gearScore";
 import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
 import { combatDamage, makeEnemy, damage, heal, applyStatus } from "../src/systems/combat";
 import { makeMember, recalc, grantXp, xpForLevel, skillUnlocked, unlockedSkills } from "../src/systems/progression";
@@ -257,5 +258,24 @@ describe("MNA gating & scaling", () => {
     const a = combatDamage(lo, target, {}, seeded(7));
     const b = combatDamage(hi, target, {}, seeded(7));
     expect(b.dmg).toBeGreaterThan(a.dmg);
+  });
+});
+
+describe("gear score", () => {
+  it("scores a member's three composites from the locked formulas", () => {
+    // offense = 40 + 10 + 20*1.5 + 25*0.4 + 5*0.6 = 93 ; defense = 200*0.12 + 8*5 + 30*0.08 = 66.4→66
+    const m = { atk: 40, mag: 10, critPct: 20, spd: 25, leech: 5, maxhp: 200, armor: 8, maxmp: 30 };
+    const s = gearScore(m);
+    expect(s.offense).toBe(93);
+    expect(s.defense).toBe(66);
+    expect(s.overall).toBe(159);
+  });
+  it("a higher-ATK item raises Offense and Overall", () => {
+    const base = { atk: 30, mag: 0, critPct: 0, spd: 10, leech: 0, maxhp: 100, armor: 5, maxmp: 10 };
+    const lo = gearScore(base);
+    const hi = gearScore({ ...base, atk: 45 }); // +15 ATK
+    expect(hi.offense).toBeGreaterThan(lo.offense);
+    expect(hi.overall).toBeGreaterThan(lo.overall);
+    expect(hi.defense).toBe(lo.defense); // unchanged
   });
 });
