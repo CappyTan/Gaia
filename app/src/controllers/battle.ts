@@ -93,7 +93,7 @@ export const Battle = {
   startPlayerTurn(m: Member): void {
     this.awaiting = true; this.current = m; this.selecting = null;
     this.tickStatuses(m, () => {
-      if (!m.alive) { this.endTurn(m); return; }
+      if (!m.alive) { this.onDeath(m); if (this.checkEnd()) return; this.endTurn(m); return; }
       this.renderAll(); this.showCommands(m);
     });
   },
@@ -281,7 +281,7 @@ export const Battle = {
   enemyTurn(e: Enemy): void {
     this.awaiting = true; this.current = e; this.markActing(e);
     this.tickStatuses(e, () => {
-      if (!e.alive) { this.endTurn(e); return; }
+      if (!e.alive) { this.onDeath(e); if (this.checkEnd()) return; this.endTurn(e); return; }
       const party = this.livingParty();
       if (party.length === 0) { this.endTurn(e); return; }
       let used = false;
