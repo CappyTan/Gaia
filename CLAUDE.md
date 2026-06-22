@@ -36,6 +36,7 @@ frozen at `app/gaia.html` as a reference; see History.)
 | [`docs/design/requiem/`](docs/design/requiem/README.md) | **REQUIEM** — Dara's canonical 45-class / 250-ability combat system + battle mechanics (Ascension / Soul Burn / Harmonic Ascension / Archon Types). |
 | [`docs/design/affinity-ring.md`](docs/design/affinity-ring.md) | Ratified affinity-ring design — lore matchups, the **±15%** tuning, and flagged future systems (continent identity, corrupted attunements, raid rotation). |
 | [`docs/design/world-atlas.md`](docs/design/world-atlas.md) | **World Atlas** — catalog of every overworld region (4 continents + the Sundering's 5 Attunement scars) and underworld complex from Dara's maps, their geography/connections, and the **gaps for Dara to fill** before building. |
+| [`docs/design/dungeon-design-research.md`](docs/design/dungeon-design-research.md) | **Dungeon-design research basis** — JRPG best practices (pacing, layout, puzzles, reward/loot, difficulty/boss gating) synthesized for Gaia, with a source-confidence ledger. The *why* behind the `dungeon-design` skill. |
 | [`docs/art/`](docs/art/README.md) | Art-pipeline resume guide, rig spec, layer brief. |
 | [`assets/reference/`](assets/reference/) | Dara's raw reference art (class grid, loot charts, enemy sheet, maps). Source for `slice-art.py`. |
 

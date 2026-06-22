@@ -26,6 +26,11 @@ lives in **`app/src/data/zones.ts`** (`bands: {at, sets}`, `mini`/`miniAdds`, `b
 **`RARE_MONSTERS`** placement in **`app/src/data/enemies.ts`**; `controllers/field.ts` shows how bands
 and the champion-pack roll are consumed.
 
+**When the zone is a dungeon, grade §5 of the `dungeon-design` skill**
+(`.claude/skills/dungeon-design/SKILL.md`): does the dungeon teach→develop→test toward its boss, and
+does pack composition push party-building (mono/mixed Attunement, back-line pressure) without forcing
+one comp?
+
 ## What you check (in priority order)
 1. **Hard invariants (correctness).** Every enemy key in every set exists in `ENEMIES`; no empty sets;
    pack sizes are sane (the battle screen + `reachable()` assume **≤5**); `mini`/`boss` reference real
