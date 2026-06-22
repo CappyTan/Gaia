@@ -102,7 +102,19 @@ try {
 // the game still runs online. Production only, so the dev server's HMR isn't intercepted.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => { /* offline cache unavailable */ });
+    // If we already had a controller at load, a LATER controller change means a new build was deployed
+    // and just took over → reload once to run it. (No controller at first install → don't reload.)
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloading) return;
+      reloading = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register("sw.js", { scope: "./" }).then((reg) => {
+      reg.update();                                  // check for a new build now…
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) reg.update(); }); // …and on every return
+    }).catch(() => { /* offline cache unavailable */ });
   });
 }
 

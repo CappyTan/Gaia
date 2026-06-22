@@ -5,9 +5,11 @@
 //   • Hashed build assets (/assets/…) + icons → CACHE-FIRST (their names are content-hashed, so a
 //     cached copy is never stale — instant loads, and they survive offline once seen).
 //   • Everything else same-origin → stale-while-revalidate.
-// Bump CACHE when this SW's logic changes; activate() drops older caches. Asset freshness is handled
-// by the hashed filenames + network-first navigation, so the version here is just for SW upkeep.
-const CACHE = "gaia-cache-v1";
+// The build version is STAMPED into this file at build time (vite plugin replaces __SW_VERSION__), so
+// the SW's bytes change every release → the browser detects a SW update → it activates (skipWaiting) and
+// the page auto-reloads to the fresh build (see main.ts). activate() also drops the prior version's cache.
+const VERSION = "__SW_VERSION__";
+const CACHE = "gaia-" + VERSION;
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./apple-touch-icon.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
