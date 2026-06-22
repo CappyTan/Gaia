@@ -27,7 +27,7 @@ import { Telemetry } from "../telemetry/telemetry";
 // AURELION COMPLETE (2026-06-21) — the new six reuse the nearest existing skin until bespoke art lands:
 //   [4]stormcoast(seacave)=warren  [5]riverhearth(smuggden)=warren  [6]frostpeak(stronghold)=vault
 //   [7]dawnfall(keepvault)=vault   [8]whisperhills(crypt)=grove     [9]sunbridge(citadel)=vault
-const DUNGEON_SETS = ["warren", "grove", "vault", "vault", "warren", "warren", "vault", "vault", "grove", "vault"];
+const DUNGEON_SETS = ["warren", "grove", "vault", "granary", "warren", "warren", "vault", "vault", "grove", "vault"];
 
 // OPTIONAL (side) zones vs SPINE (mainline progression). The mouth caption distinguishes the two
 // (a spine dungeon reads `↦ <name>`; an optional one reads `<name> (optional)`). The Aurelion-complete
