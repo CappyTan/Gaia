@@ -73,6 +73,15 @@ const continueBtn = $("#continueBtn");
 if (continueBtn) continueBtn.style.display = Save.hasSave() ? "" : "none";
 Screens.show("title");
 
+// Offline support + instant loads for the installed PWA: register the service worker (scope = the
+// app's own subpath). Best-effort — a failure (e.g. unsupported, or http on localhost) is silent and
+// the game still runs online. Production only, so the dev server's HMR isn't intercepted.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => { /* offline cache unavailable */ });
+  });
+}
+
 // Dev-only: surface content-integrity problems in the console (the DB validator). Tree-shaken out
 // of production builds; gives instant feedback when data is tweaked.
 if (import.meta.env.DEV) {
