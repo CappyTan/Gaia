@@ -9,7 +9,7 @@ import {
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf,
 } from "../data/world";
 import { Music } from "../audio/music";
-import { settlement, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
+import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtRarity } from "../systems/loot";
 import { itemHtml } from "../ui/render";
@@ -179,6 +179,13 @@ export const Field = {
       img.onload = () => { this.tiles[nm] = img; this.draw(); };
       img.src = url;
     });
+    // NPC sprites (town folk): load assets/npcs/<townid>-<npcid>.png into tiles["npc:<townid>-<id>"].
+    // Drop-in — the NPC draw falls back to the emoji until a sprite lands (see asset-gaps.md).
+    for (const s of Object.values(SETTLEMENTS)) for (const n of s.npcs) {
+      const url = assetUrl(`npcs/${s.id}-${n.id}.png`); if (!url) continue;
+      const key = `npc:${s.id}-${n.id}`, img = new Image();
+      img.onload = () => { this.tiles[key] = img; this.draw(); }; img.src = url;
+    }
   },
 
   zone() { return ZONES[this.zoneIndex]; },
@@ -1721,7 +1728,9 @@ export const Field = {
         if (n.x < camx || n.y < camy || n.x > camx + viewW || n.y > camy + viewH) continue;
         const nx = (n.x - camx) * t + t / 2, ny = (n.y - camy) * t + t / 2;
         c.beginPath(); c.ellipse(nx, ny + t * 0.36, t * 0.26, t * 0.11, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.38)"; c.fill();
-        c.font = `${t * 0.72}px serif`; c.fillStyle = "#fff"; c.fillText(n.spr, nx, ny - t * 0.04);
+        const nimg = this.tiles[`npc:${this.town?.id}-${n.id}`];
+        if (nimg) { const h = t * 1.5, w = h * nimg.width / nimg.height; c.drawImage(nimg, nx - w / 2, ny + t * 0.36 - h, w, h); }
+        else { c.font = `${t * 0.72}px serif`; c.fillStyle = "#fff"; c.fillText(n.spr, nx, ny - t * 0.04); }
         c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.92)";
         c.strokeText(n.name, nx, ny + t * 0.5); c.fillText(n.name, nx, ny + t * 0.5);
         if (!talking) { c.font = `${t * 0.4}px serif`; c.fillStyle = "rgba(244,210,122,.85)"; c.fillText("💬", nx + t * 0.36, ny - t * 0.4); }
