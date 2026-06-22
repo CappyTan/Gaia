@@ -886,7 +886,10 @@ export const Field = {
   // ENTER the continent big map: build EVERY built zone's authored blueprint (pure, data/world),
   // drop the player at Greenvale's authored spawn mapped to world coords, sync zoneIndex/mouth to the
   // zone under the player, realize the viewport ring, draw.
-  enterBigMap(startZone = "greenvale"): void {
+  enterBigMap(startZone?: string): void {
+    // Default to the CURRENT zone (so loadZone(i) → genMap → enterBigMap drops at zone i, not always
+    // Greenvale — that bug sent zone-advance back to the start). Fresh start: zoneIndex 0 = greenvale.
+    const start = startZone ?? ZONES[this.zoneIndex]?.id ?? "greenvale";
     this.townMode = false; this.mode = "overworld"; this.bigMap = true;
     this.authoredGrids = {};
     for (const id of this.bigBuiltZoneIds()) {
@@ -901,8 +904,8 @@ export const Field = {
       for (const c of z?.layout.chests ?? [])
         if (this.openedChests[this.chestKey(id, "ow", c.x, c.y)] && this.authoredGrids[id][c.y]) this.authoredGrids[id][c.y][c.x] = "path";
     }
-    const z = ZONES.find((zz) => zz.id === startZone) ?? ZONES[0];
-    const pl = placementOf(startZone)!, L = z.layout;
+    const z = ZONES.find((zz) => zz.id === start) ?? ZONES[0];
+    const pl = placementOf(start)!, L = z.layout;
     this.wx = pl.wx + L.spawn.x; this.wy = pl.wy + L.spawn.y; // authored spawn → world coords
     this.chunks.clear();
     this.syncZoneFromWorld();   // sets zoneIndex/bigZone/mouth/gate + cues music for the spawn position
