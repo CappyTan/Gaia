@@ -113,6 +113,10 @@ export const ENEMIES: Record<string, EnemyDef> = {
   frostshade: { name: "Frost Shade", spr: "❄️", att: "UMBRAXIS", lvl: 17, hp: 775, atk: 43, spd: 13, armor: 2, mag: 44, xp: 244, gold: [32, 56], ai: "caster", skills: ["hex"], castChance: 0.5 },
   stonesentinel: { name: "Dwarven Sentinel", spr: "🗿", att: "SOL", lvl: 18, hp: 1690, atk: 51, spd: 6, armor: 13, mag: 0, xp: 270, gold: [34, 60], ai: "basic" },
   snowtroll: { name: "Snow Troll", spr: "🦣", att: "ANIMA", lvl: 19, hp: 1565, atk: 55, spd: 8, armor: 7, mag: 0, xp: 300, gold: [40, 70], ai: "basic", leech: 24 },
+  // A crystalline-quilled pack-predator of the high passes — violet quills laced with a numbing
+  // QUANTA venom; a fast bruiser between the Ice Wolf and the Mountain Reaver. (The 7th creature on
+  // Dara's Frostpeak sheet; name agent-given 2026-06-22 — rename freely.)
+  rimespine: { name: "Rimespine Mauler", spr: "🦔", att: "QUANTA", lvl: 17, hp: 920, atk: 48, spd: 15, armor: 4, mag: 0, xp: 248, gold: [30, 56], ai: "basic", onHit: { poison: 4 } },
   // Mini-boss (hold-gate): the hold-warden who rallies the sentinels. Escorted by mountain reavers.
   holdwarden: { name: "Hold-Warden", spr: "⚒️", att: "SOL", lvl: 18, hp: 6400, atk: 138, spd: 10, armor: 9, mag: 0, xp: 520, gold: [200, 300], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "stonesentinel" },
   // Zone boss (the stronghold): a stone/frost guardian — the L20 SPINE GATE; must genuinely bite.

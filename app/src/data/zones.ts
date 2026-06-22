@@ -1616,7 +1616,9 @@ export const ZONES: Zone[] = [
   // no-region-identity ruling — the forest is NOT an ANIMA theme). Bands are first-pass (teach →
   // combine); balance-tuner owns the final numbers across the now-3-zone curve.
   { id: "silverwood", name: "Silverwood", mini: "treantelder", miniAdds: ["thornling", "thornling"], boss: "hollowking",
-    hub: "riverhearth", hubs: ["riverhearth"],
+    // Inbound chain: celebrate in the grand capital Riverhearth, then the forest hamlet ELDERBOUGH is
+    // Silverwood's true doorstep (the FINAL entry), then into the wood. `hub` = the doorstep for back-compat.
+    hub: "elderbough", hubs: ["riverhearth", "elderbough"],
     envs: ["forest", "forest", "forest", "forest"], dungeon: { name: "The Sunless Grove", env: "grove", layout: SILVERWOOD_DUNGEON }, layout: SILVERWOOD_LAYOUT, bands: [
       // teach the new roster one/two at a time, then start combining toward the gate.
       { at: 0.0, sets: [["dwolf", "dwolf"], ["thornling", "dwolf"], ["dwolf", "thornling"]] },
@@ -1649,7 +1651,7 @@ export const ZONES: Zone[] = [
   // The Reaping Warlord crowns the host as the run-ender; the Gilded Sow is the wheat's rare beast.
   // mini/miniAdds/boss are the live roster. balance-tuner owns the numbers.
   { id: "goldmeadow", name: "Goldmeadow Plains", mini: "warcaptain", miniAdds: ["marauder", "marauder"], boss: "warlord",
-    hub: "miregard", hubs: ["miregard"], // PLACEHOLDER doorstep — narrative-writer assigns the real plains hub
+    hub: "wheatcross", hubs: ["wheatcross"], // the breadbasket's farming-crossroads doorstep (Dara-named)
     envs: ["plains", "plains", "plains", "plains"], dungeon: { name: "The Windmill Undercroft", env: "granary", layout: GOLDMEADOW_DUNGEON }, layout: GOLDMEADOW_LAYOUT, bands: [
       // TEACH→COMBINE: open the plains with the fast predators (marauder/wilddog) read clean, then
       // fold in the torch-bruiser (raider) + ranged harrier, then the leecher (carrion), and reserve
@@ -1677,6 +1679,7 @@ export const ZONES: Zone[] = [
   // sea-cave mouth. Champion guardian = the Wrecker-Captain (boss:true cave payoff). Optional region =
   // 4 bands (lighter than the 5-band spine). Attunements spread (NOX/SOL/QUANTA/ANIMA/UMBRAXIS).
   { id: "stormcoast", name: "Storm Coast", mini: "wreckcaptain", miniAdds: ["cutthroat", "cutthroat"], boss: "wreckcaptain",
+    hub: "wrackport", hubs: ["wrackport"], // the storm-coast harbor doorstep (Dara-named)
     envs: ["coast", "coast", "coast", "coast"], dungeon: { name: "The Smuggler's Sea-Cave", env: "seacave", layout: STORMCOAST_CAVE }, layout: STORMCOAST_LAYOUT, bands: [
       { at: 0.0, sets: [["cutthroat", "cutthroat"], ["shellcrab", "cutthroat"], ["cutthroat", "cutthroat", "shellcrab"]] },
       { at: 0.25, sets: [["wrecker", "cutthroat"], ["deckhand", "cutthroat"], ["wrecker", "cutthroat", "shellcrab"], ["deckhand", "wrecker"]] },
@@ -1702,12 +1705,13 @@ export const ZONES: Zone[] = [
   // heavy, escalating to gnarly 4-packs in the stronghold. Mini = the Hold-Warden (escorted by reavers).
   // Boss = the Glacier Guardian (ENRAGE). Attunements spread (QUANTA/NOX/UMBRAXIS/SOL/ANIMA).
   { id: "frostpeak", name: "Frostpeak Highlands", mini: "holdwarden", miniAdds: ["mtnreaver", "mtnreaver"], boss: "frostguardian",
+    hub: "frosthold", hubs: ["frosthold"], // the dwarven hold-gate doorstep (Dara-named)
     envs: ["snow", "snow", "ice", "stone"], dungeon: { name: "The Dwarven Stronghold", env: "stronghold", layout: FROSTPEAK_DUNGEON }, layout: FROSTPEAK_LAYOUT, bands: [
       { at: 0.0, sets: [["icewolf", "icewolf"], ["mtnreaver", "icewolf"], ["icewolf", "icewolf", "mtnreaver"]] },
-      { at: 0.2, sets: [["mtnreaver", "icewolf", "icewolf"], ["frostshade", "icewolf"], ["mtnreaver", "frostshade", "icewolf"], ["icewolf", "icewolf", "icewolf"]] },
-      { at: 0.4, sets: [["stonesentinel", "icewolf", "icewolf"], ["frostshade", "mtnreaver", "icewolf"], ["stonesentinel", "frostshade", "icewolf"]] },
-      { at: 0.6, sets: [["snowtroll", "icewolf", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade"], ["snowtroll", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "icewolf"]] },
-      { at: 0.8, sets: [["snowtroll", "stonesentinel", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade", "icewolf"], ["snowtroll", "stonesentinel", "mtnreaver", "frostshade"]] },
+      { at: 0.2, sets: [["mtnreaver", "icewolf", "icewolf"], ["frostshade", "icewolf"], ["mtnreaver", "frostshade", "icewolf"], ["icewolf", "icewolf", "icewolf"], ["rimespine", "icewolf"]] },
+      { at: 0.4, sets: [["stonesentinel", "icewolf", "icewolf"], ["frostshade", "mtnreaver", "icewolf"], ["stonesentinel", "frostshade", "icewolf"], ["rimespine", "frostshade", "icewolf"]] },
+      { at: 0.6, sets: [["snowtroll", "icewolf", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade"], ["snowtroll", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "icewolf"], ["snowtroll", "rimespine", "icewolf"]] },
+      { at: 0.8, sets: [["snowtroll", "stonesentinel", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade", "icewolf"], ["snowtroll", "stonesentinel", "mtnreaver", "frostshade"], ["snowtroll", "rimespine", "stonesentinel", "frostshade"]] },
     ] },
   // ── OPTIONAL: Dawnfall Hold → the breached undervault (Lv 17–21) ──
   // CAST: the wilds that broke the fort + the hold's fallen watch. Open with the feral frontier-beast +
@@ -1715,6 +1719,7 @@ export const ZONES: Zone[] = [
   // the heavy rampart-hulk wall, reserving full 4-packs for the breached undervault. Champion = the
   // Fallen Watch-Commander. Attunements spread (ANIMA/NOX/UMBRAXIS/QUANTA/SOL).
   { id: "dawnfall", name: "Dawnfall Hold", mini: "watchcommander", miniAdds: ["brokenwatch", "fallenarcher"], boss: "watchcommander",
+    hub: "lastlight", hubs: ["lastlight"], // the last frontier garrison doorstep (Dara-named)
     envs: ["ruin", "ruin", "stone", "ruin"], dungeon: { name: "The Breached Undervault", env: "keepvault", layout: DAWNFALL_CAVE }, layout: DAWNFALL_LAYOUT, bands: [
       { at: 0.0, sets: [["frontierbeast", "brokenwatch"], ["frontierbeast", "frontierbeast"], ["brokenwatch", "frontierbeast", "frontierbeast"]] },
       { at: 0.25, sets: [["brokenwatch", "fallenarcher", "frontierbeast"], ["watchghoul", "frontierbeast"], ["brokenwatch", "watchghoul", "frontierbeast"], ["fallenarcher", "brokenwatch"]] },
@@ -1728,6 +1733,7 @@ export const ZONES: Zone[] = [
   // full 4-packs for the crypt. Champion = the Corrupted Abbot (a caster-boss, rally+hex). Attunements
   // spread (UMBRAXIS/ANIMA/NOX/QUANTA/SOL).
   { id: "whisperhills", name: "Whisper Hills", mini: "corruptabbot", miniAdds: ["corruptmonk", "wraith"], boss: "corruptabbot",
+    hub: "vesperhal", hubs: ["vesperhal"], // the hillside cloister doorstep (Dara-named)
     envs: ["meadow", "meadow", "forest", "hollow"], dungeon: { name: "The Reliquary Crypt", env: "crypt", layout: WHISPERHILLS_CAVE }, layout: WHISPERHILLS_LAYOUT, bands: [
       { at: 0.0, sets: [["wraith", "wraith"], ["corruptmonk", "wraith"], ["wraith", "wraith", "corruptmonk"]] },
       { at: 0.25, sets: [["corruptmonk", "flagellant", "wraith"], ["flagellant", "wraith"], ["corruptmonk", "wraith", "flagellant"], ["flagellant", "flagellant", "wraith"]] },
@@ -1742,6 +1748,7 @@ export const ZONES: Zone[] = [
   // 5-packs in the citadel. Mini = the Siege Captain (escorted by troopers). Boss = the Risen Leviathan
   // (ENRAGE) — the hardest fight in the game. Attunements spread (NOX/SOL/QUANTA/ANIMA/UMBRAXIS).
   { id: "sunbridge", name: "Sunbridge", mini: "siegecaptain", miniAdds: ["siegetrooper", "searaider"], boss: "leviathan",
+    hub: "sunpier", hubs: ["sunpier"], // the archipelago port doorstep, journey's-end (Dara-named)
     envs: ["harbor", "coast", "harbor", "harbor"], dungeon: { name: "The Besieged Citadel", env: "citadel", layout: SUNBRIDGE_DUNGEON }, layout: SUNBRIDGE_LAYOUT, bands: [
       { at: 0.0, sets: [["siegetrooper", "searaider"], ["searaider", "searaider"], ["siegetrooper", "searaider", "searaider"]] },
       { at: 0.2, sets: [["siegetrooper", "ballista", "searaider"], ["abyssspawn", "searaider"], ["siegetrooper", "abyssspawn", "searaider"], ["ballista", "siegetrooper", "searaider"]] },

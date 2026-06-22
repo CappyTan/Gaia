@@ -494,8 +494,8 @@ describe("zone hub chains (flow can't strand the player)", () => {
     expect(ZONES[ZONES.length - 1].id).toBe("sunbridge"); // the run-ender is last
     // The starting zone's chain is its opening village.
     expect(hubsFor(ZONES[0])).toEqual(["hearthford"]);
-    // Inbound to Silverwood you pass through the grand trade capital.
-    expect(hubsFor(ZONES[1])).toEqual(["riverhearth"]);
+    // Inbound to Silverwood you celebrate in the grand trade capital, then reach the forest doorstep Elderbough.
+    expect(hubsFor(ZONES[1])).toEqual(["riverhearth", "elderbough"]);
     // Inbound to the Duskmarsh you pass through the grim marsh outpost.
     expect(hubsFor(ZONES[2])).toEqual(["miregard"]);
   });

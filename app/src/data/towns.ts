@@ -329,10 +329,516 @@ const RIVERHEARTH: Settlement = {
   ],
 };
 
+// ── Elderbough — the Silverwood forest hamlet ───────────────────────────────────────────────
+// The front-door settlement of Silverwood (the Ancient Forest), reached after Riverhearth on the
+// way into the wood (Dara's chosen name; see world-atlas G10/G17). NOT a farm village and NOT a
+// grim outpost — a green HUSH: lodges grown up among roots older than any kingdom, moss on every
+// sill, a canopy so thick noon comes down gentle. The four services are walk-in lodges around a
+// central ELDER-OAK grove (a ring of great trees about a mossy well); the south gate ('E') opens
+// onto the Silverwood overworld and the long path to the Sunless Grove. No `theme` → it renders in
+// the default pastoral palette (the hedgerow/treeline palisade reads as the forest edge). The folk
+// speak soft, for the wood has WOKEN — their lines hold woodfolk warmth over an old, climbing dread
+// (the Hollow King in the Sunless Grove, the Elder Treant stirring). Layout authored + verified
+// soft-lock-free (content.test.ts). Dialogue is on-brand forest voice — flagged for Dara / narrative-writer.
+const ELDERBOUGH: Settlement = {
+  id: "elderbough",
+  name: "Elderbough",
+  theme: "elderbough",
+  intro:
+    "Elderbough sits in a green hush — lodges grown up among roots older than any king's line, moss " +
+    "on every sill, lantern-moths drifting at the eaves, the canopy so thick that noon comes down gold " +
+    "and gentle. The folk here speak soft, for the wood listens. Rest in the warm, trade for the road, " +
+    "mend at the grove-shrine — then take the south paths. Past the last lantern the trees close ranks, " +
+    "the light fails, and the Sunless Grove keeps the Hollow King.",
+  // 25 wide × 16 tall. Old-growth treeline rings it; 'E' is the SOUTH gate onto Silverwood. A central
+  // ELDER-OAK grove ('T' ring + flower-fern beds '+' about a mossy well 'W') is routed around; sparse
+  // tree pillars + flavor lodges ('H') dress the clearing. NPCs stand on grass beside a path so none
+  // can sever the route (verified in content.test.ts).
+  layout: [
+    "#########################",
+    "#,,T,,,,,,,,,,,,,,,,,T,,#",
+    "#,H,..I..........M...,H,#",
+    "#,T,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,,,,,,,+TTT+,,,,,,,,,#",
+    "#,,,,,,,,,+,W,+,,,,,,,T,#",
+    "#,,,,,,,,,+,,,+,,,,,,,,,#",
+    "#,,,,,,,,,+TTT+,,,,,,,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,T,#",
+    "#,T,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,..B..........R...,,,#",
+    "#,,T,,,,,,,,.,,,,,,,,,,,#",
+    "#,H,,,,,,,,,.,,,,,,,,,H,#",
+    "#,,,,,,,,,,,,,,,,,,,,T,,#",
+    "#,,,,,,,,,,,,,,,,,T,,,,,#",
+    "###########EE############",
+  ],
+  // spawn just inside the south gate, on the central lane
+  spawn: { x: 12, y: 14 },
+  npcs: [
+    { id: "warden", name: "Warden Eira", spr: "🏹", x: 9, y: 8,
+      lines: [
+        "Stranger on the deer-paths. Good — you walk soft, that's half of staying alive out here. Most don't, and the wood's stopped forgiving the rest.",
+        "I've wardened Silverwood since I could draw a bow, and I'll tell you plain: it has WOKEN. Trees that stood quiet a thousand years move when your back's turned now. The thornlings bite, the direwolves run in daylight, and something old wears a crown in the dark of the Sunless Grove.",
+        "South takes you toward it — and I see that you must go. Then keep to the marked paths and never follow a light off them. The gloom-wisps love a trusting soul; they lead you deep, and the deep keeps you.",
+      ] },
+    { id: "keeper", name: "Grove-keeper Wenna", spr: "🧙‍♀️", x: 8, y: 5,
+      lines: [
+        "Come, sit by the Elder-Oak. He's the oldest thing in Elderbough — older than the lodges, older than the warden's grandmother's grandmother. He still sleeps. Pray the rest of the wood remembers how.",
+        "Lay your fallen at the grove-shrine, child. The green mends what steel cannot — root and sap and patience. It is the one old kindness the wood has not yet forgotten.",
+        "You feel him too, don't you. The Hollow King. A guardian once, they say — the heart of the forest given a will — and now hollow where the heart should be, calling the wood to fill him. The Elder Treant already answers. Go careful, or you'll answer too.",
+      ] },
+    { id: "child", name: "Little Fenn", spr: "🧒", x: 16, y: 6,
+      lines: [
+        "Are you going INTO the deep wood? With a SWORD?! Nobody goes in the deep wood. The trees there WALK. Bran saw one. He cried.",
+        "I'm not allowed past the last lantern. Mum says the wisps'll get me — the pretty lights, the ones that float and bob and want you to follow. I'd never. ...probably.",
+        "If you see the big tree that walks — the REALLY big one — don't wake it up! Just let it sleep. Promise me?",
+      ] },
+    { id: "innkeep", name: "Innkeeper Hollis", spr: "🧑‍🍳", x: 6, y: 3,
+      lines: [
+        "Mind the low beam — these lodges were built round the trees, not the trees round them, and old oak doesn't bend for tall folk. The hearth's lit and the bed's soft; that's all I've got and it's yours.",
+        "Sleep here while it's still safe to. Out under the deep canopy you don't sleep — you wait for a morning that comes grey and late, if it comes at all. Rest now, the proper way. The wood can keep till dawn.",
+      ] },
+    { id: "forager", name: "Forager Maren", spr: "🧺", x: 17, y: 3,
+      lines: [
+        "Roots, mushrooms, fern-tips — what the wood will still spare a careful hand. I bring it in and pass it on, and these days the road-gear too. The far gatherers don't come back, so their stock falls to me to sell. Cheap, then. Take it.",
+        "I keep close to the lanterns now. I used to range clear to Deep Mossbed — sweetest bilberries in all Aurelion, down there. Now Mossbed's gone dark and the brambles have grown TEETH. Some berries you leave on the branch.",
+      ] },
+    { id: "cutter", name: "Old Hask the Woodcutter", spr: "🪓", x: 14, y: 12,
+      lines: [
+        "Forty years I felled timber in Silverwood, and never a tree begrudged me an honest axe. Now I keep the axe by the door and I do not raise it to the wood. Not since the day a trunk BLED — and the one beside it turned to watch.",
+        "You're for the south paths. Then hear an old cutter: the barkhides were trees once, and they remember every blade ever laid to a Silverwood trunk. Carry your steel if you must — but if a 'tree' opens its eyes, you don't chop. You RUN.",
+      ] },
+  ],
+};
+
+// ── Wheatcross — the Goldmeadow farming-crossroads (Dara's chosen name) ──────────────────────
+// The breadbasket's market town, doorstep to Goldmeadow Plains — and the war-front. The Reaping
+// Warlord's host (Plains Raiders, Field Marauders, Iron Reavers) burns the fields and has taken the
+// great mill (the occupied Windmill Undercroft). Hardy, defiant-weary farmfolk. Default pastoral
+// palette. Layout verified soft-lock-free. Voice flagged for Dara / narrative-writer.
+const WHEATCROSS: Settlement = {
+  id: "wheatcross",
+  name: "Wheatcross",
+  theme: "wheatcross",
+  intro:
+    "Wheatcross stands where four cart-roads meet in a sea of gold — or it did, before the burning. " +
+    "Half the ricks are ash now, the great mill flies a banner that isn't ours, and the harvest comes " +
+    "in under guard. Still the market opens at dawn, because folk must eat and the bread won't bake " +
+    "itself. Rest, lay in supplies, take steel from the smith — then west, into the standing wheat, " +
+    "where the Reaping Warlord's host waits with the mill at their backs.",
+  layout: [
+    "###########################",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,T...........T.........,,#",
+    "#,,I,,,,,,,,,.,,,,,,,,M,,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,H,,,,,,,,,.,,,,,,,,,H,,#",
+    "#,,,,,,,,,,,,F,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,FFF,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,H,,,,,,,,,.,,,,,,,,,H,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,T,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,B,,,WW,,,,.,,,,,,,,R,,,#",
+    "#,,....WW...............,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#############E#############",
+  ],
+  spawn: { x: 13, y: 14 },
+  npcs: [
+    { id: "reeve", name: "Reeve Haldor", spr: "🧑‍🌾", x: 13, y: 9,
+      lines: [
+        "You came up the east road and lived — that's news enough to make me hope. I'm reeve here; mine's the thankless task of keeping Wheatcross fed and standing while a warlord eats our fields one rick at a time.",
+        "The Reaping Warlord, they call him, and he's earned it. His host took the great mill — our mill, that ground for six villages — and turned the Windmill Undercroft into a barracks. Every sack of grain we don't burn first, he takes.",
+        "If you're the sort that goes west instead of running east, the gods love you and so do I. Cut the head off the host and the Plains Raiders scatter. Leave him, and there'll be no Wheatcross to come back to.",
+      ] },
+    { id: "guard", name: "Militiaman Cob", spr: "💂", x: 13, y: 3,
+      lines: [
+        "Halt — friend or forage? ...Friend. Good. We've learned to ask. The Field Marauders run faster than any honest man and hit twice as hard.",
+        "I'm no soldier. I'm a ploughman with a billhook and a bad knee, same as every 'militiaman' on this gate. But it's our wheat, and somebody has to stand on the road. Might as well be us.",
+      ] },
+    { id: "thresher", name: "Goodwife Brenna", spr: "👩‍🌾", x: 9, y: 12,
+      lines: [
+        "Forty harvests I've threshed on this floor, and never once feared the reaping till this year. Now the Warlord's made the word a curse.",
+        "Mind the Iron Reavers if you go west — slow as millstones and just as hard to stop, all that black armor. The Raiders you can outrun. A Reaver you have to break.",
+      ] },
+    { id: "miller", name: "Old Miller Tam", spr: "🧑‍🏭", x: 20, y: 12,
+      lines: [
+        "That's MY mill they're squatting in. Built by my grandfather's hand, every gear of it, and now it grinds nothing but mischief. I can hear the sails turning wrong from here. It hurts me like a tooth.",
+        "If you get inside the Undercroft — and gods keep you if you try — there's a grain-hoist in the south cellar still rigged to my old workings. A body who knows the mill could come up behind them. Tell them Tam sent you. They won't understand, but I'll feel better.",
+      ] },
+    { id: "child", name: "Little Wren", spr: "🧒", x: 6, y: 8,
+      lines: [
+        "We used to make corn-dollies at harvest and dance round the big rick. This year Mum hid me in the root-cellar when the riders came. I didn't dance. I didn't even breathe.",
+        "There's a HUGE golden pig out in the far wheat — the Gilded Sow, the big folk call her. Fat as a haywain and worth a king's purse, Da says, if you could ever catch her. Nobody can. She's faster than she looks.",
+      ] },
+    { id: "merch", name: "Trader Esma", spr: "🧺", x: 21, y: 4,
+      lines: [
+        "Buy while there's a market to buy in, traveler. Half my stock came off carts that'll never roll home — their owners didn't make the east road like you did. I sell it cheap and I don't tell their stories. Bad for trade, and worse for sleep.",
+        "Gear yourself proper before the wheat. Out there it's open ground to the horizon — nowhere to hide, nothing at your back but more wheat. You'll want every edge a coin can buy.",
+      ] },
+  ],
+};
+
+// ── Wrackport — the Storm Coast harbor (Dara's chosen name) ─────────────────────────────────
+// A storm-battered fishing harbor, doorstep to the Storm Coast — and a wreckers' nest. Coast
+// Wreckers and Tide Cutthroats lure ships onto the rocks; the Wrecker-Captain holds the Smuggler's
+// Sea-Cave. Weathered, superstitious sea-folk. Default pastoral palette; the 'W' blocks read as the
+// grey water along the top. Layout verified soft-lock-free. Voice flagged for Dara / narrative-writer.
+const WRACKPORT: Settlement = {
+  id: "wrackport",
+  name: "Wrackport",
+  theme: "wrackport",
+  intro:
+    "Wrackport clings to the cliff-foot where the grey sea throws itself at the rocks and never tires. " +
+    "Salt in the air, salt in the bread, fish-racks creaking in a wind that smells of weed and tar. " +
+    "Honest folk fish these waters — and others lure ships onto the teeth for what washes up. Rest " +
+    "while the harbor's friendly; trade; mend at the shrine. North along the storm-coast the wreckers " +
+    "keep the Smuggler's Sea-Cave, and the Wrecker-Captain counts the drowned among his profits.",
+  layout: [
+    "###########################",
+    "#,,,,T,,,,,WWWWW,,,,,T,,,,#",
+    "#,,.........WWW.........,,#",
+    "#,,,I,,,,,,,,.,,,,,,,,M,,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,H,,,,,,,,,.,,,,,,,,,H,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,T,,,,,,,,,F,,,,,,,,,T,,#",
+    "#,,,,,,,,,,,FFF,,,,,,,,,,,#",
+    "#,,H,,,,,,,,,.,,,,,,,,,H,,#",
+    "#,,,,,,,,,,,,.,,,,,,,,,,,,#",
+    "#,,,B,,,,,,,,.,,,,,,,,R,,,#",
+    "#,,.....................,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#############E#############",
+  ],
+  spawn: { x: 13, y: 13 },
+  npcs: [
+    { id: "harbormaster", name: "Harbormaster Sten", spr: "🧭", x: 10, y: 4,
+      lines: [
+        "Another soul off the cliff-road. Few enough use it now — the coast's gone bad, and word travels even where the road doesn't. I keep what's left of an honest harbor. It's a short tally these days.",
+        "Up the shore there's lights some nights, swung on a pole where no lighthouse stands. That's a wrecker's lantern, friend. It says SAFE HARBOR and it means the rocks. Many a good crew steered for it and fed the Reef Crabs.",
+        "You're for the north shore and the Sea-Cave, I can see it. Then go heavy and go at low tide — and trust no light you didn't light yourself.",
+      ] },
+    { id: "warden", name: "Coast-Watch Brann", spr: "🪖", x: 13, y: 6,
+      lines: [
+        "Coast-watch — what's left of it. We were six. The Tide Cutthroats took three off the north strand in one night; they move like the surf and cut just as cold.",
+        "The Wrecker-Captain runs them all from the Sea-Cave — flies a black flag over a hoard of drowned men's gear. Break him and this coast might breathe again. Don't, and Wrackport's the next wreck on his tally.",
+      ] },
+    { id: "netwife", name: "Maready the Netwife", spr: "🐟", x: 17, y: 4,
+      lines: [
+        "Fresh off the morning boats — what few dare go out. Take a fish while there's fish to take; the Brine Serpents have got into the shallows and they don't care what's on the hook or who's holding it.",
+        "You'll buy nothing fresher this side of the deep blue water, and you'll pay less for my fear than my fish. Now — herring or hake? Don't dither, the gulls are watching and so am I.",
+      ] },
+    { id: "child", name: "Little Cress", spr: "🧒", x: 7, y: 9,
+      lines: [
+        "I'm not scared of the sea. I'm not. ...I'm scared of what the sea spits back up. Da hauled a Reef Crab in his net once, big as a rowboat. We don't eat crab anymore.",
+        "When the storm comes you can hear singing on the wind — that's the drowned, Gran says, calling for company. I plug my ears. You should too. Don't answer it.",
+      ] },
+    { id: "wreckwise", name: "Old Gull the Wreckwise", spr: "🧓", x: 19, y: 9,
+      lines: [
+        "Fifty years before the mast, lad, and I'll tell you the one true thing I learned: the sea doesn't hate you. It just doesn't notice you. It's the men ON it you want to watch.",
+        "The Sea-Cave's an old smugglers' run — tide floods the low gallery twice a day, drowns it to the roof. Time it wrong and the cave does the Wrecker-Captain's killing for him. Time it RIGHT and you'll walk in dry behind his guard.",
+      ] },
+    { id: "innkeep", name: "Innkeeper Marsa", spr: "🧑‍🍳", x: 5, y: 4,
+      lines: [
+        "Come in out of that wind before it takes your ears off. Hot fish-stew, a dry bunk, and a fire that's never once gone out in forty winters — storm or no storm, the hearth holds.",
+        "Sleep sound here. North of the harbor there's no sleeping — only listening, in the wet and the dark, for the next thing to come up out of the surf. Take your rest while the walls are between you and the water.",
+      ] },
+  ],
+};
+
+// ── Frosthold — the Frostpeak dwarven hold-gate (Dara's chosen name) ─────────────────────────
+// A dwarven hold carved into the mountain's knee, doorstep to the Frostpeak Highlands. The deep
+// stronghold has turned: the Dwarven Sentinels stand against their own makers, Ice Wolves and a Snow
+// Troll prowl the passes, and the Glacier Guardian holds the under-halls. Gruff dwarven gravitas.
+// Default palette ('H' lodges read as hewn stone; 'T' as stone pillars). Soft-lock-free. Voice flagged.
+const FROSTHOLD: Settlement = {
+  id: "frosthold",
+  name: "Frosthold",
+  theme: "frosthold",
+  intro:
+    "Frosthold is hewn straight into the mountain's grey knee — squat stone halls, iron-banded doors, " +
+    "a forge-hearth that has not gone cold in nine hundred years breathing warmth into the everlasting " +
+    "snow. The dwarves who hold the gate are few now, and grim. Warm yourself, take honest steel, mend " +
+    "at the shrine — then up, into the white passes, where the deep stronghold has turned against its " +
+    "own and the Glacier Guardian sits the under-throne in ice.",
+  layout: [
+    "#########################",
+    "#,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,T.....H.......H.....T,#",
+    "#,,,I,,,,,,,.,,,,,,,M,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,H,,T,,,,,.,,,,,T,,H,,#",
+    "#,,,,,,,,,,FFF,,,,,,,,,,#",
+    "#,,,,,,,,,,FFF,,,,,,,,,,#",
+    "#,,H,,T,,,,,.,,,,,T,,H,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,B,,,,,,,.,,,,,,,R,,,#",
+    "#,,...................,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,#",
+    "############E############",
+  ],
+  spawn: { x: 12, y: 13 },
+  npcs: [
+    { id: "holdwarden", name: "Hold-Warden Durgan", spr: "⚒️", x: 12, y: 6,
+      lines: [
+        "Surface-walker. You've a long stride and no beard worth the name, but you stand straight in the cold, so I'll not turn you off my gate. I am Durgan, and this gate is mine to hold while one Durgan draws breath.",
+        "Hear me plain, for I'll not say it twice: the deep hold has turned. The Dwarven Sentinels — stone guardians our own forefathers carved and woke to keep us — now stand against us. Something below has bent them. We named it the Glacier Guardian. We do not say the name often.",
+        "Up the passes if you must, and the gods of the deep stone go with you. Mind the Mountain Reavers in the high snow, and mind worse below. Bring me the hold back, and Frosthold will not forget it while stone endures.",
+      ] },
+    { id: "smithdwarf", name: "Smith Brynja", spr: "🔨", x: 6, y: 12,
+      lines: [
+        "Stand clear of the sparks and state your need. Frosthold steel is folded cold-and-hot a hundred times — it'll not chip on a Sentinel's hide, which is more than I'll say for whatever tin you walked in wearing.",
+        "Snow Troll on the high road, they tell me. Big as a cart and it knits its own wounds shut as fast as you open them. Hit it hard, hit it ONCE, and don't give it the breath to mend. My axes are made for exactly that argument.",
+      ] },
+    { id: "loremaster", name: "Loremaster Hagen", spr: "🧙", x: 8, y: 5,
+      lines: [
+        "Ah — a guest, and a curious one. Few come this high but the desperate. Sit, mind the rune-stones, and let an old dwarf talk; the young ones here have heard it all and believe none of it.",
+        "The Sentinels were never mere statues, you understand. We carved them, and we WOKE them — bound a watchful will into the stone to guard the deep. Now that bond runs the wrong way, and the watchers wake against the watched. Whatever sits in the under-halls did not break the binding. It STOLE it.",
+      ] },
+    { id: "child", name: "Little Dorn", spr: "🧒", x: 16, y: 5,
+      lines: [
+        "Are you going DOWN? Past the sealed doors? Nobody goes past the sealed doors. The stone men are down there and they don't blink and they don't STOP.",
+        "I found a crystal in the high snow once — all blue and burning-cold, prettiest thing ever. Grandda made me throw it back. Said the Crystal Stalker grows them, and what grows a jewel like that grows teeth to match. I still think about it.",
+      ] },
+    { id: "minehand", name: "Pickhand Vor", spr: "⛏️", x: 18, y: 11,
+      lines: [
+        "We don't dig deep anymore. We dig SHALLOW, and we dig listening. The day the picks woke something in the under-halls is the day Frosthold started dying by inches.",
+        "The Ice Wolves come down the cut when the wind howls — quiet on the snow, a whole pack on you before you hear a paw. Travel the passes in daylight, and never alone. The mountain takes the lonely first.",
+      ] },
+    { id: "hearthkeep", name: "Hearth-Keeper Orla", spr: "🧑‍🍳", x: 6, y: 4,
+      lines: [
+        "In, in — shut the cold out behind you. The forge-hearth's burned nine hundred years and it'll burn through your bones tonight if you let it. Ale's hot, stew's hotter, and the bunks are cut from the living rock — you'll not feel the wind here.",
+        "Rest deep while you can. Up in the white there's no true rest — only the cold that creeps in while you doze and doesn't creep out again. Sleep here, by the fire that does not die. The mountain can wait one more night for you.",
+      ] },
+  ],
+};
+
+// ── Lastlight — the Dawnfall Hold frontier garrison (Dara's chosen name) ─────────────────────
+// The last manned waystation before the frontier, doorstep to Dawnfall Hold. The border watch has
+// FALLEN — Broken Sentries and Fallen Sentries are the garrison's own dead turned, and the Fallen
+// Watch-Commander leads them. Grim soldiers holding a thread, dreading the comrades they must fight.
+// Default palette. Soft-lock-free. Voice flagged for Dara / narrative-writer.
+const LASTLIGHT: Settlement = {
+  id: "lastlight",
+  name: "Lastlight",
+  theme: "lastlight",
+  intro:
+    "Lastlight is the final fire on the frontier road — a stockade, a watch-bonfire that is never let " +
+    "to die, and a garrison that grows smaller every dark. Beyond it the old border-hold stands open " +
+    "and wrong. Warm yourself at the muster-fire, take what the quartermaster can spare, lay your fallen " +
+    "at the shrine — then through the gate to Dawnfall Hold, where the watch turned in the night and now " +
+    "the Fallen Watch-Commander musters the dead on the wall he once kept.",
+  layout: [
+    "#########################",
+    "#,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,,....TH.......HT....,,#",
+    "#,,,I,,,,,,,.,,,,,,,M,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,H,,,,,,,,.,,,,,,,,H,,#",
+    "#,,,,,,,,,,,F,,,,,,,,,,,#",
+    "#,,W,,,,,,,FFF,,,,,,,W,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,H,,,,,,,,.,,,,,,,,H,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,B,,,,,,,.,,,,,,,R,,,#",
+    "#,,....T.........T....,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,#",
+    "############E############",
+  ],
+  spawn: { x: 12, y: 13 },
+  npcs: [
+    { id: "commander", name: "Captain Roan", spr: "🎖️", x: 12, y: 6,
+      lines: [
+        "Stand in the firelight where I can see your eyes. ...Living. Good. We check, here. Not everything that walks up to Lastlight in the dark still owns its own soul.",
+        "I command what's left of the frontier watch. And here's the thing breaking my men — you'll meet it soon enough: the enemy on that wall is US. Our own fallen. The Watch-Commander I served under for ten years leads them now, and he knows every word of our drill.",
+        "Through the gate to Dawnfall, then. Put them down — and understand it IS putting them down, a mercy, not a murder. Whatever wears their faces up there, our brothers left it long ago. Say that to yourself when your arm hesitates. It will.",
+      ] },
+    { id: "sentry", name: "Sentry Pell", spr: "🛡️", x: 12, y: 3,
+      lines: [
+        "Eyes front and keep moving — I hold this gate and I do not chat. ...You're going IN, though. So I'll say one thing.",
+        "If you see a Broken Sentry come at you off the wall, don't look at the face. Just don't. I looked, my first night. I knew him. I've not slept a whole night since.",
+      ] },
+    { id: "quartermaster", name: "Quartermaster Edda", spr: "📦", x: 6, y: 11,
+      lines: [
+        "Take what you need and take it cheap — I'm down to outfitting the dead's gear to the living, and there's a grim plenty of THAT. Better on your back than rusting on the wall, I tell myself. Most nights I believe it.",
+        "Stock deep before the Hold. There's no resupply past the gate, no fallback, no friendly door. Once you're on that wall it's what you carried in or nothing. Carry in plenty.",
+      ] },
+    { id: "child", name: "Little Sparrow", spr: "🧒", x: 16, y: 11,
+      lines: [
+        "My brother's up on the wall. Mum says he's gone. But I heard a sentry say the watch is still up there, still walking the rounds. So he's not gone, is he? He's just... still on watch. Right?",
+        "I keep the bonfire fed. That's MY job, the captain gave it me himself. As long as Lastlight burns, the dark stays out. So I never let it get low. Not ever. Not for anything.",
+      ] },
+    { id: "oldwatch", name: "Old Garrow", spr: "🧓", x: 8, y: 5,
+      lines: [
+        "Forty years I walked the Dawnfall wall, boy, and retired with all my fingers — rare enough out here to count as a miracle. Now I watch the young ones march up to fight the ghosts of men I trained. There's no retiring from THAT.",
+        "Whatever fell on the Hold that night, it didn't kill the watch. Killing, they'd have understood. It UNMADE them — kept them standing, kept them dutiful, just emptied out whatever made them men. Be quick up there. Don't let it study you the way it studied them.",
+      ] },
+    { id: "healer", name: "Mender Lysa", spr: "⚕️", x: 17, y: 5,
+      lines: [
+        "Bring me your hurt and bring me your dead — I'll tend both, and lay your fallen at the shrine where the rot of that place can't follow them. It's the one promise I can still keep out here.",
+        "The Fallen Sentries loose arrows from the towers, fast and cold and dead-eyed — they don't tire, don't flinch, don't miss for fear the way the living do. Keep cover between you and the walls. Dead men have all the patience in the world.",
+      ] },
+  ],
+};
+
+// ── Vesperhal — the Whisper Hills cloister (Dara's chosen name) ──────────────────────────────
+// A hillside monastery, doorstep to the Whisper Hills (Aurelion, per Dara). The holy order has been
+// corrupted: Corrupted Monks and Restless Wraiths walk the cloisters and the Corrupted Abbot leads
+// the fallen rite. Hushed, devout survivors grieving their order's fall. Default palette (the central
+// 'F'+'+' block reads as a shrine-garth). Soft-lock-free. Voice flagged for Dara / narrative-writer.
+const VESPERHAL: Settlement = {
+  id: "vesperhal",
+  name: "Vesperhal",
+  theme: "vesperhal",
+  intro:
+    "Vesperhal keeps its hush even now — a cloister of pale stone in the folded green hills, herb-garths " +
+    "and a shrine-well at its heart, the evening bell still rung at vespers by the few who keep the true " +
+    "rite. But the bell answers something in the deeper cloisters these days, and the answer is wrong. " +
+    "Rest in the guest-cells, take what the order can give, mend at the shrine — then into the whispering " +
+    "hills, where the Corrupted Abbot leads the fallen brothers in a prayer that should never be finished.",
+  layout: [
+    "#########################",
+    "#,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,T...................T,#",
+    "#,,,I,,,,,,,.,,,,,,,M,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,H,,,,T,,,.,,,T,,,,H,,#",
+    "#,,,,,,,,,,+++,,,,,,,,,,#",
+    "#,,,,,,,,,,FFF,,,,,,,,,,#",
+    "#,,,,,,,,,,+++,,,,,,,,,,#",
+    "#,,H,,,,T,,,.,,,T,,,,H,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,,,,,,,,,.,,,,,,,,,,,#",
+    "#,,,B,,,,,,,.,,,,,,,R,,,#",
+    "#,T...................T,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,#",
+    "############E############",
+  ],
+  spawn: { x: 12, y: 14 },
+  npcs: [
+    { id: "abbot", name: "Abbot Ferrun", spr: "📿", x: 12, y: 6,
+      lines: [
+        "Peace, traveler — what peace we can still offer. I am abbot of the few who hold the true rite, and a poor abbot, for I have lost most of my flock to a darkness I should have seen rising in my own house.",
+        "It began in the deep cloisters, in a prayer we were forbidden to finish — and one of us, my own prior, chose to finish it. He is the Corrupted Abbot now, and the brothers who followed him are the Corrupted Monks you'll meet on the hill-paths. They are not possessed. They CHOSE. That is the grief of it.",
+        "If you go up to end it — and mercy may be the only ending left — then end HIM. The rite holds them; break the one who leads it and the rest may yet find their rest. Go with what blessing a broken order can give. It is freely given.",
+      ] },
+    { id: "bellkeep", name: "Bell-Keeper Nona", spr: "🔔", x: 12, y: 3,
+      lines: [
+        "I ring the vesper bell at dusk, the same as I have these sixty years. The difference is what answers it now — a second bell, deeper in the hills, tolling back. I do not stop ringing. If I stop, theirs is the only voice left.",
+        "When you hear two bells out of time with each other, traveler, you'll know you've crossed into their ground. Keep walking toward the wrong one. That's where it ends.",
+      ] },
+    { id: "scribe", name: "Brother Calix", spr: "✍️", x: 6, y: 12,
+      lines: [
+        "I copy what I can save before it's lost — the true psalms, the founding rolls, the names of the brothers as they WERE, not as they are now. Someone must remember them whole. Memory is its own small mercy.",
+        "The Restless Wraiths in the upper cloister were brothers too, once — the ones who died refusing the prayer. They did not fall; they were OVERCOME. There's a difference, and I'll thank you to grant them the gentler ending. They earned it.",
+      ] },
+    { id: "child", name: "Little Pim", spr: "🧒", x: 16, y: 12,
+      lines: [
+        "I'm a novice. That means I sweep the cloister and learn my letters and I'm NOT allowed up the hill, not ever, not even a little bit. Brother Calix says the hill isn't the order's anymore. He says it sadly.",
+        "Sometimes at night the second bell rings and all the candles bow the same way, like something walked past blowing on them. I hide under my cot and say the true prayer over and over. It still works. I think it still works.",
+      ] },
+    { id: "pilgrim", name: "Pilgrim Ades", spr: "🧎", x: 8, y: 5,
+      lines: [
+        "I walked three hundred miles to pray at Vesperhal's shrine, and arrived to find half the monastery praying to something else. The gods have a cruel sense of timing, or I've a cruel sense of direction. Perhaps both.",
+        "Still — the true shrine stands, the true bell rings, and the abbot has not bent. That's more faith held under siege than I've seen in a soft lifetime of easy chapels. I'll stay. Someone should kneel where it still means something.",
+      ] },
+    { id: "herbalist", name: "Sister Wren", spr: "🌿", x: 17, y: 5,
+      lines: [
+        "The garth still gives — sage and self-heal, the bitter blue flower that draws fever out. The hills haven't poisoned the roots yet, gods be thanked. Lay your fallen at the shrine; between the green and the grace, we mend more than you'd credit.",
+        "Mind the Corrupted Monks cast as well as strike — a hex off the lips of a man you'd have called brother last spring. The words are holy words, turned inside out. Don't listen for meaning in them. Just close the distance and make them stop.",
+      ] },
+  ],
+};
+
+// ── Sunpier — the Sunbridge port (Dara's chosen name) ────────────────────────────────────────
+// The great port toward the Coral Archipelago, doorstep to Sunbridge — and the journey's last stand.
+// Sea-Raiders and Siege Troopers besiege the harbor under the Siege Captain, and from the deep water
+// the Risen Leviathan rises (the run-ender). A grand, defiant port under siege; end-of-journey weight.
+// Default palette (the 'W' block is the bright sea; 'F' the harbor plaza). Soft-lock-free. Voice flagged.
+const SUNPIER: Settlement = {
+  id: "sunpier",
+  name: "Sunpier",
+  theme: "sunpier",
+  intro:
+    "Sunpier throws its great stone pier out over water so bright it hurts — the last harbor of Aurelion, " +
+    "gateway to the coral isles, and for a thousand years the busiest, gladdest port under the sun. The " +
+    "gladness is under siege now. Sea-Raiders hammer the sea-wall, the Siege Captain's host darkens the " +
+    "quays, and something vast has woken in the deep beyond the reef. Rest, arm, steady yourself at the " +
+    "shrine — then out to the wall and the water, where the Risen Leviathan ends journeys, and means to end this one.",
+  layout: [
+    "#############################",
+    "#,,,,,T,,,WWWWWWWWW,,,T,,,,,#",
+    "#,,.........WWWWW.........,,#",
+    "#,,,I,,,,,,,,,.,,,,,,,,,M,,,#",
+    "#,,,,,,,,,,,,,.,,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,,.,,,,,,,,,,,,,#",
+    "#,,H,,,,,,,,,,.,,,,,,,,,,H,,#",
+    "#,,,,,,,,,,,,,.,,,,,,,,,,,,,#",
+    "#,,T,,,,,,,,,,F,,,,,,,,,,T,,#",
+    "#,,,,,,,,,,,,FFF,,,,,,,,,,,,#",
+    "#,,H,,,,,,,,,,.,,,,,,,,,,H,,#",
+    "#,,,,,,,,,,,,,.,,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,,.,,,,,,,,,,,,,#",
+    "#,,,B,,,,H,,,,.,,,,H,,,,R,,,#",
+    "#,,.......................,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "##############E##############",
+  ],
+  spawn: { x: 14, y: 14 },
+  npcs: [
+    { id: "portmaster", name: "Portmaster Calla", spr: "🧭", x: 11, y: 4,
+      lines: [
+        "You've come the whole long road to reach my quays, haven't you — I can read a journey in a face, and yours has Greenvale mud and Frostpeak frost both still on it. Welcome to Sunpier. I only wish I'd a gladder harbor to welcome you to.",
+        "A thousand years this port has stood, gateway to the coral isles, and never once shut its gates — until now. The Siege Captain's host has the landward wall, the Sea-Raiders have the water, and between them they mean to take the last free harbor of Aurelion.",
+        "If your road ends here, let it end well. Hold the wall, break the siege — but know the worst of it isn't the Captain or his raiders. It's what they WOKE, out past the reef, calling it up out of the dark to finish what they started.",
+      ] },
+    { id: "crier", name: "Crier Bohl", spr: "📢", x: 14, y: 6,
+      lines: [
+        "HEAR ME, SUNPIER! The wall holds another dawn — the wall HOLDS! Bread at the plaza, water at the well, and every able hand to the sea-gate by the noon bell! We have stood a thousand years and we do not fall today!",
+        "And word for the stranger off the long road: they're saying YOU'RE the one. The one who's broken every host between here and the far north, all the long way down the world to here. If half of it's true, then for the love of every god — get to that wall. We have been waiting for someone exactly like you.",
+      ] },
+    { id: "sailmaster", name: "Sailmaster Yorrin", spr: "⛵", x: 18, y: 4,
+      lines: [
+        "Every hull I had is hauled up the slips or sunk at her mooring — no one sails out of Sunpier while the Sea-Raiders own the water. Fast as falcons, those raiders, and they board before you've seen the sail. We learned that the hard and bloody way.",
+        "Past the reef the water goes wrong — dark and heaving where it should run clear and bright. That's where the deep thing lies. The old charts named that trench and warned ships off it a thousand years ago. We forgot the warning. It did not forget us.",
+      ] },
+    { id: "child", name: "Little Dori", spr: "🧒", x: 8, y: 9,
+      lines: [
+        "I'm not allowed near the sea-wall. But I climbed the bell-tower and I SAW. The whole sea full of black sails. And past the reef the water stood up like a hill — a WHOLE HILL — and something under it. I didn't tell Mum. She's scared enough already.",
+        "You came to help, didn't you? You have to have. Everyone keeps looking at the landward road like they're waiting for someone. I think they were waiting for you. Don't go yet — let me show you the tall ships first. ...while there's still ships to show.",
+      ] },
+    { id: "raidwise", name: "Old Tide-Reader Sef", spr: "🧓", x: 20, y: 9,
+      lines: [
+        "I've read this water seventy years, and I never thought to read THIS in it. The Risen Leviathan, the deep-singers are calling it — and 'risen' is the word that should frighten you. It was down there all along. The siege didn't bring it. The siege WOKE it.",
+        "When it surfaces the whole harbor will know — the sea draws back off the flats first, sucks the water out past the low-tide line, and goes still and wrong. That's your one breath of warning. When Sunpier's bay empties, you get to high ground or you get to dying. There's no third road.",
+      ] },
+    { id: "innkeep", name: "Innkeeper Bressa", spr: "🧑‍🍳", x: 5, y: 4,
+      lines: [
+        "Sit, eat, sleep — orders of the house, and the house doesn't take no. You've the look of someone the whole town's pinning its hopes on, and hope fights poorly on an empty stomach and no sleep. I've fed defenders through three days of siege; I'll not have the best of them keel over from want of a hot meal.",
+        "Rest deep tonight. Whatever the morning brings to that wall — and I think we both know what it's bringing — you'll meet it fed, warm, and rested, because that much at least is still in my power to give. The rest is in yours. No pressure, love — and all of it. Now eat, before I take it personal.",
+      ] },
+  ],
+};
+
 export const SETTLEMENTS: Record<string, Settlement> = {
   hearthford: HEARTHFORD,
   riverhearth: RIVERHEARTH,
+  elderbough: ELDERBOUGH,
   miregard: MIREGARD,
+  wheatcross: WHEATCROSS,
+  wrackport: WRACKPORT,
+  frosthold: FROSTHOLD,
+  lastlight: LASTLIGHT,
+  vesperhal: VESPERHAL,
+  sunpier: SUNPIER,
 };
 
 /** Look up a settlement by id (falls back to Hearthford so the field never loads nothing). */

@@ -25,13 +25,30 @@ import { Telemetry } from "../telemetry/telemetry";
 // Warren, Silverwood -> the Sunless Grove, Duskmarsh -> Drowned Vault. Matches ZONES order + the
 // per-zone `dungeon.env`.
 // [0]Greenvale=warren [1]Silverwood=grove [2]Duskmarsh=vault [3]Goldmeadow=vault (granary).
-// AURELION COMPLETE (2026-06-21) — the new six reuse the nearest existing skin until bespoke art lands:
-//   [4]stormcoast(seacave)=warren  [5]riverhearth(smuggden)=warren  [6]frostpeak(stronghold)=vault
-//   [7]dawnfall(keepvault)=vault   [8]whisperhills(crypt)=grove     [9]sunbridge(citadel)=vault
-const DUNGEON_SETS = ["warren", "grove", "vault", "granary", "warren", "warren", "vault", "vault", "grove", "vault"];
+// AURELION (2026-06-22) — all six later dungeons now have their own bespoke sliced tileset:
+//   [4]stormcoast=seacave  [5]riverhearth=smuggden  [6]frostpeak=stronghold
+//   [7]dawnfall=keepvault  [8]whisperhills=crypt     [9]sunbridge=citadel
+const DUNGEON_SETS = ["warren", "grove", "vault", "granary", "seacave", "smuggden", "stronghold", "keepvault", "crypt", "citadel"];
 // Per-set lit WALL DECORATION (sliced, atmosphere only): a room-facing wall occasionally renders this
 // variant instead of the plain wall. granary has none (falls back to plain wall).
-const DUNGEON_DECO: Record<string, string> = { warren: "torch", grove: "spores", vault: "lantern" };
+const DUNGEON_DECO: Record<string, string> = {
+  warren: "torch", grove: "spores", vault: "lantern",
+  seacave: "glowweed", smuggden: "lamp", stronghold: "brazier", keepvault: "torch", crypt: "candles", citadel: "brazier",
+};
+
+// Per-town tileset theme (Aurelion front-door towns): maps the generic town glyph-KINDS to that
+// town's bespoke sliced tiles. `_a`/`_b` are the two ground swatches (cobble/grass equivalents);
+// the rest override the building/decoration sprite for the matching kind. Missing keys fall back to
+// the generic emoji/art, so a town renders cleanly even if a tile is absent. Set via Settlement.theme.
+const TOWN_THEMES: Record<string, Record<string, string>> = {
+  elderbough: { _a: "eb-path", _b: "eb-verge", twall: "eb-wall", "t-inn": "eb-inn", "t-shop": "eb-shop", "t-smith": "eb-smith", "t-revive": "eb-shrine", "t-exit": "eb-gate", "t-well": "eb-well", "t-tree": "eb-eldertree", "t-house": "eb-lantern", "town-flower": "eb-fern" },
+  wheatcross: { _a: "wc-road", _b: "wc-verge", twall: "wc-wall", "t-inn": "wc-inn", "t-shop": "wc-shop", "t-smith": "wc-smith", "t-revive": "wc-shrine", "t-exit": "wc-gate", "t-fountain": "wc-rick", "t-well": "wc-well", "t-tree": "wc-scarecrow", "t-house": "wc-sacks" },
+  wrackport: { _a: "wp-cobble", _b: "wp-boardwalk", twall: "wp-wall", "t-inn": "wp-inn", "t-shop": "wp-shop", "t-smith": "wp-smith", "t-revive": "wp-shrine", "t-exit": "wp-gate", "t-fountain": "wp-dock", "t-well": "wp-sea", "t-tree": "wp-mooring", "t-house": "wp-wreck" },
+  frosthold: { _a: "fh-floor", _b: "fh-snow", twall: "fh-wall", "t-inn": "fh-inn", "t-shop": "fh-shop", "t-smith": "fh-smith", "t-revive": "fh-shrine", "t-exit": "fh-gate", "t-fountain": "fh-hearth", "t-tree": "fh-pillar", "t-house": "fh-ore" },
+  lastlight: { _a: "ll-ground", _b: "ll-verge", twall: "ll-wall", "t-inn": "ll-inn", "t-shop": "ll-shop", "t-smith": "ll-smith", "t-revive": "ll-shrine", "t-exit": "ll-gate", "t-fountain": "ll-bonfire", "t-well": "ll-well", "t-tree": "ll-tower", "t-house": "ll-shields" },
+  vesperhal: { _a: "vh-flag", _b: "vh-garth", twall: "vh-wall", "t-inn": "vh-inn", "t-shop": "vh-shop", "t-smith": "vh-smith", "t-revive": "vh-shrine", "t-exit": "vh-gate", "t-fountain": "vh-bell", "t-tree": "vh-cypress", "t-house": "vh-well", "town-flower": "vh-flowers" },
+  sunpier: { _a: "sp-flag", _b: "sp-verge", twall: "sp-wall", "t-inn": "sp-inn", "t-shop": "sp-shop", "t-smith": "sp-smith", "t-revive": "sp-shrine", "t-exit": "sp-gate", "t-fountain": "sp-pier", "t-well": "sp-sea", "t-tree": "sp-lamp", "t-house": "sp-cargo" },
+};
 
 // OPTIONAL (side) zones vs SPINE (mainline progression). The mouth caption distinguishes the two
 // (a spine dungeon reads `↦ <name>`; an optional one reads `<name> (optional)`). The Aurelion-complete
@@ -185,6 +202,10 @@ export const Field = {
     for (const n of ["town-plank", "town-bog", "town-stilt", "town-deadtree", "town-lantern"]) names.push(n);
     // Riverhearth city kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["town-avenue", "town-river", "town-bridge", "town-dock", "town-grand", "town-townhouse", "town-stall", "town-statue"]) names.push(n);
+    // Aurelion per-town bespoke tilesets (sliced art, keyed by Settlement.theme)
+    for (const th of Object.values(TOWN_THEMES)) for (const k in th) names.push(th[k]);
+    // Aurelion overworld biome tiles (snow / coast / ruin — ground swatches + scatter objects)
+    for (const n of ["snow-ground", "snow-ground2", "snow-path", "snow-frozen", "snow-ice", "snow-crag", "snow-pine", "snow-cairn", "snow-rock", "coast-sand", "coast-sand2", "coast-grass", "coast-surf", "coast-sea", "coast-dock", "coast-rock", "coast-pool", "coast-piling", "ruin-flag", "ruin-flag2", "ruin-walk", "ruin-pit", "ruin-wall", "ruin-rubble", "ruin-grass", "ruin-column", "ruin-brazier"]) names.push(n);
     names.forEach((nm) => {
       const url = assetUrl(`field/${nm}.png`);
       if (!url) return;
@@ -1388,6 +1409,7 @@ export const Field = {
     const isWall = cell === "twall";
     const marsh = this.town?.theme === "marsh"; // grim outpost: planks over bog, not cobble + grass
     const city = this.town?.theme === "city";   // grand capital: avenues + cobble, a river crossed by bridges
+    const tt = this.town?.theme ? TOWN_THEMES[this.town.theme] : undefined; // Aurelion per-town bespoke tileset
     // ground under the tile. Marsh: bog under decorations/standing-bog, plank under streets/buildings.
     // Shire: grass under decorations, cobble under streets & buildings. City: cobble under most, an
     // avenue stripe under avenue/bridge, the river its own water; decorations sit on grass verges.
@@ -1403,8 +1425,8 @@ export const Field = {
       onSoft ? "town-grass" : "town-cobble";
     // Walls get a themed ground UNDER them (bog/grass/cobble) so the painted palisade sprite sits on
     // the same floor as the town interior — no bare dark rect ringing the map.
-    let g = isWall ? (city ? "town-cobble" : marsh ? "town-bog" : "town-grass") : city ? cityGround : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
-    if (g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
+    let g = tt ? (isWall || onSoft ? tt._b : tt._a) : isWall ? (city ? "town-cobble" : marsh ? "town-bog" : "town-grass") : city ? cityGround : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
+    if (!tt && g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
     const gimg = T[g];
     if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
     else {
@@ -1441,7 +1463,7 @@ export const Field = {
     }
     const poi = POI[cell];
     if (poi) {
-      const img = T[poi[0]];
+      const img = T[(tt && tt[cell]) || poi[0]];
       if (img) { const h = t * poi[2], w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
       else { c.font = `${t * (poi[2] < 1 ? 0.5 : 0.74)}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
       if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
@@ -1450,7 +1472,7 @@ export const Field = {
       // shire = a hedge/treeline (town-tree); both are already painted. City rings itself in stone —
       // a layered stone-block fill (no art needed) reads as a curtain wall. Sprites are bottom-anchored
       // and slightly overscaled so adjacent cells overlap into a continuous wall.
-      const wkey = marsh ? "town-deadtree" : city ? "" : "town-tree";
+      const wkey = tt ? tt.twall : marsh ? "town-deadtree" : city ? "" : "town-tree";
       const wimg = wkey ? T[wkey] : undefined;
       if (wimg) { const h = t * 1.5, w = h * (wimg.width / wimg.height); c.drawImage(wimg, sx + t / 2 - w / 2, sy + t * 1.04 - h, w, h); }
       else if (city) {
@@ -1488,7 +1510,7 @@ export const Field = {
       const f: Record<string, string> = { path: "#6f6a3e", grass: "#36522c", grass2: "#3a572f", bush: "#335028", rock: "#3c5230", tree: "#13230d", water: "#223a3e" };
       return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: f[kind] ?? "#36522c" };
     }
-    if (biome === "mire" || biome === "water" || biome === "ruin") {
+    if (biome === "mire" || biome === "water") {
       const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
       const g = isObj ? "mire-ground" : (gm[kind] || "mire-ground");
       // Placeholder flats (no marsh art yet) tuned for LEGIBILITY: the boardwalk causeway (path) is a PALE
@@ -1497,6 +1519,12 @@ export const Field = {
       // same dark #3a4030 (vanished into the bog), and the palest tile was the impassable cliff.
       const f: Record<string, string> = { path: "#8a7c52", grass: "#46583a", grass2: "#4b5d3d", bush: "#3f5236", rock: "#445036", tree: "#19231a", water: "#222e38" };
       return { ground: g === "mire-ground" ? alt("mire-ground") : g, flat: f[kind] ?? "#46583a" };
+    }
+    if (biome === "ruin") {
+      const gm: Record<string, string> = { grass: "ruin-flag", grass2: "ruin-flag2", path: "ruin-walk", bush: "ruin-flag", rock: "ruin-flag", tree: "ruin-flag", water: "ruin-pit" };
+      const g = isObj ? "ruin-flag" : (gm[kind] || "ruin-flag");
+      const f: Record<string, string> = { path: "#8a7c52", grass: "#5a5448", grass2: "#5f5950", bush: "#4a4640", rock: "#444038", tree: "#1a1814", water: "#26221c" };
+      return { ground: g === "ruin-flag" ? alt("ruin-flag") : g, flat: f[kind] ?? "#5a5448" };
     }
     if (biome === "orchard") {
       const gm: Record<string, string> = { grass: "orchard-ground", grass2: "orchard-ground2", path: "path", tree: "orchard-ground" };
@@ -1512,15 +1540,17 @@ export const Field = {
     // AURELION-COMPLETE biome fills (no bespoke art yet — distinct in-palette flat fills give wayfinding).
     // COLD highlands (Frostpeak): snow/ice/stone → pale cold blue-greys, water stays the cold pool blue.
     if (biome === "snow" || biome === "ice" || biome === "stone") {
+      const gm: Record<string, string> = { grass: "snow-ground", grass2: "snow-ground2", path: "snow-path", bush: "snow-ground", rock: "snow-ground", tree: "snow-ground", water: "snow-frozen" };
+      const g = isObj ? "snow-ground" : (gm[kind] || "snow-ground");
       const flat = kind === "water" ? "#5a7896" : biome === "snow" ? "#cfe0ec" : biome === "ice" ? "#aebfd0" : "#6a7080";
-      const g = isObj ? "grass" : kind;
-      return { ground: g === "grass" ? alt("grass") : g, flat };
+      return { ground: g === "snow-ground" ? alt("snow-ground") : g, flat };
     }
     // COAST / shore (Storm Coast, Sunbridge): sand + teal sea — beaches sandy, water teal, rock dark grey.
     if (biome === "coast" || biome === "beach" || biome === "harbor" || biome === "rock") {
+      const gm: Record<string, string> = { grass: "coast-sand", grass2: "coast-sand2", path: "coast-dock", bush: "coast-sand", rock: "coast-sand", tree: "coast-sand", water: "coast-sea" };
+      const g = isObj ? "coast-sand" : (gm[kind] || "coast-sand");
       const flat = kind === "water" ? "#2f5b7a" : biome === "rock" ? "#5a6068" : "#cdb98a";
-      const g = isObj ? "grass" : kind;
-      return { ground: g === "grass" ? alt("grass") : g, flat };
+      return { ground: g === "coast-sand" ? alt("coast-sand") : g, flat };
     }
     // RIVER trade-roads (Riverhearth): sand banks + teal river; road/town are stone tan.
     if (biome === "riverside" || biome === "road" || biome === "town") {
@@ -1707,25 +1737,29 @@ export const Field = {
       else if (cell.kind === "tree") {
         if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
         else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);
-        else if (biome === "mire" || biome === "ruin") obj(T.deadtree, "🌫️", 0.95);
-        else if (biome === "snow" || biome === "ice") c.fillText("🌲", sx + t / 2, sy + t / 2);      // snow-laden conifers
-        else if (biome === "stone" || biome === "rock") c.fillText("⛰️", sx + t / 2, sy + t / 2);    // crags
-        else if (biome === "coast" || biome === "beach" || biome === "harbor") c.fillText("🌴", sx + t / 2, sy + t / 2);
+        else if (biome === "mire") obj(T.deadtree, "🌫️", 0.95);
+        else if (biome === "ruin") obj(T["ruin-wall"], "🧱", 1.0);                          // crumbling ruin wall
+        else if (biome === "snow" || biome === "ice") obj(T["snow-pine"], "🌲", 1.0);        // snow-laden conifers
+        else if (biome === "stone") obj(T["snow-crag"], "⛰️", 1.0);                          // ice-rimed crags
+        else if (biome === "rock") obj(T["coast-rock"], "⛰️", 1.0);
+        else if (biome === "coast" || biome === "beach" || biome === "harbor") obj(T["coast-rock"], "🌴", 1.0);
         else if (!gimg) c.fillText("🌲", sx + t / 2, sy + t / 2);
       }
       else if (cell.kind === "water" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
       else if (cell.kind === "bush") {
         if (biome === "forest") obj(T.fern, "🌿", 0.85);
         else if (biome === "meadow" || biome === "creek") obj(T.wheat, "🌾", 0.85);
-        else if (biome === "snow" || biome === "ice") c.fillText("❄️", sx + t / 2, sy + t / 2);
-        else if (biome === "coast" || biome === "beach" || biome === "harbor") c.fillText("🐚", sx + t / 2, sy + t / 2);
+        else if (biome === "snow" || biome === "ice") obj(T["snow-cairn"], "❄️", 0.9);
+        else if (biome === "coast" || biome === "beach" || biome === "harbor") obj(T["coast-pool"], "🐚", 0.9);
+        else if (biome === "ruin") obj(T["ruin-grass"], "🌿", 0.85);
         else if (biome === "hills" || biome === "highland") c.fillText("🌾", sx + t / 2, sy + t / 2);
         else if (!gimg) c.fillText("🌿", sx + t / 2, sy + t / 2);
       }
       else if (cell.kind === "rock") {
         if (biome === "forest") obj(T.mushroom, "🍄", 0.8);
-        else if (biome === "snow" || biome === "ice" || biome === "stone" || biome === "rock") c.fillText("🪨", sx + t / 2, sy + t / 2);
-        else if (biome === "coast" || biome === "beach" || biome === "harbor") c.fillText("⛰️", sx + t / 2, sy + t / 2);
+        else if (biome === "snow" || biome === "ice" || biome === "stone") obj(T["snow-rock"], "🪨", 0.9);
+        else if (biome === "ruin") obj(T["ruin-rubble"], "🪨", 0.95);
+        else if (biome === "coast" || biome === "beach" || biome === "harbor" || biome === "rock") obj(T["coast-piling"], "⛰️", 0.9);
       }
     }
     // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback).
