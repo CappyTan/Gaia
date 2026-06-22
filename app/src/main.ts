@@ -2,6 +2,7 @@
 // and the title screen.
 
 import { $ } from "./core/dom";
+import { WakeLock } from "./core/wakelock";
 import { GAME_VERSION } from "./data/version";
 import { Game } from "./controllers/game";
 import { Roster } from "./controllers/roster";
@@ -63,15 +64,38 @@ Music.load();
 // no-ops on the title / with no party, so this is safe to fire anytime.
 const persistRun = () => { try { Game.saveNow(); } catch { /* storage off */ } };
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) persistRun(); else Music.unlock();
+  if (document.hidden) persistRun(); else { Music.unlock(); WakeLock.reacquire(); }
 });
 window.addEventListener("pagehide", persistRun);
+
+// Standalone-aware chrome: tag <html> when launched as an installed app (vs a browser tab) so CSS can
+// adapt (e.g. drop the d-pad for tap/swipe-to-move, hide the install hint).
+const standalone = window.matchMedia("(display-mode: standalone)").matches
+  || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+document.documentElement.classList.toggle("standalone", standalone);
 const verTag = $("#verTag");
 if (verTag) verTag.textContent = `Gaia ${GAME_VERSION}`;
 // Offer Continue on the title only when a resumable save exists (ADR 0007).
 const continueBtn = $("#continueBtn");
 if (continueBtn) continueBtn.style.display = Save.hasSave() ? "" : "none";
 Screens.show("title");
+
+// Cold-launch splash: let the gold sun show a beat, then fade it out and remove it.
+const boot = document.getElementById("boot");
+if (boot) { setTimeout(() => boot.classList.add("hide"), 220); setTimeout(() => boot.remove(), 760); }
+
+// First-visit "Add to Home Screen" hint — iOS Safari only (Chromium/Android shows its own install
+// prompt), browser tab only (never when already installed), once (dismissal is remembered).
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+try {
+  const a2hs = document.getElementById("a2hs");
+  if (a2hs && !standalone && isIOS && !localStorage.getItem("gaia_a2hs_seen")) {
+    const msg = document.getElementById("a2hsMsg");
+    if (msg) msg.textContent = "Play full-screen: tap Share, then “Add to Home Screen.”";
+    a2hs.classList.add("on");
+  }
+} catch { /* storage off */ }
 
 // Offline support + instant loads for the installed PWA: register the service worker (scope = the
 // app's own subpath). Best-effort — a failure (e.g. unsupported, or http on localhost) is silent and

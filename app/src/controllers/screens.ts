@@ -2,6 +2,7 @@
 
 import { $ } from "../core/dom";
 import { Music } from "../audio/music";
+import { WakeLock } from "../core/wakelock";
 import { Field } from "./field";
 import { Game } from "./game";
 
@@ -11,6 +12,9 @@ export const Screens = {
     Game.state = name;
     this.cur = name;
     (["title", "field", "battle"] as const).forEach((s) => $("#" + s + "Screen")?.classList.toggle("on", s === name));
+    // Keep the screen awake while playing; let it sleep on the title. (Field also closes its More sheet.)
+    if (name === "title") { WakeLock.release(); } else { void WakeLock.request(); }
+    if (name === "field") Field.closeMore();
     if (name === "title") Music.play("title");
     // Overworld screen: pick the cue by place + mood (Battle music is set by Battle.begin).
     //  - In a settlement (town mode): a grand "city"-themed trade capital (e.g. Riverhearth) gets the
