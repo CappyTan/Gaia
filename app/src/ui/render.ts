@@ -17,18 +17,22 @@ export function weaponArt(cls: string, rarity: string, att?: string): string | n
   return assetUrl(`items/${stem}-${a}-${rarity}.png`) || assetUrl(`items/${stem}-${rarity}.png`);
 }
 
-// Armor is attunement-agnostic loot, so it falls back to the SOL-keyed set; the per-attunement
-// files exist for when armor gains an attunement (or for an armour-over-body layer later).
-export function armorArt(rarity: string, att?: string): string | null {
+// Armor sprite for a slot. Helmet / gloves / boots now have their OWN per-attunement × rarity art
+// (items/{slot}-{att}-{rarity}.png); the chest slot ("armor") uses the armor set. Falls back to the
+// chest art (then the legacy SOL-keyed file) so a piece always renders even if its art is missing.
+export function armorArt(slot: string, rarity: string, att?: string): string | null {
   const a = (att || "SOL").toLowerCase();
-  return assetUrl(`items/armor-${a}-${rarity}.png`) || assetUrl(`items/armor-${rarity}.png`);
+  const slug = slot === "armor" ? "armor" : slot;
+  return assetUrl(`items/${slug}-${a}-${rarity}.png`)
+    || assetUrl(`items/armor-${a}-${rarity}.png`)
+    || assetUrl(`items/armor-${rarity}.png`);
 }
 
 export function itemIcon(it: Item): string {
   // Armor-family slots (helmet/chest/gloves/boots) share the armor art set until each gets its
   // own sliced sprite; weapons use the per-archetype art; trinkets have none yet.
   const url = it.slot === "weapon" ? weaponArt(it.cls, it.rarity, it.att)
-            : isArmorSlot(it.slot) ? armorArt(it.rarity, it.att)
+            : isArmorSlot(it.slot) ? armorArt(it.slot, it.rarity, it.att)
             : null;
   return url ? `<img class="ico" src="${url}" alt="">` : "";
 }
