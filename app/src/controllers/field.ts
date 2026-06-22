@@ -171,7 +171,7 @@ export const Field = {
     // five Areas read distinct; Commons/Warren reuse the base shire grass; the Grove reuses the
     // existing forest (grove-*) kinds.
     for (const n of ["orchard-ground", "orchard-ground2", "orchard-tree", "meadow-ground", "meadow-ground2", "wheat"]) names.push(n);
-    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance", "stairsdown", "stairsup"]) names.push(`${set}-${c}`);
+    for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance", "stairsdown", "stairsup", "rest", "rubble"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house", "town-stash"]) names.push(n);
     // the dungeon-boss throne/lair prop (drawn under the BOSS beacon by drawDungeonBoss)
@@ -547,6 +547,15 @@ export const Field = {
       carve(D.miniboss.x, D.miniboss.y + 1, "tree");
       targets.push(D.miniboss);
     }
+    // REST NODES (skill §1 breather valley): a walkable campfire that heals once, then spends (reverts
+    // to floor — keyed per-floor in poisCleared, mirroring an overworld shrine). Halo'd + a flood target
+    // so it's always reachable and never blocks a route. A spent rest reverts to plain floor.
+    const restSpent = (p: Pt) => !!this.poisCleared[this.poiKey(dunZid + ":d" + this.dungeonFloor, p.x, p.y)];
+    if (D.rests) for (const r of D.rests) { this.halo(r); carve(r.x, r.y, restSpent(r) ? "path" : "rest"); targets.push(r); }
+    // COLLAPSE DROPS (skill §4 gimmick / §2 shortcut): a one-way `rubble` tile that drops to its paired
+    // landing. Both the drop tile AND its landing are carved walkable + flood targets, so the gimmick can
+    // never strand the player (the floor stays fully traversable WITHOUT ever using a drop).
+    if (D.drops) for (const dp of D.drops) { this.halo(dp); carve(dp.x, dp.y, "rubble"); this.halo(dp.to); carve(dp.to.x, dp.to.y, "path"); targets.push(dp, dp.to); }
     // The up-stair / way back is "stairsup" on EVERY floor — "up = out" everywhere. On a deeper floor it
     // climbs to the previous floor; on floor 0 it IS the mouth-back door (stepping on it → ascend() → the
     // overworld mouth), so the player always has a walk-out trigger after climbing B2→B1 (QA fix).
@@ -732,6 +741,8 @@ export const Field = {
     if (cell === "stairsup") { this.ascendFloor(); return; } // climb a floor (or out on floor 0)
     if (cell === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
     if (cell === "chest") { this.openChest(nx, ny); return; } // a chest doesn't also trigger a fight
+    if (cell === "rest") { this.restAt(nx, ny); return; }     // a dungeon campfire (breather full-heal, once)
+    if (cell === "rubble") { this.collapseAt(nx, ny); return; } // the Warren collapse: one-way drop shortcut
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
@@ -1249,6 +1260,30 @@ export const Field = {
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
+  // DUNGEON REST NODE (skill §1 breather): a campfire that fully restores the party ONCE per visit, then
+  // spends (reverts to floor). Keyed per-FLOOR in poisCleared (the same persisted set as overworld shrines,
+  // namespaced "<zoneId>:d<floor>" so a B1 and B2 fire at the same x,y can't collide). A spent fire is
+  // already carved as floor by genDungeon, so this only fires on a live one.
+  restAt(x: number, y: number): void {
+    const key = this.poiKey(this.zone().id + ":d" + this.dungeonFloor, x, y);
+    this.poisCleared[key] = true;
+    this.map[y][x] = "path";
+    Game.restParty();
+    this.draw(); this.hint(); Game.saveNow?.();
+    Overlay.show(`<h2 class="title-gold">A Bandit Hearth</h2><p class="small">You catch your breath at a guttering fire and tend your wounds — HP and MP fully restored. The embers die as you rise.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+  },
+  // THE WARREN COLLAPSE (skill §4 gimmick / §2 shortcut): stepping onto a `rubble` tile caves the floor in
+  // and drops the player to its paired landing — a ONE-WAY shortcut (no fight, no soft-lock; the landing is
+  // always carved walkable + a flood target). Reuses the floor's authored `drops`. Re-arms the encounter
+  // counter so the drop isn't a free-step exploit, and redraws/centres on the landing.
+  collapseAt(x: number, y: number): void {
+    const drop = (this.curFloor().drops ?? []).find((d) => d.x === x && d.y === y);
+    if (!drop) { this.map[y][x] = "path"; return; } // defensive: a stray rubble tile is just floor
+    this.px = drop.to.x; this.py = drop.to.y;
+    this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
+    this.draw(); this.hint();
+    Overlay.show(`<h2 class="title-gold">The floor gives way!</h2><p class="small">Rotten boards crack underfoot — you crash through a collapse and tumble down a level, landing in a cloud of dust somewhere you've been.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Pick yourself up</button></div>`);
+  },
   hint(): void {
     const set = (sel: string, txt: string) => { const e = $(sel); if (e) e.textContent = txt; };
     const hintEl = $("#fieldHint");
@@ -1746,7 +1781,7 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "stairsdown" || cell === "stairsup" || POI_KINDS.has(cell);
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell);
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
@@ -1829,6 +1864,8 @@ export const Field = {
           if (g) this.drawMob(c, g, sx, sy, t); else c.fillText("🪖", sx + t / 2, sy + t / 2);
         }
         else if (cell === "boss") { if (inDun) this.drawDungeonBoss(c, sx, sy, t); else obj(undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95); }
+        else if (cell === "rest") obj(T[`${dset}-rest`], "🔥", 0.8);   // dungeon breather campfire (placeholder emoji — sprite flagged for art-integrator)
+        else if (cell === "rubble") obj(T[`${dset}-rubble`], "🕳️", 0.85); // the Warren collapse drop (placeholder emoji — sprite flagged for art-integrator)
         else if (POI_KINDS.has(cell)) this.drawPoiCell(c, T, cell, mx, my, sx, sy, t, false); // captioned landmark/camp/shrine/sign
         else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
         else if (cell === "river" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);

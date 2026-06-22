@@ -131,6 +131,24 @@ export interface DungeonLayout {
    */
   stairsDown?: Pt;
   /**
+   * BREATHER / REST NODES (dungeon-design skill §1) — walkable campfire tiles that give the party a
+   * low-intensity safe beat between combat spikes: stepping onto one RESTORES the party (full heal)
+   * ONCE, then it's spent (reverts to floor, like a used overworld shrine — keyed per-floor in
+   * `poisCleared`). Author one per floor as the deliberate tension valley (e.g. after the twisting B1
+   * mesh, just before the B3 throne threshold). Each gets a walkable halo + is a flood target so it can
+   * never be walled off; it sits ON walkable ground and never blocks a route.
+   */
+  rests?: Pt[];
+  /**
+   * THE WARREN COLLAPSE — the dungeon's signature gimmick (skill §4: one light, optional gimmick per
+   * dungeon, here a one-way collapse SHORTCUT). A `rubble` drop tile: stepping onto it COLLAPSES the
+   * floor and drops the player to its paired `to` landing — a ONE-WAY shortcut looping a deep/optional
+   * pocket back toward the hub/entry, so exploring is a circuit, not an out-and-back (skill §2
+   * unlockable shortcut). Cosmetic flow only (no fight, no soft-lock: `to` is always a carved walkable
+   * tile and a flood target). Author the drop off a deep pocket and the landing near the entry hall.
+   */
+  drops?: { x: number; y: number; to: Pt }[];
+  /**
    * Optional IN-DUNGEON mini-boss tile that GATES `stairsDown` until defeated — the floor's own
    * chokepoint, mirroring the overworld mouth/miniboss pattern. While it stands, the player can't step
    * onto `stairsDown` (it draws + reads as the gate guardian); beating it turns the stairs live. The
@@ -360,117 +378,142 @@ export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undef
 // DungeonLayout on its own grid; the player descends a floor's `stairsDown` (gated by a floor
 // `miniboss` where one stands) to the next floor's `entry`, and climbs the `entry`/up-stair back. The
 // FINALE floor (B3) holds the Kingpin `boss`. The open-world rule applies underground too: each floor
-// is a connected room-network with loops/dead-ends, not a single corridor. Anti-soft-lock: every floor
+// is a connected room-network with loops/shortcuts, not a single corridor. Anti-soft-lock: every floor
 // flood-fills so entry reaches its stairs-down (or boss) + all chests, and the gating mini can't strand.
 //
-// MESH REWORK (Dara playtest 2026-06-21 — "too basic / too linear"): all three floors are now genuine
-// NETWORKS, not corridors with side-pockets. Each is a RING of dens cross-linked so MANY loop-redundant
-// routes reach the egress (verified: ≥5 loop-redundant path carriers per floor, vs. the test's ≥2 floor),
-// each floor reads DISTINCT (twisting tunnel warren · barracks+vault wing · throne hall), and the best
-// chest is always down an optional dead-end spur or behind the lieutenant (reward the brave). B1 stays
-// 24-wide (the combined-grid redundancy test stamps it east of Greenvale's gate wall at x=40, W=64, so a
-// wider B1 would clip); B2/B3 are 28-wide (only tested standalone) for the bigger, more interconnected feel.
+// DESIGN REWORK to the dungeon-design SKILL (Dara playtest — "flat, samey maze of corridors"):
+//   • DISTINCT FLOOR IDENTITY (skill §1 milestones) — B1 is a twisting TUNNEL warren that fans wide off
+//     the entry hub; B2 is a regimented BARRACKS of parallel bunk-rows + a drill yard with the lieutenant
+//     locking a vault; B3 is a grand PILLARED THRONE HALL that funnels onto the Kingpin. No two read alike.
+//   • PACE BY TENSION & RELEASE (skill §1) — each floor carries a `rest` CAMPFIRE breather node (a safe
+//     full-heal valley): on B1 a hearth in the dug-out heart after the tunnel mesh, on B2 a cold mess-fire
+//     between the bunk-rows BEFORE the lieutenant spike, on B3 a watch-fire at the threshold — the last
+//     calm beat before the boss. The sawtooth: explore → fight → rest → climb.
+//   • BRANCH EARLY, FUNNEL LATE (skill §3) — choice-density is highest near each entry (the B1 four-way
+//     tunnel fan, the B2 bunk mesh) and tapers toward the egress; B3's galleries collapse into one
+//     colonnade so the climax is legible and the Kingpin is in sightline the instant you cross the threshold.
+//   • THE WARREN COLLAPSE (skill §4 signature gimmick, light & OPTIONAL) — B1 and B2 each hold ONE one-way
+//     `rubble` collapse DROP off a deep pocket that loops the player back near the entry/landing: a found
+//     SHORTCUT (skill §2) so deep exploration is a circuit, not a there-and-back trudge. Purely optional —
+//     the normal looped routes always remain.
+//   • RISK-GATED REWARD (skill §6) — the best chest on each floor sits behind the riskiest reach: B1's
+//     richest is past the collapse-only deep cache (or the long way round), B2's is the vault LOCKED behind
+//     the lieutenant fight, B3's is the throne-side hoard flanking the boss.
 //
 // Floor random encounters reuse Greenvale's bands (gbandit/kobold/gmage/…). `floorMini: "lieutenant"`
 // is the in-dungeon LIEUTENANT that gates B2 — the authored Bandit Bloodknife (data/enemies.ts), a
 // step between the overworld mouth-guard (Brigadier) and the B3 Kingpin finale. (Name is DRAFT for Dara.)
 //
-// B1 — THE WARREN TUNNELS (a twisting den-mesh, the gentle intro floor, no gate). The mouth lands at the
-// west entry hall, which forks every which way into a RING of four dens — NW guard post, NE bunk den, SW
-// store, SE tunnels — cross-linked so the player can circle the floor MANY ways: a north arm, a south arm,
-// a central junction shortcut, and an east cross-link knitting the NE and SE dens. Every arm converges on
-// the east stair landing (the descent). The RICHEST B1 chest is down a true dead-end side cache off the SW
-// store (reward the brave); two more sit on the loop arms as breather rewards. Distinct character: a maze
-// of warren tunnels you wind through, not a hallway. Stays 24-wide (combined-grid redundancy test).
+// B1 — THE TUNNEL WARREN (the gentle intro floor, no gate, 24-wide). TEACH: the mouth lands in a cramped
+// west entry HALL that fans into a four-way TUNNEL hub — a low NW crawl, a NE bunk burrow, a SW spoil-dig,
+// a SE den — knit by a north arc, a south arc, an east cross-tunnel and a central shortcut, so the player
+// winds the warren MANY ways (a real maze you thread, not a hallway). At the warren's dug-out HEART sits a
+// bandit HEARTH (`rest`) — the breather valley after the tunnel-mesh, before the descent. The RICHEST B1
+// chest is in a deep SPOIL CACHE reached either the long way (down the SW dig) or via the COLLAPSE DROP off
+// the SE den that caves you straight down to it (reward the brave); two breather chests sit on the loop
+// arms. A second collapse drop loops the far NE burrow back to the entry hall (the found shortcut). Stays
+// 24-wide (the combined-grid redundancy test stamps B1 east of Greenvale's gate wall at x=40, W=64).
 const WARREN_B1: DungeonLayout = {
   w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 }, // boss unused on B1
   stairsDown: { x: 20, y: 11 }, // descend to B2
   rooms: [
-    { x: 2, y: 9, w: 5, h: 7 },     // entry hall (the fork)
-    { x: 9, y: 3, w: 6, h: 5 },     // NW guard post (loop, chest)
-    { x: 16, y: 3, w: 6, h: 5 },    // NE bunk den (loop)
-    { x: 9, y: 16, w: 6, h: 5 },    // SW store (loop, chest)
-    { x: 16, y: 16, w: 6, h: 5 },   // SE tunnels (loop)
-    { x: 3, y: 18, w: 4, h: 4 },    // SW DEAD-END side cache (off the store — richest B1 chest)
-    { x: 10, y: 9, w: 5, h: 7 },    // central junction hub
+    { x: 2, y: 9, w: 5, h: 7 },     // entry hall (the four-way fork)
+    { x: 9, y: 3, w: 6, h: 5 },     // NW crawl (loop, chest)
+    { x: 16, y: 3, w: 6, h: 5 },    // NE bunk burrow (loop; holds a collapse-shortcut drop home)
+    { x: 9, y: 16, w: 6, h: 5 },    // SW spoil-dig (loop, chest; the long way to the deep cache)
+    { x: 16, y: 16, w: 6, h: 5 },   // SE den (loop; holds the collapse drop down to the deep cache)
+    { x: 2, y: 18, w: 4, h: 4 },    // deep SPOIL CACHE (richest B1 chest — long way OR the collapse drop)
+    { x: 9, y: 9, w: 6, h: 7 },     // central tunnel hub (holds the warren HEARTH rest node)
     { x: 18, y: 9, w: 5, h: 5 },    // east stair landing (the descent)
   ],
   paths: [
     [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // mouth → entry hall
-    [{ x: 4, y: 10 }, { x: 11, y: 5 }, { x: 12, y: 9 }],           // hall → NW guard → junction (N loop arm)
-    [{ x: 4, y: 14 }, { x: 11, y: 18 }, { x: 12, y: 15 }],         // hall → SW store → junction (S loop arm)
-    [{ x: 14, y: 5 }, { x: 19, y: 5 }, { x: 20, y: 9 }],           // NW guard → NE den → stair landing (N rejoin)
-    [{ x: 14, y: 18 }, { x: 19, y: 18 }, { x: 20, y: 13 }],        // SW store → SE tunnels → stair landing (S rejoin)
-    [{ x: 12, y: 11 }, { x: 18, y: 11 }],                          // junction → stair landing (central shortcut)
-    [{ x: 11, y: 16 }, { x: 5, y: 19 }],                           // SW store → dead-end cache (spur)
-    [{ x: 19, y: 5 }, { x: 19, y: 16 }],                           // NE den ↔ SE tunnels (east cross-link / loop)
+    [{ x: 4, y: 10 }, { x: 11, y: 5 }, { x: 11, y: 9 }],           // hall → NW crawl → hub (N loop arm)
+    [{ x: 4, y: 14 }, { x: 11, y: 18 }, { x: 11, y: 15 }],         // hall → SW spoil-dig → hub (S loop arm)
+    [{ x: 14, y: 5 }, { x: 19, y: 5 }, { x: 20, y: 9 }],           // NW crawl → NE burrow → stair landing (N rejoin)
+    [{ x: 14, y: 18 }, { x: 19, y: 18 }, { x: 20, y: 13 }],        // SW dig → SE den → stair landing (S rejoin)
+    [{ x: 12, y: 11 }, { x: 18, y: 11 }],                          // hub → stair landing (central shortcut)
+    [{ x: 9, y: 18 }, { x: 4, y: 19 }],                            // SW spoil-dig → deep cache (the LONG way in)
+    [{ x: 19, y: 5 }, { x: 19, y: 16 }],                           // NE burrow ↔ SE den (east cross-tunnel / loop)
   ],
   chests: [
-    { x: 5, y: 20 },   // SW dead-end cache (richest B1, reward the brave)
-    { x: 11, y: 4 },   // NW guard post (loop)
-    { x: 11, y: 19 },  // SW store (loop)
+    { x: 3, y: 20 },   // deep SPOIL CACHE (richest B1, reward the brave — long way or the collapse drop)
+    { x: 11, y: 4 },   // NW crawl (loop breather chest)
+    { x: 11, y: 19 },  // SW spoil-dig (loop breather chest)
+  ],
+  rests: [{ x: 11, y: 12 }], // the warren HEARTH — breather valley at the dug-out heart, before the descent
+  drops: [
+    { x: 19, y: 19, to: { x: 4, y: 20 } }, // SE den collapse → caves you DOWN into the deep spoil cache (the brave shortcut to the richest chest)
+    { x: 19, y: 4, to: { x: 4, y: 11 } },  // NE burrow collapse → drops you back to the entry hall (found shortcut home; no backtrack)
   ],
   scatter: 0.06,
 };
-// B2 — THE BARRACKS & THE FLOODED WING (the gated descent, 28-wide). The up-stair lands west into a
-// BARRACKS MESH: a landing hall forks to a north bunk wing and a south bunk wing (looped by a vertical
-// cross-link), with an NW armoury alcove dead-end off the hall, all rejoining at the central DRILL HALL.
-// The drill hall's east mouth is the LIEUTENANT (`miniboss`) — the SOLE walkable link to the stair landing
-// AND a hidden treasure VAULT beyond. Beat him to open the descent + the vault spur behind him. Reads
-// distinct from B1's tunnels: a manned barracks of wings + a drill hall, treasure locked behind the fight.
+// B2 — THE BARRACKS & THE VAULT (the gated descent, 28-wide). Reads distinct from B1's twisting tunnels:
+// a regimented bandit BARRACKS. The up-stair lands west into a muster HALL that forks to TWO parallel
+// bunk-rows (north + south), cross-linked into a loop, with an NW armoury alcove dead-end off the hall —
+// all converging on the central DRILL YARD. A cold mess-FIRE (`rest`) sits in the drill yard: the breather
+// BEFORE the spike. The drill yard's east mouth is the LIEUTENANT (`miniboss`) — the SOLE walkable link to
+// the stair landing AND a hidden VAULT beyond. Beat him to open the descent + the vault. A COLLAPSE DROP
+// off the south bunk-row caves back to the muster hall (the optional found shortcut so the loop isn't a
+// there-and-back). Treasure is risk-gated: the richest is locked in the vault behind the fight.
 //
-// GATE-PINCH GEOMETRY (preserved from the QA fix, re-based for the wider floor): the lieutenant tile
-// (19,12) is the SOLE walkable link from the drill hall (cols 13-18) to the stair-landing/vault block
-// (cols 22-25) — the junction is a SINGLE-ROW corridor on row 12: (19,12 lieutenant)→(20,12)→(21,12)→
-// (22,12 landing). Cols 20-21 are solid wall at every OTHER row, and the gated block sits ≥2 columns east
-// of the lieutenant (its stairs at x=24, vault chest at x=24) so NO stairs/chest halo can re-open a
-// flanking tile in cols 20-21. The lieutenant's OWN 3×3 halo (which would otherwise open a walkable RING
-// around it via (19,11)/(19,13)) is closed off by genDungeon re-walling the gate's perpendicular flanks —
-// so the only way east is THROUGH the fight. VERIFIED by flooding with the lieutenant forced to a wall:
-// stairs-down AND the vault chest both go UNREACHABLE (and with it walkable, all reachable — no soft-lock).
+// GATE-PINCH GEOMETRY (preserved from the QA fix): the lieutenant tile (19,12) is the SOLE walkable link
+// from the drill yard (cols 13-18) to the stair-landing/vault block (cols 22-25) — a SINGLE-ROW corridor on
+// row 12: (19,12 lieutenant)→(20,12)→(21,12)→(22,12 landing). Cols 20-21 are solid wall at every OTHER row,
+// and the gated block sits ≥2 columns east of the lieutenant (stairs at x=24, vault chest at x=24) so NO
+// stairs/chest halo can re-open a flanking tile in cols 20-21. The lieutenant's OWN 3×3 halo is closed off
+// by genDungeon re-walling the gate's perpendicular flanks — so the only way east is THROUGH the fight.
+// VERIFIED by flooding with the lieutenant forced to a wall: stairs-down AND the vault chest both go
+// UNREACHABLE (and with it walkable, all reachable — no soft-lock). NOTE: the collapse DROP's landing is
+// WEST of the gate (back in the muster hall), so it never bypasses the pinch.
 const WARREN_B2: DungeonLayout = {
   w: 28, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 24, y: 11 }, // boss unused on B2
   stairsDown: { x: 24, y: 12 },   // descend to B3 — ≥2 cols east of the lieutenant (cols 20-21 stay solid)
   miniboss: { x: 19, y: 12 },     // the bandit LIEUTENANT — the SOLE link east; gates the stairs + the vault
   rooms: [
-    { x: 2, y: 9, w: 5, h: 7 },     // up-stair landing hall (the fork)
-    { x: 9, y: 3, w: 6, h: 5 },     // north bunk wing (loop, chest)
-    { x: 9, y: 16, w: 6, h: 5 },    // south bunk wing (loop, chest)
+    { x: 2, y: 9, w: 5, h: 7 },     // up-stair muster hall (the fork)
+    { x: 9, y: 3, w: 7, h: 5 },     // north bunk-row (loop, chest)
+    { x: 9, y: 16, w: 7, h: 5 },    // south bunk-row (loop, chest; holds the collapse drop home)
     { x: 4, y: 3, w: 4, h: 4 },     // NW armoury alcove (dead-end side chest)
-    { x: 13, y: 9, w: 6, h: 6 },    // central drill hall (cols 13-18; lieutenant at its east mouth x=19)
+    { x: 13, y: 9, w: 6, h: 6 },    // central DRILL YARD (cols 13-18; holds the mess-fire rest; lieutenant at its east mouth x=19)
     { x: 22, y: 9, w: 4, h: 7 },    // stair landing PAST the lieutenant (cols 22-25; cols 20-21 stay solid)
     { x: 22, y: 3, w: 4, h: 4 },    // hidden VAULT dead-end (cols 22-25, behind the lieutenant — richest)
   ],
   paths: [
-    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // up-stair → landing hall
-    [{ x: 4, y: 10 }, { x: 11, y: 5 }, { x: 14, y: 10 }],          // hall → north wing → drill hall
-    [{ x: 4, y: 14 }, { x: 11, y: 18 }, { x: 14, y: 14 }],         // hall → south wing → drill hall (the LOOP)
-    [{ x: 11, y: 8 }, { x: 11, y: 16 }],                           // north wing ↔ south wing (vertical cross-link / loop)
-    [{ x: 4, y: 10 }, { x: 5, y: 5 }],                             // landing hall → NW armoury alcove (spur)
-    [{ x: 19, y: 12 }, { x: 24, y: 12 }],                          // drill hall → (THROUGH lieutenant) → stair landing
+    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // up-stair → muster hall
+    [{ x: 4, y: 10 }, { x: 11, y: 5 }, { x: 14, y: 10 }],          // hall → north bunk-row → drill yard
+    [{ x: 4, y: 14 }, { x: 11, y: 18 }, { x: 14, y: 14 }],         // hall → south bunk-row → drill yard (the LOOP)
+    [{ x: 12, y: 8 }, { x: 12, y: 16 }],                           // north bunk-row ↔ south bunk-row (vertical cross-link / loop)
+    [{ x: 4, y: 10 }, { x: 5, y: 5 }],                             // muster hall → NW armoury alcove (spur)
+    [{ x: 19, y: 12 }, { x: 24, y: 12 }],                          // drill yard → (THROUGH lieutenant) → stair landing
     [{ x: 24, y: 10 }, { x: 24, y: 6 }],                           // stair landing → hidden vault dead-end (spur)
   ],
   chests: [
     { x: 24, y: 4 },   // hidden vault behind the lieutenant (RICHEST — reward the brave)
-    { x: 11, y: 4 },   // north bunk wing (loop)
-    { x: 11, y: 19 },  // south bunk wing (loop)
+    { x: 11, y: 4 },   // north bunk-row (loop)
+    { x: 11, y: 19 },  // south bunk-row (loop)
     { x: 5, y: 4 },    // NW armoury alcove (dead-end side cache)
+  ],
+  rests: [{ x: 15, y: 11 }], // the mess-FIRE in the drill yard — the breather valley right before the lieutenant spike
+  drops: [
+    { x: 14, y: 19, to: { x: 4, y: 14 } }, // south bunk-row collapse → caves back to the muster hall (optional found shortcut, WEST of the gate — never bypasses it)
   ],
   scatter: 0.07,
 };
-// B3 — THE KINGPIN'S THRONE HALL (the finale, 28-wide). The up-stair lands west into a pillared approach
-// that SPLITS into a north gallery and a south gallery (looped by a cross-link), the two rejoining at a
-// grand THRESHOLD — the funnel mouth. From the threshold a short colonnade opens straight EAST onto the
-// wide THRONE ARENA: the Kingpin sits centred on his dais, hoard chests flanking him north and south, in
-// clear sightline the moment you cross the threshold (the layout FUNNELS you onto the boss — impossible to
-// miss now). The zone `boss` (Kingpin) lives HERE. Reads distinct: a grand pillared hall, not a tunnel.
+// B3 — THE KINGPIN'S THRONE HALL (the finale, 28-wide). Reads distinct: a grand PILLARED hall, not a
+// tunnel or a barracks. BRANCH-EARLY/FUNNEL-LATE: the up-stair lands west into a pillared approach that
+// SPLITS into a north gallery and a south gallery (looped by a cross-link, each with a chest), the two
+// rejoining at a grand THRESHOLD. At the threshold a watch-FIRE (`rest`) gives the LAST breather before
+// the boss. From there a short colonnade opens straight EAST onto the wide THRONE ARENA: the Kingpin sits
+// centred on his dais, hoard chests flanking him north and south, in CLEAR SIGHTLINE the instant you cross
+// the threshold — the layout FUNNELS you onto a telegraphed boss (skill §5). The zone `boss` lives HERE.
 const WARREN_B3: DungeonLayout = {
   w: 28, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 22, y: 10 },
   rooms: [
     { x: 2, y: 8, w: 5, h: 6 },     // up-stair landing
     { x: 9, y: 3, w: 6, h: 5 },     // north gallery (loop, chest)
     { x: 9, y: 14, w: 6, h: 5 },    // south gallery (loop, chest)
-    { x: 16, y: 8, w: 3, h: 6 },    // grand threshold (the loop rejoins — the funnel mouth)
+    { x: 16, y: 8, w: 3, h: 6 },    // grand threshold (the loop rejoins — the funnel mouth; watch-fire rest)
     { x: 19, y: 4, w: 8, h: 14 },   // THE THRONE ARENA (wide; Kingpin centred, hoard flanking N/S)
   ],
   paths: [
@@ -486,6 +529,7 @@ const WARREN_B3: DungeonLayout = {
     { x: 11, y: 4 },   // north gallery (loop)
     { x: 11, y: 15 },  // south gallery (loop)
   ],
+  rests: [{ x: 17, y: 11 }], // the watch-FIRE at the threshold — the LAST breather before the telegraphed Kingpin
   scatter: 0.06,
 };
 // The Bandit Warren = the 3-floor stack. `layout` MUST equal `floors[0]` (the single-floor contract
