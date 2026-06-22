@@ -1387,16 +1387,26 @@ export const Field = {
   // The dungeon/cave MOUTH gets a gold caption (like town POIs) so the east-spine POI reads as a named
   // destination, not a bare door. Spine dungeons read `↦ <name>`; OPTIONAL side zones read
   // `<name> (optional)`. Name comes from the zone the player currently stands in (this.zone()).
-  drawMouthLabel(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
+  // A dungeon entrance is ONE tile in a wide-open zone — easy to walk right past (Dara couldn't find the
+  // Drowned Vault). So make it SHINE: a gold halo + ring around the tile + a dark-pill label you can read
+  // from across the map. `guarded` (an unbeaten mini-boss gate) reads "⚔ fight to enter"; open reads "▶".
+  drawMouthLabel(c: CanvasRenderingContext2D, sx: number, sy: number, t: number, guarded = false): void {
     const z = this.zone();
     const optional = OPTIONAL_ZONES.has(z.id);
-    const txt = optional ? `${z.dungeon.name} (optional)` : `↦ ${z.dungeon.name}`;
+    const cx = sx + t / 2, cy = sy + t / 2;
     c.save();
+    const halo = c.createRadialGradient(cx, cy, t * 0.1, cx, cy, t * 1.15);
+    halo.addColorStop(0, "rgba(244,210,122,.5)"); halo.addColorStop(0.55, "rgba(244,185,66,.22)"); halo.addColorStop(1, "rgba(244,185,66,0)");
+    c.fillStyle = halo; c.beginPath(); c.arc(cx, cy, t * 1.15, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "rgba(244,210,122,.95)"; c.lineWidth = Math.max(2, t * 0.07);
+    c.beginPath(); c.arc(cx, cy, t * 0.45, 0, Math.PI * 2); c.stroke();
+    const txt = `${guarded ? "⚔ " : "▶ "}${z.dungeon.name}${optional ? " (optional)" : ""}`;
     c.textAlign = "center"; c.textBaseline = "middle";
-    c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`;
-    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
-    const ly = sy + t * 1.04;
-    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
+    c.font = `bold ${Math.max(10, t * 0.3)}px system-ui`;
+    const ly = sy + t * 1.2, tw = c.measureText(txt).width, ph = Math.max(14, t * 0.42);
+    c.fillStyle = "rgba(8,8,16,.85)"; c.fillRect(cx - tw / 2 - 6, ly - ph / 2, tw + 12, ph);
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.9)"; c.fillStyle = "rgba(244,210,122,.98)";
+    c.strokeText(txt, cx, ly); c.fillText(txt, cx, ly);
     c.restore();
   },
 
@@ -1527,7 +1537,7 @@ export const Field = {
         c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
         const ly = sy + t * 1.04; c.strokeText(nm, sx + t / 2, ly); c.fillText(nm, sx + t / 2, ly); c.restore();
       }
-      else if (cell.kind === "miniboss") { c.fillText("🪖", sx + t / 2, sy + t / 2); this.drawMouthLabel(c, sx, sy, t); }
+      else if (cell.kind === "miniboss") { obj(undefined, "🪖", 0.85); this.drawMouthLabel(c, sx, sy, t, true); }
       else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
       else if (cell.kind === "cliff" && !T.cliff) c.fillText("⛰️", sx + t / 2, sy + t / 2);
       else if (cell.kind === "river" && !T.water) c.fillText("🌊", sx + t / 2, sy + t / 2);

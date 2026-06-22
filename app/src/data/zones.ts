@@ -613,14 +613,34 @@ const DUSKMARSH_LAYOUT: ZoneLayout = {
     { x: 20, y: 8, w: 7, h: 7 },    // CENTRAL crossing hub (the two causeways rejoin)
     { x: 27, y: 9, w: 5, h: 5 },    // pre-gate landing before the Broodmother's gate
   ],
+  // LEGIBILITY REWORK (Dara playtest 2026-06-22 — "I don't see where I can walk into the central
+  // hub"). The route is now a WIDE, CONTINUOUS PLANK CAUSEWAY (the "path"/mire-path kind — the one
+  // surface that reads clearly walkable against the look-alike mire-ground/bog/water). Both loops are
+  // carved 3 TILES WIDE (a parallel plank polyline either side of the centreline) so the road is an
+  // unmistakable boardwalk, not a 1-tile thread, and a BOLD 3-wide plank SPINE runs dead-straight
+  // through the central crossing hub onto the Vault gate — so the eye follows one boardwalk
+  // spawn → hub → gate. The lagoon/channel/ford/reed-hummocks still PINCH and frame it (water stamps
+  // over the wedges between the loops, never the boardwalk), so the mire keeps its close, dangerous
+  // character while the through-route reads at a glance. Still a real network: two looped causeways.
   fieldPaths: [
-    [{ x: 4, y: 11 }, { x: 7, y: 11 }],                            // mire head → fork node
-    // NORTH causeway: fork → up the west bank → across the top (over the bog pocket) → down into central
-    [{ x: 7, y: 11 }, { x: 7, y: 4 }, { x: 12, y: 4 }, { x: 18, y: 4 }, { x: 23, y: 5 }, { x: 23, y: 8 }],
-    // SOUTH causeway: fork → down the west bank → across the bottom (past the ruin) → up into central
-    [{ x: 7, y: 11 }, { x: 7, y: 18 }, { x: 12, y: 18 }, { x: 18, y: 18 }, { x: 23, y: 17 }, { x: 23, y: 15 }],
-    [{ x: 26, y: 11 }, { x: 29, y: 11 }, { x: 31, y: 11 }],        // central → pre-gate → gate
-    [{ x: 23, y: 11 }, { x: 28, y: 11 }],                          // central → pre-gate connector
+    // SPAWN APPROACH — a 3-wide boardwalk off the mire head into the fork node. Starts at x3 (the tile
+    // beside the spawn at x2) so the plank meets the very first step — no reed seam at set-out.
+    [{ x: 3, y: 10 }, { x: 8, y: 10 }], [{ x: 3, y: 11 }, { x: 8, y: 11 }], [{ x: 3, y: 12 }, { x: 8, y: 12 }],
+    // NORTH causeway (the dry HIGH ROAD): fork → up the west bank → across the top (over the bog
+    // pocket) → down into the central hub. Carved 3 wide: the centreline + a plank either side.
+    [{ x: 6, y: 11 }, { x: 6, y: 3 }, { x: 23, y: 3 }, { x: 23, y: 8 }],   // top edge of the boardwalk
+    [{ x: 7, y: 11 }, { x: 7, y: 4 }, { x: 23, y: 4 }, { x: 23, y: 9 }],   // CENTRELINE
+    [{ x: 8, y: 11 }, { x: 8, y: 5 }, { x: 22, y: 5 }, { x: 22, y: 8 }],   // bottom edge of the boardwalk
+    [{ x: 24, y: 4 }, { x: 24, y: 10 }],                                   // east shoulder down onto the spine
+    // SOUTH causeway (the LOW ROAD over the plank ford): fork → down the west bank → across the
+    // bottom (past the sunken ruin) → up into the central hub. Also 3 wide.
+    [{ x: 6, y: 11 }, { x: 6, y: 19 }, { x: 23, y: 19 }, { x: 23, y: 15 }], // bottom edge of the boardwalk
+    [{ x: 7, y: 11 }, { x: 7, y: 18 }, { x: 23, y: 18 }, { x: 23, y: 14 }], // CENTRELINE (carries the ford at x15)
+    [{ x: 8, y: 11 }, { x: 8, y: 17 }, { x: 22, y: 17 }, { x: 22, y: 14 }], // top edge of the boardwalk
+    [{ x: 24, y: 18 }, { x: 24, y: 12 }],                                  // east shoulder up onto the spine
+    // CENTRAL SPINE — a BOLD 3-wide plank road straight through the crossing hub onto the Vault gate,
+    // so the boardwalk visibly continues spawn → hub → gate (the player can always see "forward").
+    [{ x: 20, y: 10 }, { x: 31, y: 10 }], [{ x: 20, y: 11 }, { x: 31, y: 11 }], [{ x: 20, y: 12 }, { x: 31, y: 12 }],
   ],
   // Standing water sits in the WEDGES between the two roads — a big central lagoon they loop around,
   // plus bank pools framing the head fork — so it pinches/frames the routes without severing them.
