@@ -1270,7 +1270,7 @@ export const Field = {
     this.map[y][x] = "path";
     Game.restParty();
     this.draw(); this.hint(); Game.saveNow?.();
-    Overlay.show(`<h2 class="title-gold">A Bandit Hearth</h2><p class="small">You catch your breath at a guttering fire and tend your wounds — HP and MP fully restored. The embers die as you rise.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+    Overlay.show(`<h2 class="title-gold">A Bandit Hearth</h2><p class="small">You catch your breath at a guttering fire and tend your wounds — your standing heroes' HP and MP are fully restored (the fallen need a town to revive). The embers die as you rise.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
   // THE WARREN COLLAPSE (skill §4 gimmick / §2 shortcut): stepping onto a `rubble` tile caves the floor in
   // and drops the player to its paired landing — a ONE-WAY shortcut (no fight, no soft-lock; the landing is
@@ -1599,22 +1599,15 @@ export const Field = {
     c.restore();
   },
 
-  // DUNGEON TREASURE marker (Dara QA 2026-06-21 — chests had "no icons" because the warren-chest tile
-  // is a placeholder, so nothing read as loot). Overlay a bright glint + a 💰 glyph + a small gold
-  // "loot" caption ON TOP of whatever the chest tile drew, so a chest is unmistakable on every floor
-  // regardless of the placeholder art. (Also used for the rare-lair if a dungeon ever places one.)
+  // DUNGEON TREASURE glint: a soft warm glow so a chest reads on the dim floor. The chest tile is now
+  // real painted art, so this is JUST a subtle highlight — no 💰 glyph / "loot" caption (that was a
+  // placeholder crutch from when warren-chest was a blank tile and "nothing read as loot").
   drawTreasureMark(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
     c.save();
-    c.textAlign = "center"; c.textBaseline = "middle";
-    // a warm glint disc behind the glyph so it pops off the dim floor even with no chest sprite
-    c.beginPath(); c.arc(sx + t / 2, sy + t * 0.46, t * 0.34, 0, Math.PI * 2);
-    c.fillStyle = "rgba(244,210,122,.22)"; c.fill();
-    c.font = `${t * 0.6}px serif`;
-    c.fillText("💰", sx + t / 2, sy + t * 0.46);
-    c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`;
-    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
-    const ly = sy + t * 1.0;
-    c.strokeText("loot", sx + t / 2, ly); c.fillText("loot", sx + t / 2, ly);
+    const cx = sx + t / 2, cy = sy + t * 0.5;
+    const g = c.createRadialGradient(cx, cy, t * 0.06, cx, cy, t * 0.55);
+    g.addColorStop(0, "rgba(244,210,122,.30)"); g.addColorStop(1, "rgba(244,210,122,0)");
+    c.fillStyle = g; c.fillRect(sx - t * 0.1, sy - t * 0.1, t * 1.2, t * 1.2);
     c.restore();
   },
 
@@ -1847,7 +1840,7 @@ export const Field = {
           if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
           else c.fillText(emoji, sx + t / 2, sy + t / 2);
         };
-        if (cell === "chest") { obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); if (inDun) this.drawTreasureMark(c, sx, sy, t); }
+        if (cell === "chest") { if (inDun) this.drawTreasureMark(c, sx, sy, t); obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); } // glint behind, chest sprite on top
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
         else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town

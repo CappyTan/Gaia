@@ -98,6 +98,11 @@ function carveDungeon(D: DungeonLayout, last = true, miniWall = false): string[]
     c(D.miniboss.x, D.miniboss.y, miniWall ? "tree" : "path"); // gate = a fight (walkable) unless forced wall
     c(D.miniboss.x, D.miniboss.y - 1, "tree"); c(D.miniboss.x, D.miniboss.y + 1, "tree"); // re-wall the gate flanks
   }
+  // REST nodes + collapse DROPS — carved AFTER the gate flank re-wall, exactly mirroring genDungeon
+  // (each halo'd, walkable, a flood target; a drop's landing too). Carving them here lets the pinch
+  // test below catch a future rest/drop whose halo would re-open the gate bypass (the risk this opened).
+  if (D.rests) for (const r of D.rests) { halo(r); c(r.x, r.y, "rest"); }
+  if (D.drops) for (const dp of D.drops) { halo(dp); c(dp.x, dp.y, "rubble"); halo(dp.to); c(dp.to.x, dp.to.y, "path"); }
   c(D.entry.x, D.entry.y, "path");
   return map;
 }
@@ -274,6 +279,12 @@ describe("ADR 0008 Stage 3 — multi-floor dungeon (every floor traversable, no 
           for (const ch of D.chests) expect(seen[ch.y][ch.x], `B${i + 1} chest ${ch.x},${ch.y} reachable`).toBe(true);
           // the gating lieutenant tile itself must be reachable (the player can always reach the gate).
           if (D.miniboss) expect(seen[D.miniboss.y][D.miniboss.x], `B${i + 1} lieutenant reachable`).toBe(true);
+          // rest nodes, collapse drops, AND each drop's landing must all be reachable (never stranded).
+          if (D.rests) for (const r of D.rests) expect(seen[r.y][r.x], `B${i + 1} rest ${r.x},${r.y} reachable`).toBe(true);
+          if (D.drops) for (const dp of D.drops) {
+            expect(seen[dp.y][dp.x], `B${i + 1} drop ${dp.x},${dp.y} reachable`).toBe(true);
+            expect(seen[dp.to.y][dp.to.x], `B${i + 1} drop-landing ${dp.to.x},${dp.to.y} reachable`).toBe(true);
+          }
         });
       });
     });
