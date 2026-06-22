@@ -278,15 +278,17 @@ export const Game = {
     if (!hub) return;
     this.enterTownVisit(hub);
   },
-  // After a zone boss falls (battle.ts), begin walking the NEXT zone's hub chain — the ordered
-  // settlements the player passes through before that zone loads (e.g. Riverhearth → Miregard before
-  // the Duskmarsh). Opens the first; `leaveTown` advances the chain and only loads the zone at its end.
+  // After a zone boss falls (battle.ts), return to the CURRENT zone's hub town — a familiar settlement
+  // with the merchant for a breather + restock. LEAVING that town advances to the next zone (leaveTown
+  // → loadZone). We deliberately do NOT teleport to the *next* zone's doorstep hub: those are
+  // placeholders (e.g. Silverwood points at Riverhearth, the far "main city"), which made beating
+  // Greenvale dump the player in the wrong city. Real inter-zone hub progression is Dara's design lane.
   enterNextHubChain(): void {
     this._startVillage = false;
-    const next = ZONES[Field.zoneIndex + 1];
-    this._hubChain = next ? hubsFor(next) : [];
+    if (Field.isLastZone()) { this.victory(); return; } // no next zone (shouldn't reach here — final boss → victory)
+    this._hubChain = hubsFor(Field.zone());
     this._hubIx = 0;
-    if (!this._hubChain.length) { this.victory(); return; } // no chain (shouldn't happen) → end run
+    if (!this._hubChain.length) { Field.loadZone(Field.zoneIndex + 1); this.saveNow(); return; } // hubless zone → straight on
     this.openTown(this._hubChain[0]);
   },
   // Close an in-town overlay and return to the walkable town field.
