@@ -459,36 +459,74 @@ export const Battle = {
       `<span class="ac-node${live.has(a) ? " live" : ""}" style="color:${ATT[a].color}" title="${a}">${ABBR[a]}</span>`
     ).join('<span class="ac-arrow">▸</span>') + '<span class="ac-arrow">↺</span>';
   },
+  // RECONCILE in place rather than rebuilding (Dara's attack flicker): a full innerHTML wipe re-created
+  // every sprite <img> on each re-render, flashing a blank frame at the start/end of the lunge. We keep
+  // the .enemy node (and its sprite element) alive across renders — refreshing only the bar/name block
+  // and the class flags — and rebuild a node ONLY when its sprite art actually changes (death keeps the
+  // same art; enrage swaps to the omega). This also lets the CSS lunge animation run uninterrupted.
   renderEnemies(targetable: boolean): void {
-    const z = $("#enemyZone")!; z.innerHTML = "";
+    const z = $("#enemyZone")!;
     // A lone boss/mini-boss renders large + centered (Dara); with a pack it just scales up.
     const aliveN = this.enemies.filter((e) => e.alive).length;
     z.classList.toggle("has-boss", aliveN === 1 && this.enemies.some((e) => e.alive && (e.boss || e.miniboss)));
-    this.enemies.forEach((e) => {
+    const reuse = z.children.length === this.enemies.length;
+    this.enemies.forEach((e, i) => {
       const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
-      const d = el("div", "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : ""));
-      d.innerHTML = `${enemySprite(e)}<div class="ebar">
+      const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : "");
+      const art = e.art || e.key;
+      const bar = `<div class="ebar">
         <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
         <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
-      if (targetable && e.alive) d.onclick = () => this.targetClicked(e);
-      z.appendChild(d);
+      const cur = reuse ? (z.children[i] as HTMLElement) : null;
+      if (cur && cur.dataset.art === art) {
+        // same creature, same art → keep the sprite, refresh only flags + the bar block.
+        if (cur.className !== cls) cur.className = cls;
+        const ebar = cur.querySelector(".ebar");
+        if (ebar) ebar.outerHTML = bar;
+        cur.onclick = targetable && e.alive ? () => this.targetClicked(e) : null;
+      } else {
+        const d = el("div", cls);
+        d.dataset.art = art;
+        d.innerHTML = `${enemySprite(e)}${bar}`;
+        if (targetable && e.alive) d.onclick = () => this.targetClicked(e);
+        if (cur) z.replaceChild(d, cur); else z.appendChild(d);
+      }
     });
+    while (z.children.length > this.enemies.length) z.lastChild!.remove();
   },
   renderParty(): void {
-    const z = $("#partyZone")!; z.innerHTML = "";
-    // Two-column formation: front line nearer the enemies (left), back line behind (right).
-    const front = el("div", "pcol front"), back = el("div", "pcol back");
-    front.innerHTML = `<div class="pcol-cap">Front</div>`;
-    back.innerHTML = `<div class="pcol-cap">Back</div>`;
-    z.appendChild(front); z.appendChild(back);
+    const z = $("#partyZone")!;
+    // Two-column formation: front line nearer the enemies (left), back line behind (right). Built once;
+    // thereafter we reconcile each .pchar in place so the paper-doll <img> survives (no attack flicker)
+    // — rebuilding a hero's sprite only when they fall (doll → 💤) or revive.
+    let front = z.querySelector<HTMLElement>(".pcol.front");
+    let back = z.querySelector<HTMLElement>(".pcol.back");
+    if (!front || !back) {
+      z.innerHTML = "";
+      front = el("div", "pcol front"); back = el("div", "pcol back");
+      front.innerHTML = `<div class="pcol-cap">Front</div>`;
+      back.innerHTML = `<div class="pcol-cap">Back</div>`;
+      z.appendChild(front); z.appendChild(back);
+    }
     Game.party.forEach((m) => {
-      const d = el("div", "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : ""));
-      d.dataset.mid = m.id;
-      const spr = m.alive ? renderDoll(m) : '<div class="spr">💤</div>';
-      // Names live in the lower roster panel only; up here we keep just status badges next to the sprite.
-      d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? ATT[m.att].color : "#666"}">${statusBadges(m)}</div></div>${spr}`;
-      (m.row === "back" ? back : front).appendChild(d);
+      const col = m.row === "back" ? back! : front!;
+      const cls = "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : "");
+      const cur = z.querySelector<HTMLElement>(`.pchar[data-mid="${m.id}"]`);
+      if (cur && cur.dataset.alive === String(m.alive)) {
+        // same alive-state → keep the doll, refresh only flags + the status-badge strip.
+        if (cur.className !== cls) cur.className = cls;
+        const ename = cur.querySelector<HTMLElement>(".ename");
+        if (ename) { ename.style.color = m.alive ? ATT[m.att].color : "#666"; ename.innerHTML = statusBadges(m); }
+        if (cur.parentElement !== col) col.appendChild(cur); // row change (only outside battle)
+      } else {
+        const spr = m.alive ? renderDoll(m) : '<div class="spr">💤</div>';
+        const d = el("div", cls);
+        d.dataset.mid = m.id; d.dataset.alive = String(m.alive);
+        // Names live in the lower roster panel only; up here we keep just status badges next to the sprite.
+        d.innerHTML = `<div style="text-align:right"><div class="ename" style="color:${m.alive ? ATT[m.att].color : "#666"}">${statusBadges(m)}</div></div>${spr}`;
+        if (cur) cur.replaceWith(d); else col.appendChild(d);
+      }
     });
   },
   renderBars(): void {
