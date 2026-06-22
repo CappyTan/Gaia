@@ -172,7 +172,9 @@ export const Field = {
     for (const n of ["orchard-ground", "orchard-ground2", "orchard-tree", "meadow-ground", "meadow-ground2", "wheat"]) names.push(n);
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance", "stairsdown", "stairsup"]) names.push(`${set}-${c}`);
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
-    for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house"]) names.push(n);
+    for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house", "town-stash"]) names.push(n);
+    // the dungeon-boss throne/lair prop (drawn under the BOSS beacon by drawDungeonBoss)
+    names.push("boss-throne");
     // Miregard marsh-outpost kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["town-plank", "town-bog", "town-stilt", "town-deadtree", "town-lantern"]) names.push(n);
     // Riverhearth city kinds — placeholders until sliced (see asset-gaps.md)
@@ -1546,8 +1548,19 @@ export const Field = {
       c.fillStyle = "rgba(244,210,122,.18)"; c.fill();
       c.lineWidth = Math.max(2, t * 0.05); c.strokeStyle = "rgba(244,210,122,.6)"; c.stroke();
     }
-    c.font = `${t * 0.8}px serif`;
-    c.fillText(Game.bossDefeated ? "🏴" : "👑", sx + t / 2, sy + t * 0.46);
+    // the painted throne/lair setpiece (bottom-anchored, larger than a tile); dimmed once cleared.
+    // Falls back to the 👑/🏴 glyph until the sprite loads.
+    const throne = this.tiles["boss-throne"];
+    if (throne) {
+      if (Game.bossDefeated) c.globalAlpha = 0.5;
+      const h = t * 1.9, w = h * (throne.width / throne.height);
+      c.drawImage(throne, sx + t / 2 - w / 2, sy + t - h, w, h);
+      c.globalAlpha = 1;
+      if (Game.bossDefeated) { c.font = `${t * 0.5}px serif`; c.fillText("🏴", sx + t / 2, sy + t * 0.12); }
+    } else {
+      c.font = `${t * 0.8}px serif`;
+      c.fillText(Game.bossDefeated ? "🏴" : "👑", sx + t / 2, sy + t * 0.46);
+    }
     const txt = Game.bossDefeated ? "CLEARED" : "BOSS", ly = sy + t * 1.04;
     c.font = `bold ${Math.max(9, t * 0.27)}px system-ui`;
     c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = Game.bossDefeated ? "rgba(170,170,170,.9)" : "rgba(244,210,122,.98)";
