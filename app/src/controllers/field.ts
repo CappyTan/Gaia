@@ -191,6 +191,27 @@ export const Field = {
       const key = `npc:${s.id}-${n.id}`, img = new Image();
       img.onload = () => { this.tiles[key] = img; this.draw(); }; img.src = url;
     }
+    // GATE-GUARDIAN sprites: the dungeon-mouth mini-boss (zone.mini) and the in-dungeon floor
+    // lieutenant (dungeon.floorMini) render as their actual ENEMY sprite on the gate tile (reusing
+    // the battle art) instead of a 🪖 emoji. Preload each unique sprite into tiles["mob:<key>"].
+    const mobs = new Set<string>();
+    for (const z of ZONES) for (const k of [z.mini, z.dungeon?.floorMini]) if (k) mobs.add(ENEMIES[k]?.art || k);
+    for (const sk of mobs) {
+      const url = assetUrl(`enemies/${sk}.png`); if (!url) continue;
+      const key = `mob:${sk}`, img = new Image();
+      img.onload = () => { this.tiles[key] = img; this.draw(); }; img.src = url;
+    }
+  },
+
+  // The gate-guardian ENEMY sprite for an enemy key (mini / floorMini), or undefined if not loaded yet.
+  mob(key: string | undefined): HTMLImageElement | undefined {
+    if (!key) return undefined;
+    return this.tiles[`mob:${ENEMIES[key]?.art || key}`];
+  },
+  // Draw a guardian/creature sprite bottom-anchored on a tile, preserving its (tall) aspect.
+  drawMob(c: CanvasRenderingContext2D, img: HTMLImageElement, sx: number, sy: number, t: number): void {
+    const h = t * 1.5, w = h * (img.width / img.height);
+    c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.98 - h, w, h);
   },
 
   zone() { return ZONES[this.zoneIndex]; },
@@ -1577,7 +1598,12 @@ export const Field = {
         c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
         const ly = sy + t * 1.04; c.strokeText(nm, sx + t / 2, ly); c.fillText(nm, sx + t / 2, ly); c.restore();
       }
-      else if (cell.kind === "miniboss") { obj(undefined, "🪖", 0.85); this.drawMouthLabel(c, sx, sy, t, true); }
+      else if (cell.kind === "miniboss") {
+        const zid = authoredAt(wx, wy)?.zoneId, z = zid ? ZONES.find((zz) => zz.id === zid) : undefined;
+        const g = this.mob((z ?? this.zone()).mini);
+        if (g) this.drawMob(c, g, sx, sy, t); else obj(undefined, "🪖", 0.85);
+        this.drawMouthLabel(c, sx, sy, t, true);
+      }
       else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
       else if (cell.kind === "cliff" && !T.cliff) c.fillText("⛰️", sx + t / 2, sy + t / 2);
       else if (cell.kind === "river" && !T.water) c.fillText("🌊", sx + t / 2, sy + t / 2);
@@ -1735,7 +1761,10 @@ export const Field = {
         }
         else if (cell === "stairsdown") this.drawStairs(c, obj, T[`${dset}-stairsdown`], false, sx, sy, t); // descend a floor (placeholder — see asset-gaps.md)
         else if (cell === "stairsup") this.drawStairs(c, obj, T[`${dset}-stairsup`], true, sx, sy, t);      // climb a floor / out
-        else if (cell === "miniboss") c.fillText("🪖", sx + t / 2, sy + t / 2); // gate guardian — emoji for now
+        else if (cell === "miniboss") { // floor lieutenant / mouth guard — its actual enemy sprite
+          const g = this.mob(inDun ? this.zone().dungeon?.floorMini : this.zone().mini);
+          if (g) this.drawMob(c, g, sx, sy, t); else c.fillText("🪖", sx + t / 2, sy + t / 2);
+        }
         else if (cell === "boss") { if (inDun) this.drawDungeonBoss(c, sx, sy, t); else obj(undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95); }
         else if (POI_KINDS.has(cell)) this.drawPoiCell(c, T, cell, mx, my, sx, sy, t, false); // captioned landmark/camp/shrine/sign
         else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
