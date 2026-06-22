@@ -36,9 +36,10 @@ and tune the play. (If no edge spec exists yet for a zone, flag the world-cartog
 
 Read `CLAUDE.md` first (architecture + workflow), then `docs/design/affinity-ring.md` (the
 **continent-identity** future system) and `DESIGN.md` for the locked decisions. **Note the surface
-ruling:** overworld regions carry **NO Attunement identity except the five Sundering scars** (ADR
-0009 §4) — so the "lean a region toward a power" lever is for **dungeons** (see `dungeon-design`
-skill §5), **not** the open overworld.
+attunement ruling:** only the **five Sundering Scars** are *strictly* attuned (a defining identity);
+other overworld regions **may** carry a light, optional affinity lean as flavor — never a *defining*
+surface identity (Dara, clarifying ADR 0009 §4). The strong "lean a zone toward a power" lever stays
+a **dungeon** tool (`dungeon-design` skill §5); on the surface it's at most a light accent.
 
 **When you shape a dungeon or cave, read and follow the `dungeon-design` skill**
 (`.claude/skills/dungeon-design/SKILL.md`) — it's the distilled, gradeable rubric (pacing/breather

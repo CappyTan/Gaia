@@ -34,9 +34,10 @@ rubric for a dungeon; §7 (the lighter bar) for a cave/POI interior. The "why" i
 **For an overworld Area, also grade the `overworld-design` skill §2–§6**
 (`.claude/skills/overworld-design/SKILL.md`): believable terrain (no patchwork biomes), distinct
 regions with tent-pole landmarks, the triangle rule / three landmark tiers / leading lines (guide
-without walls), exploration reward, and loops/shortcuts — plus the hard ruling that **surface regions
-carry no Attunement identity except the five Sundering scars** (ADR 0009 §4). Geography/connections
-themselves are the cartography-reviewer's; you grade the shaped tiles.
+without walls), exploration reward, and loops/shortcuts — plus the surface attunement ruling: **only the five
+Sundering Scars are *strictly* attuned**; a light, optional affinity lean elsewhere is fine, but not
+a *defining* surface identity (Dara, clarifying ADR 0009 §4). Geography/connections themselves are
+the cartography-reviewer's; you grade the shaped tiles.
 
 ## What you check (in priority order)
 1. **Never soft-locks (the cardinal rule).** Prove the map is always traversable to the boss (the

@@ -52,8 +52,10 @@ rubric the cartography-reviewer holds you to. Yours are §1–§5: believable ge
 mountain chains, rain-shadow deserts, blended biome borders — no patchwork), distinct/memorable
 regions, the guide-without-walls skeleton (a distant "weenie" + dispersed routes, never "points and
 lines"), and terrain/difficulty gating (roam-first; **flag roam-gating rules for Dara, don't
-invent**). Its "why" + citations are in `docs/design/overworld-design-research.md`. **One hard
-ruling: surface regions carry NO Attunement identity except the five Sundering scars** (ADR 0009 §4).
+invent**). Its "why" + citations are in `docs/design/overworld-design-research.md`. **Surface attunement
+ruling: only the five Sundering Scars are *strictly* attuned (a defining identity); other regions
+may carry a light, optional affinity lean — never a defining surface identity** (Dara, clarifying
+ADR 0009 §4).
 
 ## What you work in
 - **The world map placement (pure data) — for a SEAMLESS, continuous world ([ADR 0008](../../docs/adr/0008-seamless-continuous-overworld.md)).**
