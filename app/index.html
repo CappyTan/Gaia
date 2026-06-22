@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Gaia: A World of Five Powers</title>
+<!-- iOS / installable web-app: launch chromeless from the Home Screen, gold-sun icon, dark UI chrome -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Gaia" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="manifest" href="manifest.webmanifest" />
 <style>
   /* ---- Gaia palette: gold-on-dark, matched to Dara's loot/world art ---- */
   :root{
@@ -12,11 +21,16 @@
     --hp:#7ad06b; --hpb:#2a4d28; --mp:#5aa9e6; --mpb:#1f3a55; --atb:#c7a3ff; --atbf:#7a5bd6;
     --common:#cfcfcf; --uncommon:#5fd16a; --rare:#4ea3ff; --epic:#b46bff; --legendary:#f4972e; --artifact:#ff5a5a;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none;}
   html,body{margin:0; height:100%; background:var(--bg); color:var(--ink);
-    font-family:"Trebuchet MS",Verdana,system-ui,sans-serif; overflow:hidden; user-select:none;}
-  #app{position:relative; width:100vw; height:100dvh; display:flex; align-items:center; justify-content:center;}
-  #stage{position:relative; width:min(100vw,920px); height:min(100dvh,640px);
+    font-family:"Trebuchet MS",Verdana,system-ui,sans-serif; overflow:hidden; user-select:none;
+    /* native-app feel in iOS standalone: no rubber-band scroll, no long-press callout */
+    position:fixed; inset:0; width:100%; overscroll-behavior:none; touch-action:manipulation;}
+  /* Inset the whole playfield from the notch / Dynamic Island / home indicator (standalone, viewport-fit=cover).
+     A no-op in the browser (insets are 0); when the stage fills the screen it stays clear of the unsafe edges. */
+  #app{position:relative; width:100vw; height:100dvh; display:flex; align-items:center; justify-content:center;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+  #stage{position:relative; width:min(100%,920px); height:min(100%,640px);
     background:#06060b; border:1px solid var(--line); box-shadow:0 0 40px #000 inset; overflow:hidden;}
 
   .screen{position:absolute; inset:0; display:none;}

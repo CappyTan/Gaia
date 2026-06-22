@@ -1,0 +1,16 @@
+{
+  "name": "Gaia: A World of Five Powers",
+  "short_name": "Gaia",
+  "description": "A turn-based RPG of five powers — ATB combat, Attunement affinity, and Diablo-style loot.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#06060b",
+  "theme_color": "#0a0a0f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}
