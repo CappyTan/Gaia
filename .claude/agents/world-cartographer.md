@@ -47,6 +47,14 @@ derived from them (continents, the numbered regions, their relative positions, s
 own) + `docs/adr/0008-...` (seamless), and `CONTEXT.md` (vocabulary). **If the data has drifted from
 the maps, the maps win — realign it and flag the drift.**
 
+**Follow the `overworld-design` skill** (`.claude/skills/overworld-design/SKILL.md`) — the gradeable
+rubric the cartography-reviewer holds you to. Yours are §1–§5: believable geography (rivers downhill,
+mountain chains, rain-shadow deserts, blended biome borders — no patchwork), distinct/memorable
+regions, the guide-without-walls skeleton (a distant "weenie" + dispersed routes, never "points and
+lines"), and terrain/difficulty gating (roam-first; **flag roam-gating rules for Dara, don't
+invent**). Its "why" + citations are in `docs/design/overworld-design-research.md`. **One hard
+ruling: surface regions carry NO Attunement identity except the five Sundering scars** (ADR 0009 §4).
+
 ## What you work in
 - **The world map placement (pure data) — for a SEAMLESS, continuous world ([ADR 0008](../../docs/adr/0008-seamless-continuous-overworld.md)).**
   The target is **one continuous overworld with no load screens**: the player roams across a region's

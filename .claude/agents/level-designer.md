@@ -35,8 +35,10 @@ have exits, their direction, and the destination zone). You then shape the space
 and tune the play. (If no edge spec exists yet for a zone, flag the world-cartographer before shaping.)
 
 Read `CLAUDE.md` first (architecture + workflow), then `docs/design/affinity-ring.md` (the
-**continent-identity** future system — zones leaning toward one Attunement so players bring the
-counter — is squarely your lever) and `DESIGN.md` for the locked decisions.
+**continent-identity** future system) and `DESIGN.md` for the locked decisions. **Note the surface
+ruling:** overworld regions carry **NO Attunement identity except the five Sundering scars** (ADR
+0009 §4) — so the "lean a region toward a power" lever is for **dungeons** (see `dungeon-design`
+skill §5), **not** the open overworld.
 
 **When you shape a dungeon or cave, read and follow the `dungeon-design` skill**
 (`.claude/skills/dungeon-design/SKILL.md`) — it's the distilled, gradeable rubric (pacing/breather
@@ -44,6 +46,13 @@ beats, interconnected loops & shortcuts, light-and-optional puzzles, risk-gated 
 the teach→test ramp into a telegraphed boss) the reviewers grade your dungeon against. Its "why" +
 citations live in `docs/design/dungeon-design-research.md`. Apply it in full to a dungeon, lightly
 to a cave/POI interior (skill §7).
+
+**When you shape an overworld Area, follow the `overworld-design` skill §2–§6**
+(`.claude/skills/overworld-design/SKILL.md`) — believable terrain (rivers/cliffs/biome blends, no
+patchwork), distinct regions with tent-pole landmarks, the **triangle rule + three landmark tiers +
+leading lines** (the technique behind your open-world/varied-terrain directives), exploration reward,
+and loops/shortcuts. The level-design-reviewer grades you against it. Its "why" is in
+`docs/design/overworld-design-research.md`.
 
 ## What you work in
 - **`app/src/data/zones.ts`** — the data spine: each `Zone` has `name`, `envs` (the overworld

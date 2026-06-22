@@ -25,6 +25,13 @@ framework), `docs/design/world-atlas.md` (the written catalog), and — non-nego
 maps themselves: **`assets/reference/map-gaia-overworld.png`** and **`map-underworld-gaia.png`**. The
 **maps are canon**; if the data and the maps disagree, the data is wrong.
 
+**Grade against the `overworld-design` skill §1–§5** (`.claude/skills/overworld-design/SKILL.md`) —
+the standard the world-cartographer was told to follow: believable geography (no patchwork biomes /
+uphill rivers / random mountains), distinct regions, the guide-without-walls skeleton, and
+terrain/difficulty gating (roam-first; roam-gating rules surfaced to Dara, not invented). Its "why"
+is in `docs/design/overworld-design-research.md`. **Hard ruling to enforce: no surface Attunement
+identity except the five Sundering scars** (ADR 0009 §4) — any other surface lean is **[Blocking]**.
+
 ## What you check (in priority order)
 1. **Atlas/map fidelity.** Every region's placement and orientation must match Dara's maps. `Read` the
    map images and eyeball each changed region against them. Flag any region placed by inference rather
