@@ -1280,7 +1280,9 @@ export const Field = {
       cell === "town-dock" ? "town-dock" :
       cell === "town-avenue" ? "town-avenue" :
       onSoft ? "town-grass" : "town-cobble";
-    let g = isWall ? "" : city ? cityGround : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
+    // Walls get a themed ground UNDER them (bog/grass/cobble) so the painted palisade sprite sits on
+    // the same floor as the town interior — no bare dark rect ringing the map.
+    let g = isWall ? (city ? "town-cobble" : marsh ? "town-bog" : "town-grass") : city ? cityGround : marsh ? (onSoft ? "town-bog" : "town-plank") : (onSoft ? "town-grass" : "town-cobble");
     if (g === "town-cobble" && (mx * 7 + my * 13) % 4 === 0 && T["town-cobble2"]) g = "town-cobble2";
     const gimg = T[g];
     if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
@@ -1322,7 +1324,22 @@ export const Field = {
       if (img) { const h = t * poi[2], w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
       else { c.font = `${t * (poi[2] < 1 ? 0.5 : 0.74)}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
       if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
-    } else if (isWall && !gimg) { c.font = `${t * 0.7}px serif`; c.fillStyle = city ? "#9a8a64" : "#3a5a2a"; c.fillText(city ? "🧱" : marsh ? "🌲" : "🌳", sx + t / 2, sy + t / 2); }
+    } else if (isWall) {
+      // The perimeter is a PALISADE, not a row of emoji. Marsh = dead-timber stakes (town-deadtree),
+      // shire = a hedge/treeline (town-tree); both are already painted. City rings itself in stone —
+      // a layered stone-block fill (no art needed) reads as a curtain wall. Sprites are bottom-anchored
+      // and slightly overscaled so adjacent cells overlap into a continuous wall.
+      const wkey = marsh ? "town-deadtree" : city ? "" : "town-tree";
+      const wimg = wkey ? T[wkey] : undefined;
+      if (wimg) { const h = t * 1.5, w = h * (wimg.width / wimg.height); c.drawImage(wimg, sx + t / 2 - w / 2, sy + t * 1.04 - h, w, h); }
+      else if (city) {
+        // stone curtain wall: a base block + a lighter capstone band + a mortar seam
+        c.fillStyle = "#4a4332"; c.fillRect(sx, sy, t, t);
+        c.fillStyle = "#5c5440"; c.fillRect(sx, sy, t, Math.max(2, t * 0.22));
+        c.fillStyle = "rgba(0,0,0,.32)"; c.fillRect(sx, sy + t * 0.22, t, Math.max(1, t * 0.06));
+        if ((mx + my) % 2) { c.fillStyle = "rgba(0,0,0,.14)"; c.fillRect(sx + t / 2, sy + t * 0.28, Math.max(1, t * 0.06), t * 0.72); }
+      } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#3a5a2a"; c.fillText("🌳", sx + t / 2, sy + t / 2); }
+    }
   },
   // ── BIG-MAP biome → ground/object dressing (ADR 0009 / Stage 2B) ─────────────────────────────
   // A zone-AGNOSTIC dressing table keyed by a cell's cached BIOME (Area→identity.biome), replacing the
