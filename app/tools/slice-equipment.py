@@ -54,13 +54,38 @@ def item_top(im):
             y += 1
     return int(H * 0.17)
 
+def cut_points(im, y0):
+    """Find the 5 inter-item boundaries: the centres of the 5 WIDEST empty-magenta gutters between
+    the items (below the label band). Robust to uneven spacing AND to boot PAIRS — the gap between
+    two items is wider than the gap between the two boots of a pair, so the 5 widest are the real
+    boundaries. Returns 5 x-positions, or None to fall back to equal sixths."""
+    im2 = im.convert("RGB"); W, H = im2.size; px = im2.load()
+    ink = [sum(1 for y in range(y0, H, 3) if not is_bg(*px[x, y])) for x in range(W)]
+    mx = max(ink) or 1; thr = mx * 0.04
+    cols = [x for x in range(W) if ink[x] > thr]
+    if len(cols) < 6: return None
+    first, last = cols[0], cols[-1]
+    gaps = []; x = first
+    while x < last:
+        if ink[x] <= thr:
+            s = x
+            while x < last and ink[x] <= thr: x += 1
+            gaps.append((s, x))
+        else:
+            x += 1
+    if len(gaps) < 5: return None
+    gaps.sort(key=lambda g: -(g[1] - g[0]))
+    return sorted((g[0] + g[1]) // 2 for g in gaps[:5])
+
 def slice_strip(path, slot, att):
     im = Image.open(path).convert("RGBA"); W, H = im.size
     y0 = item_top(im)
+    cuts = cut_points(im, y0)
+    xs = [0] + cuts + [W] if cuts else [int(W * i / 6) for i in range(7)]
+    if not cuts: print(f"  ! {slot}-{att}: no clean gutters — equal-sixths fallback (items may be fused)")
     out = []
     for ri in range(6):
-        x0, x1 = int(W * ri / 6), int(W * (ri + 1) / 6)
-        cell = chroma(im.crop((x0, y0, x1, H)))
+        cell = chroma(im.crop((xs[ri], y0, xs[ri + 1], H)))
         bb = cell.getbbox()
         if bb: cell = cell.crop(bb)
         cell.thumbnail((MAXDIM, MAXDIM), Image.LANCZOS)
