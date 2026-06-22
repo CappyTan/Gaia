@@ -125,6 +125,7 @@ export const Field = {
   npcs: [] as TownNPC[],
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
+  vw: 0, vh: 0, // CSS-pixel viewport size (the canvas backing store is vw/vh × devicePixelRatio)
   tiles: {} as Record<string, HTMLImageElement>, // loaded field sprites (empty until ready)
 
   // ── Seamless big-map (ADR 0009 / Stage 2B) ──────────────────────────────────────────────────
@@ -318,7 +319,16 @@ export const Field = {
     const s = stage ? stage.getBoundingClientRect() : { width: 0, height: 0 };
     const w = Math.round(s.width) || window.innerWidth || 800;
     const h = Math.round(s.height) || window.innerHeight || 600;
-    if (this.canvas) { this.canvas.width = w; this.canvas.height = h; }
+    this.vw = w; this.vh = h;
+    // RETINA: back the canvas at device resolution and draw in CSS px (ctx scaled by DPR), so the
+    // painterly tiles stay crisp on a hi-DPI phone instead of upscaling a low-res buffer. DPR capped
+    // at 3 to bound the backing-store memory. (Mirrors the minimap's correct DPR handling.)
+    if (this.canvas) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      this.canvas.style.width = w + "px"; this.canvas.style.height = h + "px";
+      this.canvas.width = Math.round(w * dpr); this.canvas.height = Math.round(h * dpr);
+      if (this.ctx) this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw coords stay in CSS px
+    }
     this.tile = Math.max(28, Math.floor(Math.min(w / 13, h / 9))); // never 0 (would blank the map)
   },
   // Build the bespoke zone map (ADR 0006). DISPATCH (ADR 0008 Stage 2, step 3): GREENVALE builds the
@@ -927,8 +937,8 @@ export const Field = {
   // Called on move() (NOT in draw()) so realization cost is paid once per step, off the frame path.
   realizeAround(): void {
     const t = this.tile || 32;
-    const viewW = this.canvas ? Math.ceil(this.canvas.width / t) : 13;
-    const viewH = this.canvas ? Math.ceil(this.canvas.height / t) : 9;
+    const viewW = this.vw ? Math.ceil(this.vw / t) : 13;
+    const viewH = this.vh ? Math.ceil(this.vh / t) : 9;
     const cx0 = ((this.wx - (viewW >> 1)) >> CHUNK_SHIFT) - CHUNK_MARGIN;
     const cy0 = ((this.wy - (viewH >> 1)) >> CHUNK_SHIFT) - CHUNK_MARGIN;
     const cx1 = ((this.wx + (viewW >> 1)) >> CHUNK_SHIFT) + CHUNK_MARGIN;
@@ -1575,8 +1585,8 @@ export const Field = {
   drawBig(): void {
     const c = this.ctx, t = this.tile, T = this.tiles;
     if (!c || !this.canvas) return;
-    c.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const viewW = Math.ceil(this.canvas.width / t), viewH = Math.ceil(this.canvas.height / t);
+    c.clearRect(0, 0, this.vw, this.vh);
+    const viewW = Math.ceil(this.vw / t), viewH = Math.ceil(this.vh / t);
     const camx = this.wx - Math.floor(viewW / 2), camy = this.wy - Math.floor(viewH / 2);
     c.textAlign = "center"; c.textBaseline = "middle";
     for (let y = 0; y <= viewH; y++) for (let x = 0; x <= viewW; x++) {
@@ -1672,8 +1682,8 @@ export const Field = {
     if (this.bigMapActive()) { this.drawBig(); return; } // windowed big-map = its own world-coord render
     const c = this.ctx, t = this.tile;
     if (!c || !this.canvas) return;
-    c.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const viewW = Math.ceil(this.canvas.width / t), viewH = Math.ceil(this.canvas.height / t);
+    c.clearRect(0, 0, this.vw, this.vh);
+    const viewW = Math.ceil(this.vw / t), viewH = Math.ceil(this.vh / t);
     const camx = clamp(this.px - Math.floor(viewW / 2), 0, Math.max(0, this.W - viewW));
     const camy = clamp(this.py - Math.floor(viewH / 2), 0, Math.max(0, this.H - viewH));
     const colors: Record<string, string> = { grass: "#4a7a32", grass2: "#52823a", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", rock: "#5a5a52", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226", river: "#2f5b7a", cliff: "#3f4450", bridge: "#7a6242", ford: "#86b0c4", shrine: "#4a7a32", camp: "#4a7a32", landmark: "#4a7a32", signpost: "#4a7a32" };

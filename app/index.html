@@ -54,6 +54,12 @@
     box-shadow:0 0 60px rgba(244,185,66,.7),0 0 120px rgba(244,185,66,.3); margin-bottom:6px;
     animation:pulse 4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+  /* Accessibility: honor reduced-motion — stop the looping pulses (title sun, rare-monster shimmer)
+     and collapse other animations/transitions to instant. One-shot battle feedback still resolves. */
+  @media (prefers-reduced-motion:reduce){
+    #titleScreen .sun, .enemy.rare .spr-img, .enemy.rare .spr{animation:none!important;}
+    *,*::before,*::after{animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important;}
+  }
   #titleScreen h1{font-size:40px;}
   #titleScreen .sub{color:var(--dim); font-size:15px; letter-spacing:3px; text-transform:uppercase;}
   #titleScreen .powers{display:flex; gap:14px; margin:6px 0;}
@@ -93,7 +99,7 @@
   #dpad .sp{visibility:hidden;}
   #fieldHint{position:absolute; bottom:18px; right:14px; max-width:52%; text-align:right; color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000;}
   #menuBtns{position:absolute; bottom:70px; right:10px; display:flex; flex-direction:column; gap:6px; align-items:flex-end;}
-  #menuBtns .btn{padding:7px 14px; font-size:14px; min-width:88px; text-align:center;}
+  #menuBtns .btn{padding:11px 14px; font-size:14px; min-width:88px; min-height:44px; text-align:center;}
 
   /* ---- In-world NPC dialogue (non-blocking, distinct from the modal #overlay) ---- */
   #dialogue{position:absolute; left:50%; bottom:74px; transform:translateX(-50%) translateY(12px);
@@ -109,7 +115,7 @@
 
   /* ---- Battle ---- */
   #battleScreen{background:#06060b;}
-  #battleStyleBtn{position:absolute; top:6px; right:6px; z-index:6; font-size:11px; padding:4px 8px; opacity:.82;}
+  #battleStyleBtn{position:absolute; top:6px; right:6px; z-index:6; font-size:11px; padding:8px 11px; min-height:32px; opacity:.82;}
   /* affinity ring read-out: a compact single-row chain at the top-left of the field, stopping clear
      of the music-style button (top-right, ~100px wide at "Orchestral"). Each node BEATS the next (▸),
      back round to SOL (↺); a leading "beats" labels the arrows. 3-letter labels stay legible on phones. */
@@ -202,7 +208,7 @@
   #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
   #cmdList{flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:5px;
     -webkit-mask-image:linear-gradient(#000 calc(100% - 14px), transparent);}  /* fade hints at more */
-  .cmd{background:#191830; border:1px solid var(--line); border-radius:6px; padding:8px 10px; color:var(--ink); font-size:14px; text-align:left;}
+  .cmd{background:#191830; border:1px solid var(--line); border-radius:6px; padding:11px 10px; color:var(--ink); font-size:14px; text-align:left; min-height:44px;}
   .cmd:hover{border-color:var(--gold); color:var(--gold2);}
   .cmd:disabled{opacity:.55; cursor:default;}
   .cmd .cost.low{color:#e87a7a;}
