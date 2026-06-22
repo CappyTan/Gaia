@@ -54,7 +54,7 @@ export function critFxUrl(att?: Attunement): string | null {
 
 export function enemySprite(e: Enemy): string {
   const url = assetUrl(`enemies/${e.art || e.key}.png`); // variants reuse a base creature's art
-  return url ? `<img class="spr-img" src="${url}" alt="">` : `<div class="spr">${e.spr}</div>`;
+  return url ? `<img class="spr-img" decoding="sync" src="${url}" alt="">` : `<div class="spr">${e.spr}</div>`;
 }
 
 export function heroSprite(m: Member): string {
@@ -68,10 +68,10 @@ export function heroSprite(m: Member): string {
 export function renderDoll(m: Member): string {
   const id = m.id;
   const body = BODY_LAYER[id] || classBody(m.att, m.cls, id);
-  let h = `<div class="doll"><img class="dl-body" src="${body}" alt="${m.name}">`;
+  let h = `<div class="doll"><img class="dl-body" decoding="sync" src="${body}" alt="${m.name}">`;
   const ar = m.equip && m.equip.armor;
   if (ar && ARMOR_LAYER[id] && ARMOR_LAYER[id][ar.rarity]) {
-    h += `<img class="dl-layer" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
+    h += `<img class="dl-layer" decoding="sync" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
   }
   // Weapon overlay DISABLED for now (Dara): the v2 class bodies already depict the held weapon,
   // and the separate weapon-sprite layer doesn't align cleanly over them. Revisit later — kept

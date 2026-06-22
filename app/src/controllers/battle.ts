@@ -543,8 +543,20 @@ export const Battle = {
   },
 
   /* ---- battle-screen feedback helpers ---- */
-  markActing(u: Unit): void { u.acting = true; this.renderAll(); },
-  markHurt(u: Unit): void { u._hurt = true; this.renderAll(); setTimeout(() => { u._hurt = false; }, 260); },
+  // Toggle the lunge/hurt animation classes IN PLACE rather than via a full renderAll — rebuilding
+  // the zone re-creates the sprite <img>s and flashed a blank frame at the start/end of each attack
+  // (Dara's flicker). Sprites also carry decoding="sync" so any genuine rebuild paints flash-free.
+  markActing(u: Unit): void {
+    u.acting = true;
+    const n = this.unitNode(u) as HTMLElement | null | undefined;
+    if (n) n.classList.add("acting"); else this.renderAll();
+  },
+  markHurt(u: Unit): void {
+    u._hurt = true;
+    const n = this.unitNode(u) as HTMLElement | null | undefined;
+    if (n) n.classList.add("hurt"); else this.renderAll();
+    setTimeout(() => { u._hurt = false; const n2 = this.unitNode(u) as HTMLElement | null | undefined; if (n2) n2.classList.remove("hurt"); }, 260);
+  },
   // The DOM node for a unit, and the SPRITE element within it (enemies: the .spr-img; party: the doll).
   unitNode(u: Unit): Element | null | undefined {
     if (u.side === "enemy") { const i = (this.enemies as Unit[]).indexOf(u); return $("#enemyZone")!.children[i]; }
