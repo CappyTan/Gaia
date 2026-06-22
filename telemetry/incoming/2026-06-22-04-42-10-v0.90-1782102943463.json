@@ -1,0 +1,36 @@
+{
+  "id": 1782102943463,
+  "version": "v0.90",
+  "start": 1782102943463,
+  "end": 1782103330637,
+  "durationMs": 387174,
+  "reason": "recovered",
+  "steps": 25,
+  "encounters": 2,
+  "won": 1,
+  "fled": 0,
+  "wipes": 0,
+  "eliteFights": 0,
+  "dmgDealt": 155,
+  "dmgTaken": 38,
+  "partyHits": 9,
+  "crits": 1,
+  "affinityBonus": 0,
+  "affinityResist": 2,
+  "drops": {
+    "common": 0,
+    "uncommon": 1,
+    "rare": 0,
+    "epic": 0,
+    "legendary": 0,
+    "artifact": 0
+  },
+  "dropTotal": 1,
+  "levelups": 0,
+  "gold": 0,
+  "bossResult": null,
+  "timeToBossMs": null,
+  "encMs": [
+    87170
+  ]
+}
