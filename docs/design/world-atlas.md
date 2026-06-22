@@ -195,6 +195,14 @@ Everything else on the map is **unbuilt** — these are the regions the `world-b
 - **G9 — The Nexus Gate Network** as an actual underworld unlock economy (Power Cores / Alignment
   Keys / AI Clearance / Quantum Stabilizers)?
 - **G10 — Naming** capitals, starports, and unlabeled POIs.
+  - **Aurelion front-door towns — RESOLVED (Dara, 2026-06-22).** The doorstep settlement of each
+    Aurelion region (those that were borrowing Riverhearth/Miregard as a placeholder hub) is now
+    canon-named: **Silverwood → Elderbough** (forest hamlet) · **Goldmeadow → Wheatcross** (farming
+    crossroads) · **Storm Coast → Wrackport** (storm-lashed harbor) · **Frostpeak → Frosthold**
+    (dwarven mountain hold-gate) · **Dawnfall Hold → Lastlight** (last frontier garrison) · **Whisper
+    Hills → Vesperhal** (hillside cloister) · **Sunbridge → Sunpier** (archipelago port). (Greenvale
+    keeps Hearthford, Duskmarsh keeps Miregard, Riverhearth is its own capital.) Building these as
+    walkable settlements in priority order — **Elderbough first (v0.102)**.
 
 ### Open — world placement & geography (from the v0.56–v0.57 cartography passes; ASK DARA)
 These came out of tracing the canon overworld map into the world registry (`data/world.ts`, 960×640).
@@ -217,6 +225,10 @@ The world *fits* at one consistent scale; these are the judgment calls flagged f
 - **G17 — Silverwood naming (from v0.50).** Still-open canon flags: **The Hollow King** (boss + its
   QUANTA justification), **The Sunless Grove** (dungeon), **Spriggan** (generic name + its SOL+leech
   typing). Keep or rename.
+  - **Hollow King origin — RESOLVED (Dara, 2026-06-22).** Canon: the Hollow King was **a guardian
+    once — the heart of the forest given a will** — now **hollow where the heart should be**, calling
+    the wood to fill him (the Elder Treant and the wood's creatures answer). Established in-world via
+    Grove-keeper Wenna in Elderbough. (His QUANTA typing remains as-is.)
 - **G18 — Underworld realm name + hierarchy (from v0.59).** The 13 complexes are modeled as one
   "continent" named **"The Forgotten Civilization"** (the map's title) with the complexes as its
   zones. Keep that, or split the deep into broad districts (Upper/Core/Deep) as the continent layer?

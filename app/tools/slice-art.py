@@ -75,20 +75,59 @@ def cell(im, cx, cy, hw, htop, hbot=None, kx=0.85, ky=0.8, af=0.06, luma=58):
     bb=c.getbbox()
     return c.crop(bb) if bb else c
 
-def chroma_key(im, lo=120, hi=170):
+def is_magenta(p):
+    """Flat chroma-key colour used by the dungeon/prop sheets (#FF00FF-ish): bright R&B, low G."""
+    r,g,b=p[0],p[1],p[2]
+    return r>180 and b>180 and g<120
+
+def mag_spans(im, axis, thresh=0.6):
+    """Find the magenta gutter runs along an axis (0=cols/x, 1=rows/y). Returns a list of
+    (start,end) index spans that are >=thresh magenta across the perpendicular dimension. Used to
+    auto-detect the grid lines on Dara's flat-magenta tile sheets so cell boxes aren't hardcoded."""
+    W,H=im.size; px=im.load()
+    total=W if axis==0 else H; span=H if axis==0 else W
+    def frac(i):
+        return sum(1 for j in range(span) if is_magenta(px[(i,j) if axis==0 else (j,i)]))/span
+    mag=[frac(i)>thresh for i in range(total)]; out=[]; i=0
+    while i<total:
+        if mag[i]:
+            j=i
+            while j<total and mag[j]: j+=1
+            out.append((i,j)); i=j
+        else: i+=1
+    return out
+
+def mag_cells(im):
+    """Auto-detect cell content boxes between magenta gutters -> (cols, rows) lists of (lo,hi)."""
+    cg=mag_spans(im,0); rg=mag_spans(im,1)
+    cols=[(cg[i][1],cg[i+1][0]) for i in range(len(cg)-1)]
+    rows=[(rg[i][1],rg[i+1][0]) for i in range(len(rg)-1)]
+    return cols,rows
+
+def chroma_key(im, lo=110, hi=170, despill=12):
     """Magenta chroma-key knockout for the class-bodies sheet (figures rendered on flat #FF00FF).
     Unlike the dark-flood remove_bg, this keys on 'magenta-ness' m = min(R,B) - G, so pure-black
     robes survive (m~0) while the bright-magenta void drops (m~248) — the only reliable way to cut
     the dark NOX/UMBRAXIS figures. Ramps alpha across the anti-aliased edge and de-spills the pink
-    fringe so edges read clean over any battlefield colour."""
+    fringe so edges read clean over any battlefield colour.
+
+    The de-spill `gate` is low (12) on purpose: where bright near-white SNOW meets the magenta
+    void (Frosthold's fh-* tiles) the transition pixels carry only a faint magenta cast — small m
+    (~15-40), well under the old 40 gate — so the pink rim survived un-de-spilled. Any pixel above
+    the gate is a genuine magenta-cast edge pixel, so we clamp BOTH keyed channels (R,B) fully down
+    to the neutral G channel (standard chroma de-spill) — the magenta-tinted snow rim collapses to
+    neutral grey/white. This is a no-op on warm gold edges (b<=g there, and r-g rarely clears the
+    gate), so the already-clean eb/wc/wp/ll tiles don't regress. The alpha ramp's `lo` is widened to
+    110 to start fading those faint-cast snow transition pixels a touch sooner. Measured fh-* edge
+    pink: 695 -> 2 pixels (parity with the other towns), eb/wc/wp/ll all stay at 0."""
     im=im.convert("RGB"); W,H=im.size; px=im.load()
     out=Image.new("RGBA",(W,H)); op=out.load()
     for y in range(H):
         for x in range(W):
             r,g,b=px[x,y]; m=min(r,b)-g
             a=0 if m>=hi else 255 if m<=lo else int(255*(hi-m)/(hi-lo))
-            if a>0 and m>40:  # de-spill: pull the pink rim down toward the neutral channel
-                r=min(r, max(g, r-(m-40))); b=min(b, max(g, b-(m-40)))
+            if a>0 and m>despill:  # de-spill: clamp the pink rim down to the neutral G channel
+                r=min(r, g); b=min(b, g)
             op[x,y]=(r,g,b,a)
     return out
 
@@ -152,20 +191,55 @@ for (r,col),name in OBJ.items():
     t=remove_bg(im.crop((FX[col][0],FY[r][0],FX[col][1],FY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}.png")
 p=remove_bg(im.crop((440,720,820,1200))); p.thumbnail((80,104)); save(p,"field","player.png")
 
-# ---- dungeon tilesets (per zone): Bandit Warren (Greenvale dungeon) + Drowned Vault (Duskmarsh
-#      dungeon). Same 4-col grid; floor/wall tiles kept opaque + interior-cropped, chest + entrance
-#      knocked out. Wired in field.ts when east of the gate. -----------------------------------
-DUNGEONS={"warren":"dungeon-bandit-warren.png","vault":"dungeon-drowned-vault.png"}
-DFX=[(40,300),(345,600),(640,895),(940,1195)]; DFY=[(60,300),(330,570),(600,840),(870,1150)]
-DGROUND={(0,0):"floor",(0,1):"floor2",(0,2):"path",(1,0):"wall",(1,2):"rock"}  # opaque ground tiles
-DOBJ={(2,1):"chest",(0,3):"entrance"}                                          # transparent objects
-for name,fn in DUNGEONS.items():
-    dim=Image.open(os.path.join(REF,fn))
-    for (r,c),cn in DGROUND.items():
-        x0,y0,x1,y1=DFX[c][0],DFY[r][0],DFX[c][1],DFY[r][1]
-        save(dim.crop((x0+GIN,y0+GIN,x1-GIN,y1-GIN)).convert("RGBA").resize((64,64)),"field",f"{name}-{cn}.png")
-    for (r,c),cn in DOBJ.items():
-        t=remove_bg(dim.crop((DFX[c][0],DFY[r][0],DFX[c][1],DFY[r][1]))); t.thumbnail((96,96)); save(t,"field",f"{name}-{cn}.png")
+# ---- dungeon tilesets (per zone): flat-magenta 4x2 sheets (1774x887). Every cell is a full-bleed
+#      painted scene tile (floor/wall AND chest/entrance/deco) — these are NOT knocked-out objects,
+#      they composite as opaque 384x384 painterly tiles. Layout (shared across all three sets):
+#        row0: floor floor2 path wall   |   row1: rock chest entrance <deco>
+#      where <deco> is per-set: warren=torch, grove=spores, vault=lantern. (grove col2=path is the
+#      trail cell, col3=wall is the solid root-tangle.) Cell boxes are auto-detected from the magenta
+#      gutters (mag_cells), then inset MAG_INSET px to clear the gutter's anti-aliased fringe, and
+#      resized to TILE px square. Wired in field.ts when east of the gate. ----------------------
+DUNGEON_SETS={"warren":"dungeon-warren-set.png","grove":"dungeon-grove-set.png","vault":"dungeon-vault-set.png",
+ "seacave":"dungeon-seacave-set.png","stronghold":"dungeon-stronghold-set.png","keepvault":"dungeon-keepvault-set.png",
+ "crypt":"dungeon-crypt-set.png","citadel":"dungeon-citadel-set.png","smuggden":"dungeon-smuggden-set.png"}
+DECO={"warren":"torch","grove":"spores","vault":"lantern",
+ "seacave":"glowweed","stronghold":"brazier","keepvault":"torch","crypt":"candles","citadel":"brazier","smuggden":"lamp"}
+DSLOT={(0,0):"floor",(0,1):"floor2",(0,2):"path",(0,3):"wall",(1,0):"rock",(1,1):"chest",(1,2):"entrance"}
+MAG_INSET=4   # trim the gutter's magenta anti-aliased edge before cropping a cell
+TILE=384      # shipped dungeon tile size
+def even_cells(W,H,ncols=4,nrows=2):
+    """Fallback for a sheet whose magenta gutters mis-detect: split into an even ncols x nrows grid.
+    Returns raw (lo,hi) bounds (no inset) so the shared crop applies MAG_INSET once, matching the
+    auto-detected path exactly."""
+    cw,ch=W/ncols,H/nrows
+    cols=[(int(c*cw),int((c+1)*cw)) for c in range(ncols)]
+    rows=[(int(r*ch),int((r+1)*ch)) for r in range(nrows)]
+    return cols,rows
+dtiles={}; dgrid_notes=[]
+for setn,fn in DUNGEON_SETS.items():
+    dim=Image.open(os.path.join(REF,fn)).convert("RGB")
+    cols,rows=mag_cells(dim)
+    if len(cols)!=4 or len(rows)!=2:   # gutter detection misfired -> even 4x2 grid w/ inset
+        cols,rows=even_cells(*dim.size)
+        dgrid_notes.append(f"{setn}: mag_cells gave {len(cols)}x{len(rows)}, fell back to even 4x2 grid")
+    slots=dict(DSLOT); slots[(1,3)]=DECO[setn]
+    for (r,c),cn in slots.items():
+        x0,x1=cols[c]; y0,y1=rows[r]
+        t=dim.crop((x0+MAG_INSET,y0+MAG_INSET,x1-MAG_INSET,y1-MAG_INSET)).resize((TILE,TILE),Image.LANCZOS)
+        save(t,"field",f"{setn}-{cn}.png"); dtiles[f"{setn}-{cn}"]=t
+for n in dgrid_notes: print("  grid:",n)
+
+# ---- dungeon props (single object on flat magenta, 1254x1254): knock out the magenta, crop to
+#      content, pad to a square (preserving aspect, content centred) and resize to TILE — so they
+#      drop into a map cell as transparent over a floor tile, exactly like the live tiles. --------
+DUNGEON_PROPS={"warren-rest":"prop-warren-rest.png","warren-rubble":"prop-warren-rubble.png"}
+for name,fn in DUNGEON_PROPS.items():
+    pim=chroma_key(Image.open(os.path.join(REF,fn)))
+    bb=pim.getbbox()
+    if bb: pim=pim.crop(bb)
+    w,h=pim.size; s=max(w,h)
+    sq=Image.new("RGBA",(s,s),(0,0,0,0)); sq.alpha_composite(pim,((s-w)//2,(s-h)//2))
+    save(sq.resize((TILE,TILE),Image.LANCZOS),"field",f"{name}.png"); dtiles[name]=sq
 
 # ---- TOWN tileset (issue #34): Dara's gold-on-dark town montage (1536x1024). NOT a clean grid —
 #      buildings/objects are irregularly placed, so each sprite has a hand-measured crop box (x0,y0,
@@ -211,12 +285,243 @@ town={}
 for name,(box,thumb) in TOWN_OBJ.items():
     t=tim.crop(box).convert("RGBA"); t.thumbnail(thumb); save(t,"field",f"{name}.png"); town[name]=t
 
+# ---- TOWN SETS (per-town tilesets): five gold-on-dark sheets on flat #FF00FF (1402x1122), each a
+#      clean 4 columns x 3 rows grid (12 cells, row-major). Each cell is either an [O] OPAQUE ground
+#      swatch (a rounded painted patch with magenta around it -> keep opaque, tile edge-to-edge) or a
+#      [K] KNOCKOUT object (magenta chroma-keyed to transparent, content-cropped, square-padded). The
+#      magenta gutters on these sheets are noisy (painted highlights read as magenta, slivers split a
+#      gutter), so mag_cells mis-detects the grid here; instead we use the EVEN 4x3 grid (cell ~350.5w
+#      x 374h) inset a few px to clear the gutter fringe. Outputs land in field/ named per the map
+#      below (the field renderer wires them up). Ground swatches resize to TGROUND px square (matching
+#      the existing town ground swatches, town-cobble.png); objects square-pad + resize to TOBJ px
+#      (matching town-inn.png / town-well.png). -----------------------------------------------------
+TSET_COLS, TSET_ROWS = 4, 3
+TSET_INSET = 6      # trim the even-grid cell to clear the magenta gutter's anti-aliased fringe
+TGROUND = 96        # shipped town ground-swatch size (matches field/town-cobble.png)
+TOBJ = 96           # shipped town object size (matches field/town-inn.png, field/town-well.png)
+TG_FRAC = 0.32      # fraction inset from each side of the ground patch's content bbox -> clean interior
+                    # (0.26 left a faint dark frame on the snowy fh-floor/fh-snow swatches; 0.32 takes a
+                    #  tighter, flatter interior — fh-snow edge/center luma 0.87 -> 0.99 — no regression elsewhere)
+def tset_box(W, H, r, c):
+    cw, ch = W/TSET_COLS, H/TSET_ROWS
+    return (int(c*cw)+TSET_INSET, int(r*ch)+TSET_INSET, int((c+1)*cw)-TSET_INSET, int((r+1)*ch)-TSET_INSET)
+def tset_ground(im, r, c):
+    """[O] swatch: crop the cell, find the non-magenta content bbox of the rounded patch, then take a
+    centred square well INSIDE it (TG_FRAC inset per side) so no magenta edge survives -> seamless,
+    opaque, tileable swatch."""
+    sub = im.crop(tset_box(*im.size, r, c)).convert("RGB"); px = sub.load(); W, H = sub.size
+    xs = [x for y in range(H) for x in range(W) if not is_magenta(px[x, y])]
+    ys = [y for y in range(H) for x in range(W) if not is_magenta(px[x, y])]
+    sub = sub.crop((min(xs), min(ys), max(xs)+1, max(ys)+1))
+    w, h = sub.size; s = int(min(w, h)*(1-2*TG_FRAC)); cx, cy = w//2, h//2
+    sq = sub.crop((cx-s//2, cy-s//2, cx-s//2+s, cy-s//2+s))
+    return sq.resize((TGROUND, TGROUND), Image.LANCZOS)
+def tset_object(im, r, c):
+    """[K] object: chroma-key the magenta to transparent, crop to the content bbox, pad to a centred
+    square (transparent corners), resize to TOBJ -> drops over a ground tile like the other props."""
+    t = chroma_key(im.crop(tset_box(*im.size, r, c)))
+    bb = t.getbbox()
+    if bb: t = t.crop(bb)
+    w, h = t.size; s = max(w, h)
+    sq = Image.new("RGBA", (s, s), (0, 0, 0, 0)); sq.alpha_composite(t, ((s-w)//2, (s-h)//2))
+    return sq.resize((TOBJ, TOBJ), Image.LANCZOS)
+# Per-sheet cell map. Each entry: (row, col, name, kind) with kind 'O'=opaque ground / 'K'=knockout.
+# Cells row-major: (0,0..3)=top row 1-4, (1,0..3)=middle 5-8, (2,0..3)=bottom 9-12.
+def _tmap(prefix, names, kinds):
+    out = {}
+    for i, (nm, kd) in enumerate(zip(names, kinds)):
+        out[(i//TSET_COLS, i%TSET_COLS)] = (f"{prefix}-{nm}", kd)
+    return out
+TOWN_SETS = {
+ "town-elderbough-set.png": _tmap("eb",
+   ["path","verge","wall","inn","shop","smith","shrine","gate","eldertree","well","lantern","fern"],
+   "OOKKKKKKKKKK"),
+ "town-wheatcross-set.png": _tmap("wc",
+   ["road","verge","wall","inn","shop","smith","shrine","gate","rick","well","scarecrow","sacks"],
+   "OOKKKKKKKKKK"),
+ "town-wrackport-set.png": _tmap("wp",
+   ["cobble","boardwalk","wall","inn","shop","smith","shrine","gate","sea","dock","mooring","wreck"],
+   "OOKKKKKKOOKK"),   # cells 9 (sea) & 10 (dock) are OPAQUE terrain, not objects
+ "town-frosthold-set.png": _tmap("fh",
+   ["floor","snow","wall","inn","shop","smith","shrine","gate","hearth","well","pillar","ore"],
+   "OOKKKKKKKKKK"),
+ "town-lastlight-set.png": _tmap("ll",
+   ["ground","verge","wall","inn","shop","smith","shrine","gate","bonfire","well","tower","shields"],
+   "OOKKKKKKKKKK"),
+ "town-sunpier-set.png": _tmap("sp",
+   ["flag","verge","wall","inn","shop","smith","shrine","gate","sea","pier","lamp","cargo"],
+   "OOKKKKKKOOKK"),   # cells 9 (sea) & 10 (pier) are OPAQUE terrain, like wrackport's sea/dock
+ "town-vesperhal-set.png": _tmap("vh",
+   ["flag","garth","wall","inn","shop","smith","shrine","gate","bell","well","cypress","flowers"],
+   "OOKKKKKKKKKK"),
+}
+tsets = {}
+for fn, cmap in TOWN_SETS.items():
+    sim = Image.open(os.path.join(REF, fn))
+    for (r, c), (name, kind) in cmap.items():
+        t = tset_ground(sim, r, c) if kind == "O" else tset_object(sim, r, c)
+        save(t, "field", f"{name}.png"); tsets[name] = (t, kind)
+
+# ---- BIOME SETS (overworld terrain tilesets): three gold-on-dark sheets on flat #FF00FF
+#      (1254x1254), each a clean 3 columns x 3 rows grid (9 cells, row-major). The magenta is ONLY in
+#      the inter-cell gutters — every cell is a full-bleed painted scene tile (verified 0% interior
+#      magenta), so this is NOT the town-set "isolated object on a magenta field" layout. The cell map
+#      tags cells [O] (walkable ground -> seamless OPAQUE swatch, BGROUND px, matches field/grass.png)
+#      vs [K] (obstacle/feature -> full-bleed OPAQUE scene tile, BOBJ px, matches field/oldtree.png).
+#      [K] cells canNOT be cleanly knocked out to transparency from this source (see biome_object);
+#      they ship opaque like the dungeon scene tiles. The magenta gutters detect cleanly (mag_cells
+#      gives a solid 3x3), so we use that; an EVEN 3x3 grid is the fallback if a future sheet's gutters
+#      mis-detect. Cells inset BSET_INSET px to clear the gutter fringe. Outputs land in field/ named
+#      per the map below (the field renderer wires them up). ----------------------------------------
+BSET_COLS, BSET_ROWS = 3, 3
+BSET_INSET = 6      # trim the cell box to clear the magenta gutter's anti-aliased fringe
+BGROUND = 96        # overworld ground-tile size — matches the existing field ground tiles
+                    # (grass.png / meadow-ground / mire-ground are all 96px)
+BOBJ = 96           # overworld object size (matches field/oldtree.png, field/fern.png)
+BG_FRAC = 0.20      # inset from each side of a ground patch's content bbox -> clean seamless interior
+def _biome_cells(im):
+    """mag_cells -> (cols, rows) of content (lo,hi) between magenta gutters; fall back to an even 3x3
+    if detection doesn't give exactly 3x3 (matching the DUNGEON_SETS even-grid fallback approach)."""
+    cols, rows = mag_cells(im)
+    if len(cols) != BSET_COLS or len(rows) != BSET_ROWS:
+        W, H = im.size; cw, ch = W/BSET_COLS, H/BSET_ROWS
+        cols = [(int(c*cw), int((c+1)*cw)) for c in range(BSET_COLS)]
+        rows = [(int(r*ch), int((r+1)*ch)) for r in range(BSET_ROWS)]
+        return cols, rows, True
+    return cols, rows, False
+def _biome_box(cols, rows, r, c):
+    x0, x1 = cols[c]; y0, y1 = rows[r]
+    return (x0+BSET_INSET, y0+BSET_INSET, x1-BSET_INSET, y1-BSET_INSET)
+def biome_ground(im, box):
+    """[O] swatch: crop the inset cell, find the non-magenta content bbox of the painted patch, then
+    take a centred square well INSIDE it (BG_FRAC inset per side) so no magenta edge survives ->
+    seamless, opaque, tileable overworld ground swatch at BGROUND px."""
+    sub = im.crop(box).convert("RGB"); px = sub.load(); W, H = sub.size
+    xs = [x for y in range(H) for x in range(W) if not is_magenta(px[x, y])]
+    ys = [y for y in range(H) for x in range(W) if not is_magenta(px[x, y])]
+    if not xs: return sub.resize((BGROUND, BGROUND), Image.LANCZOS)
+    sub = sub.crop((min(xs), min(ys), max(xs)+1, max(ys)+1))
+    w, h = sub.size; s = int(min(w, h)*(1-2*BG_FRAC)); cx, cy = w//2, h//2
+    sq = sub.crop((cx-s//2, cy-s//2, cx-s//2+s, cy-s//2+s))
+    return sq.resize((BGROUND, BGROUND), Image.LANCZOS)
+def biome_object(im, box):
+    """[K] object: IMPORTANT — on THIS source art the feature is painted FULL-BLEED into the cell.
+    There is no magenta or flat-dark surround INSIDE a cell (magenta lives only in the inter-cell
+    gutters, verified 0% interior magenta), so the town-set chroma-key knockout is a no-op here and a
+    dark-border flood eats arbitrary dark patches of the painted scene (ragged, inconsistent). These
+    cells are therefore sliced as full-bleed OPAQUE scene tiles — the honest result for the source —
+    same treatment as the dungeon-set scene tiles, just sized to the overworld object box (BOBJ). The
+    renderer can composite them as opaque obstacle tiles. Clean transparent overlay props are NOT
+    extractable from this art; if Dara wants knockout props, he'd need to re-cut these cells as
+    isolated objects on flat magenta (like the town-set object cells). Flagged in the deliverable."""
+    t = im.crop(box).convert("RGBA")
+    return t.resize((BOBJ, BOBJ), Image.LANCZOS)
+def _bmap(names, kinds):
+    """Row-major 3x3 cell map: (row,col) -> (name, kind). kinds string of 9 'O'/'K' chars."""
+    return {(i//BSET_COLS, i%BSET_COLS): (nm, kd) for i, (nm, kd) in enumerate(zip(names, kinds))}
+BIOME_SETS = {
+ "biome-snow-set.png": _bmap(
+   ["snow-ground","snow-ground2","snow-path","snow-crag","snow-ice","snow-frozen","snow-pine","snow-cairn","snow-rock"],
+   "OOOKOOKKK"),
+ "biome-coast-set.png": _bmap(
+   ["coast-sand","coast-sand2","coast-grass","coast-rock","coast-surf","coast-sea","coast-dock","coast-pool","coast-piling"],
+   "OOOKOOOKK"),
+ "biome-ruin-set.png": _bmap(
+   ["ruin-flag","ruin-flag2","ruin-walk","ruin-wall","ruin-rubble","ruin-grass","ruin-column","ruin-pit","ruin-brazier"],
+   "OOOKKOKOK"),
+}
+bsets = {}; bgrid_notes = []
+for fn, cmap in BIOME_SETS.items():
+    bim = Image.open(os.path.join(REF, fn))
+    cols, rows, fell_back = _biome_cells(bim.convert("RGB"))
+    if fell_back: bgrid_notes.append(f"{fn}: mag_cells mis-detected, used even 3x3 grid")
+    for (r, c), (name, kind) in cmap.items():
+        box = _biome_box(cols, rows, r, c)
+        t = biome_ground(bim, box) if kind == "O" else biome_object(bim, box)
+        save(t, "field", f"{name}.png"); bsets[name] = (t, kind)
+for n in bgrid_notes: print("  grid:", n)
+
 # ---- enemies (Greenvale bestiary, lower figure band) ----
 EB={"bandit":(12,380,300,815),"cutpurse":(312,380,600,815),"marauder":(614,380,902,815),
     "archer":(916,380,1204,815),"brute":(1218,380,1524,815)}
 im=Image.open(os.path.join(REF,"enemies-greenvale-l1-5.jpeg")); ens={}
 for k,b in EB.items():
     c=remove_bg(im.crop(b)); c.thumbnail((240,300)); save(c,"enemies",f"{k}.png"); ens[k]=c
+
+# ---- ENEMY SETS (later-region rosters): Dara's per-region creature sheets, each on flat #FF00FF,
+#      figures facing RIGHT, soft shadow. Five sheets, each a clean even grid (row-major). Unlike the
+#      greenvale jpeg (dark-flood remove_bg), these are flat-magenta — so they chroma_key cleanly. Per
+#      cell we crop the even-grid box, find the NON-MAGENTA content bbox inside it (creatures vary a lot
+#      in size, so a fixed crop would clip a leviathan or float a wolf), chroma-key the magenta to
+#      transparency, crop tight to the content, then thumbnail to (240,300) preserving aspect — the same
+#      on-screen footprint as the greenvale roster (raider.png/dwolf.png = 199x300). Output enemies/{key}
+#      .png is a pure drop-in: ui/render.enemySprite resolves enemies/{e.art||e.key}.png via the asset
+#      glob, no data/art.ts change needed. Grids:
+#        stormcoast  3x2 (5 used, last blank)   frostpeak 4x2 (7 used + 1 unmapped beast)
+#        dawnfall    3x2 (5 used, last blank)   whisperhills 3x2 (5 used, last blank)
+#        sunbridge   4x2 (8 used)  [the 1448x1086 sheet; content sits cleanly in 4 cols x 2 rows]
+#      Mapping is row-major; None = a blank cell or an unmapped extra creature (skipped, reported).
+def enemy_cell_bbox(im, x0, y0, x1, y1, step=2):
+    """Non-magenta content bbox inside an even-grid cell (so per-creature size variation is honoured)."""
+    px=im.load(); xs=[]; ys=[]
+    for y in range(y0,y1,step):
+        for x in range(x0,x1,step):
+            if not is_magenta(px[x,y]): xs.append(x); ys.append(y)
+    if not xs: return None
+    return (max(x0,min(xs)-2), max(y0,min(ys)-2), min(x1,max(xs)+3), min(y1,max(ys)+3))
+ENEMY_SETS={  # sheet -> (ncols, nrows, [keys row-major; None skips the cell])
+ "enemies-stormcoast-set.png":  (3,2,["wrecker","cutthroat","deckhand","shellcrab","seaserpent",None]),
+ "enemies-frostpeak-set.png":   (4,2,["icewolf","mtnreaver","frostshade","stonesentinel",
+                                       "snowtroll","frostguardian","frostguardian-omega","rimespine"]),
+ "enemies-dawnfall-set.png":    (3,2,["frontierbeast","brokenwatch","watchghoul","ruinhulk","fallenarcher",None]),
+ "enemies-whisperhills-set.png":(3,2,["wraith","corruptmonk","flagellant","reliquarygolem","revenant",None]),
+ "enemies-sunbridge-set.png":   (4,2,["siegetrooper","searaider","ballista","abyssspawn",
+                                       "drowned","siegeram","leviathan","leviathan-omega"]),
+}
+for fn,(nc,nr,keys) in ENEMY_SETS.items():
+    sim=Image.open(os.path.join(REF,fn)).convert("RGB"); W,H=sim.size; cw,ch=W/nc,H/nr
+    for i,k in enumerate(keys):
+        if k is None: continue
+        r,c=i//nc,i%nc
+        bb=enemy_cell_bbox(sim,int(c*cw),int(r*ch),int((c+1)*cw),int((r+1)*ch))
+        if bb is None: print(f"  enemy: {fn} cell [{r},{c}] ({k}) is BLANK — skipped"); continue
+        e=chroma_key(sim.crop(bb)); eb=e.getbbox()
+        if eb: e=e.crop(eb)
+        e.thumbnail((240,300)); save(e,"enemies",f"{k}.png"); ens[k]=e
+
+# ---- TOWN NPC SETS (issue #34 town folk): seven gold-on-dark per-town sheets on flat #FF00FF
+#      (1536x1024), each a clean 3 columns x 2 rows grid (6 figures, facing the viewer, soft shadow).
+#      Same chroma-key approach as ENEMY_SETS: per cell, find the NON-MAGENTA content bbox inside the
+#      even-grid cell (figures vary in build — a child vs a broad smith — so a fixed crop would clip
+#      or float them), chroma-key the magenta to transparency, crop tight to content, square-pad
+#      transparent (figure centred), then thumbnail to (240,300) preserving aspect — the same on-screen
+#      footprint as the enemy roster (raider.png/dwolf.png = 199x300; the field renderer scales NPCs by
+#      aspect, so a clean centred figure reads at parity with townfolk emoji it replaces). Outputs
+#      npcs/{town}-{id}.png are a pure drop-in: field.ts loads npcs/<town>-<id>.png into
+#      tiles["npc:<town>-<id>"] with an emoji fallback, no data/art.ts change needed. Cells map
+#      row-major (1-3 top, 4-6 bottom) to each town's npc IDs in DESIGN order (data/towns.ts). --------
+NPC_COLS, NPC_ROWS = 3, 2
+NPC_SETS={  # sheet -> [npc id per cell, row-major]; order matches data/towns.ts SETTLEMENTS[town].npcs
+ "npc-elderbough-set.png": ("elderbough", ["warden","keeper","child","innkeep","forager","cutter"]),
+ "npc-wheatcross-set.png": ("wheatcross", ["reeve","guard","thresher","miller","child","merch"]),
+ "npc-wrackport-set.png":  ("wrackport",  ["harbormaster","warden","netwife","child","wreckwise","innkeep"]),
+ "npc-frosthold-set.png":  ("frosthold",  ["holdwarden","smithdwarf","loremaster","child","minehand","hearthkeep"]),
+ "npc-lastlight-set.png":  ("lastlight",  ["commander","sentry","quartermaster","child","oldwatch","healer"]),
+ "npc-vesperhal-set.png":  ("vesperhal",  ["abbot","bellkeep","scribe","child","pilgrim","herbalist"]),
+ "npc-sunpier-set.png":    ("sunpier",    ["portmaster","crier","sailmaster","child","raidwise","innkeep"]),
+}
+npcs={}
+for fn,(town,ids) in NPC_SETS.items():
+    sim=Image.open(os.path.join(REF,fn)).convert("RGB"); W,H=sim.size; cw,ch=W/NPC_COLS,H/NPC_ROWS
+    for i,nid in enumerate(ids):
+        r,c=i//NPC_COLS,i%NPC_COLS
+        bb=enemy_cell_bbox(sim,int(c*cw),int(r*ch),int((c+1)*cw),int((r+1)*ch))
+        if bb is None: print(f"  npc: {fn} cell [{r},{c}] ({nid}) is BLANK — skipped"); continue
+        n=chroma_key(sim.crop(bb)); nb=n.getbbox()
+        if nb: n=n.crop(nb)
+        w,h=n.size; s=max(w,h)   # square-pad transparent, figure centred
+        sq=Image.new("RGBA",(s,s),(0,0,0,0)); sq.alpha_composite(n,((s-w)//2,(s-h)//2))
+        sq.thumbnail((240,300)); save(sq,"npcs",f"{town}-{nid}.png"); npcs[f"{town}-{nid}"]=sq
 
 # ---- bodies + heroes: weaponless base figures from the 45-class base-model grid (5 attunement
 #      rows x 9 archetype columns). Class = attunement x archetype, so the paper-doll picks the
@@ -256,7 +561,8 @@ for ri,cy in enumerate(BROWC):
         if (ri,ci) in HERO: save(c,"heroes",f"{HERO[(ri,ci)]}.png"); her[HERO[(ri,ci)]]=c
 
 print(f"sliced (transparent): {sum(len(v) for v in items.values())} painterly weapons, "
-      f"{len(armor)} armor sets, {len(ens)} enemies, {len(bodies)} class bodies ({len(her)} hero ids)")
+      f"{len(armor)} armor sets, {len(ens)} enemies, {len(bodies)} class bodies ({len(her)} hero ids), "
+      f"{len(town)+len(tsets)} town tiles, {len(bsets)} biome tiles, {len(npcs)} town npcs")
 
 if PREVIEW:
     os.makedirs(os.path.join(REF,"_preview"),exist_ok=True)
