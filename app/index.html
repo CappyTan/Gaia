@@ -26,12 +26,18 @@
     font-family:"Trebuchet MS",Verdana,system-ui,sans-serif; overflow:hidden; user-select:none;
     /* native-app feel in iOS standalone: no rubber-band scroll, no long-press callout */
     position:fixed; inset:0; width:100%; overscroll-behavior:none; touch-action:manipulation;}
-  /* Inset the whole playfield from the notch / Dynamic Island / home indicator (standalone, viewport-fit=cover).
-     A no-op in the browser (insets are 0); when the stage fills the screen it stays clear of the unsafe edges. */
+  /* Inset the playfield from the notch / Dynamic Island / side notches. NOTE: NO bottom inset here —
+     the bottom tab bar (#fieldDeck) and the battle panel run EDGE-TO-EDGE to the screen bottom and
+     handle the home-indicator inset internally (the iOS tab-bar pattern). A no-op in a desktop browser. */
   #app{position:relative; width:100vw; height:100dvh; display:flex; align-items:center; justify-content:center;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);}
   #stage{position:relative; width:min(100%,920px); height:min(100%,640px);
     background:#06060b; border:1px solid var(--line); box-shadow:0 0 40px #000 inset; overflow:hidden;}
+  /* On a phone / installed app, fill the whole screen — no letterbox. The 920×640 frame is a desktop
+     nicety; on a handheld the field map + bottom tab bar should use every pixel. */
+  @media (max-width:760px), (display-mode:standalone){
+    #stage{width:100%; height:100%; max-width:none; border:0; box-shadow:none;}
+  }
 
   .screen{position:absolute; inset:0; display:none;}
   .screen.on{display:block;}
@@ -111,24 +117,26 @@
   #fieldParty{display:flex; gap:6px; flex-wrap:wrap;}
   #fieldParty .pm{font-size:11px;}
   /* ── Bottom control DECK: d-pad (browser) on the left, icon actions on the right, on the safe area ── */
-  #fieldDeck{position:absolute; left:0; right:0; bottom:0; z-index:7; display:flex; align-items:flex-end; justify-content:space-between;
-    gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
-    pointer-events:none;}
-  #fieldDeck > *{pointer-events:auto;}
-  #dpad{display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
+  /* iOS-standard bottom TAB BAR: a full-width solid bar pinned to the screen bottom, edge-to-edge
+     through the home indicator (its own bottom safe-area padding lifts the items, the bg fills under).
+     Four evenly-spaced icon+label items, separated from the map by a top hairline. */
+  #fieldDeck{position:absolute; left:0; right:0; bottom:0; z-index:7; display:flex; align-items:stretch; justify-content:space-around;
+    background:rgba(11,11,18,.94); border-top:1px solid var(--line);
+    -webkit-backdrop-filter:saturate(1.3) blur(12px); backdrop-filter:saturate(1.3) blur(12px);
+    padding:5px env(safe-area-inset-right) calc(5px + env(safe-area-inset-bottom)) env(safe-area-inset-left);}
+  .deck-btn{flex:1 1 0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:46px;
+    background:none; border:0; color:var(--dim); font-size:10px; letter-spacing:.2px; padding:4px 2px;}
+  .deck-btn .ic{font-size:23px; line-height:1;}
+  .deck-btn:active{color:var(--gold2);}
+  /* movement d-pad: a browser-only floating control, lifted clear of the tab bar (hidden in the app). */
+  #dpad{position:absolute; z-index:8; left:calc(14px + env(safe-area-inset-left)); bottom:calc(76px + env(safe-area-inset-bottom));
+    display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
   #dpad button{background:rgba(30,28,50,.85); border:1px solid var(--line); border-radius:8px; color:var(--gold2); font-size:18px;}
   #dpad .sp{visibility:hidden;}
-  #deckActions{margin-left:auto; display:flex; gap:8px; align-items:flex-end;}
-  .deck-btn{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-width:56px; min-height:54px;
-    background:rgba(14,12,24,.86); border:1px solid var(--line); border-radius:13px; color:var(--gold2); font-size:11px; padding:6px 8px;
-    box-shadow:0 4px 14px rgba(0,0,0,.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);}
-  .deck-btn .ic{font-size:20px; line-height:1;}
-  .deck-btn:active{transform:translateY(1px); border-color:var(--gold); color:var(--gold2);}
-  /* Installed app: drop the d-pad (tap/swipe-to-move) so the deck is just the clean action row. */
   html.standalone #dpad{display:none;}
-  /* hint sits just above the deck, right-aligned (clear of the d-pad on the left). */
+  /* hint floats just above the tab bar, right-aligned (clear of the browser d-pad on the left). */
   #fieldHint{position:absolute; right:calc(12px + env(safe-area-inset-right)); left:auto; text-align:right; max-width:64%;
-    bottom:calc(78px + env(safe-area-inset-bottom)); color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000; pointer-events:none;}
+    bottom:calc(70px + env(safe-area-inset-bottom)); color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000; pointer-events:none;}
 
   /* ── "More" slide-up sheet + dimming scrim ── */
   .sheet-scrim{position:absolute; inset:0; z-index:19; background:rgba(4,4,10,.45); display:none;}
@@ -242,8 +250,8 @@
   .bartxt{position:absolute; right:4px; top:-3px; font-size:11px; color:#fff; text-shadow:0 0 3px #000, 0 1px 2px #000; font-weight:bold;}
 
   /* lower battle window: THREE equal columns — hero commands | hero HP/MP bars | battle log (Dara) */
-  #battleUi{position:absolute; bottom:0; left:0; right:0; height:30%; display:flex; border-top:2px solid var(--gold);
-    background:linear-gradient(#10101e,#0a0a14);}
+  #battleUi{position:absolute; bottom:0; left:0; right:0; height:calc(30% + env(safe-area-inset-bottom)); display:flex; border-top:2px solid var(--gold);
+    background:linear-gradient(#10101e,#0a0a14); padding-bottom:env(safe-area-inset-bottom);}
   #cmdPanel{flex:1 1 0; min-width:0; border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:5px;}
   #cmdPanel.cmd-wide{}  /* (kept for JS toggle; columns stay equal now) */
   #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
@@ -443,20 +451,18 @@
       <div class="hud-pill" id="fieldPartyWrap"><div id="fieldParty"></div></div>
     </div>
     <div id="fieldHint"></div>
-    <!-- Bottom control DECK (PWA-friendly, sits on the home-indicator safe area). The movement d-pad
-         shows in a browser tab; in the installed app it's hidden (tap/swipe-to-move) to declutter. -->
+    <!-- Movement d-pad: a browser-only floating control (hidden in the installed app — tap/hold to move). -->
+    <div id="dpad">
+      <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
+      <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
+      <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
+    </div>
+    <!-- iOS-standard bottom tab bar: full-width, edge-to-edge through the home indicator. -->
     <div id="fieldDeck">
-      <div id="dpad">
-        <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
-        <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
-        <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
-      </div>
-      <div id="deckActions">
-        <button class="deck-btn" onclick="UI.openParty()"><span class="ic">👥</span>Party</button>
-        <button class="deck-btn" onclick="UI.openInventory()"><span class="ic">🎒</span>Bag</button>
-        <button class="deck-btn" onclick="Minimap.toggle()"><span class="ic">🗺</span>Map</button>
-        <button class="deck-btn" onclick="Field.openMore()"><span class="ic">⋯</span>More</button>
-      </div>
+      <button class="deck-btn" onclick="UI.openParty()"><span class="ic">👥</span>Party</button>
+      <button class="deck-btn" onclick="UI.openInventory()"><span class="ic">🎒</span>Bag</button>
+      <button class="deck-btn" onclick="Minimap.toggle()"><span class="ic">🗺</span>Map</button>
+      <button class="deck-btn" onclick="Field.openMore()"><span class="ic">⋯</span>More</button>
     </div>
     <!-- "More" slide-up sheet: the secondary actions that used to clutter the top HUD. -->
     <div id="moreScrim" class="sheet-scrim" onclick="Field.closeMore()"></div>
