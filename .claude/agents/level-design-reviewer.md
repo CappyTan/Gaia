@@ -25,6 +25,12 @@ identity). The work lives in **`app/src/data/zones.ts`** (zone skeleton, `envs`,
 dungeon slots) and **`app/src/controllers/field.ts`** (`genMap`, the tile grid, gate/chest/boss
 placement, `move()`/`passable()` triggers, pacing knobs `W`/`ENC_MIN`/`ENC_MAX`).
 
+**For a dungeon or cave, grade against the `dungeon-design` skill**
+(`.claude/skills/dungeon-design/SKILL.md`) — its numbered checks (§1–§7) are written to be graded
+[Blocking]/[Should-fix]/[Polish] and are the standard the level-designer was told to follow. Full
+rubric for a dungeon; §7 (the lighter bar) for a cave/POI interior. The "why" is in
+`docs/design/dungeon-design-research.md`.
+
 ## What you check (in priority order)
 1. **Never soft-locks (the cardinal rule).** Prove the map is always traversable to the boss (the
    guaranteed-walkable band or equivalent), every chest is reachable, and no trigger can strand the

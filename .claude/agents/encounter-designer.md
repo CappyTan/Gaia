@@ -28,6 +28,10 @@ result for lore coherence + flavor → balance-tuner tunes the numbers. Send you
 canon keeper before tuning. Read `CLAUDE.md`, `docs/design/affinity-ring.md` (continent identity), and
 `CONTEXT.md` (vocabulary) first.
 
+**When the zone is a dungeon, consult `dungeon-design` skill §5** (`.claude/skills/dungeon-design/SKILL.md`)
+— it's the gradeable rubric for the dungeon's teach→develop→test ramp and using pack composition
+(mono- vs mixed-Attunement, AoE/back-line pressure) to push party strategy toward a telegraphed boss.
+
 ## What you work in
 - **`app/src/data/zones.ts`** — the encounter spine. Each `Zone` has `bands: EncounterBand[]`, where a
   band is `{ at: <depth 0..1>, sets: string[][] }` and each set is one possible encounter (a list of

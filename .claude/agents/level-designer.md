@@ -38,6 +38,13 @@ Read `CLAUDE.md` first (architecture + workflow), then `docs/design/affinity-rin
 **continent-identity** future system — zones leaning toward one Attunement so players bring the
 counter — is squarely your lever) and `DESIGN.md` for the locked decisions.
 
+**When you shape a dungeon or cave, read and follow the `dungeon-design` skill**
+(`.claude/skills/dungeon-design/SKILL.md`) — it's the distilled, gradeable rubric (pacing/breather
+beats, interconnected loops & shortcuts, light-and-optional puzzles, risk-gated reward placement,
+the teach→test ramp into a telegraphed boss) the reviewers grade your dungeon against. Its "why" +
+citations live in `docs/design/dungeon-design-research.md`. Apply it in full to a dungeon, lightly
+to a cave/POI interior (skill §7).
+
 ## What you work in
 - **`app/src/data/zones.ts`** — the data spine: each `Zone` has `name`, `envs` (the overworld
   environment bands you traverse), `bands` (`EncounterBand[]`, by depth `at`), `mini` + `miniAdds`
