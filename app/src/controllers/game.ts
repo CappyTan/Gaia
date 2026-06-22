@@ -4,12 +4,13 @@
 // the window bridge set up in main.ts, so they aren't imported here (keeps the cycle small).
 
 import type { Item, Member, MemberDef } from "../types";
-import { clamp, ri, pick } from "../core/rng";
+import { ri, pick } from "../core/rng";
 import { PARTY_DEFS } from "../data/party";
 import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
-import { makeItem, rollItemAtRarity, itemScore } from "../systems/loot";
+import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
 import { GAME_VERSION } from "../data/version";
 import { itemHtml } from "../ui/render";
@@ -314,12 +315,12 @@ export const Game = {
     this.gold -= cost; this.restParty(); this.openInn();
   },
   rollMerchantStock(): void {
-    const floor = clamp(1 + Field.zoneIndex * 2, 0, 5); // deeper zone = better base stock
-    const ilvl = 6 + Field.zoneIndex * 6; // stock the road ahead (gear for the next zone)
+    const lvl = MERCHANT_LEVEL(Field.zoneIndex); // rarity scales with zone depth (same curve as drops)
+    const ilvl = 6 + Field.zoneIndex * 6; // stat magnitude: stock the road ahead (gear for the next zone)
     // The merchant deals across attunements — a weapon of another power reclasses the hero who
     // wields it (class = weapon). Stock biases to the party's classes/attunements (with variety).
     this._stock = [];
-    for (let i = 0; i < 6; i++) { const m = pick(this.party); this._stock.push(rollItemAtRarity(ri(floor, Math.min(5, floor + 2)), m.cls, ilvl, m.att)); }
+    for (let i = 0; i < 6; i++) { const m = pick(this.party); this._stock.push(rollItemAtLevel(lvl, m.cls, ilvl, m.att, DROP_MODS.chest)); }
   },
   // Full heal of all LIVING members (mirrors the level-up refill in progression.ts). Dead members
   // are untouched — reviving them is a separate (paid) action.

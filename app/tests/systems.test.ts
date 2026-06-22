@@ -51,9 +51,14 @@ describe("loot generation", () => {
     const artifact = makeItem("Staff", "weapon", 5, "Staff");
     expect(itemScore(artifact)).toBeGreaterThan(itemScore(common));
   });
-  it("boss drops are rare-or-better", () => {
-    const boss = makeEnemy("kingpin", 0, true, 0);
-    for (let i = 0; i < 50; i++) expect(rollDrop(boss).rIx).toBeGreaterThanOrEqual(3);
+  it("a boss drop is uncommon-or-better — a notch above its level band, NOT a guaranteed epic", () => {
+    const boss = makeEnemy("kingpin", 0, true, 0); // an EARLY boss (Greenvale) must not hand out epics
+    const floor = rarityBand(boss.lvl).floor;
+    for (let i = 0; i < 80; i++) {
+      const r = rollDrop(boss).rIx;
+      expect(r).toBeGreaterThanOrEqual(Math.max(1, floor)); // boss bump: never below uncommon
+      expect(r).toBeLessThanOrEqual(5);
+    }
   });
   it("every armor-family slot makes a valid, defensive piece", () => {
     for (const slot of ARMOR_SLOTS) {
@@ -65,10 +70,13 @@ describe("loot generation", () => {
       expect(total).toBeGreaterThan(0);
     }
   });
-  it("rarity band climbs with level (Dara's retune) and is monotonic", () => {
-    expect(rarityBand(10)).toEqual({ floor: 1, ceil: 3 }); // L10: uncommon/rare, lucky epic
-    expect(rarityBand(20)).toEqual({ floor: 2, ceil: 4 }); // L20: rare/epic, lucky legendary
-    expect(rarityBand(30).ceil).toBe(5); // L30: artifacts start appearing
+  it("rarity band climbs with level (STEEP early curve) and is monotonic", () => {
+    expect(rarityBand(3)).toEqual({ floor: 0, ceil: 0 });  // L1–4 : commons only
+    expect(rarityBand(8)).toEqual({ floor: 0, ceil: 1 });  // L5–9 : common/uncommon — no rares yet
+    expect(rarityBand(10)).toEqual({ floor: 0, ceil: 2 }); // L10–14: + a lucky RARE (built-game treat)
+    expect(rarityBand(20)).toEqual({ floor: 1, ceil: 3 }); // L15–24: uncommon..epic
+    expect(rarityBand(30)).toEqual({ floor: 2, ceil: 4 }); // L25–34: rare..legendary
+    expect(rarityBand(35).ceil).toBe(5);                   // L35+ : artifacts appear
     for (let l = 2; l <= 40; l++) {
       expect(rarityBand(l).floor).toBeGreaterThanOrEqual(rarityBand(l - 1).floor);
       expect(rarityBand(l).ceil).toBeGreaterThanOrEqual(rarityBand(l - 1).ceil);
@@ -102,13 +110,13 @@ describe("champion packs", () => {
 });
 
 describe("ultra-rare treasure monsters", () => {
-  it("a rare monster is flagged, not a boss/elite, and always drops epic-or-better loot", () => {
+  it("a rare monster is flagged, not a boss/elite, and always drops rare-or-better loot", () => {
     const r = makeEnemy("hogger", 0, false, 0);
     expect(r.rare).toBe(true);
     expect(r.boss).toBe(false);
     expect(r.miniboss).toBe(false);
     expect(r.elite).toBeFalsy(); // rares are their own tier — no random elite roll
-    for (let i = 0; i < 50; i++) expect(rollDrop(r).rIx).toBeGreaterThanOrEqual(3);
+    for (let i = 0; i < 50; i++) expect(rollDrop(r).rIx).toBeGreaterThanOrEqual(2); // rare-or-better (floorMin 2)
   });
 });
 

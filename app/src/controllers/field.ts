@@ -11,7 +11,8 @@ import {
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
-import { rollItemAtRarity } from "../systems/loot";
+import { rollItemAtLevel } from "../systems/loot";
+import { CHEST_LEVEL, DROP_MODS } from "../data/loot";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Dialogue } from "../ui/dialogue";
@@ -1059,9 +1060,8 @@ export const Field = {
     // PERSIST the loot keyed by the chest's AUTHORED zone-local coords (the same coords enterBigMap re-applies
     // over the rebuilt authored grid), so a Continue can't re-spawn this looted big-map chest.
     if (a) this.openedChests[this.chestKey(a.zoneId, "ow", a.lx, a.ly)] = true;
-    const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5);
     const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4);
-    const it = rollItemAtRarity(floor, undefined, ilvl, undefined); // chests roll EQUALLY across all classes (Dara)
+    const it = rollItemAtLevel(CHEST_LEVEL(this.zoneIndex, this.progress()), undefined, ilvl, undefined, DROP_MODS.chest); // level-banded rarity (+treat ceiling), EQUAL across classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
@@ -1259,9 +1259,8 @@ export const Field = {
     // use the "ow" context. (poiKey-style per-zone disambiguation against x,y collisions across zones/floors.)
     const zid = this.zone().id;
     this.openedChests[this.chestKey(zid, this.mode === "dungeon" ? this.dungeonFloor : "ow", x, y)] = true;
-    const floor = clamp(2 + Math.floor(this.progress() * 3), 1, 5); // deeper chests = better floor
-    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // and a higher item level
-    const it = rollItemAtRarity(floor, undefined, ilvl, undefined); // chests roll EQUALLY across all classes (Dara)
+    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // a higher item level deeper in
+    const it = rollItemAtLevel(CHEST_LEVEL(this.zoneIndex, this.progress()), undefined, ilvl, undefined, DROP_MODS.chest); // level-banded rarity (+treat ceiling), EQUAL across classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
