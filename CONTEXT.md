@@ -81,6 +81,14 @@ A normal enemy variant carrying one or two random **Affixes** (e.g. Frenzied, Va
 and a guaranteed better loot drop. The enemy-side mirror of the loot affix system.
 _Avoid_: boss (the Bandit Brute is the boss; elites are buffed normal enemies).
 
+**Legendary Figure**:
+A named, singular, mythic-scale being (human, monster, or non-human) that exists *above* the
+ordinary power scale and **transcends the affinity ring** — its raw power can overcome even an
+attunement it is the *prey* of. Distinct from a **boss** (a zone gate fight) and a **rare/treasure
+monster** (an encounter spice). Dara's canon, added over time. Roster +
+first entry (The Last Lagrangian) in [`docs/design/legendary-figures.md`](docs/design/legendary-figures.md).
+_Not yet in the POC._
+
 **Signature effect**:
 The status/effect flavor tied to each Attunement (e.g. SOL = Burn/Blind). Distinct from
 the affinity ring; the ring governs damage multipliers, the signature effect is what an
