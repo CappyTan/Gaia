@@ -140,6 +140,8 @@ export const Field = {
   bigMapEnabled: true,
   bigMap: false,
   wx: 0, wy: 0,                                   // player world-tile position (source of truth when bigMap)
+  face: "down" as "down" | "up" | "left" | "right", // walk-cycle facing, set from the last move's dx/dy
+  step: 0,                                        // walk-cycle counter, advanced on each successful step
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
   // Stage 2C: the big map is CONTINENT-WIDE — every built zone's authored blueprint is realized into
   // the one 960×640 world, the open continent bridging them (G22). `authoredGrids` maps a built zone
@@ -153,6 +155,9 @@ export const Field = {
   // (merchant.png is sliced for later — the merchant is a between-zones overlay, not a field tile.)
   loadTiles(): void {
     const names = ["grass", "grass2", "path", "tree", "bush", "rock", "chest", "lair", "player"];
+    // Directional walk-cycle frames: player-<down|up|left|right>-<0|1|2> (right = mirrored left).
+    // Falls back to the static "player" sprite for any frame that fails to load.
+    for (const d of ["down", "up", "left", "right"]) for (let i = 0; i < 3; i++) names.push(`player-${d}-${i}`);
     // VARIED TERRAIN + POI sprite slots (2026-06-21) — placeholders until art-integrator slices them
     // (see asset-gaps.md). cliff/bridge/ford ground tiles + the four POI kinds; river reuses water.
     for (const n of ["cliff", "bridge", "ford", "shrine", "camp", "landmark", "signpost"]) names.push(n);
@@ -637,12 +642,14 @@ export const Field = {
     // While a conversation is open, the d-pad/move keys advance the dialogue instead of walking.
     if (Dialogue.isOn()) { Dialogue.advance(); return; }
     if (Overlay.isOn()) return;
+    // Turn to face the direction we're trying to walk (even into a wall) — drives the walk-cycle sprite.
+    if (dx < 0) this.face = "left"; else if (dx > 0) this.face = "right"; else if (dy < 0) this.face = "up"; else if (dy > 0) this.face = "down";
     if (this.bigMapActive()) { this.bigMove(dx, dy); return; } // windowed big-map roams in world coords
     const nx = this.px + dx, ny = this.py + dy;
     // Walking into an NPC talks to them (you don't move onto their tile).
     if (this.townMode) { const npc = this.npcAt(nx, ny); if (npc) { this.talkTo(npc); return; } }
     if (!this.passable(nx, ny)) return;
-    this.px = nx; this.py = ny;
+    this.px = nx; this.py = ny; this.step++;
     if (this.townMode) { this.draw(); this.hint(); this.townTouch(this.map[ny][nx]); return; } // no steps/encounters in town
     Game.steps++; Telemetry.step();
     this.draw(); this.hint();
@@ -937,7 +944,7 @@ export const Field = {
   bigMove(dx: number, dy: number): void {
     const nx = this.wx + dx, ny = this.wy + dy;
     if (!this.bigPassable(nx, ny)) return;
-    this.wx = nx; this.wy = ny;
+    this.wx = nx; this.wy = ny; this.step++;
     this.realizeAround();      // realize-on-move (never in draw)
     this.syncZoneFromWorld();  // POSITION-DERIVED state (zone/bands/music) — the no-loadZone crossing
     Game.steps++; Telemetry.step();
@@ -1603,13 +1610,23 @@ export const Field = {
     c.save();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.3, t * 0.13, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.42)"; c.fill();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
-    if (T.player) {
-      const ph = t * 1.55, pw = ph * (T.player.width / T.player.height);
+    const pimg = this.playerImg(T);
+    if (pimg) {
+      const ph = t * 1.55, pw = ph * (pimg.width / pimg.height);
       const py = Math.max(2, cy + t * 0.46 - ph);
       c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
-      c.drawImage(T.player, cx - pw / 2, py, pw, ph); c.shadowBlur = 0;
+      c.drawImage(pimg, cx - pw / 2, py, pw, ph); c.shadowBlur = 0;
     } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy); }
     c.restore();
+  },
+
+  // The player sprite for the current frame: the directional walk-cycle frame (player-<face>-<n>),
+  // cycling neutral→step→neutral→step as `step` advances; falls back to the static sprite if a frame
+  // is missing (so a partial art load never blanks the hero).
+  playerImg(T: Record<string, HTMLImageElement>): HTMLImageElement | undefined {
+    const WALK = [1, 2, 1, 0]; // frame index per step; 1 = neutral mid-stance (rest pose)
+    const f = WALK[this.step % WALK.length];
+    return T[`player-${this.face}-${f}`] || T.player;
   },
 
   draw(): void {
@@ -1758,14 +1775,15 @@ export const Field = {
     c.save();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.3, t * 0.13, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.42)"; c.fill();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
-    if (T.player) {
-      const ph = t * 1.55, pw = ph * (T.player.width / T.player.height);
+    const pimg = this.playerImg(T);
+    if (pimg) {
+      const ph = t * 1.55, pw = ph * (pimg.width / pimg.height);
       // The walker is tall (≈1.55× tile) and anchored at the feet, so at a y≈1 spawn on a tall,
       // camera-scrolled map (e.g. the city) its head would clip above the canvas. Clamp the top edge
       // so the body always stays on-screen rather than vanishing past the top.
       const py = Math.max(2, cy + t * 0.46 - ph);
       c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
-      c.drawImage(T.player, cx - pw / 2, py, pw, ph);
+      c.drawImage(pimg, cx - pw / 2, py, pw, ph);
       c.shadowBlur = 0;
     } else {
       c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
