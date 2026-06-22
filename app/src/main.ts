@@ -56,6 +56,16 @@ Music.load();
 (["pointerdown", "touchstart", "keydown"] as const).forEach((ev) =>
   window.addEventListener(ev, () => Music.unlock(), { once: true, passive: true })
 );
+// iOS lifecycle: a backgrounded standalone web app gets its AudioContext suspended and can be
+// cold-reloaded on return. (1) Re-unlock audio when we become visible again (the once-listener
+// above is already spent), and (2) persist the run when we're hidden / the page is being put away
+// — visibilitychange+pagehide are the reliable iOS save points (beforeunload is not). saveNow()
+// no-ops on the title / with no party, so this is safe to fire anytime.
+const persistRun = () => { try { Game.saveNow(); } catch { /* storage off */ } };
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) persistRun(); else Music.unlock();
+});
+window.addEventListener("pagehide", persistRun);
 const verTag = $("#verTag");
 if (verTag) verTag.textContent = `Gaia ${GAME_VERSION}`;
 // Offer Continue on the title only when a resumable save exists (ADR 0007).
