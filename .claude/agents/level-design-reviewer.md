@@ -31,6 +31,13 @@ placement, `move()`/`passable()` triggers, pacing knobs `W`/`ENC_MIN`/`ENC_MAX`)
 rubric for a dungeon; §7 (the lighter bar) for a cave/POI interior. The "why" is in
 `docs/design/dungeon-design-research.md`.
 
+**For an overworld Area, also grade the `overworld-design` skill §2–§6**
+(`.claude/skills/overworld-design/SKILL.md`): believable terrain (no patchwork biomes), distinct
+regions with tent-pole landmarks, the triangle rule / three landmark tiers / leading lines (guide
+without walls), exploration reward, and loops/shortcuts — plus the hard ruling that **surface regions
+carry no Attunement identity except the five Sundering scars** (ADR 0009 §4). Geography/connections
+themselves are the cartography-reviewer's; you grade the shaped tiles.
+
 ## What you check (in priority order)
 1. **Never soft-locks (the cardinal rule).** Prove the map is always traversable to the boss (the
    guaranteed-walkable band or equivalent), every chest is reachable, and no trigger can strand the
