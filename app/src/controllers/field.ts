@@ -753,7 +753,14 @@ export const Field = {
     // opens that floor's stairs) — NOT the overworld mouth/gate, which the player already passed.
     if (this.pendingFloorMini >= 0) { this.onFloorMiniDefeated(); return; }
     if (this.usesNewModel()) {
-      if (this.mode === "overworld" && this.map[this.mouth.y]) this.map[this.mouth.y][this.mouth.x] = "mouth";
+      // Open the dungeon mouth. The BIG MAP realizes the gate from the AUTHORED GRID via cached chunks,
+      // so flip the authored cell AND drop the chunks so it re-realizes as "mouth" — writing this.map
+      // alone never reaches the big-map path (that was the bug: a beaten gate stayed "miniboss", so
+      // stepping on it neither re-fought nor descended). Also flip this.map for the discrete grid.
+      const zid = this.zone().id, g = this.authoredGrids[zid];
+      if (g && g[this.mouth.y]) g[this.mouth.y][this.mouth.x] = "mouth";
+      if (this.map[this.mouth.y]) this.map[this.mouth.y][this.mouth.x] = "mouth";
+      if (this.bigMap) { this.chunks.clear(); this.realizeAround(); }
     } else if (this.gate && this.map[this.gate.y]) {
       this.map[this.gate.y][this.gate.x] = "path"; // open the chokepoint into the combined dungeon
     }
