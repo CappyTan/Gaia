@@ -3,6 +3,7 @@ import type { Enemy } from "../types";
 import { ATTUNEMENTS, isArmorSlot } from "../types";
 import { ri, pick, clamp } from "../core/rng";
 import { RARITY } from "../data/rarity";
+import { LOOT_BANDS, SPIKE_STEP, DROP_MODS, DROP_SLOTS, type RarityMod } from "../data/loot";
 import { ITEM_NAMES, ARMOR_SLOT_NOUNS, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
 
 // Weapon archetypes that have sliced icon art (one per SOL loot chart). Random drops draw from
@@ -90,46 +91,45 @@ export function itemScore(it: Item): number {
   return Math.round(s + it.rIx * 4);
 }
 
-// Level-gated rarity band (Dara's retune). Typical drops sit near the floor; the ceil is a
-// "lucky" spike. L10 ≈ uncommon/rare (+lucky epic) · L20 ≈ rare/epic (+lucky legendary) ·
-// L30 ≈ rare→legendary (+rare artifact) · L35+ artifacts become regular. (rarity index:
-// 0 common · 1 uncommon · 2 rare · 3 epic · 4 legendary · 5 artifact.)
+// Level-gated rarity band — the curve LIVES IN data/loot.ts (LOOT_BANDS); this just reads it. The
+// first band whose maxLvl ≥ lvl applies. `floor` = typical rarity, `ceil` = the lucky spike.
 export function rarityBand(lvl: number): { floor: number; ceil: number } {
-  if (lvl < 5) return { floor: 0, ceil: 1 };
-  if (lvl < 10) return { floor: 0, ceil: 2 };
-  if (lvl < 20) return { floor: 1, ceil: 3 }; // L10: mostly 1–2, lucky 3
-  if (lvl < 30) return { floor: 2, ceil: 4 }; // L20: mostly 2–3, lucky 4
-  if (lvl < 35) return { floor: 2, ceil: 5 }; // L30: 2–4, with rare 5s appearing
-  return { floor: 3, ceil: 5 };               // L35+: 3–5
+  const b = LOOT_BANDS.find((x) => lvl <= x.maxLvl) ?? LOOT_BANDS[LOOT_BANDS.length - 1];
+  return { floor: b.floor, ceil: b.ceil };
 }
 
-// Weighted roll within [floor,ceil]: starts at floor, each rung up needs another `step` success —
-// so higher rarities are progressively rarer ("lucky" spikes). P(floor+n) = step^n.
-function spikeRarity(floor: number, ceil: number, step = 0.4): number {
+// Apply a source bump (DROP_MODS) to a band: add floor/ceil, clamp the floor up to floorMin, keep sane.
+function applyMod(b: { floor: number; ceil: number }, m: RarityMod): { floor: number; ceil: number } {
+  let floor = b.floor + (m.floor ?? 0);
+  if (m.floorMin != null) floor = Math.max(floor, m.floorMin);
+  let ceil = b.ceil + (m.ceil ?? 0);
+  floor = clamp(floor, 0, 5);
+  ceil = clamp(Math.max(ceil, floor), 0, 5);
+  return { floor, ceil };
+}
+
+// Weighted roll within [floor,ceil]: starts at floor, each rung up needs another SPIKE_STEP success —
+// so higher rarities are progressively rarer ("lucky" spikes). P(floor+n) = SPIKE_STEP^n.
+function spikeRarity(floor: number, ceil: number, step = SPIKE_STEP): number {
   let r = floor;
   for (let i = floor; i < ceil; i++) { if (Math.random() < step) r = i + 1; else break; }
   return clamp(r, 0, 5);
 }
 
-// Slot distribution for drops/loot: weapon weighted x2, every armor-family slot + trinket once.
-const DROP_SLOTS: Slot[] = ["weapon", "weapon", "helmet", "armor", "gloves", "boots", "trinket"];
-
 /** A party member's class identity for loot biasing: their weapon archetype + attunement. */
 export interface RosterClass { cls: string; att: Attunement; }
 
-// VICTORY drop: rarity from the enemy's level band + boss/elite bonus. When a WEAPON drops, 75% of
-// the time it rolls an EXACT class a party member already wields (same attunement + archetype) so
-// the player can farm upgrades for their current comp; the other 25% roll wild across all classes
-// (so loot still offers reclass options). Armor/trinket att is cosmetic, biased to a roster att.
+// VICTORY drop: rarity from the enemy's level band + a MODEST source bump (DROP_MODS). When a WEAPON
+// drops, 75% of the time it rolls an EXACT class a party member already wields (same attunement +
+// archetype) so the player can farm upgrades for their current comp; the other 25% roll wild across
+// all classes (so loot still offers reclass options). Armor/trinket att is cosmetic, biased to roster.
 export function rollDrop(enemy: Enemy, roster?: RosterClass[]): Item {
   const lvl = enemy.lvl || 1;
-  let { floor, ceil } = rarityBand(lvl);
-  if (enemy.elite) { floor += 1; ceil = Math.min(5, ceil + 1); }
-  if (enemy.boss) { floor = Math.max(floor + 1, 3); ceil = 5; }
-  if (enemy.rare) { floor = Math.max(floor, 3); ceil = 5; } // ultra-rare treasure monster: epic-or-better
-  floor = clamp(floor, 0, 5);
-  ceil = clamp(Math.max(ceil, floor), 0, 5);
-  const r = spikeRarity(floor, ceil);
+  let band = rarityBand(lvl);
+  if (enemy.elite) band = applyMod(band, DROP_MODS.elite);
+  if (enemy.boss) band = applyMod(band, DROP_MODS.boss);
+  if (enemy.rare) band = applyMod(band, DROP_MODS.rare); // ultra-rare treasure monster: rare-or-better
+  const r = spikeRarity(band.floor, band.ceil);
   const slot = pick(DROP_SLOTS);
   if (slot === "weapon" && roster && roster.length && Math.random() < 0.75) {
     const m = pick(roster);                                   // matches a party member's exact class
@@ -140,9 +140,13 @@ export function rollDrop(enemy: Enemy, roster?: RosterClass[]): Item {
   return makeItem(null, slot, r, null, lvl, att);
 }
 
-// chest / merchant loot: roll around a target rarity floor, scaled to an item level
-export function rollItemAtRarity(floor: number, prefCls?: string, ilvl = 0, prefAtt?: Attunement): Item {
-  const r = spikeRarity(clamp(floor, 0, 5), 5);
+// CHEST / MERCHANT loot: rarity from the find's LEVEL band (same curve as drops) + an optional source
+// bump (e.g. DROP_MODS.chest), scaled to an item level for stat magnitude. No more flat "floor + always
+// spike to artifact" — a Greenvale chest is now common/uncommon with a lucky rare, not a guaranteed rare+.
+export function rollItemAtLevel(lvl: number, prefCls?: string, ilvl = 0, prefAtt?: Attunement, mod?: RarityMod): Item {
+  let band = rarityBand(lvl);
+  if (mod) band = applyMod(band, mod);
+  const r = spikeRarity(band.floor, band.ceil);
   const slot = pick(DROP_SLOTS);
   const wc = slot === "weapon" ? rollWeaponClass(prefCls) : null;
   return makeItem(null, slot, r, wc, ilvl, rollAtt(prefAtt));
