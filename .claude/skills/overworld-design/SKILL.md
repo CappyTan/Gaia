@@ -1,6 +1,6 @@
 ---
 name: overworld-design
-description: The overworld & world-map design playbook for Gaia — the distilled, gradeable rubric the world-cartographer and level-designer follow when building the seamless overworld, and the reviewers (cartography-reviewer, level-design-reviewer) grade against. Turns the world-map research (docs/design/overworld-design-research.md) into concrete rules for Gaia's seamless big-map (ADR 0008/0009): believable geography, distinct/memorable regions, guide-without-walls (the triangle rule + dispersed flow + three landmark tiers), terrain/difficulty gating, exploration reward, and a navigable seamless world. Use whenever placing/reworking regions on the world map or shaping an overworld Area. NOTE: surface regions carry NO Attunement identity except the five Sundering scars (Dara's ruling).
+description: The overworld & world-map design playbook for Gaia — the distilled, gradeable rubric the world-cartographer and level-designer follow when building the seamless overworld, and the reviewers (cartography-reviewer, level-design-reviewer) grade against. Turns the world-map research (docs/design/overworld-design-research.md) into concrete rules for Gaia's seamless big-map (ADR 0008/0009): believable geography, distinct/memorable regions, guide-without-walls (the triangle rule + dispersed flow + three landmark tiers), terrain/difficulty gating, exploration reward, and a navigable seamless world. Use whenever placing/reworking regions on the world map or shaping an overworld Area. NOTE: only the five Sundering Scars are STRICTLY attuned; other regions MAY carry a light, optional affinity lean — never a defining surface identity (Dara's clarification).
 ---
 
 # Overworld Design skill — how Gaia's world map is built and graded
@@ -25,10 +25,12 @@ to be gradeable **[Blocking] / [Should-fix] / [Polish]**.
   Area's terrain (level-designer). For an **entered** dungeon/cave, use `dungeon-design` instead.
 
 ## ⚠ The one ruling that overrides instinct
-**Surface regions carry NO Attunement identity — except the five Sundering scars** (Dara's ruling,
-ADR 0009 §4). Unlike dungeons, you do **not** lean an overworld region toward a power. Region
-identity is **biome / place / landmark**-driven. The five scars are the deliberate exception. Any
-surface Attunement lean elsewhere is a **[Blocking]** finding.
+**Only the five Sundering Scars are *strictly* attuned** — a defining, canonical Attunement
+identity (Dara, 2026-06-22, clarifying ADR 0009 §4). **Other surface regions *may* carry a light,
+optional affinity lean** as flavor — the affinity ring is a usable lever anywhere — but it is **not**
+a region's *defining* identity (surface identity is primarily **biome / place / landmark**). The
+rule is **strict vs. optional**: only a *strictly/defining*-attuned surface region **outside the
+scars** is a **[Blocking]** finding; a light optional lean is fine.
 
 ---
 
@@ -68,7 +70,8 @@ Make the map read as a world, not a diagram — apply the physical-coherence rul
   history *and* double as navigation callouts (Worch & Smith: environments guide movement, signal
   affordances, reinforce identity, and tell story, all at once).
 - **Gradeable:** can each region be told apart at a glance and named by its tent-pole? Or do areas
-  blur together? Is identity biome/place (not Attunement — see §0)?
+  blur together? Is the region's *defining* identity biome/place (Attunement at most an optional
+  accent — only the scars are strictly attuned; see §0)?
 
 ## 4 · Guide without walls — the triangle rule & dispersed flow (cartographer skeleton + level-designer terrain)
 The core overworld craft. **Never** "points and lines" (an obvious guide-rope — BotW's failed
@@ -134,7 +137,8 @@ prototype) and **never** waypoint/detective-vision crutches; **design the horizo
 - Overwhelming the player with a whole field of options (occlude with terrain instead). *(§4)*
 - Invisible walls instead of terrain/difficulty gating; inventing roam-gating rules (flag for Dara). *(§5)*
 - Icon/checklist busywork; cheap/early fast travel that kills the sense of place. *(§6)*
-- **Surface Attunement identity anywhere but the five Sundering scars.** *(§0)*
+- A *strictly/defining*-attuned surface region outside the five Sundering Scars (a light optional
+  affinity lean elsewhere is fine). *(§0)*
 
 ## Lanes (who owns what)
 Region boundaries / coordinates / connections / macro landmarks / atlas fidelity / seamless adjacency

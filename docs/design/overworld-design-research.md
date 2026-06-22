@@ -18,10 +18,13 @@ mouth. This is the *basis* for our world-map design — the "why" behind the rul
 > `docs/design/dungeon-design-research.md`.
 
 > **⚠ One reconciliation up front.** The dungeon doc leans on **Attunement / continent identity**
-> (lean a zone toward a power so the player brings the counter). **That does NOT apply to the
-> surface.** Per Dara's ruling (ADR 0009 §4), **overworld regions carry no Attunement identity
-> except the five Sundering scars.** So on the overworld, region identity is **biome / place /
-> landmark**-driven, *not* Attunement-driven. The five scars are the deliberate exception.
+> (lean a zone toward a power so the player brings the counter). On the surface this is a softer
+> rule (Dara, 2026-06-22, clarifying ADR 0009 §4): **only the five Sundering Scars are *strictly*
+> attuned** — a defining, canonical Attunement identity. **Other overworld regions *may* carry a
+> light, optional affinity lean** as flavor; the affinity ring is a usable lever anywhere. The
+> distinction is **strict vs. optional**: a surface region's *defining* identity is **biome / place
+> / landmark**, and Attunement is an *accent* it may wear — never the thing that defines it (outside
+> the scars, which it does define).
 
 ---
 
@@ -128,8 +131,9 @@ music, encounters, and difficulty are sampled at the **Area** level, so a Zone v
 which is the mechanism for "don't let every area be everything." Give each Zone/Area a **one-line
 hook and a tent-pole landmark** the player can see and name (the level-designer already places POIs:
 shrines, ruined towers, standing stones, camps). Differentiate by **silhouette + palette** within the
-gold-on-dark house style. **Region identity is biome/place, not Attunement** (the §0 reconciliation) —
-except the five Sundering scars, which *do* carry an Attunement read.
+gold-on-dark house style. **A region's *defining* identity is biome/place** (the §0 reconciliation) —
+Attunement is an optional accent a region may lean on, not its identity; only the **five Sundering
+Scars** are *strictly* attuned.
 
 ## 4 · Guide without walls — the triangle rule & dispersed flow
 
@@ -249,8 +253,8 @@ samey or lost.
   *(§6)*
 - **Don't** grant fast travel cheaply/early in a way that erases the sense of place and distance.
   *(§6)*
-- **Don't** put surface Attunement identity anywhere but the five Sundering scars (Dara's ruling).
-  *(§0)*
+- **Don't** make a surface region *strictly/defining* attuned outside the five Sundering Scars — a
+  light, optional affinity lean elsewhere is fine; a defining one is the scars' alone (Dara). *(§0)*
 
 ---
 

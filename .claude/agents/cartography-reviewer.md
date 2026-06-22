@@ -29,8 +29,10 @@ maps themselves: **`assets/reference/map-gaia-overworld.png`** and **`map-underw
 the standard the world-cartographer was told to follow: believable geography (no patchwork biomes /
 uphill rivers / random mountains), distinct regions, the guide-without-walls skeleton, and
 terrain/difficulty gating (roam-first; roam-gating rules surfaced to Dara, not invented). Its "why"
-is in `docs/design/overworld-design-research.md`. **Hard ruling to enforce: no surface Attunement
-identity except the five Sundering scars** (ADR 0009 §4) — any other surface lean is **[Blocking]**.
+is in `docs/design/overworld-design-research.md`. **Surface attunement ruling to enforce: only the
+five Sundering Scars are *strictly* attuned** (Dara, clarifying ADR 0009 §4) — a light, optional
+affinity lean elsewhere is fine; only a *strictly/defining*-attuned surface region **outside the
+scars** is **[Blocking]**.
 
 ## What you check (in priority order)
 1. **Atlas/map fidelity.** Every region's placement and orientation must match Dara's maps. `Read` the

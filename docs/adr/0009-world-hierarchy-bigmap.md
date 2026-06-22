@@ -49,6 +49,12 @@ ambient music, and difficulty are sampled at the **Area** level with Zone/Contin
 zone can vary internally (the "more intricate, free-flowing" feel). **Honors Dara's ruling:** surface
 regions carry *no Attunement identity* except the five Sundering scars.
 
+> **Clarification (Dara, 2026-06-22):** the wording above is about *strict* identity. Only the **five
+> Sundering Scars** are **strictly** attuned (a defining, canonical Attunement). Other surface regions
+> **may** carry a *light, optional* affinity lean as flavor — the affinity ring is a usable lever
+> anywhere — it just must not be a region's *defining* identity (that remains biome/place). "No
+> Attunement identity except the scars" = no *strict/defining* one; an optional accent is allowed.
+
 **5 · Position is the source of truth.** One global `(x, y)` per map; *where you are in the hierarchy*
 and all derived state (encounters, music, biome) are **lookups from your coordinate**. Save/resume
 stores `(mapId, x, y)` (ADR 0007's id-based, version-tolerant envelope already fits).
