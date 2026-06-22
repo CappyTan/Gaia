@@ -28,6 +28,9 @@ import { Telemetry } from "../telemetry/telemetry";
 //   [4]stormcoast(seacave)=warren  [5]riverhearth(smuggden)=warren  [6]frostpeak(stronghold)=vault
 //   [7]dawnfall(keepvault)=vault   [8]whisperhills(crypt)=grove     [9]sunbridge(citadel)=vault
 const DUNGEON_SETS = ["warren", "grove", "vault", "granary", "warren", "warren", "vault", "vault", "grove", "vault"];
+// Per-set lit WALL DECORATION (sliced, atmosphere only): a room-facing wall occasionally renders this
+// variant instead of the plain wall. granary has none (falls back to plain wall).
+const DUNGEON_DECO: Record<string, string> = { warren: "torch", grove: "spores", vault: "lantern" };
 
 // OPTIONAL (side) zones vs SPINE (mainline progression). The mouth caption distinguishes the two
 // (a spine dungeon reads `↦ <name>`; an optional one reads `<name> (optional)`). The Aurelion-complete
@@ -172,6 +175,7 @@ export const Field = {
     // existing forest (grove-*) kinds.
     for (const n of ["orchard-ground", "orchard-ground2", "orchard-tree", "meadow-ground", "meadow-ground2", "wheat"]) names.push(n);
     for (const set of DUNGEON_SETS) for (const c of ["floor", "floor2", "path", "wall", "rock", "chest", "entrance", "stairsdown", "stairsup", "rest", "rubble"]) names.push(`${set}-${c}`);
+    for (const set of DUNGEON_SETS) if (DUNGEON_DECO[set]) names.push(`${set}-${DUNGEON_DECO[set]}`); // lit wall decorations
     // town sprites (resolve to emoji fallback until the tileset is sliced — see asset-gaps.md)
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house", "town-stash"]) names.push(n);
     // the dungeon-boss throne/lair prop (drawn under the BOSS beacon by drawDungeonBoss)
@@ -1790,6 +1794,12 @@ export const Field = {
           const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock", water: "wall" };
           let base = isObj ? "floor" : (dm[cell] || "floor");
           if (base === "floor" && (mx * 7 + my * 13) % 4 === 0 && T[`${dset}-floor2`]) base = "floor2";
+          // ATMOSPHERE: occasionally light a ROOM-FACING wall with the set's decoration (warren torch /
+          // vault lantern / grove spores). Only on a wall whose tile BELOW is walkable (so the sconce
+          // faces into the room, not buried in wall mass), gated by a stable hash so it's sparse + fixed.
+          const deco = DUNGEON_DECO[dset];
+          if (base === "wall" && deco && T[`${dset}-${deco}`] && (mx * 13 + my * 7) % 7 === 0
+              && ["grass", "grass2", "path"].includes(this.map[my + 1]?.[mx] ?? "")) base = deco;
           ground = `${dset}-${base}`;
         } else if (mire) {
           // marsh remap: open ground = boggy mire-ground, path = a plank causeway, scatter = reed/bog,
