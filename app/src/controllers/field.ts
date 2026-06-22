@@ -305,7 +305,40 @@ export const Field = {
     this.hint();
     this.draw();
     window.addEventListener("resize", () => { this.resize(); this.draw(); });
+    this.setupPointerWalk();
   },
+
+  // TAP / PRESS-AND-HOLD to walk on the field canvas. The sole movement control in the installed app
+  // (the d-pad is hidden there); a bonus alongside the d-pad/keys in a browser tab. Press toward where
+  // you want to go (relative to the centred player): a tap steps once, holding keeps walking, and
+  // dragging re-aims. Routes through move(), so its dialogue/overlay/passability guards all apply.
+  setupPointerWalk(): void {
+    const cv = this.canvas; if (!cv) return;
+    let dir: [number, number] | null = null, timer = 0;
+    const STEP_MS = 150;
+    const aim = (cx: number, cy: number): [number, number] => {
+      const r = cv.getBoundingClientRect();
+      const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return [0, 0]; // centre dead-zone
+      return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) as number, 0] : [0, Math.sign(dy) as number];
+    };
+    const stop = () => { dir = null; if (timer) { clearInterval(timer); timer = 0; } };
+    cv.addEventListener("pointerdown", (e) => {
+      if (Dialogue.isOn()) { Dialogue.advance(); return; } // tap advances NPC dialogue
+      if (Overlay.isOn()) return;
+      const d = aim(e.clientX, e.clientY);
+      if (!d[0] && !d[1]) return;
+      e.preventDefault(); cv.setPointerCapture?.(e.pointerId);
+      dir = d; this.move(d[0], d[1]);
+      timer = window.setInterval(() => { if (dir) this.move(dir[0], dir[1]); }, STEP_MS);
+    }, { passive: false });
+    cv.addEventListener("pointermove", (e) => { if (dir) { const d = aim(e.clientX, e.clientY); if (d[0] || d[1]) dir = d; } });
+    cv.addEventListener("pointerup", stop);
+    cv.addEventListener("pointercancel", stop);
+    cv.addEventListener("pointerleave", stop);
+  },
+  openMore(): void { $("#moreSheet")?.classList.add("on"); $("#moreScrim")?.classList.add("on"); },
+  closeMore(): void { $("#moreSheet")?.classList.remove("on"); $("#moreScrim")?.classList.remove("on"); },
   // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
   loadZone(i: number): void {
     this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false; this.enteredDungeon = false;

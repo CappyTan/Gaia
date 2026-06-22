@@ -372,6 +372,11 @@ export const Game = {
     catch { this.stash = []; }
   },
   saveStash(): void { try { localStorage.setItem("gaia_stash_v1", JSON.stringify(this.stash)); } catch { /* storage off (private mode) */ } },
+  // Dismiss the one-time "Add to Home Screen" hint and remember it (bridged to the title button).
+  dismissA2HS(): void {
+    try { localStorage.setItem("gaia_a2hs_seen", "1"); } catch { /* storage off */ }
+    document.getElementById("a2hs")?.classList.remove("on");
+  },
   openStash(): void {
     this.loadStash();
     const col = (arr: Item[], btn: (i: number) => string, empty: string) => {

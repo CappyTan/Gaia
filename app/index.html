@@ -65,6 +65,22 @@
   #titleScreen .powers{display:flex; gap:14px; margin:6px 0;}
   #titleScreen .pw{font-size:12px; letter-spacing:2px; opacity:.8;}
 
+  /* ---- Cold-launch splash (over everything until boot; faded out by main.ts) ---- */
+  #boot{position:fixed; inset:0; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+    background:radial-gradient(circle at 50% 38%, #1a1530 0%, #06060b 72%); transition:opacity .45s ease;}
+  #boot.hide{opacity:0; pointer-events:none;}
+  #boot .sun{width:108px; height:108px;}
+  #boot h1{font-family:"Georgia",serif; font-size:38px; color:var(--gold2); text-shadow:0 0 12px rgba(240,180,60,.5),0 2px 0 #000; letter-spacing:1px;}
+  #boot .boot-sub{color:var(--dim); font-size:13px; letter-spacing:3px; text-transform:uppercase;}
+
+  /* ---- First-visit "Add to Home Screen" hint (browser tab only; hidden when installed) ---- */
+  #a2hs{display:none; align-items:center; gap:10px; max-width:460px; margin-top:6px;
+    background:linear-gradient(#1c1730,#100c1c); border:1px solid var(--gold); border-radius:10px;
+    padding:9px 12px; font-size:13px; color:var(--ink); box-shadow:0 8px 24px rgba(0,0,0,.5);}
+  #a2hs.on{display:flex;}
+  #a2hs .a2hs-x{background:none; border:0; color:var(--dim); font-size:15px; line-height:1; padding:2px 4px; min-height:32px;}
+  html.standalone #a2hs{display:none!important;}
+
   /* ---- Field map ---- */
   #fieldScreen{background:#0c1208;}
   #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
@@ -94,12 +110,37 @@
   .audiobtn:hover{border-color:var(--gold);}
   #fieldParty{display:flex; gap:6px; flex-wrap:wrap;}
   #fieldParty .pm{font-size:11px;}
-  #dpad{position:absolute; bottom:14px; left:14px; display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
+  /* ── Bottom control DECK: d-pad (browser) on the left, icon actions on the right, on the safe area ── */
+  #fieldDeck{position:absolute; left:0; right:0; bottom:0; z-index:7; display:flex; align-items:flex-end; justify-content:space-between;
+    gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+    pointer-events:none;}
+  #fieldDeck > *{pointer-events:auto;}
+  #dpad{display:grid; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(3,46px); gap:4px;}
   #dpad button{background:rgba(30,28,50,.85); border:1px solid var(--line); border-radius:8px; color:var(--gold2); font-size:18px;}
   #dpad .sp{visibility:hidden;}
-  #fieldHint{position:absolute; bottom:18px; right:14px; max-width:52%; text-align:right; color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000;}
-  #menuBtns{position:absolute; bottom:70px; right:10px; display:flex; flex-direction:column; gap:6px; align-items:flex-end;}
-  #menuBtns .btn{padding:11px 14px; font-size:14px; min-width:88px; min-height:44px; text-align:center;}
+  #deckActions{margin-left:auto; display:flex; gap:8px; align-items:flex-end;}
+  .deck-btn{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-width:56px; min-height:54px;
+    background:rgba(14,12,24,.86); border:1px solid var(--line); border-radius:13px; color:var(--gold2); font-size:11px; padding:6px 8px;
+    box-shadow:0 4px 14px rgba(0,0,0,.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);}
+  .deck-btn .ic{font-size:20px; line-height:1;}
+  .deck-btn:active{transform:translateY(1px); border-color:var(--gold); color:var(--gold2);}
+  /* Installed app: drop the d-pad (tap/swipe-to-move) so the deck is just the clean action row. */
+  html.standalone #dpad{display:none;}
+  /* hint sits just above the deck, right-aligned (clear of the d-pad on the left). */
+  #fieldHint{position:absolute; right:calc(12px + env(safe-area-inset-right)); left:auto; text-align:right; max-width:64%;
+    bottom:calc(78px + env(safe-area-inset-bottom)); color:var(--gold2); font-size:13px; text-shadow:0 1px 3px #000; pointer-events:none;}
+
+  /* ── "More" slide-up sheet + dimming scrim ── */
+  .sheet-scrim{position:absolute; inset:0; z-index:19; background:rgba(4,4,10,.45); display:none;}
+  .sheet-scrim.on{display:block;}
+  #moreSheet{position:absolute; left:0; right:0; bottom:0; z-index:20; transform:translateY(112%); transition:transform .22s ease;
+    background:linear-gradient(#15131f,#0c0a14); border-top:1px solid var(--gold); border-radius:16px 16px 0 0;
+    padding:10px 16px calc(16px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; box-shadow:0 -12px 32px rgba(0,0,0,.6);}
+  #moreSheet.on{transform:translateY(0);}
+  #moreSheet .sheet-grip{align-self:center; width:42px; height:4px; border-radius:2px; background:var(--line);}
+  #moreSheet .sheet-title{font-family:"Georgia",serif; color:var(--gold2); font-size:15px; letter-spacing:.5px;}
+  #moreSheet .sheet-row{display:flex; gap:10px; flex-wrap:wrap;}
+  #moreSheet .sheet-row .btn{flex:1 1 0; min-width:120px; min-height:44px;}
 
   /* ---- In-world NPC dialogue (non-blocking, distinct from the modal #overlay) ---- */
   #dialogue{position:absolute; left:50%; bottom:74px; transform:translateX(-50%) translateY(12px);
@@ -354,6 +395,9 @@
 </style>
 </head>
 <body>
+<!-- Cold-launch splash: painted dark + gold sun from first paint (CSS is inline, so no white flash),
+     faded out by main.ts once the app has booted. Branded launch for the installed PWA. -->
+<div id="boot"><div class="sun"></div><h1 class="title-gold">GAIA</h1><div class="boot-sub">A World of Five Powers</div></div>
 <div id="app"><div id="stage">
 
   <!-- TITLE -->
@@ -383,34 +427,51 @@
     </div>
     <div class="small">Move: arrows / WASD or the on-screen pad. Everything else is tap/click.</div>
     <div class="small" id="verTag" style="margin-top:8px;opacity:.7;letter-spacing:1px"></div>
+    <!-- First-visit install nudge: shown only in a browser tab (never when already installed), once. -->
+    <div id="a2hs"><span id="a2hsMsg">Play full-screen — add Gaia to your Home Screen.</span><button class="a2hs-x" onclick="Game.dismissA2HS()" aria-label="Dismiss">✕</button></div>
   </div>
 
   <!-- FIELD -->
   <div id="fieldScreen" class="screen">
     <canvas id="fieldCanvas"></canvas>
+    <!-- Slim top HUD: location + Aether + party status only (controls live in the bottom deck). -->
     <div id="fieldHud">
       <div class="hud-row">
         <div class="hud-pill" id="fieldZone"><span class="zone-lead">Greenvale</span></div>
-        <div class="hud-grp">
-          <div class="hud-pill">◈ <span id="fieldGold">0</span> Aether</div>
-          <button class="hud-pill audiobtn" id="egressBtn" title="Return instantly to town" style="display:none" onclick="Game.egress()">⮌ EGRESS</button>
-          <button class="hud-pill audiobtn" title="Map (M)" onclick="Minimap.toggle()">🗺 Map</button>
-          <button class="hud-pill audiobtn mutebtn" title="Music on/off" onclick="Music.toggleMute()">🔊</button>
-          <button class="hud-pill audiobtn" title="Field music style" onclick="Music.cycleStyle(Music.cur === 'village' ? 'village' : 'field')">♪ <span id="st-field">Radiant</span></button>
-        </div>
+        <div class="hud-pill">◈ <span id="fieldGold">0</span></div>
       </div>
       <div class="hud-pill" id="fieldPartyWrap"><div id="fieldParty"></div></div>
     </div>
     <div id="fieldHint"></div>
-    <div id="menuBtns">
-      <button class="btn" onclick="UI.openParty()">Party</button>
-      <button class="btn" onclick="UI.openInventory()">Bag</button>
-      <button class="btn" onclick="Telemetry.show()">Stats</button>
+    <!-- Bottom control DECK (PWA-friendly, sits on the home-indicator safe area). The movement d-pad
+         shows in a browser tab; in the installed app it's hidden (tap/swipe-to-move) to declutter. -->
+    <div id="fieldDeck">
+      <div id="dpad">
+        <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
+        <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
+        <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
+      </div>
+      <div id="deckActions">
+        <button class="deck-btn" onclick="UI.openParty()"><span class="ic">👥</span>Party</button>
+        <button class="deck-btn" onclick="UI.openInventory()"><span class="ic">🎒</span>Bag</button>
+        <button class="deck-btn" onclick="Minimap.toggle()"><span class="ic">🗺</span>Map</button>
+        <button class="deck-btn" onclick="Field.openMore()"><span class="ic">⋯</span>More</button>
+      </div>
     </div>
-    <div id="dpad">
-      <button class="sp"></button><button onclick="Field.move(0,-1)">▲</button><button class="sp"></button>
-      <button onclick="Field.move(-1,0)">◀</button><button class="sp"></button><button onclick="Field.move(1,0)">▶</button>
-      <button class="sp"></button><button onclick="Field.move(0,1)">▼</button><button class="sp"></button>
+    <!-- "More" slide-up sheet: the secondary actions that used to clutter the top HUD. -->
+    <div id="moreScrim" class="sheet-scrim" onclick="Field.closeMore()"></div>
+    <div id="moreSheet">
+      <div class="sheet-grip"></div>
+      <div class="sheet-title">Menu</div>
+      <div class="sheet-row">
+        <button class="btn" onclick="Field.closeMore();Telemetry.show()">📊 Stats</button>
+        <button class="btn" id="egressBtn" style="display:none" onclick="Field.closeMore();Game.egress()">⮌ Egress to town</button>
+      </div>
+      <div class="sheet-row">
+        <button class="btn" title="Music on/off" onclick="Music.toggleMute()"><span class="mutebtn">🔊</span> Music</button>
+        <button class="btn" onclick="Music.cycleStyle(Music.cur === 'village' ? 'village' : 'field')">♪ <span id="st-field">Radiant</span></button>
+      </div>
+      <button class="btn" style="align-self:flex-end" onclick="Field.closeMore()">Close</button>
     </div>
     <!-- In-world NPC dialogue: lightweight, non-blocking (ADR 0006). Tap to advance. -->
     <div id="dialogue"></div>
