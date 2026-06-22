@@ -1330,19 +1330,28 @@ export const Field = {
     // in-palette fills until art lands). cliff = grey rock, river = blue water, bridge = plank-brown,
     // ford = pale shallow crossing. POI tiles sit on the biome's ground (their object draws on top).
     if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
-    if (kind === "cliff") return { ground: "cliff", flat: "#3f4450" }; // a cliff is a WALL — clearly darker/steeper than walkable rock (#5a5a52)
+    if (kind === "cliff") return { ground: "cliff", flat: "#2b2f37" }; // a cliff is a WALL — DARK so it recedes (was #3f4450, which read as the palest = most "walkable"-looking tile, exactly backwards)
     if (kind === "bridge") return { ground: "bridge", flat: "#7a6242" };
     if (kind === "ford") return { ground: "ford", flat: "#86b0c4" };
     // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
     if (biome === "forest") {
       const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground", water: "water" };
       const g = isObj ? "grove-ground" : (gm[kind] || "grove-ground");
-      return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: "#2e4a26" };
+      // Placeholder flats (no grove art yet) tuned for LEGIBILITY: a lighter TRAIL for the walkable path,
+      // mid forest-green ground, DARK tree-walls + water so "where I can walk" reads (was one flat #2e4a26
+      // for path/ground/wall alike). Walkable = lighter/warmer; impassable = dark.
+      const f: Record<string, string> = { path: "#6f6a3e", grass: "#36522c", grass2: "#3a572f", bush: "#335028", rock: "#3c5230", tree: "#13230d", water: "#223a3e" };
+      return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: f[kind] ?? "#36522c" };
     }
     if (biome === "mire" || biome === "water" || biome === "ruin") {
       const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
       const g = isObj ? "mire-ground" : (gm[kind] || "mire-ground");
-      return { ground: g === "mire-ground" ? alt("mire-ground") : g, flat: kind === "water" ? "#23303a" : "#3a4030" };
+      // Placeholder flats (no marsh art yet) tuned for LEGIBILITY: the boardwalk causeway (path) is a PALE
+      // raised plank — the brightest LAND tile, clearly the road — open ground a mid olive, while tree-WALLS
+      // + standing water go DARK. Fixes the inversion Dara hit: walkable path & tree-walls were BOTH the
+      // same dark #3a4030 (vanished into the bog), and the palest tile was the impassable cliff.
+      const f: Record<string, string> = { path: "#8a7c52", grass: "#46583a", grass2: "#4b5d3d", bush: "#3f5236", rock: "#445036", tree: "#19231a", water: "#222e38" };
+      return { ground: g === "mire-ground" ? alt("mire-ground") : g, flat: f[kind] ?? "#46583a" };
     }
     if (biome === "orchard") {
       const gm: Record<string, string> = { grass: "orchard-ground", grass2: "orchard-ground2", path: "path", tree: "orchard-ground" };
