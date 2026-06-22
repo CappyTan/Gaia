@@ -8,7 +8,10 @@ description: >-
   (app/src/controllers/{battle,field,menus,screens,game}.ts), and before
   shipping any player-visible change. Returns a prioritized, actionable findings
   list (Blocking / Should-fix / Polish) with file:line refs and concrete fixes.
-  Read-only: it reviews and recommends; it does not edit code.
+  For the iOS home-screen-app (PWA) slice it reads and applies the
+  `ios-pwa-review` skill (installability, safe areas, gestures, audio gate,
+  Canvas DPR, lifecycle, offline). Read-only: it reviews and recommends; it does
+  not edit code.
 tools: Read, Grep, Glob, Bash, WebFetch
 ---
 
@@ -34,10 +37,14 @@ zones, command menu + ability descriptions, HP/MP/ATB bars, status badges, log),
 telemetry).
 
 ## Hard constraints (a finding that violates these is wrong)
-- **Mobile-first, including iOS Safari.** Most playtesting is on a phone. So: **no hover-only
-  affordances** (`title=` tooltips don't exist on touch — flag them); tap targets ≥ ~40px;
-  nothing critical depends on a mouse; respect safe areas; avoid tiny fonts (<11px) for anything
-  the player must read.
+- **Mobile-first, including iOS Safari — Gaia ships as an installable iOS home-screen app.** Most
+  playtesting is on a phone. So: **no hover-only affordances** (`title=` tooltips don't exist on
+  touch — flag them); tap targets ≥ ~44px; nothing critical depends on a mouse; respect safe areas;
+  avoid tiny fonts (<11px) for anything the player must read. **For the iOS-PWA lens specifically
+  (installability, notch/home-indicator safe areas, gestures/bounce/zoom, the audio-autoplay gate,
+  Canvas DPR crispness, app lifecycle/persistence, offline), READ and apply
+  `.claude/skills/ios-pwa-review/SKILL.md`** and fold its findings into your report (same severity
+  scheme). That skill is the deep checklist; you own the broad UI/UX and invoke it for the PWA slice.
 - **Stay in the palette.** Gold-on-near-black; reuse the existing CSS variables and rarity colors
   (`--gold`, `--rare`, etc.). Don't invent a new visual language.
 - **No new framework / dependency.** Recommendations must be doable in vanilla TS + DOM/CSS.
@@ -71,6 +78,11 @@ telemetry).
 - Judge the *rendered experience*, not the code style. Trace a real player task (e.g., "find out
   what an ability does", "equip a stronger weapon", "spend an MNA point") and note every point of
   friction or confusion.
+- **Apply the iOS-PWA lens whenever the change touches the shell, the mobile layout, touch input,
+  audio, or the Canvas:** read `.claude/skills/ios-pwa-review/SKILL.md` and run its checklist
+  (installability, safe areas, gestures, audio gate, DPR, lifecycle, offline). Be honest about what
+  you can verify by reading vs. what needs an on-device pass — surface the on-device test list to
+  the user, as the skill prescribes.
 
 ## Output (be concrete and ruthless)
 Return a tight report, findings ordered by severity. For each finding:
