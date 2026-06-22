@@ -12,6 +12,14 @@ add a row here (what · where used · placeholder in use · notes). Check off wh
 ## Legend
 - **Status:** ☐ needed · ◐ placeholder shipped · ☑ real art landed
 
+## ☑ Landed in the v0.78 art pass (DALL-E sheets → sliced, magenta-keyed, dropped in)
+- **Marsh tiles:** `mire-ground`/`mire-ground2`/`mire-path`/`water`/`deadtree`/`reed`.
+- **Forest/orchard/meadow tiles:** `grove-ground`/`grove-ground2`/`grove-path`/`oldtree`/`fern`/`mushroom`/`orchard-ground`/`orchard-tree`/`meadow-ground`.
+- **Shared terrain + map props:** `cliff`/`river`/`bridge`/`ford`/`lair`/`shrine`/`camp`/`landmark`/`signpost`/`chest` + dungeon `*-stairsdown`/`*-stairsup` (warren/vault/grove).
+- **Hearthford town:** `town-cobble`/`town-grass`/`town-flower`/`town-inn`/`town-shop`/`town-smith`/`town-revive`/`town-exit`/`town-fountain`/`town-well`/`town-tree`/`town-house`.
+- **Enemies:** Silverwood (`dwolf`/`thornling`/`sylvanarcher`/`gloomwisp`/`barkbrute`/`spriggan`/`treantelder`/`hollowking`/`mossback`) + `lieutenant` + Goldmeadow war-host (`raider`/`marauder`/`harrier`/`wilddog`/`carrion`/`reaver`/`warcaptain`/`warlord`/`warlord-omega`/`goldsow`).
+- **Still open:** Miregard + Riverhearth town tilesets, all town NPC sprites, the Greenvale Orchard/Bandit-Fields skins, and the granary/windmill set. (Generate from `docs/art/dalle-asset-prompts.md`.)
+
 ---
 
 ## Settlements & NPCs (ADR 0006)

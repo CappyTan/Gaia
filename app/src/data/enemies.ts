@@ -21,7 +21,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // the depth scale lifts it to a real mini-boss step WITHOUT overtaking the finale. ANIMA keeps the
   // Warren trio spread (Brigadier NOX / lieutenant ANIMA / Kingpin SOL). DRAFT name (flag for Dara), 🔪
   // placeholder over the gbandit sprite (flag for art-integrator).
-  lieutenant: { name: "Bandit Bloodknife", spr: "🔪", att: "ANIMA", lvl: 5, hp: 420, atk: 30, spd: 10, armor: 4, mag: 0, xp: 150, gold: [50, 90], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.22, art: "gbandit" },
+  lieutenant: { name: "Bandit Bloodknife", spr: "🔪", att: "ANIMA", lvl: 5, hp: 420, atk: 30, spd: 10, armor: 4, mag: 0, xp: 150, gold: [50, 90], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.22 },
   kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 6, hp: 870, atk: 35, spd: 7, armor: 7, mag: 0, xp: 240, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.16, enrage: { omega: "kingpin-omega" } },
   // ── ZONE 2: Silverwood — the Ancient Forest (levels 7-9; new region, ADR 0006). Attunements are
   //    spread (Dara's no-region-identity ruling — the forest is NOT an ANIMA theme). CD-authored
@@ -64,7 +64,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   carrion: { name: "Carrion Bird", spr: "🦅", att: "UMBRAXIS", lvl: 12, hp: 232, atk: 32, spd: 18, armor: 1, mag: 0, xp: 156, gold: [20, 38], ai: "basic", leech: 28 },
   reaver: { name: "Iron Reaver", spr: "🪓", att: "QUANTA", lvl: 13, hp: 500, atk: 38, spd: 6, armor: 8, mag: 0, xp: 200, gold: [28, 48], ai: "basic" },
   // Mini-boss (mouth gate): a raider war-captain who rallies his band; escorted by marauders.
-  warcaptain: { name: "Raider War-Captain", spr: "⚔️", att: "NOX", lvl: 13, hp: 2100, atk: 80, spd: 10, armor: 6, mag: 0, xp: 340, gold: [140, 220], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "raider" },
+  warcaptain: { name: "Raider War-Captain", spr: "⚔️", att: "NOX", lvl: 13, hp: 2100, atk: 80, spd: 10, armor: 6, mag: 0, xp: 340, gold: [140, 220], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3 },
   // Zone boss (the windmill): the warlord who leads the host — the run-ender. ENRAGE-flagged like the
   // Kingpin/Cave Troll (omega art TBD; the swap no-ops gracefully until art-integrator supplies it).
   // TUNED to BITE: the encounter-pass first cut (hp 4600 / atk 92) read soft (~75% mean party HP).
