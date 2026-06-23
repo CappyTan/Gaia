@@ -80,23 +80,45 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
     }
   });
 
-  // LOCK-BEFORE-KEY (ADR 0011 D2). The chasm WALL must front Greenvale's eastern frontier and be met
-  // BEFORE the Bandit-Warren mouth (which drops the raft = the "gorge" cap). So the band's WEST FACE must
-  // sit WEST of the Warren mouth's world-x — i.e. walking east, the player hits the impassable wall while
-  // the mouth is still further along the (Greenvale-side) route. And the Elder-Oak sightline must survive:
-  // the oak (Silverwood crown ≈ world (280,46)) stays OUTSIDE the band (visible across, not buried in it).
-  it("the gorge wall fronts Greenvale's east frontier — west of the Warren mouth — yet the Elder-Oak stays across it (D2)", () => {
-    const gvMouth = ZONES.find((z) => z.id === "greenvale")!.layout.mouth;
+  // TRUE LOCK-BEFORE-KEY (ADR 0011 D2-revised, 2026-06-23). The HONEST proof: on the CRITICAL PATH — the
+  // player's eastward roam from Greenvale's spawn — the impassable gorge is ENCOUNTERED BEFORE they can
+  // reach/enter the Bandit-Warren mouth (the raft "key"). The mechanism is that the gorge spans the spawn's
+  // LATITUDE (walk straight east → hit the wall) while the Warren mouth has been RELOCATED OFF that
+  // eastward path (a SOUTH branch, a different latitude). So:
+  //   • walking due east from spawn, the FIRST barrier band tile reached on the spawn row is the gorge;
+  //   • the Warren mouth is NOT on the spawn row — it's south of it, requiring the player to turn off the
+  //     east route to find it (so they meet the lock, get stuck, THEN seek the key);
+  //   • the mouth is reachable WITHOUT touching the gorge band (mouth west of the wall, no soft-lock);
+  //   • the Elder-Oak (Silverwood crown ≈ (280,46)) stays OUTSIDE the band (visible across, not buried).
+  it("on the eastward critical path the impassable gorge is reached BEFORE the relocated Warren mouth (D2-revised)", () => {
+    const gvL = ZONES.find((z) => z.id === "greenvale")!.layout;
     const gvPl = placementOf("greenvale")!;
-    const warrenMouthWorldX = gvPl.wx + gvMouth.x; // the "key" — the raft-dropping mouth, in world space
-    // the wall's west face is the smallest x0 across the band's rects.
-    expect(bandMinX).toBeGreaterThan(warrenMouthWorldX); // lock (wall) is east of / met before the key (mouth)
-    // the band spans the player's crossing latitudes (the mouth's latitude is inside the band's y-extent).
+    const spawnWX = gvPl.wx + gvL.spawn.x, spawnWY = gvPl.wy + gvL.spawn.y; // the player's start, world space
+    const mouthWX = gvPl.wx + gvL.mouth.x, mouthWY = gvPl.wy + gvL.mouth.y; // the raft-dropping mouth, world space
+
+    // (1) The spawn's LATITUDE crosses the gorge band — walking due east, the player runs into the wall.
     const bandMaxY = Math.max(...GORGE.band.map((r) => r.y1));
-    const warrenMouthWorldY = gvPl.wy + gvMouth.y;
-    expect(warrenMouthWorldY).toBeGreaterThanOrEqual(bandMinY);
-    expect(warrenMouthWorldY).toBeLessThan(bandMaxY);
-    // the Elder-Oak weenie is NOT swallowed by the band — it remains visible ACROSS the gorge.
+    expect(spawnWY).toBeGreaterThanOrEqual(bandMinY);
+    expect(spawnWY).toBeLessThan(bandMaxY);
+    // the first barrier tile due-east of spawn (on the spawn row) is a gorge band tile, and it is east of spawn.
+    let firstGorgeX = Infinity;
+    for (let x = spawnWX + 1; x <= bandMaxX; x++) {
+      if (barrierAt(OVERWORLD_ID, x, spawnWY)?.id === "greenvale-gorge") { firstGorgeX = x; break; }
+    }
+    expect(firstGorgeX).toBeLessThan(Infinity);  // the eastward ray HITS the gorge
+    expect(firstGorgeX).toBeGreaterThan(spawnWX); // and the wall is ahead (east) of the player
+
+    // (2) The Warren mouth is OFF the eastward path — NOT on the spawn row (it's a south branch). So the
+    //     player meets the LOCK (the gorge, straight ahead) before they can reach the KEY (the mouth).
+    expect(mouthWY).not.toBe(spawnWY);            // the mouth is at a different latitude than the spawn
+    expect(mouthWY).toBeGreaterThan(spawnWY);     // specifically SOUTH of the spawn row (the relocation)
+
+    // (3) The mouth is reachable WITHOUT crossing the gorge (it sits WEST of the wall) — no soft-lock; the
+    //     order is purely "which do you meet first on the obvious east route", and that is the gorge.
+    expect(mouthWX).toBeLessThan(bandMinX);
+    expect(barrierAt(OVERWORLD_ID, mouthWX, mouthWY)).toBeUndefined(); // the mouth tile is not in the band
+
+    // (4) The Elder-Oak weenie is NOT swallowed by the band — it remains visible ACROSS the gorge.
     expect(inAnyRect(280, 46)).toBe(false);
   });
 });

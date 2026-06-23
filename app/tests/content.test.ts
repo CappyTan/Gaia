@@ -171,7 +171,13 @@ describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock; ADR 0008 — dung
         expect(L.chests.every(inb)).toBe(true);              // overworld chests in-bounds
         expect(L.spawn.x).toBeLessThan(L.gateWallX);         // start is in the overworld
         expect(L.gate.x).toBe(L.gateWallX);
-        expect(L.mouth).toEqual(L.gate);                     // the dungeon mouth == the old gate tile
+        // The OVERWORLD MOUTH (ADR 0008 new model) is the tile the player descends from on the big map.
+        // It USUALLY sits at the legacy combined-grid gate, but it MAY be decoupled and relocated into the
+        // overworld interior (Greenvale's Bandit-Warren mouth moved SOUTH off the spawn→gorge path for the
+        // ADR 0011 D2 lock-before-key beat). Either way it must be a valid in-bounds OVERWORLD tile
+        // (west of the gate wall) — the new-model overworld carve stamps + flood-repairs it reachable.
+        expect(inb(L.mouth)).toBe(true);                     // an in-bounds overworld tile
+        expect(L.mouth.x).toBeLessThanOrEqual(L.gateWallX);  // in the overworld (not in the dungeon block)
         // dungeon grid: its own anchors in-bounds (x rebased to 0)
         const dinb = (p: Pt) => p.x > 0 && p.y > 0 && p.x < D.w - 1 && p.y < D.h - 1;
         expect(dinb(D.boss)).toBe(true);
