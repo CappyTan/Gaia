@@ -13,6 +13,8 @@ import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml, critFxUrl } from "../ui/render";
+import { playSkillAnim } from "../ui/skillAnimator";
+import { SKILL_ANIM, type SkillAnim } from "../data/skillAnimations";
 import { assetUrl } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
@@ -37,6 +39,8 @@ export const Battle = {
   logLines: [] as string[],
   STATUS_NAMES: { burn: "Burn", poison: "Poison", decay: "Decay", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", def: "Guard", wardArmor: "Ward" } as Record<string, string>,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
+  // damage numbers held back during an animated skill, flushed when the hit lands (see animatedStrike).
+  _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"] }[],
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
@@ -183,6 +187,11 @@ export const Battle = {
     if (s && s.mp) actor.mp = Math.max(0, (actor.mp ?? 0) - s.mp);
     this.markActing(actor);
 
+    // Layered combat animation (REQUIEM): a skill with an `anim` plays its character/effect/impact
+    // sequence, applying damage + floating the number on the configured frames. Single-target only.
+    const anim = s && s.anim ? SKILL_ANIM[s.anim] : null;
+    if (anim && targets.length === 1) { this.animatedStrike(actor, targets[0], act, anim); return; }
+
     if (s && s.type === "heal") {
       targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
     } else if (s && s.type === "buff") {
@@ -212,17 +221,50 @@ export const Battle = {
     setTimeout(() => this.afterAction(actor), 360);
   },
 
-  strike(actor: Unit, target: Unit, act: CombatAct): void {
+  // Run a skill's layered animation, then resolve the hit on its damage frame and float the number
+  // when the blast lands. Falls back to an instant strike if the stage/sprites aren't in the DOM.
+  animatedStrike(actor: Unit, target: Unit, act: CombatAct, anim: SkillAnim): void {
+    const stage = $("#stage");
+    const aEl = this.spriteEl(actor), tEl = this.spriteEl(target);
+    if (!stage || !aEl || !tEl) {
+      const hits = act.skill?.hits || 1;
+      for (let h = 0; h < hits; h++) { if (target.alive) this.strike(actor, target, act); }
+      recalc(Game.party); this.renderAll(); setTimeout(() => this.afterAction(actor), 360); return;
+    }
+    this._animFloats = [];
+    playSkillAnim(anim, {
+      stage, actor: aEl, target: tEl,
+      onDamage: () => {
+        const hits = act.skill?.hits || 1;
+        for (let h = 0; h < hits; h++) { if (target.alive) this.strike(actor, target, act, true); }
+        recalc(Game.party); this.renderAll();
+      },
+      onImpact: () => this.flushAnimFloats(),
+      onComplete: () => this.afterAction(actor),
+    });
+  },
+  flushAnimFloats(): void {
+    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color); if (f.crit) this.critFx(f.u, f.att); });
+    this._animFloats = [];
+  },
+
+  strike(actor: Unit, target: Unit, act: CombatAct, silent = false): void {
     const s = act.skill;
     const r = combatDamage(actor, target, act);
-    if (r.miss) { this.float(target, "miss", "#bbb"); this.log(`${actor.name} misses ${target.name}.`); return; }
+    if (r.miss) {
+      if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att });
+      else this.float(target, "miss", "#bbb");
+      this.log(`${actor.name} misses ${target.name}.`); return;
+    }
     const { crit, mult } = r;
     let dmg = r.dmg;
     if (actor.side === "enemy" && (actor as Enemy).enraged) dmg = Math.round(dmg * 2); // enrage: double damage
     damage(target, dmg);
     Telemetry.dmg(actor.side, dmg, crit, mult);
-    this.float(target, (crit ? "✦" : "") + dmg, mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff");
-    if (crit) this.critFx(target, s && s.sol ? "SOL" : actor.att); // burst in the attacking power's color
+    const txt = (crit ? "✦" : "") + dmg, color = mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff";
+    const fxAtt = s && s.sol ? "SOL" : actor.att;
+    if (silent) this._animFloats.push({ u: target, txt, color, crit, att: fxAtt }); // deferred to impact
+    else { this.float(target, txt, color); if (crit) this.critFx(target, fxAtt); } // burst in the power's color
     // FULL combat log line: who hit whom for how much (both directions) — the scrollable history.
     const power = s && s.sol ? "SOL" : actor.att;
     const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";

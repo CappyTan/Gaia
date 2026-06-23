@@ -6,6 +6,12 @@ import { REQUIEM_SKILLS } from "./requiem-kits";
 // The all-SOL POC kits live in the SOL tree; the `ult` (req 100 = Archon) is each class's
 // capstone. `mp` is the cast cost (a separate resource from MNA). power scales vs ATK or MAG.
 export const SKILLS: Record<string, Skill> = {
+  // Rifle (Photon Vanguard) — ANIMATION TEST ability. The class's single ability while we prove out
+  // the layered combat-animation pipeline (see data/skillAnimations.ts `photonBeam`). mnaReq 0 / mp 0
+  // so it's usable immediately on a freshly built Photon Vanguard.
+  // ult:true only to satisfy the "one ultimate per kit" invariant for this single-ability test kit;
+  // it stays usable immediately because unlocking gates on mnaReq (0), not the ult flag.
+  photonBeam: { name: "Photon Beam", mp: 0, target: "enemy", att: "SOL", mnaReq: 0, ult: true, type: "mag", power: 1.6, sol: true, anim: "photonBeam", desc: "Channel a lancing photon beam at one foe." },
   // Sword & Shield (tank)
   guard: { name: "Guard", mp: 0, target: "self", att: "SOL", mnaReq: 0, type: "buff", buff: { def: 1 }, desc: "Brace: take half damage this turn." },
   shieldBash: { name: "Shield Bash", mp: 4, target: "enemy", att: "SOL", mnaReq: 5, type: "phys", power: 1.1, status: { stun: 1 }, desc: "Smash one foe; may stun." },

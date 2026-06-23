@@ -108,6 +108,9 @@ export interface Skill {
   status?: StatusMap;
   buff?: { def?: number; atkup?: number; wardArmor?: number; turns?: number };
   cleanse?: boolean;
+  /** Optional combat-animation key (SKILL_ANIM in data/skillAnimations) — plays a layered
+   *  character/effect/impact sequence on use instead of the instant hit. */
+  anim?: string;
   desc: string;
 }
 

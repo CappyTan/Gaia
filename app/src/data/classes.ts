@@ -37,6 +37,9 @@ export const KITS: Partial<Record<Attunement, Record<string, string[]>>> = {
     "Dual Swords": ["twinSlash", "flurry", "solarFlareB", "eclipse", "sunderCombo", "radiantTempest"],
     "Staff": ["sunbolt", "heal", "cleanse", "dawnsLight", "renewingDawn", "solarZenith"],
     "Spellblade": ["flameStrike", "empower", "sunfire", "blindingLight", "eclipseBrand", "supernova"],
+    // Rifle (Photon Vanguard) — TEST CLASS for the combat-animation pipeline: a single ability,
+    // Photon Beam (overrides the generated REQUIEM rifle kit while we prove out animations).
+    "Rifle": ["photonBeam"],
   },
   NOX: {
     "Sword & Shield": ["noxImmutable", "noxChillBite", "noxGravityPull", "noxAbsoluteZero", "noxPenumbralCollapse"],
