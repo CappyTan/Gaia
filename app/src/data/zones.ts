@@ -345,9 +345,12 @@ const GREENVALE_LAYOUT: ZoneLayout = {
     { x: 30, y: 4, kind: "landmark", name: "The Standing Stones", note: "Moss-furred stones older than the shire — they hum faintly at dusk." }, // north ridge crest
     // WEST FORK SIGN — now points the Warren south (the gate left the east road).
     { x: 12, y: 13, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the bandit warren lies southeast." }, // west fork
-    // THE GORGE RIM PUT-IN (ADR 0011 D4) — the eastward route's end: the impassable Sunless Gorge, the
-    // Elder-Oak of Silverwood looming across it, and the lore answer (the bandits hold the only crossing).
-    { x: 38, y: 10, kind: "signpost", name: "The Sunless Gorge", note: "The road ends at a sheer chasm — the Sunless Gorge. Across it the great Elder-Oak of Silverwood crowns the far rim, close enough to see and too far to reach. They say the bandits of the warren hold the only way across." }, // east rim lookout
+    // NOTE: the Sunless-Gorge put-in signpost is NO LONGER a core-bound POI here. The authored grid ends
+    // ~world x190, but the chasm's west face / put-in sits at world ~x206,y72 — so a grid-bound sign read
+    // "the road ends at a sheer chasm" ~16–40 tiles short, before the chasm was even in view. It is now an
+    // OPEN-CONTINENT RIM PROP rendered at the real rim tile (world ≈205,72) by field.ts (drawGorgeRimProps),
+    // beside the gorge band the draw path already special-cases — so the "push east → hit the wall → see the
+    // Elder-Oak across it" beat lands where the wall actually is.
   ],
 };
 

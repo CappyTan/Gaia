@@ -1732,6 +1732,42 @@ export const Field = {
     }
   },
 
+  // GORGE-RIM PROPS (ADR 0011 D4 fix, level-designer 2026-06-23). The Sunless-Gorge put-in signpost is an
+  // OPEN-CONTINENT prop, NOT a core-bound POI: Greenvale's authored grid ends ~world x190, but the chasm's
+  // west face / put-in is at world ~(206,72), so a grid-bound sign read "the road ends at a sheer chasm"
+  // ~16–40 tiles short. This renders it (and an optional take-out marker) at the REAL rim — purely visual,
+  // never touching passability (the gorge band's walls + the crossing route are owned by world.ts/
+  // barrierBlocks, unchanged). Coords are DERIVED from the barrier's crossing so they track world.ts:
+  //   • PUT-IN SIGN  — one tile WEST of the crossing's min-x (the last walkable Greenvale-side rim tile,
+  //     where the funnelled east road meets the impassable chasm; Elder-Oak visible across it).
+  //   • TAKE-OUT MARK — one tile EAST of the crossing's max-x (Silverwood-shore landfall), so the far rim reads.
+  // Drawn only while the gorge is LOCKED (the put-in beat is "see it now, reach it later"); once crossed the
+  // crossing/causeway tiles carry the read. Returns true if it drew a captioned prop at (wx,wy).
+  drawGorgeRimProps(c: CanvasRenderingContext2D, wx: number, wy: number, sx: number, sy: number, t: number): boolean {
+    if (this.ownedCaps.has("gorge")) return false;            // unlocked → the crossing/causeway reads instead
+    // A rim tile is OPEN CONTINENT just outside the chasm band; probe the adjacent E/W tile for the gorge
+    // barrier so we can derive its crossing extents (cheap; the band is small + this is off the hot path).
+    const gorge = [barrierAt(OVERWORLD_ID, wx + 1, wy), barrierAt(OVERWORLD_ID, wx - 1, wy)]
+      .find((b) => b?.cap === "gorge");
+    if (!gorge) return false;
+    const xs = gorge.crossing.map((p) => p.x), ys = gorge.crossing.map((p) => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), cy = ys[0];
+    let label = "";
+    if (wy === cy && wx === minX - 1) label = "The Sunless Gorge ⟶";   // Greenvale-side put-in rim (last walkable tile)
+    else if (wy === cy && wx === maxX + 1) label = "Silverwood Shore"; // far rim take-out (landfall)
+    if (!label) return false;
+    // signpost glyph (reuse the POI signpost emoji until art lands) + a gold caption — on-brand gold-on-dark.
+    c.font = `${t * 0.7}px serif`; c.fillText("🪧", sx + t / 2, sy + t / 2);
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `bold ${Math.max(9, t * 0.24)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const ly = sy + t * 1.02;
+    c.strokeText(label, sx + t / 2, ly); c.fillText(label, sx + t / 2, ly);
+    c.restore();
+    return true;
+  },
+
   // MULTI-FLOOR stairs (placeholder until art-integrator slices warren/grove/vault-stairsdown/up): draw
   // the sprite if present, else a clear ⬇/⬆ glyph + a small gold caption so the descent/climb reads.
   // `up` = an up-stair (climb / out); else a down-stair (descend). ART FLAG — see the hand-back.
@@ -1894,6 +1930,9 @@ export const Field = {
         else if (biome === "ruin") obj(T["ruin-rubble"], "🪨", 0.95);
         else if (biome === "coast" || biome === "beach" || biome === "harbor" || biome === "rock") obj(T["coast-piling"], "⛰️", 0.9);
       }
+      // OPEN-CONTINENT gorge-rim props (put-in sign at the real chasm rim / take-out shore marker) — purely
+      // visual, drawn over the realized ground; never affects passability. Only the locked-gorge rim tiles match.
+      this.drawGorgeRimProps(c, wx, wy, sx, sy, t);
     }
     // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback).
     const cx = (this.wx - camx) * t + t / 2, cy = (this.wy - camy) * t + t / 2;
