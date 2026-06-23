@@ -255,4 +255,21 @@ designer / art with the Brigadier placeholder).
 
 ---
 
+## Wayfinding & the Sunless Gorge (Greenvale↔Silverwood flow — ADR 0011)
+The quest-flow streamline pass (grill-with-docs session): make the raft/gorge a legible
+lock-before-key beat and guide the player Greenvale → Silverwood environmentally. The traversal
+barrier + capability system already exists (`data/world.BARRIERS`, `systems/traversal`); these are
+the ART gaps it needs to read. The zoomed-out overview map needs **no art** (canvas blobs + labels).
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ☐ | Gorge ravine band (`gorge`) | The Sunless Gorge, locked (Greenvale↔Silverwood) | 🏔️ emoji on `#0f1622` (`field.ts:1815`) | **Replace the misleading 🏔️ (implies "climb")** with a deep sunless-chasm tile + a lighter **rim edge** so it reads "impassable ravine you'd raft across." |
+| ☐ | Raft / plank crossing (`raft` / `gorge-crossing`) | the 5 unlocked crossing tiles at gorge y=70 | none — currently realizes as bare ground | A raft/plank causeway span **across** the chasm; must look distinctly "the way over," not walkable ground, so crossing it is unmistakable. |
+| ☐ | Elder-Oak landmark (colossal ancient oak) | Silverwood north crown (≈ world 280,46), visible across the gorge | reuse `landmark` 🗿 / `oldtree` 🌲 | The "see it now, reach it later" beacon. A singular **giant** oak distinct from the wall-tile `oldtree`; should read at distance and loom larger on approach. |
+| ◐ | Raft key-item icon (`raft` = "Lashed Raft") | Items panel | 🛶 emoji (`data/heldItems.ts`) | Item sprite for the held quest item (Dara's lane). Emoji is fine meanwhile. |
+| | _(REUSE — no new art)_ `signpost` 🪧 | gorge put-in sign + the "Sunless Grove ↓" wood's-edge sign | as today | Already wired (`asset-gaps` POI list). The two diegetic wayfinding signs. |
+| | _(REUSE — no new art)_ `path` | the open-continent guiding trail (take-out → Silverwood) + Silverwood's root-trail spine (crown → grove throat) | as today | A dedicated open-continent "trade-road" tile would be a nice-to-have, not a blocker. |
+
+---
+
 *Keep this list current as each region is built. The art pass happens after, in one go.*
