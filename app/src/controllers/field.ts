@@ -2011,17 +2011,6 @@ export const Field = {
         this._townLabels.push({ text: n.name, x: nx, y: ny + t * 0.5, f: Math.max(8, t * 0.22) });
         if (!talking) { c.font = `${t * 0.4}px serif`; c.fillStyle = "rgba(244,210,122,.85)"; c.fillText("💬", nx + t * 0.36, ny - t * 0.4); }
       }
-      // LABEL PASS — every town caption ON TOP of all tiles/sprites (nothing paints over it), each clamped
-      // into the viewport so edge labels aren't clipped. textAlign is "center", so clamp the center x by
-      // half the measured width; keep y clear of the top header strip and the bottom edge.
-      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.95)";
-      for (const L of this._townLabels) {
-        c.font = `bold ${L.f}px system-ui`;
-        const half = c.measureText(L.text).width / 2 + 3;
-        const x = clamp(L.x, half, this.vw - half);
-        const y = clamp(L.y, t * 0.5, this.vh - t * 0.15);
-        c.strokeText(L.text, x, y); c.fillText(L.text, x, y);
-      }
     }
     // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback)
     const cx = (this.px - camx) * t + t / 2, cy = (this.py - camy) * t + t / 2;
@@ -2042,5 +2031,22 @@ export const Field = {
       c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
     }
     c.restore();
+    // LABEL PASS (town) — every caption drawn LAST, on top of all tiles, NPC sprites AND the player marker
+    // (so nothing paints over it — the original bug), each clamped into the viewport so edge labels aren't
+    // clipped. textAlign is "center": clamp center-x by half the measured width. The top clamp must clear
+    // the DOM HUD strip (zone/town pill + party line) overlaying the canvas top, not just half a tile —
+    // else a top-row sign hides under the pill. Bottom clamp keeps it off the screen edge.
+    if (this.townMode && this._townLabels.length) {
+      const hud = $("#fieldHud"), cr = this.canvas.getBoundingClientRect();
+      const topMin = hud ? Math.max(t * 0.5, hud.getBoundingClientRect().bottom - cr.top + 6) : t * 0.5;
+      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.95)";
+      for (const L of this._townLabels) {
+        c.font = `bold ${L.f}px system-ui`;
+        const half = c.measureText(L.text).width / 2 + 3;
+        const x = clamp(L.x, half, this.vw - half);
+        const y = clamp(L.y, topMin, this.vh - t * 0.15);
+        c.strokeText(L.text, x, y); c.fillText(L.text, x, y);
+      }
+    }
   },
 };
