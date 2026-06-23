@@ -19,7 +19,15 @@ import {
 import { ZONES } from "../src/data/zones";
 
 const GORGE = BARRIERS.find((b) => b.id === "greenvale-gorge")!;
-const band = GORGE.band[0]; // [x0,x1) × [y0,y1)
+const band = GORGE.band[0]; // first rect of the (possibly multi-rect) band; [x0,x1) × [y0,y1)
+// A tile that is OUTSIDE EVERY band rect — used for the half-open / out-of-band assertions, since the
+// gorge is now a multi-rect organic band (a north reach stacked on a wider waist, D2 reposition), so a
+// rect's own y1/x1 edge may be covered by the NEXT rect. Min over all rects keeps the boundary honest.
+const inAnyRect = (x: number, y: number) =>
+  GORGE.band.some((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
+const bandMinX = Math.min(...GORGE.band.map((r) => r.x0));
+const bandMaxX = Math.max(...GORGE.band.map((r) => r.x1)); // exclusive across the whole band
+const bandMinY = Math.min(...GORGE.band.map((r) => r.y0));
 
 describe("traversal barrier predicates (data/world.ts) — the cartography Should-fix", () => {
   it("a barrier exists on the overworld with a band and crossing tiles", () => {
@@ -34,12 +42,19 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
     // a tile strictly inside the band → the barrier.
     const ix = band.x0 + 1, iy = band.y0 + 1;
     expect(barrierAt(OVERWORLD_ID, ix, iy)?.id).toBe("greenvale-gorge");
-    // HALF-OPEN [x0,x1) × [y0,y1): the min edge is IN, the max edge is OUT.
-    expect(barrierAt(OVERWORLD_ID, band.x0, band.y0)?.id).toBe("greenvale-gorge"); // min corner inside
-    expect(barrierAt(OVERWORLD_ID, band.x1, band.y0)).toBeUndefined();             // x1 is exclusive
-    expect(barrierAt(OVERWORLD_ID, band.x0, band.y1)).toBeUndefined();             // y1 is exclusive
+    // HALF-OPEN [x0,x1) × [y0,y1): the min edge is IN. (Use the WHOLE-band extremes — the gorge is a
+    // multi-rect organic band now, so a single rect's max edge can be covered by the next rect; only the
+    // band's outermost max edges are truly exclusive.)
+    expect(barrierAt(OVERWORLD_ID, bandMinX, bandMinY)?.id).toBe("greenvale-gorge"); // min corner inside
+    expect(barrierAt(OVERWORLD_ID, bandMaxX, bandMinY)).toBeUndefined();             // outer x1 is exclusive
+    // a tile just past the WHOLE band's south edge (below every rect) → out (y1 exclusive).
+    const bandMaxY = Math.max(...GORGE.band.map((r) => r.y1));
+    expect(barrierAt(OVERWORLD_ID, bandMinX, bandMaxY)).toBeUndefined();             // outer y1 is exclusive
+    // sanity: those "outside" probes really are outside every rect.
+    expect(inAnyRect(bandMaxX, bandMinY)).toBe(false);
+    expect(inAnyRect(bandMinX, bandMaxY)).toBe(false);
     // far outside the band → nothing.
-    expect(barrierAt(OVERWORLD_ID, band.x0 - 50, band.y0)).toBeUndefined();
+    expect(barrierAt(OVERWORLD_ID, bandMinX - 50, bandMinY)).toBeUndefined();
     // wrong map → nothing.
     expect(barrierAt("underworld", band.x0 + 1, band.y0 + 1)).toBeUndefined();
   });
@@ -63,6 +78,26 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
       expect(isBarrierCrossing(GORGE, c.x, c.y)).toBe(true);
       expect(barrierBlocks(OVERWORLD_ID, c.x, c.y, locked)).toBe(false); // the route across is always open
     }
+  });
+
+  // LOCK-BEFORE-KEY (ADR 0011 D2). The chasm WALL must front Greenvale's eastern frontier and be met
+  // BEFORE the Bandit-Warren mouth (which drops the raft = the "gorge" cap). So the band's WEST FACE must
+  // sit WEST of the Warren mouth's world-x — i.e. walking east, the player hits the impassable wall while
+  // the mouth is still further along the (Greenvale-side) route. And the Elder-Oak sightline must survive:
+  // the oak (Silverwood crown ≈ world (280,46)) stays OUTSIDE the band (visible across, not buried in it).
+  it("the gorge wall fronts Greenvale's east frontier — west of the Warren mouth — yet the Elder-Oak stays across it (D2)", () => {
+    const gvMouth = ZONES.find((z) => z.id === "greenvale")!.layout.mouth;
+    const gvPl = placementOf("greenvale")!;
+    const warrenMouthWorldX = gvPl.wx + gvMouth.x; // the "key" — the raft-dropping mouth, in world space
+    // the wall's west face is the smallest x0 across the band's rects.
+    expect(bandMinX).toBeGreaterThan(warrenMouthWorldX); // lock (wall) is east of / met before the key (mouth)
+    // the band spans the player's crossing latitudes (the mouth's latitude is inside the band's y-extent).
+    const bandMaxY = Math.max(...GORGE.band.map((r) => r.y1));
+    const warrenMouthWorldY = gvPl.wy + gvMouth.y;
+    expect(warrenMouthWorldY).toBeGreaterThanOrEqual(bandMinY);
+    expect(warrenMouthWorldY).toBeLessThan(bandMaxY);
+    // the Elder-Oak weenie is NOT swallowed by the band — it remains visible ACROSS the gorge.
+    expect(inAnyRect(280, 46)).toBe(false);
   });
 });
 
