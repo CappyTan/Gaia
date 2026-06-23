@@ -899,6 +899,12 @@ export const Field = {
   // chunk cache + authored blueprint carry over (the mouth never moved in world space).
   ascend(): void {
     this.pendingFloorMini = -1; // defensive: back out to the overworld with no floor-mini fight pending
+    // Postcondition of ascend() is "the player is now on the overworld FIELD". Usually it's called while
+    // already on the field (stepping onto a floor-0 up-stair → a no-op switch), but the ZONE-BOSS victory
+    // path calls it from the BATTLE screen (game.afterZoneBoss), so it MUST switch screens — otherwise
+    // dismissing the spoils/“Warren falls” overlays reveals the finished battle screen and strands the
+    // player (the reported stuck-after-loot bug). Show the field before rebuilding the grid.
+    Screens.show("field");
     if (this.bigMap) {
       this.mode = "overworld"; this.enteredDungeon = false; // back on the seamless surface
       const pl = placementOf(this.bigZone)!;

@@ -96,11 +96,14 @@ export const Battle = {
   startPlayerTurn(m: Member): void {
     this.awaiting = true; this.current = m; this.selecting = null;
     this.tickStatuses(m, () => {
+      if (!this.active) return; // the fight may have ENDED while this turn-start status tick was in flight
+                                // (e.g. another hero killed the boss) — never re-open commands on a finished battle
       if (!m.alive) { this.onDeath(m); if (this.checkEnd()) return; this.endTurn(m); return; }
       this.renderAll(); this.showCommands(m);
     });
   },
   showCommands(m: Member): void {
+    if (!this.active) return; // never paint the command menu after the battle has resolved (stuck-battle guard)
     this.setCmdWide(false);
     $("#cmdWho")!.textContent = `${m.name}  ·  ${m.cls}`;
     const list = $("#cmdList")!; list.innerHTML = "";
@@ -284,6 +287,7 @@ export const Battle = {
   enemyTurn(e: Enemy): void {
     this.awaiting = true; this.current = e; this.markActing(e);
     this.tickStatuses(e, () => {
+      if (!this.active) return; // the fight may have ENDED while this turn-start status tick was in flight
       if (!e.alive) { this.onDeath(e); if (this.checkEnd()) return; this.endTurn(e); return; }
       const party = this.livingParty();
       if (party.length === 0) { this.endTurn(e); return; }
@@ -348,6 +352,11 @@ export const Battle = {
   end(victory: boolean, fled?: boolean): void {
     if (!this.active) return;
     this.active = false; this.awaiting = true; cancelAnimationFrame(this.raf);
+    // Tear down any live turn UI: a player command menu (or target prompt) may have been painted by a
+    // turn-start status tick that resolved just before this kill — leaving it up would strand the player
+    // in a "finished" fight with no enemy to target (the reported stuck battle). Clear it authoritatively.
+    this.current = null; this.selecting = null;
+    const cmdList = $("#cmdList"); if (cmdList) cmdList.innerHTML = "";
     Game.party.forEach((m) => { m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.acting = false; });
     if (fled) { Telemetry.encounterEnd("fled"); setTimeout(() => Screens.show("field"), 300); return; }
