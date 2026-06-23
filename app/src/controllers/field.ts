@@ -9,6 +9,7 @@ import {
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
 } from "../data/world";
 import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
+import { emptyProgress, markRegionEntered, markRegionKnown, currentObjective, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
@@ -130,6 +131,11 @@ export const Field = {
   // impassable terrain until its cap is owned; bigPassable consults `traversalBlocks` BEFORE the
   // cell-kind check. PERSISTED in the save (string[]); a fresh run owns nothing.
   ownedCaps: new Set<string>() as OwnedCaps,
+  // WAYFINDING PROGRESS (ADR 0011): the run's known/entered regions that drive the derived Objective +
+  // the continent overview-map reveal. PERSISTED in the save (two string[]s); a fresh run knows nothing.
+  // Cosmetic/wayfinding only — it gates no traversal, so an old save loading to empty is always safe.
+  // NB named `wayfinding` (not `progress`) to avoid colliding with the existing progress() depth-fraction method.
+  wayfinding: emptyProgress() as Progress,
   poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
   openedChests: {} as Record<string, boolean>, // chest key (overworld "<zoneId>:ow:<x>,<y>" / dungeon "<zoneId>:d<floor>:<x>,<y>") → looted; PERSISTED in the save (per-RUN, like poisCleared)
   pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
@@ -367,6 +373,7 @@ export const Field = {
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
     this.ownedCaps = new Set(); // fresh run — no traversal caps owned (the gorge stays locked until the Warren falls; a resume restores the set AFTER init())
+    this.wayfinding = emptyProgress(); // fresh run — nothing known/entered yet (a resume restores it AFTER init())
     this.mouthCleared = {}; // fresh run — every zone's overworld mouth guard stands (a resume restores the saved set AFTER init())
     this._gorgeCrossed = false; // the one-time "you raft across" callout hasn't fired this session yet
     this.resize();
@@ -1018,6 +1025,12 @@ export const Field = {
         const L = this.zone().layout;
         this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
       }
+      // WAYFINDING (ADR 0011): standing in a built zone marks it ENTERED (lights it on the overview map),
+      // and the derived next Objective — if it's a TRAVEL goal — marks that destination KNOWN so the next
+      // place lights up too (the "the world told you where to go" reveal). Pure systems/progress; idempotent.
+      markRegionEntered(this.wayfinding, builtId);
+      const obj = currentObjective(this.wayfinding, { currentZone: builtId, gateCleared: (z) => this.miniClearedFor(z) });
+      if (obj.kind === "travel") markRegionKnown(this.wayfinding, obj.zoneId);
     }
     // MUSIC: Area identity music with a zone/open-continent fallback; duck-swap only when it changes.
     const key = Music.forField(res.area?.identity.music, builtId || undefined);

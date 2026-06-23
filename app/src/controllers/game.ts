@@ -14,6 +14,7 @@ import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../system
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
+import { reviveProgress } from "../systems/progress";
 import { GAME_VERSION } from "../data/version";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
@@ -149,6 +150,9 @@ export const Game = {
       // HELD ITEMS (quest/key items) — persisted as a plain string[] of ids; restored into the run's Set
       // and reconciled with owned caps on resume (continueRun).
       heldItems: [...this.heldItems],
+      // WAYFINDING PROGRESS (ADR 0011) — the run's known/entered regions as two string[]s; restored into
+      // Field.progress (Sets) on resume so the continent overview map re-reveals the right regions.
+      progress: { known: [...Field.wayfinding.known], entered: [...Field.wayfinding.entered] },
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -194,6 +198,10 @@ export const Game = {
     // the chunk realizer consult Field.ownedCaps, so the gorge re-opens (or stays locked) correctly on
     // resume. An old save that beat Greenvale already had "gorge" granted in deserialize (no soft-lock).
     Field.ownedCaps = new Set(r.ownedCaps);
+    // Restore WAYFINDING PROGRESS (ADR 0011) — the known/entered regions that drive the continent overview
+    // reveal. reviveProgress rebuilds the Sets + re-establishes the entered ⊂ known invariant. Cosmetic
+    // (gates no traversal), so an old save's empty progress is safe; syncZoneFromWorld re-marks on the next step.
+    Field.wayfinding = reviveProgress(r.progress);
     this.applyItemCaps(); // union in caps conferred by held key items (the raft → "gorge"), before the grid rebuild
     // Restore PER-ZONE mouth-cleared state (Silverwood Overhaul fix) BEFORE any grid rebuild below —
     // buildAuthoredGrid / genOverworld read miniClearedFor(id), so a beaten zone's mouth stays open (and
