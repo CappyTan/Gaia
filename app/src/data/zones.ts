@@ -893,48 +893,75 @@ const GOLDMEADOW_LAYOUT: ZoneLayout = {
     { x: 13, y: 13, kind: "signpost", name: "Field Crossroads", note: "Barn-yard road north · creek meadow south · the windmill gate lies east." }, // west fork
   ],
 };
-// The occupied Windmill / Granary Undercroft as its own grid (sibling to Warren/Grove/Vault). The
-// undercroft forks into two looped rooms that rejoin at a threshing antechamber, with a DEAD-END VAULT
-// off the antechamber (richest hoard) and a guarded run-up to the warlord's arena. Warlord → 20,11.
+// THE WINDMILL / GRANARY UNDERCROFT — reshaped to read as a GRANARY CELLAR (anti-reskin, 2026-06-23):
+// a tall, narrow stacked-cellar footprint (18×26, taller than wide) that descends through GRAIN BINS
+// around a wide central THRESHING PIT hub. NOT the old symmetric 4-room fork. You enter a low west
+// loading-dock, climb a north grain-conveyor arm and drop through a south chaff-chute arm — two routes
+// that BOTH meet the central threshing pit (the hub the player keeps returning to), with a deep silted
+// SUMP cache hung off the pit and a one-way GRAIN-CHUTE collapse that drops a deep bin back to the dock
+// (the granary's signature shortcut). The warlord's MILLSTONE arena is funnelled off the pit's east lip.
+// REPRIEVE: a kept harvest-brazier in the threshing pit grants `regen` — banked grain-warmth that pays
+// out heal-over-time in the next fight (relief you carry, not a refill at the node).
+const UNDERCROFT_BRAZIER: Reprieve = {
+  kind: "regen", amount: 5, name: "The Harvest-Brazier",
+  blurb: "You bank a low fire in the threshing pit and let the grain-warmth soak into tired limbs — its glow stays with you, mending a little as you press on into the next fight. No magic returns to you here.",
+};
 const GOLDMEADOW_DUNGEON: DungeonLayout = {
-  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 19, y: 18 },
   rooms: [
-    { x: 2, y: 8, w: 6, h: 8 },     // undercroft entry hall (the fork)
-    { x: 10, y: 3, w: 7, h: 5 },    // north granary loft (chest, on the loop)
-    { x: 10, y: 16, w: 7, h: 5 },   // south millstone cellar (chest, on the loop)
-    { x: 14, y: 8, w: 5, h: 7 },    // threshing-floor antechamber hub (the loop rejoins)
-    { x: 9, y: 11, w: 4, h: 3 },    // the deep dead-end vault (RICHEST hoard, off the antechamber)
-    { x: 17, y: 8, w: 6, h: 6 },    // the warlord's arena
+    { x: 2, y: 9, w: 5, h: 6 },     // west LOADING DOCK (entry; the fork into the cellar — spans gate.y=12)
+    { x: 9, y: 2, w: 7, h: 5 },     // NORTH grain loft (chest, on the loop; holds the chute-collapse drop)
+    { x: 9, y: 9, w: 8, h: 6 },     // CENTRAL THRESHING PIT hub (the harvest-brazier rest; the arms rejoin)
+    { x: 9, y: 17, w: 7, h: 5 },    // SOUTH chaff cellar (chest, on the loop)
+    { x: 2, y: 17, w: 5, h: 5 },    // deep silted SUMP cache (RICHEST, off the south arm — reward the brave)
+    { x: 18, y: 9, w: 5, h: 5 },    // east millstone APPROACH (chest; funnels down to the arena)
+    { x: 16, y: 16, w: 6, h: 6 },   // the warlord's MILLSTONE arena (boss, low SE)
   ],
   paths: [
-    [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → entry hall
-    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north loft → antechamber
-    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],         // hall → south cellar → antechamber (the LOOP)
-    [{ x: 14, y: 12 }, { x: 12, y: 12 }],                          // antechamber → dead-end vault (spur)
-    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                           // mouth → loading dock
+    [{ x: 4, y: 10 }, { x: 12, y: 4 }, { x: 12, y: 9 }],          // dock → north grain loft → pit (NORTH arm)
+    [{ x: 4, y: 14 }, { x: 12, y: 19 }, { x: 12, y: 14 }],        // dock → south chaff cellar → pit (SOUTH arm; the LOOP)
+    [{ x: 12, y: 7 }, { x: 12, y: 9 }],                           // grain loft → pit (vertical cross-link / loop)
+    [{ x: 11, y: 19 }, { x: 4, y: 18 }],                          // south chaff cellar → deep silted sump (spur to the richest)
+    [{ x: 16, y: 11 }, { x: 20, y: 11 }],                         // pit → east millstone approach
+    [{ x: 20, y: 13 }, { x: 19, y: 17 }],                         // approach → arena (the funnel down onto the warlord)
   ],
   chests: [
-    { x: 13, y: 4 },   // north granary loft (loop, breather reward)
-    { x: 13, y: 18 },  // south millstone cellar (loop)
-    { x: 10, y: 12 },  // the dead-end vault (deepest, RICHEST — reward the brave)
+    { x: 12, y: 3 },   // NORTH grain loft (loop, breather reward)
+    { x: 4, y: 20 },   // deep silted SUMP (deepest, RICHEST — reward the brave)
+    { x: 20, y: 10 },  // east millstone approach (run-up reward before the warlord)
   ],
+  rests: [{ x: 12, y: 11 }], // the harvest-brazier in the threshing pit — the breather before the warlord
+  drops: [
+    { x: 14, y: 3, to: { x: 4, y: 12 } }, // NORTH grain-loft GRAIN-CHUTE collapse → drops you back to the loading dock (found shortcut home)
+  ],
+  reprieve: UNDERCROFT_BRAZIER,
   scatter: 0.06,
 };
 
 // ════ AURELION COMPLETE — the remaining six regions (world-builder build 2026-06-21) ═══════════
-// Six new zones built to ONE recipe, replicating Goldmeadow: an OPEN-WORLD overworld mesh (a west hub
-// feeding THREE tracks — north field / fast middle / south field — that rejoin at a central hub, two
-// big LOOPS so roaming is a circuit, not an out-and-back; cross-links knit the pockets back to the
-// hubs; chests sit on routes you CHOOSE BETWEEN; the rare LAIR dens off the south loop; an east staging
-// green leads to the mini-boss GATE at the dungeon MOUTH), plus a discrete dungeon east of the mouth.
-//   The two SPINE regions (Frostpeak, Sunbridge) get the FULL multi-room dungeon (two looped rooms
-// rejoining at an antechamber, a DEAD-END richest-hoard VAULT off it, a guarded boss arena — like the
-// Windmill Undercroft). The four OPTIONAL regions get a SMALL single-floor CAVE: an entry hall that
-// forks into a north chamber and a tough south chamber that BOTH rejoin at the boss arena (a loop), each
-// holding one strong reward. Compact, but still a valid networked DungeonLayout (≥2 loop-redundant arms).
-//   genMap carves + flood-repairs to GUARANTEE boss + every chest/lair reachable (anti-soft-lock); the
-// loops mean no pocket can wall you in. Water pools (the hard-blocking "water" kind) frame creeks/
-// harbors where a region's flavor wants them — authored to pinch, never sever, the critical path.
+// The OVERWORLD meshes share ONE recipe (a west hub feeding THREE tracks — north field / fast middle /
+// south field — that rejoin at a central hub, two big LOOPS so roaming is a circuit, not an out-and-back;
+// cross-links knit the pockets back to the hubs; chests sit on routes you CHOOSE BETWEEN; the rare LAIR
+// dens off the south loop; an east staging green leads to the mini-boss GATE at the dungeon MOUTH), plus
+// a discrete dungeon east of the mouth.
+//   THE DUNGEONS ARE NOW DISTINCT (anti-reskin reshape, 2026-06-23 — the dungeon analog of Dara's "no
+// two zones should feel the same"). Each was re-authored to a UNIQUE footprint/shape/room-count leaning
+// to its identity, no longer two cloned templates:
+//     • Windmill Undercroft (Goldmeadow) — a TALL granary cellar (18×26) descending around a threshing
+//       pit; `regen` harvest-brazier.   • Dwarven Stronghold (Frostpeak) — a WIDE forged masonry GRID
+//       (30×20) of square halls; `mend` forge-vent.   • Besieged Citadel (Sunbridge, the finale) — a
+//       big ASCENDING fortress (28×28) of concentric wards to a lighthouse summit; `mana` lamp.
+//     • Breached Undervault (Dawnfall) — a cracked-open strong-room (22×22), cells ringing a collapsed
+//       rotunda knifed by a breach-fissure; `regen` watch-brazier.   • Reliquary Crypt (Whisper Hills) —
+//       a long axial NAVE (26×16) with burial chapels off it; `mana` reliquary altar.
+//     • Smuggler's Sea-Cave (Storm Coast) — irregular wave-cut CAVERNS (20×14); CAVE, NO REST.
+//     • Smugglers' Den (Riverhearth) — a cramped tucked-away HIDEOUT (18×18); cave-like, NO REST.
+//   Each is a soft-lock-free MESH (hub + loops + a one-way collapse shortcut where a dungeon); the five
+// true dungeons carry ONE tailored reprieve (varied across mend/mana/regen — see ADR 0010), the two
+// caves carry none. genMap carves + flood-repairs to GUARANTEE boss + every chest/lair reachable
+// (anti-soft-lock); the loops mean no pocket can wall you in. Water pools (the hard-blocking "water"
+// kind) frame creeks/harbors where a region's flavor wants them — authored to pinch, never sever.
 //
 // TILE KINDS reuse the existing family (grass/path/bush/rock/water/tree) as PLACEHOLDERS — the new
 // biomes (snow/ice/coast/harbor/stone/etc.) fall back to default shire ground in bigGround, which is
@@ -999,24 +1026,30 @@ const STORMCOAST_LAYOUT: ZoneLayout = {
     { x: 11, y: 11, kind: "signpost", name: "Coast Road Sign", note: "Cliff path north · Wreck strand south · the sea-cave lies east." }, // west fork
   ],
 };
-// A small sea-cave: entry hall forks into a north chamber + a tough south chamber that rejoin at the
-// guardian's arena (a loop). Champion guardian → (13,8).
+// THE SMUGGLER'S SEA-CAVE — reshaped to read as IRREGULAR SEA-ERODED CAVERNS (anti-reskin, 2026-06-23):
+// a wide, low 20×14 wave-cut warren of staggered, mismatched caverns strung along a tidal gut — NOT the
+// neat little fork. CAVE = NO REST (skill §1) — punishing end to end. You enter a west tide-gut; a high
+// dry GALLERY and a low flooded SUMP run staggered east, knit by a connecting throat into TWO redundant
+// routes to the sea-beast's deep grotto, each cavern holding a wrecker's cache. Irregular sizes/offsets
+// give it the organic, gnawed-out read of a real sea-cave.
 const STORMCOAST_CAVE: DungeonLayout = {
-  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+  w: 18, h: 18, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 14, y: 9 },
   rooms: [
-    { x: 2, y: 8, w: 5, h: 6 },     // entry hall (the fork)
-    { x: 8, y: 3, w: 5, h: 4 },     // north chamber (chest)
-    { x: 8, y: 11, w: 5, h: 3 },    // tough south chamber (chest)
-    { x: 10, y: 6, w: 5, h: 5 },    // the guardian's arena
+    { x: 2, y: 8, w: 5, h: 6 },     // west TIDE-GUT (entry; the cave mouth, the fork — spans gate.y=11)
+    { x: 8, y: 3, w: 5, h: 4 },     // high dry GALLERY (cache, on the north route)
+    { x: 8, y: 13, w: 5, h: 4 },    // low flooded SUMP (cache, on the south route, deeper/tougher)
+    { x: 7, y: 8, w: 4, h: 4 },     // mid connecting THROAT (knits the two routes — the loop pivot)
+    { x: 13, y: 6, w: 4, h: 6 },    // the sea-beast's deep grotto (boss)
   ],
   paths: [
-    [{ x: 1, y: 11 }, { x: 4, y: 11 }],                  // mouth → entry hall
-    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],  // hall → north chamber → arena
-    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],// hall → south chamber → arena (the LOOP)
-    [{ x: 11, y: 8 }, { x: 12, y: 8 }],                  // arena → boss spur
+    [{ x: 1, y: 11 }, { x: 4, y: 11 }],                           // mouth → tide-gut
+    [{ x: 5, y: 9 }, { x: 10, y: 5 }, { x: 14, y: 8 }],           // tide-gut → high gallery → grotto (NORTH route)
+    [{ x: 5, y: 13 }, { x: 10, y: 15 }, { x: 14, y: 11 }],        // tide-gut → low sump → grotto (SOUTH route; the LOOP)
+    [{ x: 8, y: 9 }, { x: 10, y: 6 }],                            // throat ↔ gallery (cross-link / loop pivot)
+    [{ x: 9, y: 11 }, { x: 10, y: 13 }],                          // throat ↔ sump (cross-link / loop pivot)
   ],
-  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
-  scatter: 0.06,
+  chests: [{ x: 10, y: 4 }, { x: 10, y: 15 }],
+  scatter: 0.07,
 };
 
 // Riverhearth outskirts — trade-road/river wharves: water frames the south wharf; the EXISTING
@@ -1070,19 +1103,32 @@ const RIVERHEARTH_LAYOUT: ZoneLayout = {
     { x: 11, y: 11, kind: "landmark", name: "The Toll Cairn", note: "A heaped cairn of road-tolls and traders' offerings, older than the city charter." }, // west fork
   ],
 };
+// THE SMUGGLERS' DEN — reshaped to read as a TUCKED-AWAY HIDEOUT under the wharves (anti-reskin,
+// 2026-06-23): a cramped, off-kilter 18×18 warren of little hidden rooms — a bolt-hole, not a cavern.
+// CAVE-LIKE → NO REST (skill §1 / brief): a hideout gives no quarter. You slip in through a low west
+// crawl into a smoke-room common, with a stash-cell and a contraband cellar tucked off it; two back-
+// alley routes (a high catwalk over the crates, a low cellar passage) LOOP around the smugglers' lair
+// where the boss waits. Asymmetric, pinched rooms — the hidden, jury-rigged read of a den.
 const RIVERHEARTH_CAVE: DungeonLayout = {
-  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+  w: 18, h: 18, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 9 },
   rooms: [
-    { x: 2, y: 8, w: 5, h: 6 }, { x: 8, y: 3, w: 5, h: 4 }, { x: 8, y: 11, w: 5, h: 3 }, { x: 10, y: 6, w: 5, h: 5 },
+    { x: 2, y: 8, w: 4, h: 5 },     // west crawl-in (entry; the bolt-hole mouth — spans gate.y=11)
+    { x: 7, y: 3, w: 5, h: 4 },     // smoke-room common (the fork; tucked high)
+    { x: 7, y: 13, w: 4, h: 4 },    // stash-cell (cache, tucked low-left)
+    { x: 12, y: 2, w: 5, h: 4 },    // high catwalk loft (cache, over the crates)
+    { x: 7, y: 8, w: 4, h: 4 },     // mid contraband cellar (the loop pivot)
+    { x: 12, y: 8, w: 5, h: 6 },    // the smugglers' lair (boss)
   ],
   paths: [
-    [{ x: 1, y: 11 }, { x: 4, y: 11 }],
-    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],
-    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],
-    [{ x: 11, y: 8 }, { x: 12, y: 8 }],
+    [{ x: 1, y: 11 }, { x: 3, y: 11 }],                          // mouth → west crawl-in
+    [{ x: 4, y: 9 }, { x: 9, y: 5 }],                            // crawl-in → smoke-room common (high)
+    [{ x: 4, y: 12 }, { x: 8, y: 14 }],                          // crawl-in → stash-cell (low)
+    [{ x: 11, y: 4 }, { x: 14, y: 4 }, { x: 13, y: 8 }],         // smoke-room → high catwalk loft → lair (HIGH route)
+    [{ x: 8, y: 15 }, { x: 9, y: 11 }, { x: 12, y: 11 }],        // stash-cell → contraband cellar → lair (LOW route; the LOOP)
+    [{ x: 9, y: 6 }, { x: 9, y: 8 }],                            // smoke-room ↔ contraband cellar (vertical cross-link / loop pivot)
   ],
-  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
-  scatter: 0.06,
+  chests: [{ x: 14, y: 3 }, { x: 8, y: 14 }],
+  scatter: 0.05,
 };
 
 // Dawnfall Hold — breached frontier fortress: grim martial ruin, no water, denser scatter (rubble of
@@ -1136,19 +1182,49 @@ const DAWNFALL_LAYOUT: ZoneLayout = {
     { x: 11, y: 11, kind: "signpost", name: "Muster Post", note: "Rampart walk north · muster yard south · the undervault breach lies east." }, // west fork
   ],
 };
-const DAWNFALL_CAVE: DungeonLayout = {
-  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+// THE BREACHED UNDERVAULT — reshaped to read as a CRACKED-OPEN VAULT (anti-reskin, 2026-06-23): a
+// blocky 22×22 strong-room whose siege-breach has split it open. NOT the little cave fork. A west
+// BREACH-MOUTH (where the siege cracked the wall) opens onto a ring of square reinforced strong-cells
+// around a collapsed central ROTUNDA hub, the whole thing knifed across by a diagonal BREACH FISSURE
+// (the masonry that fell when the wall failed — funnels the routes). Two cell-ring routes loop the
+// rotunda; a deep dead-end SEALED VAULT holds the richest hoard, and a RUBBLE-SLIDE collapse drops the
+// far NE cell back to the breach-mouth. The wraith-captain's hall caps the east. REPRIEVE: a kept
+// garrison watch-brazier grants `regen` — banked coals you carry as heal-over-time into the next fight.
+const UNDERVAULT_BRAZIER: Reprieve = {
+  kind: "regen", amount: 5, name: "A Garrison Watch-Brazier",
+  blurb: "You rake the last coals of a watch-brazier still burning since the hold fell, and bank its warmth against your hurts — it stays with you, mending a little as you press on. The dead garrison left no magic to draw.",
+};
+const DAWNFALL_DUNGEON: DungeonLayout = {
+  w: 18, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 14, y: 10 },
   rooms: [
-    { x: 2, y: 8, w: 5, h: 6 }, { x: 8, y: 3, w: 5, h: 4 }, { x: 8, y: 11, w: 5, h: 3 }, { x: 10, y: 6, w: 5, h: 5 },
+    { x: 2, y: 8, w: 4, h: 6 },     // west BREACH-MOUTH (entry; the siege-crack into the vault — spans gate.y=11)
+    { x: 7, y: 2, w: 4, h: 5 },     // NW strong-cell (chest, on the cell-ring loop)
+    { x: 12, y: 2, w: 4, h: 5 },    // NE strong-cell (cell-ring; holds the rubble-slide collapse drop)
+    { x: 7, y: 15, w: 4, h: 5 },    // SW strong-cell (chest, on the cell-ring loop)
+    { x: 2, y: 15, w: 4, h: 5 },    // deep dead-end SEALED VAULT (RICHEST hoard, off the SW)
+    { x: 7, y: 8, w: 5, h: 6 },     // collapsed central ROTUNDA hub (the watch-brazier rest; cells ring it)
+    { x: 13, y: 7, w: 4, h: 7 },    // the wraith-captain's hall (east cap)
   ],
   paths: [
-    [{ x: 1, y: 11 }, { x: 4, y: 11 }],
-    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],
-    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],
-    [{ x: 11, y: 8 }, { x: 12, y: 8 }],
+    [{ x: 1, y: 11 }, { x: 3, y: 11 }],                            // mouth → breach-mouth
+    [{ x: 4, y: 9 }, { x: 8, y: 4 }, { x: 9, y: 9 }],              // breach-mouth → NW cell → rotunda (NORTH ring arm)
+    [{ x: 4, y: 13 }, { x: 8, y: 17 }, { x: 9, y: 13 }],           // breach-mouth → SW cell → rotunda (SOUTH ring arm; the LOOP)
+    [{ x: 10, y: 4 }, { x: 13, y: 4 }, { x: 11, y: 9 }],           // NW cell → NE cell → rotunda (the FISSURE cuts across here)
+    [{ x: 7, y: 17 }, { x: 4, y: 16 }],                            // SW cell → deep sealed vault (spur to the richest)
+    [{ x: 11, y: 11 }, { x: 14, y: 10 }],                          // rotunda → wraith-captain's hall (boss funnel)
+    [{ x: 13, y: 5 }, { x: 11, y: 10 }],                           // NE cell ↔ rotunda (the breach-fissure diagonal cross-link / loop)
   ],
-  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
-  scatter: 0.06,
+  chests: [
+    { x: 8, y: 3 },    // NW strong-cell (cell-ring loop)
+    { x: 8, y: 16 },   // SW strong-cell (cell-ring loop)
+    { x: 3, y: 18 },   // deep SEALED VAULT (RICHEST — reward the brave)
+  ],
+  rests: [{ x: 9, y: 11 }], // the watch-brazier in the collapsed rotunda — the breather before the wraith-captain
+  drops: [
+    { x: 14, y: 3, to: { x: 3, y: 11 } }, // NE cell RUBBLE-SLIDE collapse → drops you back to the breach-mouth (found shortcut home)
+  ],
+  reprieve: UNDERVAULT_BRAZIER,
+  scatter: 0.07,
 };
 
 // Whisper Hills — quiet monastic green hills hiding a dark crypt: open green commons, medium scatter.
@@ -1202,18 +1278,48 @@ const WHISPERHILLS_LAYOUT: ZoneLayout = {
     { x: 11, y: 11, kind: "signpost", name: "Pilgrim's Marker", note: "Terraced gardens north · orchard slope south · the silent crypt lies east." }, // west fork
   ],
 };
-const WHISPERHILLS_CAVE: DungeonLayout = {
-  w: 16, h: 16, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 13, y: 8 },
+// THE RELIQUARY CRYPT — reshaped to read as CHAMBERS OFF A NAVE (anti-reskin, 2026-06-23): a long,
+// solemn 26×16 crypt built on sacred axial geometry — a central processional NAVE running west→east
+// with burial CHAPELS opening off it to the north and south, NOT a cave fork. You enter the west
+// narthex; the nave is the spine the player keeps returning to, with paired chapels (an ossuary and a
+// catacomb) looping the nave on each side, a deep dead-end RELIQUARY holding the richest hoard behind
+// the south chapels, and a crypt-stair collapse dropping the far chapel back to the narthex. The
+// crypt-keeper's sanctum caps the east apse. REPRIEVE: a still-burning reliquary altar grants `mana` —
+// a blessed wellspring rekindles spent magic (partial MP); it mends no flesh.
+const CRYPT_RELIQUARY: Reprieve = {
+  kind: "mana", amount: 0.4, name: "A Reliquary Altar",
+  blurb: "You kneel at an altar where a votive flame has never gone out, and the old blessing soaks back into your spent magic — but the saints here guard the dead, not the wounds of the living.",
+};
+const WHISPERHILLS_DUNGEON: DungeonLayout = {
+  w: 18, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 14, y: 10 },
   rooms: [
-    { x: 2, y: 8, w: 5, h: 6 }, { x: 8, y: 3, w: 5, h: 4 }, { x: 8, y: 11, w: 5, h: 3 }, { x: 10, y: 6, w: 5, h: 5 },
+    { x: 2, y: 8, w: 4, h: 6 },     // west NARTHEX (entry; the head of the nave — spans gate.y=11)
+    { x: 7, y: 9, w: 6, h: 4 },     // the processional NAVE (the spine; holds the reliquary-altar rest)
+    { x: 7, y: 3, w: 5, h: 4 },     // north OSSUARY chapel (chest, loops the nave)
+    { x: 7, y: 15, w: 5, h: 4 },    // south CATACOMB chapel (chest, loops the nave)
+    { x: 13, y: 3, w: 4, h: 4 },    // NE chantry chapel (holds the crypt-stair collapse drop)
+    { x: 13, y: 15, w: 4, h: 4 },   // deep dead-end RELIQUARY (RICHEST hoard, behind the south chapels)
+    { x: 13, y: 8, w: 4, h: 6 },    // the crypt-keeper's east apse sanctum (boss)
   ],
   paths: [
-    [{ x: 1, y: 11 }, { x: 4, y: 11 }],
-    [{ x: 4, y: 9 }, { x: 10, y: 4 }, { x: 12, y: 8 }],
-    [{ x: 4, y: 12 }, { x: 10, y: 12 }, { x: 12, y: 9 }],
-    [{ x: 11, y: 8 }, { x: 12, y: 8 }],
+    [{ x: 1, y: 11 }, { x: 3, y: 11 }],                           // mouth → narthex
+    [{ x: 5, y: 10 }, { x: 7, y: 10 }],                           // narthex → nave (the spine)
+    [{ x: 9, y: 9 }, { x: 9, y: 6 }],                             // nave → north ossuary chapel
+    [{ x: 9, y: 12 }, { x: 9, y: 15 }],                           // nave → south catacomb chapel
+    [{ x: 10, y: 4 }, { x: 14, y: 4 }, { x: 12, y: 10 }],         // ossuary → NE chantry → back to nave (NORTH loop)
+    [{ x: 10, y: 17 }, { x: 14, y: 17 }, { x: 12, y: 11 }],       // catacomb → deep reliquary → back to nave (SOUTH loop, past the richest)
+    [{ x: 12, y: 10 }, { x: 14, y: 10 }],                         // nave → east apse sanctum (the funnel onto the crypt-keeper)
   ],
-  chests: [{ x: 10, y: 4 }, { x: 10, y: 12 }],
+  chests: [
+    { x: 9, y: 4 },    // north OSSUARY chapel (nave loop)
+    { x: 9, y: 16 },   // south CATACOMB chapel (nave loop)
+    { x: 14, y: 17 },  // deep RELIQUARY (RICHEST — reward the brave, behind the south chapels)
+  ],
+  rests: [{ x: 10, y: 10 }], // the reliquary altar mid-nave — the breather before the apse sanctum
+  drops: [
+    { x: 15, y: 4, to: { x: 3, y: 11 } }, // NE chantry CRYPT-STAIR collapse → drops you back to the narthex (found shortcut home)
+  ],
+  reprieve: CRYPT_RELIQUARY,
   scatter: 0.06,
 };
 
@@ -1274,25 +1380,50 @@ const FROSTPEAK_LAYOUT: ZoneLayout = {
 };
 // The Dwarven Stronghold as its own grid: forks into two looped halls rejoining at a great-hall
 // antechamber, a DEAD-END treasury vault off it (richest hoard), a guarded run-up to the boss arena.
+// THE DWARVEN STRONGHOLD — reshaped to read FORGED & BLOCKY (anti-reskin, 2026-06-23): a wide, squat
+// 30×20 fortress of square hewn halls laid out on a deliberate masonry GRID (a 3×2 block of forge-halls
+// joined orthogonally), nothing organic about it. You enter a west GATEHOUSE, and the hold opens into a
+// two-row grid of halls — a north forge-row and a south mine-row — knit by vertical shafts into a true
+// MESH (you can circuit either row and cross between them). The central GREAT FORGE is the hub; a deep
+// dead-end TREASURY sits walled off the south mine-row, and a one-way ORE-CHUTE collapse drops the far
+// NE assay-hall back toward the gatehouse. The stone-king's arena caps the east end, funnelled through a
+// short colonnade. REPRIEVE: a forge-vent's banked heat grants `mend` — a dwarven field-forge sears
+// wounds shut (partial HP), but the cold hold does nothing for spent magic.
+const STRONGHOLD_FORGE: Reprieve = {
+  kind: "mend", amount: 0.4, name: "A Dwarven Forge-Vent",
+  blurb: "You crouch by a vent where the old forge-heat still seeps from the rock and sear your hurts shut against the iron — your standing heroes recover some health, but the dead hold holds no magic to return. The fallen still need a town to revive.",
+};
 const FROSTPEAK_DUNGEON: DungeonLayout = {
-  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 19, y: 11 },
   rooms: [
-    { x: 2, y: 8, w: 6, h: 8 },     // hold-gate entry hall (the fork)
-    { x: 10, y: 3, w: 7, h: 5 },    // north forge-hall (chest, on the loop)
-    { x: 10, y: 16, w: 7, h: 5 },   // south mine-gallery (chest, on the loop)
-    { x: 14, y: 8, w: 5, h: 7 },    // great-hall antechamber hub (the loop rejoins)
-    { x: 9, y: 11, w: 4, h: 3 },    // the dead-end treasury vault (RICHEST hoard)
-    { x: 17, y: 8, w: 6, h: 6 },    // the guardian's arena
+    { x: 2, y: 9, w: 5, h: 6 },     // west GATEHOUSE (entry; opens onto the masonry grid — spans gate.y=12)
+    { x: 8, y: 2, w: 5, h: 5 },     // NW forge-hall (chest, on the north row loop)
+    { x: 14, y: 2, w: 5, h: 5 },    // NE assay-hall (north row; holds the ore-chute collapse drop)
+    { x: 8, y: 17, w: 5, h: 5 },    // SW mine-hall (chest, on the south row loop)
+    { x: 14, y: 17, w: 5, h: 5 },   // SE deep TREASURY dead-end (RICHEST hoard, walled off the mine-row)
+    { x: 8, y: 9, w: 8, h: 6 },     // CENTRAL GREAT FORGE hub (the forge-vent rest; both rows meet here)
+    { x: 17, y: 8, w: 5, h: 8 },    // the stone-king's arena (east cap, funnel)
   ],
   paths: [
-    [{ x: 1, y: 12 }, { x: 5, y: 12 }],
-    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],
-    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],
-    [{ x: 14, y: 12 }, { x: 12, y: 12 }],
-    [{ x: 16, y: 11 }, { x: 19, y: 11 }],
+    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // mouth → gatehouse
+    [{ x: 4, y: 10 }, { x: 10, y: 4 }, { x: 10, y: 9 }],           // gatehouse → NW forge-hall → great forge (NORTH-WEST shaft)
+    [{ x: 4, y: 14 }, { x: 10, y: 19 }, { x: 10, y: 14 }],         // gatehouse → SW mine-hall → great forge (SOUTH-WEST shaft; the LOOP)
+    [{ x: 11, y: 4 }, { x: 16, y: 4 }, { x: 14, y: 9 }],           // NW forge-hall → NE assay-hall → great forge (north row)
+    [{ x: 11, y: 19 }, { x: 16, y: 19 }, { x: 16, y: 17 }],        // SW mine-hall → SE treasury (south row spur to the richest)
+    [{ x: 16, y: 5 }, { x: 16, y: 17 }],                           // NE assay-hall ↔ SE treasury (vertical grid cross-link / loop)
+    [{ x: 15, y: 11 }, { x: 18, y: 11 }],                          // great forge → arena (the funnel onto the stone-king)
   ],
-  chests: [{ x: 13, y: 4 }, { x: 13, y: 18 }, { x: 10, y: 12 }],
-  scatter: 0.06,
+  chests: [
+    { x: 10, y: 3 },   // NW forge-hall (north row loop)
+    { x: 10, y: 18 },  // SW mine-hall (south row loop)
+    { x: 16, y: 20 },  // SE deep TREASURY (RICHEST — reward the brave, walled off the mine-row)
+  ],
+  rests: [{ x: 12, y: 11 }], // the forge-vent in the great forge — the breather before the climb to the stone-king
+  drops: [
+    { x: 17, y: 3, to: { x: 4, y: 12 } }, // NE assay-hall ORE-CHUTE collapse → drops you back to the gatehouse (found shortcut home)
+  ],
+  reprieve: STRONGHOLD_FORGE,
+  scatter: 0.05,
 };
 
 // Sunbridge — the grand southern port under siege (AURELION FINALE). Harbor water everywhere (two
@@ -1350,25 +1481,51 @@ const SUNBRIDGE_LAYOUT: ZoneLayout = {
 // The Besieged Citadel / Lighthouse as its own grid: forks into two looped wings rejoining at the
 // great-hall antechamber, a DEAD-END treasure vault off it (richest hoard), a guarded run-up to the
 // finale boss arena (the lighthouse summit). The continent finale fight lives here.
+// THE BESIEGED CITADEL / LIGHTHOUSE — reshaped to read as an ASCENDING FORTRESS (anti-reskin, the
+// AURELION FINALE, 2026-06-23): a big 28×28 keep that climbs from a breached west BARBICAN up through
+// two concentric defensive WARDS to the lighthouse summit. NOT the old little fork. An outer ward
+// (a ring of curtain-wall rooms) and an inner BAILEY hub wrap a deep dead-end POWDER MAGAZINE, with a
+// long colonnaded climb funnelling the siege onto the summit arena. Two redundant ward routes loop the
+// bailey, plus a SALLY-PORT collapse that drops the far NE bastion back to the barbican (the fortress
+// shortcut). The continent-finale fight crowns the lighthouse summit. REPRIEVE: the lighthouse's great
+// arcane LAMP grants `mana` — its lingering light rekindles spent magic (partial MP), but the cold keep
+// dresses no wounds.
+const CITADEL_LAMP: Reprieve = {
+  kind: "mana", amount: 0.4, name: "The Lighthouse Lamp",
+  blurb: "You stand a moment in the cold blue glow of the great lamp, and the light that once guided Aurelion's ships seeps back into your spent magic — but its fire is for the sea, not for flesh, and binds no wounds.",
+};
 const SUNBRIDGE_DUNGEON: DungeonLayout = {
-  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 19, y: 11 },
   rooms: [
-    { x: 2, y: 8, w: 6, h: 8 },     // citadel entry hall (the fork)
-    { x: 10, y: 3, w: 7, h: 5 },    // north barracks wing (chest, on the loop)
-    { x: 10, y: 16, w: 7, h: 5 },   // south cistern wing (chest, on the loop)
-    { x: 14, y: 8, w: 5, h: 7 },    // great-hall antechamber hub
-    { x: 9, y: 11, w: 4, h: 3 },    // the dead-end treasure vault (RICHEST hoard)
-    { x: 17, y: 8, w: 6, h: 6 },    // the lighthouse-summit boss arena
+    { x: 2, y: 9, w: 5, h: 6 },     // west BARBICAN (entry; the breach into the outer ward — spans gate.y=12)
+    { x: 8, y: 2, w: 6, h: 5 },     // NW curtain-wall room (outer ward, chest, on the loop)
+    { x: 8, y: 17, w: 6, h: 5 },    // SW cistern room (outer ward, chest, on the loop)
+    { x: 15, y: 2, w: 5, h: 5 },    // NE bastion (outer ward; holds the sally-port collapse drop)
+    { x: 15, y: 17, w: 5, h: 5 },   // SE magazine approach (outer ward)
+    { x: 9, y: 9, w: 7, h: 6 },     // inner BAILEY hub (the lamp rest; both wards meet here)
+    { x: 3, y: 3, w: 4, h: 4 },     // deep dead-end POWDER MAGAZINE (RICHEST, walled off the NW ward)
+    { x: 17, y: 8, w: 5, h: 8 },    // the lighthouse-SUMMIT boss arena (east cap, the climb funnels here)
   ],
   paths: [
-    [{ x: 1, y: 12 }, { x: 5, y: 12 }],
-    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],
-    [{ x: 5, y: 14 }, { x: 13, y: 18 }, { x: 16, y: 13 }],
-    [{ x: 14, y: 12 }, { x: 12, y: 12 }],
-    [{ x: 16, y: 11 }, { x: 19, y: 11 }],
+    [{ x: 1, y: 12 }, { x: 4, y: 12 }],                            // mouth → barbican
+    [{ x: 4, y: 10 }, { x: 10, y: 4 }, { x: 11, y: 9 }],           // barbican → NW curtain-wall → bailey (NORTH ward arm)
+    [{ x: 4, y: 14 }, { x: 10, y: 19 }, { x: 11, y: 14 }],         // barbican → SW cistern → bailey (SOUTH ward arm; the LOOP)
+    [{ x: 11, y: 4 }, { x: 17, y: 4 }, { x: 15, y: 10 }],          // NW curtain-wall → NE bastion → bailey (outer ring, north)
+    [{ x: 11, y: 19 }, { x: 17, y: 19 }, { x: 15, y: 13 }],        // SW cistern → SE magazine approach → bailey (outer ring, south)
+    [{ x: 5, y: 9 }, { x: 5, y: 6 }],                              // barbican → deep powder magazine (spur to the richest)
+    [{ x: 15, y: 11 }, { x: 18, y: 11 }],                          // bailey → summit arena (the funnel onto the finale boss)
   ],
-  chests: [{ x: 13, y: 4 }, { x: 13, y: 18 }, { x: 10, y: 12 }],
-  scatter: 0.06,
+  chests: [
+    { x: 10, y: 3 },   // NW curtain-wall room (outer ward loop)
+    { x: 10, y: 18 },  // SW cistern room (outer ward loop)
+    { x: 4, y: 4 },    // deep POWDER MAGAZINE (RICHEST — reward the brave, walled off the NW ward)
+  ],
+  rests: [{ x: 12, y: 11 }], // the lighthouse lamp in the inner bailey — the LAST breather before the summit finale
+  drops: [
+    { x: 18, y: 3, to: { x: 4, y: 12 } }, // NE bastion SALLY-PORT collapse → drops you back to the barbican (found shortcut home)
+  ],
+  reprieve: CITADEL_LAMP,
+  scatter: 0.05,
 };
 
 // ── World-space placement + region graph (ADR 0008, Stage 1 — world-cartographer) ────────────
@@ -1776,7 +1933,7 @@ export const ZONES: Zone[] = [
   // Fallen Watch-Commander. Attunements spread (ANIMA/NOX/UMBRAXIS/QUANTA/SOL).
   { id: "dawnfall", name: "Dawnfall Hold", mini: "watchcommander", miniAdds: ["brokenwatch", "fallenarcher"], boss: "watchcommander",
     hub: "lastlight", hubs: ["lastlight"], // the last frontier garrison doorstep (Dara-named)
-    envs: ["ruin", "ruin", "stone", "ruin"], dungeon: { name: "The Breached Undervault", env: "keepvault", layout: DAWNFALL_CAVE }, layout: DAWNFALL_LAYOUT, bands: [
+    envs: ["ruin", "ruin", "stone", "ruin"], dungeon: { name: "The Breached Undervault", env: "keepvault", layout: DAWNFALL_DUNGEON }, layout: DAWNFALL_LAYOUT, bands: [
       { at: 0.0, sets: [["frontierbeast", "brokenwatch"], ["frontierbeast", "frontierbeast"], ["brokenwatch", "frontierbeast", "frontierbeast"]] },
       { at: 0.25, sets: [["brokenwatch", "fallenarcher", "frontierbeast"], ["watchghoul", "frontierbeast"], ["brokenwatch", "watchghoul", "frontierbeast"], ["fallenarcher", "brokenwatch"]] },
       { at: 0.5, sets: [["ruinhulk", "fallenarcher", "frontierbeast"], ["watchghoul", "brokenwatch", "fallenarcher"], ["ruinhulk", "brokenwatch", "frontierbeast"]] },
@@ -1790,7 +1947,7 @@ export const ZONES: Zone[] = [
   // spread (UMBRAXIS/ANIMA/NOX/QUANTA/SOL).
   { id: "whisperhills", name: "Whisper Hills", mini: "corruptabbot", miniAdds: ["corruptmonk", "wraith"], boss: "corruptabbot",
     hub: "vesperhal", hubs: ["vesperhal"], // the hillside cloister doorstep (Dara-named)
-    envs: ["meadow", "meadow", "forest", "hollow"], dungeon: { name: "The Reliquary Crypt", env: "crypt", layout: WHISPERHILLS_CAVE }, layout: WHISPERHILLS_LAYOUT, bands: [
+    envs: ["meadow", "meadow", "forest", "hollow"], dungeon: { name: "The Reliquary Crypt", env: "crypt", layout: WHISPERHILLS_DUNGEON }, layout: WHISPERHILLS_LAYOUT, bands: [
       { at: 0.0, sets: [["wraith", "wraith"], ["corruptmonk", "wraith"], ["wraith", "wraith", "corruptmonk"]] },
       { at: 0.25, sets: [["corruptmonk", "flagellant", "wraith"], ["flagellant", "wraith"], ["corruptmonk", "wraith", "flagellant"], ["flagellant", "flagellant", "wraith"]] },
       { at: 0.5, sets: [["revenant", "corruptmonk", "wraith"], ["flagellant", "revenant", "wraith"], ["reliquarygolem", "wraith", "wraith"]] },
