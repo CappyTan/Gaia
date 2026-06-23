@@ -167,6 +167,10 @@ export const Field = {
   townMode: false,
   town: null as Settlement | null,
   npcs: [] as TownNPC[],
+  // Town captions (building + NPC names) buffered during the tile/NPC passes and flushed in ONE final
+  // pass ON TOP of every sprite — so a later row's tile or a taller NPC can't paint over a label, and
+  // each is clamped into the viewport so edge labels aren't clipped (Dara: labels hidden under tiles).
+  _townLabels: [] as { text: string; x: number; y: number; f: number }[],
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
   vw: 0, vh: 0, // CSS-pixel viewport size (the canvas backing store is vw/vh × devicePixelRatio)
@@ -1532,7 +1536,8 @@ export const Field = {
       const img = T[(tt && tt[cell]) || poi[0]];
       if (img) { const h = t * poi[2], w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
       else { c.font = `${t * (poi[2] < 1 ? 0.5 : 0.74)}px serif`; c.fillText(poi[1], sx + t / 2, sy + t / 2); }
-      if (poi[3]) { c.font = `bold ${Math.max(9, t * 0.26)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)"; const ly = sy + t * 1.02; c.strokeText(poi[3], sx + t / 2, ly); c.fillText(poi[3], sx + t / 2, ly); }
+      // BUFFER the caption — drawn in the final label pass so the next row's tiles can't cover it.
+      if (poi[3]) this._townLabels.push({ text: poi[3], x: sx + t / 2, y: sy + t * 1.02, f: Math.max(9, t * 0.26) });
     } else if (isWall) {
       // The perimeter is a PALISADE, not a row of emoji. Marsh = dead-timber stakes (town-deadtree),
       // shire = a hedge/treeline (town-tree); both are already painted. City rings itself in stone —
@@ -1865,6 +1870,7 @@ export const Field = {
     const colors: Record<string, string> = { grass: "#4a7a32", grass2: "#52823a", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", rock: "#5a5a52", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226", river: "#2f5b7a", cliff: "#3f4450", bridge: "#7a6242", ford: "#86b0c4", shrine: "#4a7a32", camp: "#4a7a32", landmark: "#4a7a32", signpost: "#4a7a32" };
     const T = this.tiles;
     c.textAlign = "center"; c.textBaseline = "middle";
+    this._townLabels.length = 0; // fresh per frame — building/NPC captions buffer here, flushed last
     for (let y = 0; y < viewH + 1; y++)
       for (let x = 0; x < viewW + 1; x++) {
         const mx = camx + x, my = camy + y;
@@ -2001,9 +2007,20 @@ export const Field = {
         const nimg = this.tiles[`npc:${this.town?.id}-${n.id}`];
         if (nimg) { const h = t * 1.5, w = h * nimg.width / nimg.height; c.drawImage(nimg, nx - w / 2, ny + t * 0.36 - h, w, h); }
         else { c.font = `${t * 0.72}px serif`; c.fillStyle = "#fff"; c.fillText(n.spr, nx, ny - t * 0.04); }
-        c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.92)";
-        c.strokeText(n.name, nx, ny + t * 0.5); c.fillText(n.name, nx, ny + t * 0.5);
+        // BUFFER the name — drawn in the final pass so a later (taller) NPC sprite can't cover it.
+        this._townLabels.push({ text: n.name, x: nx, y: ny + t * 0.5, f: Math.max(8, t * 0.22) });
         if (!talking) { c.font = `${t * 0.4}px serif`; c.fillStyle = "rgba(244,210,122,.85)"; c.fillText("💬", nx + t * 0.36, ny - t * 0.4); }
+      }
+      // LABEL PASS — every town caption ON TOP of all tiles/sprites (nothing paints over it), each clamped
+      // into the viewport so edge labels aren't clipped. textAlign is "center", so clamp the center x by
+      // half the measured width; keep y clear of the top header strip and the bottom edge.
+      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.95)";
+      for (const L of this._townLabels) {
+        c.font = `bold ${L.f}px system-ui`;
+        const half = c.measureText(L.text).width / 2 + 3;
+        const x = clamp(L.x, half, this.vw - half);
+        const y = clamp(L.y, t * 0.5, this.vh - t * 0.15);
+        c.strokeText(L.text, x, y); c.fillText(L.text, x, y);
       }
     }
     // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback)
