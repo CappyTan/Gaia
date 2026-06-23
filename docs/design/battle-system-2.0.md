@@ -102,6 +102,14 @@ as resources allow. The 4-category split + class resources are what give Soul Bu
 
 These are flags for the eventual build — **not decisions to make now.**
 
+- **NPC-side Ascension (a *temporary enrage* for Legendary NPCs).** Dara flagged that certain
+  **Legendary Figures** (e.g. The Last Lagrangian) **may** trigger their own Ascension in battle —
+  a *probabilistic, temporary* buff/debuff spike borrowing this mechanic's spirit, with damage
+  scaling + per-turn cost tuned **for the NPC** (not the hero Soul Burn numbers). Distinct from the
+  deterministic ≤20%-HP "Omega" enrage that exists today. Spec'd as an OPTION in
+  [`legendary-figures.md`](legendary-figures.md#combat-behavior--ascension-as-a-temporary-enrage-design-option-not-built)
+  — **surface it when designing late-game encounters.**
+
 - **Remove `mp` / `maxmp`** from the combat/resource model; replace with per-class resource pools.
   Touches: `types.ts` (`Skill.mp`, `Member.mp/maxmp`), `systems/combat.ts`, `controllers/battle.ts`
   (skill affordability + bars), `ui/render` (MP bar), and every kit in `data/skills.ts` /
