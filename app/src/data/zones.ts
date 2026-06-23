@@ -894,7 +894,7 @@ const GOLDMEADOW_LAYOUT: ZoneLayout = {
   ],
 };
 // THE WINDMILL / GRANARY UNDERCROFT — reshaped to read as a GRANARY CELLAR (anti-reskin, 2026-06-23):
-// a tall, narrow stacked-cellar footprint (18×26, taller than wide) that descends through GRAIN BINS
+// a stacked-cellar footprint (24×24, budget-capped) that descends through GRAIN BINS from a north loft
 // around a wide central THRESHING PIT hub. NOT the old symmetric 4-room fork. You enter a low west
 // loading-dock, climb a north grain-conveyor arm and drop through a south chaff-chute arm — two routes
 // that BOTH meet the central threshing pit (the hub the player keeps returning to), with a deep silted
@@ -946,16 +946,19 @@ const GOLDMEADOW_DUNGEON: DungeonLayout = {
 // dens off the south loop; an east staging green leads to the mini-boss GATE at the dungeon MOUTH), plus
 // a discrete dungeon east of the mouth.
 //   THE DUNGEONS ARE NOW DISTINCT (anti-reskin reshape, 2026-06-23 — the dungeon analog of Dara's "no
-// two zones should feel the same"). Each was re-authored to a UNIQUE footprint/shape/room-count leaning
-// to its identity, no longer two cloned templates:
-//     • Windmill Undercroft (Goldmeadow) — a TALL granary cellar (18×26) descending around a threshing
-//       pit; `regen` harvest-brazier.   • Dwarven Stronghold (Frostpeak) — a WIDE forged masonry GRID
-//       (30×20) of square halls; `mend` forge-vent.   • Besieged Citadel (Sunbridge, the finale) — a
-//       big ASCENDING fortress (28×28) of concentric wards to a lighthouse summit; `mana` lamp.
-//     • Breached Undervault (Dawnfall) — a cracked-open strong-room (22×22), cells ringing a collapsed
+// two zones should feel the same"). Each was re-authored to a UNIQUE shape/room-count leaning to its
+// identity, no longer two cloned templates. (Footprints are CAPPED by the legacy combined-grid budget —
+// a dungeon must fit east of the overworld's `gateWallX` — so the 52-wide overworlds cap their dungeon at
+// 18 wide; the dimensions below are the shipped grids, and the IDENTITY lives in the room shapes, not size.)
+//     • Windmill Undercroft (Goldmeadow) — a granary cellar (24×24) descending from a north grain loft
+//       around a threshing-pit hub; `regen` harvest-brazier.   • Dwarven Stronghold (Frostpeak) — a forged
+//       masonry GRID (24×24) of square halls round a great-forge hub; `mend` forge-vent.   • Besieged
+//       Citadel (Sunbridge, the finale) — an ASCENDING fortress (24×24) of concentric wards to a lighthouse
+//       summit; `mana` lamp.
+//     • Breached Undervault (Dawnfall) — a cracked-open strong-room (18×22), cells ringing a collapsed
 //       rotunda knifed by a breach-fissure; `regen` watch-brazier.   • Reliquary Crypt (Whisper Hills) —
-//       a long axial NAVE (26×16) with burial chapels off it; `mana` reliquary altar.
-//     • Smuggler's Sea-Cave (Storm Coast) — irregular wave-cut CAVERNS (20×14); CAVE, NO REST.
+//       an axial NAVE (18×22) with burial chapels off it; `mana` reliquary altar.
+//     • Smuggler's Sea-Cave (Storm Coast) — irregular wave-cut CAVERNS (18×18); CAVE, NO REST.
 //     • Smugglers' Den (Riverhearth) — a cramped tucked-away HIDEOUT (18×18); cave-like, NO REST.
 //   Each is a soft-lock-free MESH (hub + loops + a one-way collapse shortcut where a dungeon); the five
 // true dungeons carry ONE tailored reprieve (varied across mend/mana/regen — see ADR 0010), the two
@@ -1027,7 +1030,7 @@ const STORMCOAST_LAYOUT: ZoneLayout = {
   ],
 };
 // THE SMUGGLER'S SEA-CAVE — reshaped to read as IRREGULAR SEA-ERODED CAVERNS (anti-reskin, 2026-06-23):
-// a wide, low 20×14 wave-cut warren of staggered, mismatched caverns strung along a tidal gut — NOT the
+// an 18×18 wave-cut warren of staggered, mismatched caverns strung along a tidal gut — NOT the
 // neat little fork. CAVE = NO REST (skill §1) — punishing end to end. You enter a west tide-gut; a high
 // dry GALLERY and a low flooded SUMP run staggered east, knit by a connecting throat into TWO redundant
 // routes to the sea-beast's deep grotto, each cavern holding a wrecker's cache. Irregular sizes/offsets
@@ -1183,7 +1186,7 @@ const DAWNFALL_LAYOUT: ZoneLayout = {
   ],
 };
 // THE BREACHED UNDERVAULT — reshaped to read as a CRACKED-OPEN VAULT (anti-reskin, 2026-06-23): a
-// blocky 22×22 strong-room whose siege-breach has split it open. NOT the little cave fork. A west
+// blocky 18×22 strong-room whose siege-breach has split it open. NOT the little cave fork. A west
 // BREACH-MOUTH (where the siege cracked the wall) opens onto a ring of square reinforced strong-cells
 // around a collapsed central ROTUNDA hub, the whole thing knifed across by a diagonal BREACH FISSURE
 // (the masonry that fell when the wall failed — funnels the routes). Two cell-ring routes loop the
@@ -1278,8 +1281,8 @@ const WHISPERHILLS_LAYOUT: ZoneLayout = {
     { x: 11, y: 11, kind: "signpost", name: "Pilgrim's Marker", note: "Terraced gardens north · orchard slope south · the silent crypt lies east." }, // west fork
   ],
 };
-// THE RELIQUARY CRYPT — reshaped to read as CHAMBERS OFF A NAVE (anti-reskin, 2026-06-23): a long,
-// solemn 26×16 crypt built on sacred axial geometry — a central processional NAVE running west→east
+// THE RELIQUARY CRYPT — reshaped to read as CHAMBERS OFF A NAVE (anti-reskin, 2026-06-23): a
+// solemn 18×22 crypt built on sacred axial geometry — a central processional NAVE running west→east
 // with burial CHAPELS opening off it to the north and south, NOT a cave fork. You enter the west
 // narthex; the nave is the spine the player keeps returning to, with paired chapels (an ossuary and a
 // catacomb) looping the nave on each side, a deep dead-end RELIQUARY holding the richest hoard behind
@@ -1380,8 +1383,8 @@ const FROSTPEAK_LAYOUT: ZoneLayout = {
 };
 // The Dwarven Stronghold as its own grid: forks into two looped halls rejoining at a great-hall
 // antechamber, a DEAD-END treasury vault off it (richest hoard), a guarded run-up to the boss arena.
-// THE DWARVEN STRONGHOLD — reshaped to read FORGED & BLOCKY (anti-reskin, 2026-06-23): a wide, squat
-// 30×20 fortress of square hewn halls laid out on a deliberate masonry GRID (a 3×2 block of forge-halls
+// THE DWARVEN STRONGHOLD — reshaped to read FORGED & BLOCKY (anti-reskin, 2026-06-23): a
+// 24×24 fortress of square hewn halls laid out on a deliberate masonry GRID (a 3×2 block of forge-halls
 // joined orthogonally), nothing organic about it. You enter a west GATEHOUSE, and the hold opens into a
 // two-row grid of halls — a north forge-row and a south mine-row — knit by vertical shafts into a true
 // MESH (you can circuit either row and cross between them). The central GREAT FORGE is the hub; a deep
@@ -1482,7 +1485,7 @@ const SUNBRIDGE_LAYOUT: ZoneLayout = {
 // great-hall antechamber, a DEAD-END treasure vault off it (richest hoard), a guarded run-up to the
 // finale boss arena (the lighthouse summit). The continent finale fight lives here.
 // THE BESIEGED CITADEL / LIGHTHOUSE — reshaped to read as an ASCENDING FORTRESS (anti-reskin, the
-// AURELION FINALE, 2026-06-23): a big 28×28 keep that climbs from a breached west BARBICAN up through
+// AURELION FINALE, 2026-06-23): a 24×24 keep that climbs from a breached west BARBICAN up through
 // two concentric defensive WARDS to the lighthouse summit. NOT the old little fork. An outer ward
 // (a ring of curtain-wall rooms) and an inner BAILEY hub wrap a deep dead-end POWDER MAGAZINE, with a
 // long colonnaded climb funnelling the siege onto the summit arena. Two redundant ward routes loop the
