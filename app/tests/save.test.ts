@@ -51,6 +51,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     openedChests: {},
     dungeonFloor: 1,
     dungeonMiniCleared: { 0: true },
+    ownedCaps: [],
   };
   return { party, inventory, snapshot };
 }
@@ -180,6 +181,47 @@ describe("save round-trip", () => {
     expect(r).toBeTruthy();
     // only the valid non-negative-int key mapped to boolean-true survives; junk is dropped.
     expect(r.dungeonMiniCleared).toEqual({ 2: true });
+  });
+
+  it("persists owned traversal capabilities (the raft 'gorge' unlock round-trips)", () => {
+    const { snapshot } = makeRun();
+    snapshot.ownedCaps = ["gorge"];
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.ownedCaps).toContain("gorge");
+  });
+
+  it("a save with explicit empty ownedCaps stays empty even past Greenvale (no spurious auto-grant)", () => {
+    const { snapshot } = makeRun();         // zoneIndex 1, ownedCaps []
+    snapshot.ownedCaps = [];
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.ownedCaps).toEqual([]);        // present (not undefined) → no back-compat grant
+  });
+
+  it("an OLD save (no ownedCaps field) that beat Greenvale auto-gets 'gorge' (no soft-lock at the new gate)", () => {
+    const { snapshot } = makeRun();          // zoneIndex 1 = already past Greenvale
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).ownedCaps;       // legacy save predating the gorge
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.ownedCaps).toContain("gorge");  // auto-granted so an in-flight run isn't stranded
+  });
+
+  it("an OLD save still IN Greenvale (boss not down) gets NO cap (the gorge stays locked, as intended)", () => {
+    const { snapshot } = makeRun();
+    snapshot.zoneIndex = 0; snapshot.bossDefeated = false;
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).ownedCaps;
+    const r = deserialize(env)!;
+    expect(r.ownedCaps).toEqual([]);         // hasn't earned the raft yet
+  });
+
+  it("a junk ownedCaps value degrades cleanly (drops non-strings, never throws)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    (env.run as any).ownedCaps = ["gorge", 5, null, "", "gorge"]; // dupes + junk
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.ownedCaps).toEqual(["gorge"]);  // deduped, junk dropped
   });
 
   it("re-equipped affix labels render the saved value (no broken label fn)", () => {

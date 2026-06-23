@@ -119,6 +119,9 @@ export const Game = {
       // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
       dungeonFloor: Field.dungeonFloor,
       dungeonMiniCleared: Field.dungeonMiniCleared,
+      // OWNED TRAVERSAL CAPS (Silverwood Overhaul, D2) — the run's macro-traversal unlocks (e.g. "gorge"),
+      // as a plain string[] for JSON; restored into Field.ownedCaps (a Set) on resume.
+      ownedCaps: [...Field.ownedCaps],
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -154,6 +157,10 @@ export const Game = {
     // grid rebuild below) — genOverworld/genDungeon + the big-map authored-grid re-apply consult it, so a
     // looted chest stays opened (carved as path) across the reload (no infinite-loot exploit).
     Field.openedChests = { ...r.openedChests };
+    // Restore owned traversal caps (Silverwood Overhaul, D2) BEFORE the grid rebuild below — bigPassable +
+    // the chunk realizer consult Field.ownedCaps, so the gorge re-opens (or stays locked) correctly on
+    // resume. An old save that beat Greenvale already had "gorge" granted in deserialize (no soft-lock).
+    Field.ownedCaps = new Set(r.ownedCaps);
     Field.zoneIndex = r.zoneIndex;
     if (r.inTown && r.townId) {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
@@ -284,6 +291,28 @@ export const Game = {
   // → loadZone). We deliberately do NOT teleport to the *next* zone's doorstep hub: those are
   // placeholders (e.g. Silverwood points at Riverhearth, the far "main city"), which made beating
   // Greenvale dump the player in the wrong city. Real inter-zone hub progression is Dara's design lane.
+  // POST-ZONE-BOSS FLOW (Silverwood Overhaul, D6 — SCOPED auto-warp removal). For the Greenvale→Silverwood
+  // transition ONLY, retire the auto-walk-the-hub-chain teleport: after the Kingpin falls the player has
+  // the raft (the "gorge" cap, granted in battle.ts) and the world is ROAM-FIRST — drop them back onto the
+  // seamless overworld (out of the Warren, at its mouth) to walk to the Sunless Gorge and cross to
+  // Silverwood themselves. The Duskmarsh + all backlog zones KEEP `enterNextHubChain` (their hub/hubs flow
+  // is unchanged). Gated on the SOURCE zone id so only Greenvale is affected.
+  afterZoneBoss(): void {
+    if (Field.isLastZone()) { this.victory(); return; }
+    if (Field.zone().id === "greenvale") {
+      // Roam-first: mark the Warren cleared, climb out to the seamless surface (raft in hand), and let the
+      // player navigate to the now-open gorge. Position-derived state carries the zone over when they cross.
+      this.bossDefeated = true;
+      this._inTown = false; this._inMerchant = false;
+      Field.ascend();                       // back onto the big-map overworld at the Warren mouth (out of the dungeon)
+      this.saveNow();
+      Overlay.show(`<h2 class="title-gold">The Warren falls</h2>
+        <p class="small">The Kingpin is dead, and among his hoard — a raft and bridging-kit. The Sunless Gorge to the east is yours to cross now. Strike out for the ancient wood of Silverwood.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide()">Roam on</button></div>`);
+      return;
+    }
+    this.enterNextHubChain();
+  },
   enterNextHubChain(): void {
     this._startVillage = false;
     if (Field.isLastZone()) { this.victory(); return; } // no next zone (shouldn't reach here — final boss → victory)

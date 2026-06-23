@@ -6,8 +6,9 @@ import { clamp, ri, pick } from "../core/rng";
 import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
-  buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf,
+  buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt,
 } from "../data/world";
+import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
@@ -54,6 +55,14 @@ const TOWN_THEMES: Record<string, Record<string, string>> = {
 // (a spine dungeon reads `↦ <name>`; an optional one reads `<name> (optional)`). The Aurelion-complete
 // review names the optional set; everything else is spine-ish (the mainline ladder to Sunbridge).
 const OPTIONAL_ZONES = new Set(["stormcoast", "riverhearth", "dawnfall", "whisperhills"]);
+
+// ZONES ON THE NEW DECOUPLED OVERWORLD/DUNGEON MODEL (ADR 0008 Stage 2 — `usesNewModel()`). DATA-DRIVEN
+// by zone id (Silverwood Overhaul, B1) so a zone joins by being listed here, not by a hardcoded
+// `zoneIndex===0` check. Greenvale (the exemplar) + Silverwood (this overhaul) are migrated; the rest
+// stay on the legacy combined-grid path (`genCombined`) until they migrate. The big map is the live
+// surface for ALL zones (bigMapEnabled); this set drives onMiniDefeated's mouth-flip + inDungeon's
+// mode test, which is what makes the Sunless-Grove mouth open on the big map (live bug 6).
+const NEW_MODEL_ZONES = new Set(["greenvale", "silverwood"]);
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
@@ -115,6 +124,11 @@ export const Field = {
   chests: [] as Pt[],            // set from the zone layout in genMap
   lairAt: null as Pt | null,     // rare-monster lair (Greenvale: Hogger), set from the zone layout
   pois: [] as Poi[],             // points of interest / encampments (the INHABITED world), per-zone
+  // TRAVERSAL CAPABILITIES (Silverwood Overhaul, D2): the run's owned macro-traversal unlocks (e.g.
+  // "gorge" — the raft/bridge-kit from the Bandit Warren). A barrier band (data/world.BARRIERS) is
+  // impassable terrain until its cap is owned; bigPassable consults `traversalBlocks` BEFORE the
+  // cell-kind check. PERSISTED in the save (string[]); a fresh run owns nothing.
+  ownedCaps: new Set<string>() as OwnedCaps,
   poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
   openedChests: {} as Record<string, boolean>, // chest key (overworld "<zoneId>:ow:<x>,<y>" / dungeon "<zoneId>:d<floor>:<x>,<y>") → looted; PERSISTED in the save (per-RUN, like poisCleared)
   pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
@@ -183,6 +197,9 @@ export const Field = {
     // VARIED TERRAIN + POI sprite slots (2026-06-21) — placeholders until art-integrator slices them
     // (see asset-gaps.md). cliff/bridge/ford ground tiles + the four POI kinds; river reuses water.
     for (const n of ["cliff", "bridge", "ford", "shrine", "camp", "landmark", "signpost"]) names.push(n);
+    // TRAVERSAL BARRIER (D2): the locked "gorge" chasm wall (placeholder fill until art-integrator slices
+    // a ravine/raft sprite — flagged in the hand-back). Reuses the in-palette dark fill meanwhile.
+    names.push("gorge");
     // marsh (Duskmarsh) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["water", "mire-ground", "mire-ground2", "mire-path", "deadtree", "reed", "bog"]) names.push(n);
     // ancient-forest (Silverwood) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
@@ -269,9 +286,12 @@ export const Field = {
   // ground/walls/scatter as an old-growth grove (mossy ground, towering old trees, fern/mushroom
   // clumps) when the zone's overworld env leads with "forest" (sibling to the marsh's isMire()).
   isForest(): boolean { return this.zone().envs[0] === "forest"; },
-  // Whether THIS zone runs the new decoupled overworld/dungeon model (ADR 0008 Stage 2). Greenvale
-  // first; the rest stay on the legacy combined-grid path until Chunk B proves the model out.
-  usesNewModel(): boolean { return this.zoneIndex === 0; },
+  // Whether THIS zone runs the new decoupled overworld/dungeon model (ADR 0008 Stage 2): the OVERWORLD
+  // is the seamless region (mouth POI, no gate wall) and the dungeon is its OWN grid (genDungeon).
+  // DATA-DRIVEN (Silverwood Overhaul, B1) — a small set of migrated zone ids, not `zoneIndex===0`, so a
+  // zone joins the new model by id without touching the gate-on-zoneIndex branches. Greenvale + Silverwood
+  // are migrated; the rest stay on the LEGACY combined-grid path (genCombined) until they migrate.
+  usesNewModel(): boolean { return NEW_MODEL_ZONES.has(this.zone().id); },
   // ── MULTI-FLOOR helpers (ADR 0008 Stage 3) ──────────────────────────────────────────────────
   // The floor stack for a zone's dungeon: its authored `floors` if multi-floor, else a 1-element stack
   // of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
@@ -324,6 +344,7 @@ export const Field = {
     this.enteredDungeon = false;
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
+    this.ownedCaps = new Set(); // fresh run — no traversal caps owned (the gorge stays locked until the Warren falls; a resume restores the set AFTER init())
     this.resize();
     this.loadTiles();
     this.genMap(); // sets spawn (px/py) from the zone layout
@@ -989,7 +1010,14 @@ export const Field = {
         const wx = x0 + lx, wy = y0 + ly;
         // (a) REALIZATION (pure, data/world, G22): ANY built zone's authored core → that kind; else
         // inside ANY continent → open ground ("grass"); else uncharted soft edge (ocean / world edge).
-        const kind = realizeKindWorld(OVERWORLD_ID, this.authoredGrids, wx, wy);
+        let kind = realizeKindWorld(OVERWORLD_ID, this.authoredGrids, wx, wy);
+        // TRAVERSAL BARRIER (D2): while LOCKED, the barrier band reads as its impassable terrain kind
+        // (the "gorge" chasm) so the wall is LEGIBLE — "see it now, reach it later" — even where the
+        // realizer would paint open continent. Once the cap is owned the band reverts to its realized
+        // kind (grass / crossing). Passability is governed by traversalBlocks (consulted in bigPassable),
+        // not by this dressing, so the crossing tiles stay walkable once unlocked.
+        const bar = barrierAt(OVERWORLD_ID, wx, wy);
+        if (bar && !this.ownedCaps.has(bar.cap)) kind = bar.terrainKind;
         // (b) IDENTITY / DRESSING — cached so the per-frame draw path never calls regionAt.
         const id = regionAt(OVERWORLD_ID, wx, wy);
         const ai = id.area?.identity;
@@ -1044,10 +1072,20 @@ export const Field = {
     return ch[wy - (cy << CHUNK_SHIFT)][wx - (cx << CHUNK_SHIFT)];
   },
 
-  // Big-map passability: read the realized cell. Uncharted + the field walls block.
+  // Big-map passability: a TRAVERSAL BARRIER first (cheap point-in-rect; the gorge band is impassable
+  // until the "gorge" cap is owned, crossing tiles passable), THEN the realized cell (uncharted + the
+  // field walls block). The barrier check goes BEFORE cellAt so a locked band blocks even where the
+  // realizer would paint open ground (D2 — the macro soft-gate sits in the open continent between cores).
   bigPassable(wx: number, wy: number): boolean {
+    if (traversalBlocks(OVERWORLD_ID, wx, wy, this.ownedCaps)) return false;
     const cell = this.cellAt(wx, wy);
     return cell.kind !== "uncharted" && !FIELD_WALLS.has(cell.kind);
+  },
+  // Grant a traversal capability to the run (the Warren/Kingpin clear grants "gorge"); persists on the
+  // next save. Idempotent. Re-realizes the chunk ring so a now-open band stops drawing as a wall.
+  grantTraversalCap(cap: "gorge"): void {
+    grantCap(this.ownedCaps, cap);
+    if (this.bigMap) { this.chunks.clear(); this.realizeAround?.(); }
   },
 
   // The Area encounter-lean the player currently stands in (big-map) — drives pickAreaSet.
@@ -1498,6 +1536,7 @@ export const Field = {
     // ford = pale shallow crossing. POI tiles sit on the biome's ground (their object draws on top).
     if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
     if (kind === "cliff") return { ground: "cliff", flat: "#2b2f37" }; // a cliff is a WALL — DARK so it recedes (was #3f4450, which read as the palest = most "walkable"-looking tile, exactly backwards)
+    if (kind === "gorge") return { ground: "gorge", flat: "#0f1622" }; // the locked traversal barrier — a DARK sunless chasm so it reads as impassable (raft it once the "gorge" cap is earned)
     if (kind === "bridge") return { ground: "bridge", flat: "#7a6242" };
     if (kind === "ford") return { ground: "ford", flat: "#86b0c4" };
     // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
@@ -1734,6 +1773,7 @@ export const Field = {
       else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
       else if (cell.kind === "cliff" && !T.cliff) c.fillText("⛰️", sx + t / 2, sy + t / 2);
       else if (cell.kind === "river" && !T.water) c.fillText("🌊", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "gorge" && !T.gorge) c.fillText("🏔️", sx + t / 2, sy + t / 2); // locked sunless gorge (placeholder)
       else if (cell.kind === "tree") {
         if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
         else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);

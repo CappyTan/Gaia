@@ -376,10 +376,15 @@ export const Battle = {
       wasZoneBoss = this.enemies.some((e) => e.boss),
       wasFinal = this.finalBoss;
     if (wasMini) { Game.miniBossDefeated = true; Field.onMiniDefeated(); } // open the mouth/gate (model-aware)
+    // TRAVERSAL UNLOCK (Silverwood Overhaul, D2): clearing the Bandit Warren (the Kingpin, Greenvale's
+    // zone boss) yields the raft/bridge-kit → grant the "gorge" capability, so the Sunless Gorge between
+    // Greenvale and Silverwood opens (the crossing becomes passable). Gated on the SOURCE zone (greenvale)
+    // so only this boss grants it; later barriers add their own grant point.
+    if (wasZoneBoss && Field.zone().id === "greenvale") Field.grantTraversalCap("gorge");
     Game.continueAfterBattle = wasZoneBoss
       ? wasFinal
         ? () => Game.victory()
-        : () => Game.enterNextHubChain() // walk the next zone's hub chain (e.g. Riverhearth → Miregard)
+        : () => Game.afterZoneBoss() // post-boss flow (roam-first for Greenvale→Silverwood; hub chain elsewhere)
       : () => Screens.show("field");
     Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007)
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal), 500);

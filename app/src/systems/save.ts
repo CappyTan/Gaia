@@ -105,6 +105,12 @@ export interface SavedRun {
   // (no surprise re-fight / no being stranded past a gate the state thinks is closed). OPTIONAL +
   // degrade-never-throw — absent on an old save = nothing beaten (back-compatible, no schema bump).
   dungeonMiniCleared?: Record<string, boolean>;
+  // OWNED TRAVERSAL CAPABILITIES (Silverwood Overhaul, D2): the macro-traversal unlocks the run owns
+  // (e.g. "gorge" — the raft/bridge-kit from the Bandit Warren), as a plain string[]. A barrier band is
+  // impassable terrain until its cap is owned. OPTIONAL + degrade-never-throw — absent on an old save =
+  // nothing owned, EXCEPT a save that already beat Greenvale (the Warren) is auto-granted "gorge" on
+  // load (no soft-lock at the gorge for an in-flight run). Back-compatible, no schema bump needed.
+  ownedCaps?: string[];
 }
 
 export interface SaveEnvelope {
@@ -141,6 +147,7 @@ export interface RunSnapshot {
   openedChests: Record<string, boolean>;
   dungeonFloor: number;
   dungeonMiniCleared: Record<number, boolean>;
+  ownedCaps: string[];
 }
 
 /** A rebuilt run, content-validated, ready for the controller to install. */
@@ -170,6 +177,7 @@ export interface LoadedRun {
   openedChests: Record<string, boolean>; // looted chests (per-context keys); empty on an old save
   dungeonFloor: number;      // which multi-floor dungeon floor to resume on (0 if not / single-floor)
   dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
+  ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
 }
@@ -247,6 +255,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     openedChests: { ...s.openedChests },
     dungeonFloor: s.dungeonFloor,
     dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
+    ownedCaps: [...s.ownedCaps],
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -355,6 +364,20 @@ function reviveOpenedChests(v: unknown): Record<string, boolean> {
   return out;
 }
 
+/**
+ * Sanitize the persisted owned-capability list → a clean string[] (dedup, drop non-strings; never
+ * throws). BACK-COMPAT: a save with no `ownedCaps` that has already passed Greenvale (`zoneIndex≥1`, or
+ * Greenvale with the boss down) auto-gets "gorge" so an in-flight run isn't stranded at the new barrier.
+ * The zone index is the GREENVALE constant 0 (the Bandit Warren is Greenvale's dungeon).
+ */
+function reviveOwnedCaps(v: unknown, zoneIndex: number, bossDefeated: boolean): string[] {
+  const out = new Set<string>();
+  if (Array.isArray(v)) for (const k of v) if (typeof k === "string" && k) out.add(k);
+  const beatGreenvale = zoneIndex >= 1 || (zoneIndex === 0 && bossDefeated);
+  if (!out.has("gorge") && v === undefined && beatGreenvale) out.add("gorge"); // legacy save, no field → grant
+  return [...out];
+}
+
 /** Flatten a numeric floor→beaten map to a string-keyed dict for JSON (a Record<number> isn't JSON-native). */
 function serializeFloorFlags(v: Record<number, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -451,6 +474,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // controller on resume). Reset to 0 if the zone changed under us. Degrade-never-throw.
     dungeonFloor: resetPos ? 0 : Math.max(0, Math.floor(r.dungeonFloor || 0)),
     dungeonMiniCleared: resetPos ? {} : reviveFloorFlags(r.dungeonMiniCleared),
+    // OWNED TRAVERSAL CAPS — sanitized string[]. BACK-COMPAT (no soft-lock): a save that already PASSED
+    // Greenvale (any later zone, OR Greenvale itself with its boss down) predates the gorge gate, so
+    // auto-grant "gorge" — otherwise an in-flight run could be stranded at a barrier it earned long ago.
+    ownedCaps: reviveOwnedCaps(r.ownedCaps, zoneIndex, !!r.bossDefeated),
     notes,
   };
 }
