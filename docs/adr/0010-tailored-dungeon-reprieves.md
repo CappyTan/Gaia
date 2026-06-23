@@ -54,5 +54,5 @@ end-to-end. **No-rest is correct, not a deficiency**; the topology analyzer no l
   rests feel the same — the dungeon analog of Dara's "no two zones the same" directive.
 - **Deferred:** a `cleanse` reprieve that lifts a lingering ailment (e.g. petrification) needs
   **persistent out-of-combat statuses**, which don't exist yet (statuses are per-battle). Don't author
-  it until that mechanic lands. Likewise `pendingRegen` save-persistence is wired when the first
-  `regen` dungeon ships (no shipping dungeon uses it today).
+  it until that mechanic lands. (`pendingRegen` IS persisted across save/resume, so a future `regen`
+  dungeon's carried buff survives a reload — closed pre-emptively even though no shipping dungeon uses it.)

@@ -222,6 +222,13 @@ describe("zone layouts (ADR 0006 — bespoke + anti-soft-lock; ADR 0008 — dung
           expect(redundantFloor(F, i === floors.length - 1), `floor B${i + 1} loop-redundant carriers`).toBeGreaterThanOrEqual(2);
         });
       });
+      // ADR 0010: a rest tile must carry a tailored reprieve (else it's a dead beat). Caves correctly have
+      // neither — this only fires when a floor authored `rests` without a `dungeon.reprieve`.
+      it("any rest node declares a tailored reprieve (no dead-beat rest, ADR 0010)", () => {
+        floors.forEach((F, i) => {
+          if (F.rests?.length) expect(F.reprieve, `floor B${i + 1} has rests but no reprieve`).toBeDefined();
+        });
+      });
     });
   }
 });
