@@ -20,6 +20,7 @@ import { placementOf } from "../data/world";
 import { SETTLEMENTS } from "../data/towns";
 import { kitFor } from "../data/classes";
 import { AFFIXES } from "../data/items";
+import { HELD_ITEMS } from "../data/heldItems";
 import { RARITY } from "../data/rarity";
 
 // ── envelope ───────────────────────────────────────────────────────────────────────────────
@@ -117,6 +118,10 @@ export interface SavedRun {
   // nothing owned, EXCEPT a save that already beat Greenvale (the Warren) is auto-granted "gorge" on
   // load (no soft-lock at the gorge for an in-flight run). Back-compatible, no schema bump needed.
   ownedCaps?: string[];
+  // HELD ITEMS (quest/key items, party-menu "Items" tab) — the registry ids the run holds, as a plain
+  // string[]. OPTIONAL + degrade-never-throw — absent on an old save = none held, EXCEPT the controller
+  // re-seeds a key item whose cap the save already owns (a Greenvale-beaten save shows the raft). No bump.
+  heldItems?: string[];
 }
 
 export interface SaveEnvelope {
@@ -155,6 +160,7 @@ export interface RunSnapshot {
   dungeonMiniCleared: Record<number, boolean>;
   mouthCleared: Record<string, boolean>;
   ownedCaps: string[];
+  heldItems: string[];
 }
 
 /** A rebuilt run, content-validated, ready for the controller to install. */
@@ -186,6 +192,7 @@ export interface LoadedRun {
   dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
   mouthCleared: Record<string, boolean>; // zones whose OVERWORLD mouth guard was beaten (per zone id); old saves seed from the global miniBossDefeated
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
+  heldItems: string[];       // held quest/key item ids (e.g. ["raft"]); empty on an old save (the controller re-seeds a key item whose cap is already owned)
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
 }
@@ -265,6 +272,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
     mouthCleared: { ...s.mouthCleared },
     ownedCaps: [...s.ownedCaps],
+    heldItems: [...s.heldItems],
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -406,6 +414,14 @@ function reviveMouthCleared(v: unknown, miniBossDefeated: boolean, zoneIndex: nu
   return out;
 }
 
+/** Sanitize the persisted held-item ids → a clean string[] of KNOWN registry ids (drop junk + any id no
+ *  longer in HELD_ITEMS so a removed item doesn't linger; dedup; never throws). */
+function reviveHeldItems(v: unknown): string[] {
+  const out = new Set<string>();
+  if (Array.isArray(v)) for (const k of v) if (typeof k === "string" && HELD_ITEMS[k]) out.add(k);
+  return [...out];
+}
+
 /** Flatten a numeric floor→beaten map to a string-keyed dict for JSON (a Record<number> isn't JSON-native). */
 function serializeFloorFlags(v: Record<number, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -510,6 +526,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // Greenvale (any later zone, OR Greenvale itself with its boss down) predates the gorge gate, so
     // auto-grant "gorge" — otherwise an in-flight run could be stranded at a barrier it earned long ago.
     ownedCaps: reviveOwnedCaps(r.ownedCaps, zoneIndex, !!r.bossDefeated),
+    // HELD ITEMS — sanitized to known registry ids (drop junk/removed items; never throws). Empty on an
+    // old save: the controller re-seeds any key item whose cap is owned, so the raft shows for a
+    // Greenvale-beaten save. Reset when the zone changed under us (the run effectively restarts elsewhere).
+    heldItems: resetPos ? [] : reviveHeldItems(r.heldItems),
     notes,
   };
 }

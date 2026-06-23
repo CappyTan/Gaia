@@ -53,6 +53,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     dungeonMiniCleared: { 0: true },
     mouthCleared: { greenvale: true },
     ownedCaps: [],
+    heldItems: [],
   };
   return { party, inventory, snapshot };
 }
@@ -189,6 +190,30 @@ describe("save round-trip", () => {
     snapshot.ownedCaps = ["gorge"];
     const r = deserialize(serialize(snapshot, "v1"))!;
     expect(r.ownedCaps).toContain("gorge");
+  });
+
+  it("persists held quest/key items (the raft round-trips in the Items inventory)", () => {
+    const { snapshot } = makeRun();
+    snapshot.heldItems = ["raft"];
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.heldItems).toEqual(["raft"]);
+  });
+
+  it("a save with no heldItems field (old save) loads as nothing-held, never throws", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).heldItems;          // legacy save predating the inventory
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.heldItems).toEqual([]);            // controller re-seeds from owned caps on resume
+  });
+
+  it("a junk heldItems value degrades cleanly (drops non-strings + unknown ids, never throws)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    (env.run as any).heldItems = ["raft", 5, null, "", "no-such-item", "raft"]; // dupes + junk + unknown
+    const r = deserialize(env)!;
+    expect(r.heldItems).toEqual(["raft"]);      // deduped, only known registry ids survive
   });
 
   it("a save with explicit empty ownedCaps stays empty even past Greenvale (no spurious auto-grant)", () => {

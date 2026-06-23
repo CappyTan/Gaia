@@ -10,6 +10,8 @@ import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
+import { HELD_ITEMS } from "../data/heldItems";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
 import { GAME_VERSION } from "../data/version";
@@ -39,6 +41,10 @@ export const Game = {
   gold: 0,
   party: [] as Member[],
   inventory: [] as Item[],
+  // HELD ITEMS (party-menu "Items" tab) — quest/key items (held forever, never consumed) + later
+  // consumables, by id. Distinct from `inventory` (equippable loot). A key item with a `grantsCap`
+  // confers that traversal capability — owning the raft is what opens the Sunless Gorge.
+  heldItems: emptyItems() as OwnedItems,
   steps: 0,
   encountersWon: 0,
   bossDefeated: false,
@@ -67,7 +73,7 @@ export const Game = {
   // Begin a fresh run with a specific party composition (from the Roster picker or default).
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
-    this.gold = 0; this.inventory = []; this.steps = 0; this.encountersWon = 0;
+    this.gold = 0; this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
@@ -86,6 +92,21 @@ export const Game = {
     this._hubChain = hubsFor(ZONES[0]); this._hubIx = 0;
     this.openTown(this._hubChain[0] ?? "hearthford"); // the starting zone's own front-door village
   },
+
+  // Pick up a held item (quest/key item) by registry id. Idempotent — a key item is held once. When the
+  // item confers a traversal capability (the raft → "gorge"), grant it so owning the item drives the
+  // unlock. Returns the def the FIRST time it's acquired (for a pickup notice), or null if already held
+  // / unknown. The acquired set is reconciled with owned caps on save-load too (continueRun).
+  acquireItem(id: string): typeof HELD_ITEMS[string] | null {
+    const def = HELD_ITEMS[id];
+    if (!def || this.heldItems.has(id)) { if (def) this.applyItemCaps(); return null; }
+    grantItem(this.heldItems, id);
+    this.applyItemCaps();
+    return def;
+  },
+  // Grant into the run's traversal caps every capability conferred by the currently-held key items
+  // (idempotent). The single place the item→cap link is realized — called on pickup and on resume.
+  applyItemCaps(): void { for (const cap of capsFromItems(this.heldItems)) Field.grantTraversalCap(cap); },
 
   // ── SAVE & RESUME (ADR 0007) ───────────────────────────────────────────────────────────────
   // Autosave the live run to the single localStorage slot. Called on meaningful transitions
@@ -125,6 +146,9 @@ export const Game = {
       // OWNED TRAVERSAL CAPS (Silverwood Overhaul, D2) — the run's macro-traversal unlocks (e.g. "gorge"),
       // as a plain string[] for JSON; restored into Field.ownedCaps (a Set) on resume.
       ownedCaps: [...Field.ownedCaps],
+      // HELD ITEMS (quest/key items) — persisted as a plain string[] of ids; restored into the run's Set
+      // and reconciled with owned caps on resume (continueRun).
+      heldItems: [...this.heldItems],
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -145,6 +169,12 @@ export const Game = {
     this.gold = r.gold; this.steps = r.steps; this.encountersWon = r.encountersWon;
     this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
     this.party = r.party; this.inventory = r.inventory;
+    // HELD ITEMS (quest/key items): restore the set, then BACK-COMPAT seed — an old save that owns a cap
+    // but predates the inventory gets the key item that confers it (so the raft shows in the Items tab for
+    // a Greenvale-beaten save). applyItemCaps below re-grants caps from items (the item→cap link on load).
+    this.heldItems = new Set(r.heldItems);
+    for (const [id, def] of Object.entries(HELD_ITEMS))
+      if (def.grantsCap && r.ownedCaps.includes(def.grantsCap)) this.heldItems.add(id);
     this.continueAfterBattle = null; this._inMerchant = false;
     this._inTown = r.inTown; this._startVillage = r.startVillage; this._revisitTown = !!r.revisitTown;
     this._hubChain = r.hubChain; this._hubIx = r.hubIx;
@@ -164,6 +194,7 @@ export const Game = {
     // the chunk realizer consult Field.ownedCaps, so the gorge re-opens (or stays locked) correctly on
     // resume. An old save that beat Greenvale already had "gorge" granted in deserialize (no soft-lock).
     Field.ownedCaps = new Set(r.ownedCaps);
+    this.applyItemCaps(); // union in caps conferred by held key items (the raft → "gorge"), before the grid rebuild
     // Restore PER-ZONE mouth-cleared state (Silverwood Overhaul fix) BEFORE any grid rebuild below —
     // buildAuthoredGrid / genOverworld read miniClearedFor(id), so a beaten zone's mouth stays open (and
     // an unbeaten zone's guard stays up) on resume, per zone. An old save seeds this in deserialize.
