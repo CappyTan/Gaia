@@ -167,7 +167,16 @@ and loops/shortcuts. The level-design-reviewer grades you against it. Its "why" 
   composition → **encounter-designer**. Enemy stats / encounter difficulty → **balance-tuner**.
   Names/lore/canon → **requiem-canon-keeper**. Use Gaia's vocabulary precisely (Attunement, zone,
   dungeon, mini-boss/boss, rare monster — see `CONTEXT.md`).
-- **Verify**: `npm run typecheck` + `npm run build` must stay clean; `npm test` green. If your change
+- **See your dungeon floor before/after you shape it — `npm run map`.** The `dungeon-map` tool
+  (`app/tools/dungeon-map.ts`, on the pure `systems/dungeonTopology.floorTopology`) prints an ASCII
+  map + a rubric-keyed read of any floor: the **MESH vs CORRIDOR** verdict (cyclomatic loops — your §2
+  "could I draw this as one trunk?" test, computed), hubs/dead-ends, rest/shortcut presence, the
+  **soft-lock** check (every feature reachable from entry), and the **mini-boss gate-pinch** verdict
+  (does walling the lieutenant actually cut off the stairs/boss?). `npm run map greenvale` (all floors)
+  or `npm run map greenvale 1` (just B2). Use it to check your work objectively, not by eyeballing
+  coordinates.
+- **Verify**: `npm run typecheck` + `npm run build` must stay clean; `npm test` green (the
+  `dungeon-topology` test asserts no floor soft-locks and every floor stays a mesh). If your change
   alters encounter cadence, depth, or difficulty, run `npm run sim 200` (skilled persona) and, if the
   numbers move, hand specifics to **balance-tuner** — don't tune enemy stats yourself.
 - **Don't bump `GAME_VERSION` or commit.** Hand finished work back to the main loop with notes.
