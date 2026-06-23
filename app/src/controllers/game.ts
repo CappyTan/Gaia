@@ -10,6 +10,8 @@ import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
+import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
 import { GAME_VERSION } from "../data/version";
@@ -39,6 +41,10 @@ export const Game = {
   gold: 0,
   party: [] as Member[],
   inventory: [] as Item[],
+  // HELD ITEMS (party-menu "Items" tab) — quest/key items (held forever, never consumed) + later
+  // consumables, by id. Distinct from `inventory` (equippable loot). A key item with a `grantsCap`
+  // confers that traversal capability — owning the raft is what opens the Sunless Gorge.
+  heldItems: emptyItems() as OwnedItems,
   steps: 0,
   encountersWon: 0,
   bossDefeated: false,
@@ -67,7 +73,7 @@ export const Game = {
   // Begin a fresh run with a specific party composition (from the Roster picker or default).
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
-    this.gold = 0; this.inventory = []; this.steps = 0; this.encountersWon = 0;
+    this.gold = 0; this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
@@ -86,6 +92,21 @@ export const Game = {
     this._hubChain = hubsFor(ZONES[0]); this._hubIx = 0;
     this.openTown(this._hubChain[0] ?? "hearthford"); // the starting zone's own front-door village
   },
+
+  // Pick up a held item (quest/key item) by registry id. Idempotent — a key item is held once. When the
+  // item confers a traversal capability (the raft → "gorge"), grant it so owning the item drives the
+  // unlock. Returns the def the FIRST time it's acquired (for a pickup notice), or null if already held
+  // / unknown. The acquired set is reconciled with owned caps on save-load too (continueRun).
+  acquireItem(id: string): HeldItemDef | null {
+    const def = HELD_ITEMS[id];
+    if (!def || this.heldItems.has(id)) { if (def) this.applyItemCaps(); return null; }
+    grantItem(this.heldItems, id);
+    this.applyItemCaps();
+    return def;
+  },
+  // Grant into the run's traversal caps every capability conferred by the currently-held key items
+  // (idempotent). The single place the item→cap link is realized — called on pickup and on resume.
+  applyItemCaps(): void { for (const cap of capsFromItems(this.heldItems)) Field.grantTraversalCap(cap); },
 
   // ── SAVE & RESUME (ADR 0007) ───────────────────────────────────────────────────────────────
   // Autosave the live run to the single localStorage slot. Called on meaningful transitions
@@ -119,6 +140,15 @@ export const Game = {
       // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
       dungeonFloor: Field.dungeonFloor,
       dungeonMiniCleared: Field.dungeonMiniCleared,
+      // PER-ZONE OVERWORLD MOUTH-CLEARED (Silverwood Overhaul fix) — which zones' dungeon-mouth guard is
+      // beaten, by zone id; persisted so the right zones' mouths stay open across a reload (not a global).
+      mouthCleared: Field.mouthCleared,
+      // OWNED TRAVERSAL CAPS (Silverwood Overhaul, D2) — the run's macro-traversal unlocks (e.g. "gorge"),
+      // as a plain string[] for JSON; restored into Field.ownedCaps (a Set) on resume.
+      ownedCaps: [...Field.ownedCaps],
+      // HELD ITEMS (quest/key items) — persisted as a plain string[] of ids; restored into the run's Set
+      // and reconciled with owned caps on resume (continueRun).
+      heldItems: [...this.heldItems],
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -139,6 +169,12 @@ export const Game = {
     this.gold = r.gold; this.steps = r.steps; this.encountersWon = r.encountersWon;
     this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
     this.party = r.party; this.inventory = r.inventory;
+    // HELD ITEMS (quest/key items): restore the set, then BACK-COMPAT seed — an old save that owns a cap
+    // but predates the inventory gets the key item that confers it (so the raft shows in the Items tab for
+    // a Greenvale-beaten save). applyItemCaps below re-grants caps from items (the item→cap link on load).
+    this.heldItems = new Set(r.heldItems);
+    for (const [id, def] of Object.entries(HELD_ITEMS))
+      if (def.grantsCap && r.ownedCaps.includes(def.grantsCap)) this.heldItems.add(id);
     this.continueAfterBattle = null; this._inMerchant = false;
     this._inTown = r.inTown; this._startVillage = r.startVillage; this._revisitTown = !!r.revisitTown;
     this._hubChain = r.hubChain; this._hubIx = r.hubIx;
@@ -154,6 +190,15 @@ export const Game = {
     // grid rebuild below) — genOverworld/genDungeon + the big-map authored-grid re-apply consult it, so a
     // looted chest stays opened (carved as path) across the reload (no infinite-loot exploit).
     Field.openedChests = { ...r.openedChests };
+    // Restore owned traversal caps (Silverwood Overhaul, D2) BEFORE the grid rebuild below — bigPassable +
+    // the chunk realizer consult Field.ownedCaps, so the gorge re-opens (or stays locked) correctly on
+    // resume. An old save that beat Greenvale already had "gorge" granted in deserialize (no soft-lock).
+    Field.ownedCaps = new Set(r.ownedCaps);
+    this.applyItemCaps(); // union in caps conferred by held key items (the raft → "gorge"), before the grid rebuild
+    // Restore PER-ZONE mouth-cleared state (Silverwood Overhaul fix) BEFORE any grid rebuild below —
+    // buildAuthoredGrid / genOverworld read miniClearedFor(id), so a beaten zone's mouth stays open (and
+    // an unbeaten zone's guard stays up) on resume, per zone. An old save seeds this in deserialize.
+    Field.mouthCleared = { ...r.mouthCleared };
     Field.zoneIndex = r.zoneIndex;
     if (r.inTown && r.townId) {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
@@ -284,6 +329,31 @@ export const Game = {
   // → loadZone). We deliberately do NOT teleport to the *next* zone's doorstep hub: those are
   // placeholders (e.g. Silverwood points at Riverhearth, the far "main city"), which made beating
   // Greenvale dump the player in the wrong city. Real inter-zone hub progression is Dara's design lane.
+  // POST-ZONE-BOSS FLOW (Silverwood Overhaul, D6 — SCOPED auto-warp removal). For the Greenvale→Silverwood
+  // transition ONLY, retire the auto-walk-the-hub-chain teleport: after the Kingpin falls the player has
+  // the raft (the "gorge" cap, granted in battle.ts) and the world is ROAM-FIRST — drop them back onto the
+  // seamless overworld (out of the Warren, at its mouth) to walk to the Sunless Gorge and cross to
+  // Silverwood themselves. The Duskmarsh + all backlog zones KEEP `enterNextHubChain` (their hub/hubs flow
+  // is unchanged). Gated on the SOURCE zone id so only Greenvale is affected.
+  afterZoneBoss(): void {
+    if (Field.isLastZone()) { this.victory(); return; }
+    if (Field.zone().id === "greenvale") {
+      // Roam-first: mark the Warren cleared, climb out to the seamless surface (raft in hand), and let the
+      // player navigate to the now-open gorge. Position-derived state carries the zone over when they cross.
+      this.bossDefeated = true;
+      // DELIBERATE roam-first reset: drop the in-town/merchant flags directly (no hub chain to enter here —
+      // unlike enterNextHubChain, which routes through a settlement). Keep in sync with that path's bookkeeping
+      // if its flag handling changes.
+      this._inTown = false; this._inMerchant = false;
+      Field.ascend();                       // back onto the big-map overworld at the Warren mouth (out of the dungeon)
+      this.saveNow();
+      Overlay.show(`<h2 class="title-gold">The Warren falls</h2>
+        <p class="small">The Kingpin is dead, and among his hoard — a raft and bridging-kit. The Sunless Gorge to the east is yours to cross now. Strike out for the ancient wood of Silverwood.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide()">Roam on</button></div>`);
+      return;
+    }
+    this.enterNextHubChain();
+  },
   enterNextHubChain(): void {
     this._startVillage = false;
     if (Field.isLastZone()) { this.victory(); return; } // no next zone (shouldn't reach here — final boss → victory)

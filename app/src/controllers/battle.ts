@@ -3,6 +3,7 @@
 // the DOM. Pure math (combatDamage, makeEnemy, status helpers) lives in ../systems/combat.
 
 import type { CombatAct, Enemy, Item, Member, Skill, Unit } from "../types";
+import type { HeldItemDef } from "../data/heldItems";
 import { $, el } from "../core/dom";
 import { cap, ri, pick } from "../core/rng";
 import { SKILLS } from "../data/skills";
@@ -376,16 +377,29 @@ export const Battle = {
       wasZoneBoss = this.enemies.some((e) => e.boss),
       wasFinal = this.finalBoss;
     if (wasMini) { Game.miniBossDefeated = true; Field.onMiniDefeated(); } // open the mouth/gate (model-aware)
+    // TRAVERSAL UNLOCK (Silverwood Overhaul, D2): clearing the Bandit Warren (the Kingpin, Greenvale's
+    // zone boss) AWARDS the raft as a held quest item — and owning the raft confers the "gorge" capability
+    // (Game.acquireItem → applyItemCaps), so the Sunless Gorge between Greenvale and Silverwood opens (its
+    // crossing becomes passable). Gated on the SOURCE zone (greenvale) so only this boss grants it; later
+    // barriers add their own item + grant point. Returns the def the first time → announced in the spoils.
+    const gotItem = wasZoneBoss && Field.zone().id === "greenvale" ? Game.acquireItem("raft") : null;
     Game.continueAfterBattle = wasZoneBoss
       ? wasFinal
         ? () => Game.victory()
-        : () => Game.enterNextHubChain() // walk the next zone's hub chain (e.g. Riverhearth → Miregard)
+        : () => Game.afterZoneBoss() // post-boss flow (roam-first for Greenvale→Silverwood; hub chain elsewhere)
       : () => Screens.show("field");
     Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007)
-    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal), 500);
+    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
   },
-  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean): void {
+  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {
     let h = `<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +◈ ${gold} Aether</p>`;
+    // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
+    // above the loot, since it goes to the Items tab, not the Bag.
+    if (gotItem) h += `<div class="card" style="background:#161226;border-color:var(--gold);text-align:left">
+      <div class="psec" style="margin:0 0 2px">Key Item</div>
+      <b class="title-gold">${gotItem.icon} ${gotItem.name}</b>
+      <div class="small" style="margin-top:4px">${gotItem.blurb}</div>
+      <div class="small" style="opacity:.7;margin-top:4px">Kept in your Party → Items.</div></div>`;
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
       leveled.forEach((l) => { h += `<div class="small">${l.name} → Lv ${l.level} · +1 MNA point${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`; });

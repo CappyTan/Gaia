@@ -537,96 +537,133 @@ const WARREN_B3: DungeonLayout = {
 const GREENVALE_DUNGEON: DungeonLayout = WARREN_B1;
 const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 
-// ── Silverwood, the Ancient Forest + the Sunless Grove (OPEN-WORLD rework — Dara 2026-06-20) ──
-// Region #2 of Aurelion (world-atlas): the deep, old, hushed old-growth forest, inserted BETWEEN
-// Greenvale and the Duskmarsh. It reads DENSER and DARKER than Greenvale's open shire — small hidden
-// HOLLOWS pressed in by ancient trees, linked by narrow ROOT-WORN trails — but it is the SAME open
-// MESH, not a winding line with spurs. Spawn feeds a WEST HOLLOW hub, from which THREE root-trails run
-// to a CENTRAL crossing hub: a north trail (fern hollow → NE canopy nook), a winding middle trail,
-// and a south trail (sunken-root hollow → mossbed). The three rejoin at the central hub (two loops),
-// so the forest is a CIRCUIT you roam, not an out-and-back. Chests sit on routes you choose between
-// (fern chest north, sunken chest south, canopy chest on the north crest); the Mossback Tortoise's
-// lair dens deep in the southern mossbed off the south loop.
-//   East of the Elder Treant's gate, THE SUNLESS GROVE is a connected heartwood room-network: the
-// root-hall forks into a north HOLLOW BOLE and a south FUNGAL GALLERY that BOTH rejoin at a root-stair
-// antechamber before the Hollow King's arena — a loop (each room holds a chest), so you circle through
-// and come back, never dead-end. genMap carves + flood-fills to GUARANTEE boss + every chest/lair
+// ── Silverwood, the Ancient Forest + the Sunless Grove (OVERWORLD OVERHAUL — anti-reskin, A) ──
+// Region #2 of Aurelion, REBUILT to read DEEP and DESCENDING (overworld-design §2-§6) — emphatically
+// NOT Greenvale's wide "walk east" shire reskinned. The wood drops from a bright, broad HIGH CROWN in
+// the NW (the great Elder-Oak's stand — the tent-pole WEENIE visible across the gorge from Greenvale,
+// "see it now, reach it later") through rising dread to the SUNLESS RAVINE THROAT at the SE foot, where
+// the Sunless Grove mouth waits. The grid's N→S axis (low-y crown → high-y ravine) carries the descent;
+// terrain + biome read carry the dread (open dappled wood high, ravine-edge cliff low) — TERRAIN flavor
+// only, no Attunement (D1). Crown stays w=60/h=24/gateWallX=36 so the A0-locked WORLD_PLACEMENT
+// (wx:270,wy:58, centroid-centered) is UNCHANGED.
+//
+// THE NETWORK (open-world rule, §2). A descending MESH, three tiers of landmarks, loops that rejoin:
+//   • NW HEARTWOOD CROWN — the spawn glade + the ELDER-OAK tent-pole (large weenie) on its high stand,
+//     a bright crown hub the three descents leave from.
+//   • THREE descending routes to the SE ravine foot, each with its own character + medium-tier landmark:
+//     a NORTH CREST line (fern stand → NE canopy nook, the high dry way), a MIDDLE SPINE (crown →
+//     central crossing → pre-gate, the fast read), and a SOUTH RAVINE descent (down through the West
+//     Descent into the Deep Mossbed, the low dangerous way). They LOOP: the central crossing cross-links
+//     to both crest and mossbed, and the pre-gate hollow gathers all three — so roaming is a CIRCUIT,
+//     ≥2 redundant routes reach the mouth (removing any one trail never severs it).
+//   • SMALL-tier beats (§3 landmark tiers): a STANDING-STONE RING + GROVE SHRINE in the crown, a FUNGAL
+//     HOLLOW landmark on the descent, a POACHER'S CAMP off the south loop.
+//   • OCCLUDED SIGHTLINES (triangle rule, §3): a RAVINE LIP (cliff ridgeline) cuts mid-zone between the
+//     bright crown and the dark approach, so the mouth is hidden until you crest/descend to it — the
+//     lip + old-growth stands break the long view into discovered beats.
+//   • RISK-GATED REWARD (§4): the RICHEST chest + the Mossback Tortoise's lair den DEEP in the Deep
+//     Mossbed, OFF the safe spine on the low south route.
+//   • A WOODED STREAM tumbles down the ravine (winding river), crossed at a log BRIDGE (middle spine) and
+//     a stepping-root FORD (south route); the north crest stays the dry redundant way.
+// MIGRATED to the genOverworld/genDungeon model (B1): the dungeon lives in `dungeon.layout`
+// (SILVERWOOD_DUNGEON, x rebased to 0); dunRects/dunPaths stay empty (the combined-grid test rebuilds
+// it east of gateWallX). The Elder Treant gates the SE mouth; beating it (onMiniDefeated) opens the
+// Sunless Grove (B2). genOverworld carves + flood-repairs so the mouth + every chest/lair/POI is always
 // reachable (anti-soft-lock); the loops mean no pocket can wall you in.
 const SILVERWOOD_LAYOUT: ZoneLayout = {
-  w: 60, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 36, y: 12 }, gateWallX: 36, boss: { x: 56, y: 11 },
-  mouth: { x: 36, y: 12 },
+  w: 60, h: 24, spawn: { x: 2, y: 3 }, gate: { x: 36, y: 20 }, gateWallX: 36, boss: { x: 56, y: 11 },
+  mouth: { x: 36, y: 20 }, // the Sunless-Grove mouth at the SE RAVINE FOOT (south + east), guarded by the Elder Treant
   fieldRects: [
-    { x: 1, y: 10, w: 6, h: 6 },    // spawn glade (the forest road mouth)
-    { x: 9, y: 9, w: 6, h: 7 },     // WEST HOLLOW hub — three trails leave it
-    { x: 11, y: 3, w: 7, h: 5 },    // north fern hollow (chest)
-    { x: 10, y: 17, w: 8, h: 5 },   // south sunken-root hollow (chest)
-    { x: 21, y: 9, w: 7, h: 7 },    // CENTRAL crossing hollow hub — the three trails rejoin
-    { x: 22, y: 3, w: 7, h: 5 },    // NE canopy nook (chest, on the north crest)
-    { x: 20, y: 17, w: 9, h: 5 },   // deep mossbed (Mossback's lair, off the south loop)
-    { x: 30, y: 10, w: 5, h: 5 },   // pre-gate hollow before the Elder Treant
+    { x: 1, y: 1, w: 7, h: 6 },     // NW spawn glade — the high crown's bright threshold
+    { x: 4, y: 2, w: 8, h: 7 },     // HEARTWOOD CROWN hub — the Elder-Oak's stand; three descents leave it
+    { x: 13, y: 1, w: 8, h: 6 },    // north fern stand (chest) — the high CREST line
+    { x: 24, y: 2, w: 8, h: 6 },    // NE canopy nook (chest) — the crest's far medium stand
+    { x: 14, y: 9, w: 9, h: 7 },    // CENTRAL crossing hollow — the descent midpoint, the loops rejoin
+    { x: 3, y: 11, w: 8, h: 6 },    // WEST descent hollow — the south route drops through here
+    { x: 4, y: 17, w: 11, h: 6 },   // DEEP MOSSBED — Mossback's lair + the richest chest (low, off-spine)
+    { x: 27, y: 12, w: 8, h: 10 },  // SE pre-gate RAVINE hollow — the sunless throat before the mouth (reaches up to the zone centroid so the core's heart is open ground)
   ],
   fieldPaths: [
-    [{ x: 4, y: 12 }, { x: 11, y: 12 }],                                    // spawn → west hollow
-    [{ x: 12, y: 10 }, { x: 14, y: 5 }, { x: 24, y: 5 }, { x: 24, y: 10 }], // NORTH trail: hub → fern → NE canopy → central
-    [{ x: 14, y: 12 }, { x: 17, y: 13 }, { x: 21, y: 12 }],                 // MIDDLE trail: hub → central (winds)
-    [{ x: 12, y: 14 }, { x: 13, y: 19 }, { x: 24, y: 19 }, { x: 24, y: 15 }], // SOUTH trail: hub → sunken → mossbed → central
-    [{ x: 27, y: 12 }, { x: 32, y: 12 }, { x: 35, y: 12 }],                 // central → pre-gate → gate
-    [{ x: 14, y: 5 }, { x: 14, y: 10 }],   // cross-link: fern hollow ↔ west hub
-    [{ x: 13, y: 17 }, { x: 13, y: 15 }],  // cross-link: sunken hollow ↔ west hub
-    [{ x: 24, y: 7 }, { x: 24, y: 10 }],   // cross-link: NE canopy ↔ central hub
+    [{ x: 3, y: 4 }, { x: 6, y: 5 }],                                       // spawn → crown hub
+    // NORTH CREST (the high, dry way): crown → fern stand → NE canopy → drop SE into the pre-gate ravine.
+    [{ x: 8, y: 4 }, { x: 16, y: 3 }, { x: 27, y: 4 }, { x: 31, y: 9 }, { x: 31, y: 15 }],
+    // MIDDLE SPINE (the fast read): crown → central crossing → pre-gate hollow → the mouth.
+    [{ x: 8, y: 6 }, { x: 12, y: 11 }, { x: 18, y: 12 }],                   // crown → central crossing (descends)
+    [{ x: 20, y: 13 }, { x: 28, y: 17 }, { x: 31, y: 18 }],                 // central → pre-gate ravine
+    [{ x: 31, y: 18 }, { x: 35, y: 20 }],                                  // pre-gate → the mouth (the gate gap)
+    // SOUTH RAVINE descent (the low, dangerous way): crown → west descent → deep mossbed → climb to pre-gate.
+    [{ x: 6, y: 8 }, { x: 6, y: 13 }],                                     // crown → west descent hollow
+    [{ x: 7, y: 16 }, { x: 9, y: 20 }, { x: 18, y: 20 }],                  // west descent → deep mossbed
+    [{ x: 18, y: 20 }, { x: 26, y: 21 }, { x: 30, y: 20 }],                // deep mossbed → pre-gate ravine (the loop climbs back)
+    // CROSS-LINKS (loops, §2): knit crest↔central and central↔mossbed so the mesh is a circuit, not a tree.
+    [{ x: 19, y: 9 }, { x: 28, y: 6 }],   // central crossing ↔ NE canopy crest (north loop arm)
+    [{ x: 16, y: 15 }, { x: 13, y: 19 }], // central crossing ↔ deep mossbed (south loop arm)
+    [{ x: 16, y: 3 }, { x: 8, y: 5 }],    // fern stand ↔ crown (crest's west tie-back)
   ],
-  dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (SILVERWOOD_DUNGEON) — ADR 0008 Stage 2
-  // VARIED TERRAIN + INHABITED (2026-06-21 roll-out). A WOODED STREAM (river kind = a clear forest brook)
-  // runs the x=18 gap between the west hollow and the central crossing, SEVERING the winding MIDDLE trail
-  // (it crosses at y=13, carried by a mossy log BRIDGE) and the SOUTH mossbed trail (y=19, carried by a
-  // FORD over the stepping-roots) — the NORTH fern trail (y=5) stays dry as the redundant route. A
-  // MOSS-FURRED CLIFF (an old rockfall, the "mossy hollow" framed in stone) walls the north-trail↔central
-  // gap + edges the deep mossbed, funnelling the route between the ancient trunks.
+  dunRects: [], dunPaths: [], // dungeon lives in dungeon.layout (SILVERWOOD_DUNGEON) — ADR 0008 Stage 2 (B1)
+  // VARIED TERRAIN (§2 living world). A WOODED STREAM (river kind) tumbles DOWN the ravine from the crown
+  // toward the SE throat, SEVERING the MIDDLE spine (crossed at y=12 by a mossy log BRIDGE) and the SOUTH
+  // mossbed route (crossed at y=20 by a stepping-root FORD) — the NORTH crest (y≈3-4) stays the dry
+  // redundant way. The RAVINE LIP (cliff ridgeline) cuts mid-zone, OCCLUDING the sunless mouth from the
+  // bright crown (triangle rule, §3) and funnelling the descent; a mossy outcrop edges the Deep Mossbed.
   rivers: [
-    { x: 18, y: 8, w: 1, h: 12 },  // the wooded stream: crosses the MIDDLE trail (y13, log bridge) + the SOUTH mossbed (y19, forded)
-    { x: 19, y: 14, w: 1, h: 3 },  // a meander so the brook winds between the roots
+    { x: 22, y: 9, w: 1, h: 9 },   // the stream tumbling down the ravine: crosses the MIDDLE spine (y12, bridge)
+    { x: 21, y: 18, w: 1, h: 3 },  // a meander dropping toward the south route (forded at the mossbed climb, y20)
   ],
   cliffs: [
-    { x: 15, y: 7, w: 4, h: 1 },   // the moss-furred rockfall between the fern trail and the central crossing
-    { x: 27, y: 16, w: 2, h: 2 },  // SE mossy outcrop edging the deep mossbed (Mossback's lair)
+    { x: 11, y: 7, w: 4, h: 1 },   // the RAVINE LIP between the crown and the central crossing (occludes the descent)
+    { x: 23, y: 11, w: 5, h: 1 },  // the lip's eastern reach — hides the sunless mouth from the high crest
+    { x: 15, y: 17, w: 2, h: 2 },  // mossy outcrop edging the Deep Mossbed (frames Mossback's lair)
   ],
-  bridges: [{ x: 18, y: 13 }],     // the middle trail's mossy log bridge over the stream (its only crossing)
-  fords: [{ x: 18, y: 19 }],       // the stepping-root ford reconnecting the sunken-hollow↔mossbed loop
+  bridges: [{ x: 22, y: 12 }],     // the middle spine's mossy log bridge over the tumbling stream (its only crossing)
+  fords: [{ x: 21, y: 20 }],       // the stepping-root ford reconnecting the mossbed↔pre-gate south loop
   chests: [
-    { x: 14, y: 4 },   // north fern hollow (north trail)
-    { x: 13, y: 20 },  // south sunken-root hollow (south trail)
-    { x: 25, y: 4 },   // NE canopy nook (north crest, off the safe trail)
+    { x: 17, y: 2 },   // north fern stand (the high crest route)
+    { x: 28, y: 3 },   // NE canopy nook (the crest's far medium stand, off the safe line)
+    { x: 7, y: 21 },   // DEEP MOSSBED — the RICHEST chest, deep on the low south route (reward the brave)
   ],
-  lair: { x: 24, y: 20 }, // the Mossback Tortoise dens deep in the southern mossbed off the south loop
-  scatter: 0.09,          // denser scatter than the shire: ferns/mushrooms thick on the floor
-  // POIs — the INHABITED ancient forest, all OFF the main flow:
+  lair: { x: 12, y: 21 }, // the Mossback Tortoise dens deep in the Deep Mossbed, off the south loop
+  scatter: 0.1,           // dense old-growth: ferns/mushrooms/roots thick on the forest floor (vs the open shire)
+  // POIs — the INHABITED ancient forest, all OFF the main flow (discoveries across the three tiers):
   pois: [
-    { x: 15, y: 3, kind: "shrine", name: "Grove Shrine" },                                             // north fern hollow — heal
-    { x: 14, y: 18, kind: "camp", name: "Poachers' Camp", pack: ["sylvanarcher", "dwolf", "dwolf"] },  // south sunken hollow — optional fight
-    { x: 26, y: 3, kind: "landmark", name: "The Elder Stones", note: "Standing stones swallowed by root and moss — the forest grew up around a ring older than memory." }, // NE canopy nook
-    { x: 11, y: 12, kind: "signpost", name: "Trailhead Marker", note: "Fern hollow north · sunken roots south · the Elder Treant's gate lies east." }, // west fork
+    { x: 5, y: 5, kind: "landmark", name: "The Elder-Oak", note: "A titan oak older than Aurelion's kings, crown lost in mist — its silhouette is the wood's beacon, seen from the gorge's far rim." }, // CROWN tent-pole (large weenie)
+    { x: 18, y: 2, kind: "shrine", name: "Grove Shrine" },                                             // north fern stand (crest) — heal
+    { x: 9, y: 19, kind: "camp", name: "Poachers' Camp", pack: ["sylvanarcher", "dwolf", "dwolf"] },   // deep mossbed (off the south loop) — optional fight
+    { x: 26, y: 2, kind: "landmark", name: "The Standing Stones", note: "A moss-furred ring the forest grew up around — older than memory, humming faintly at dusk." }, // NE canopy crest (medium landmark)
+    { x: 19, y: 13, kind: "landmark", name: "The Fungal Hollow", note: "A sunless dell where pale fungus climbs the dead boles — the air down here turns cold and still." }, // central crossing (descent beat)
+    { x: 3, y: 4, kind: "signpost", name: "Trailhead Marker", note: "Fern crest north · the mossbed deep south · the Elder Treant's gate lies down the ravine, southeast." }, // crown fork
   ],
 };
-// The Sunless Grove as its own grid (data uniform with Greenvale; Silverwood stays on the LEGACY
-// combined-grid path in Chunk A, so this layout is data-only until its zone is migrated — Chunk B).
+// THE SUNLESS GROVE as its own grid (ADR 0008 Stage 2). You DESCEND INTO the grove from the SE ravine
+// foot, so the mouth/entry lands LOW (south, y=20) — matching the overworld gate's SE ravine-foot row,
+// which is what connects the legacy combined grid (the gate gap at gateWallX,gate.y meets this entry's
+// row). The root-hall opens off the sunken entrance and the wood RISES into the heart: a north hollow
+// bole and a south fungal gallery LOOP up to a root-stair antechamber before the Hollow King's heartwood
+// arena (each loop room holds a chest), so you circle through and back, never dead-end. genDungeon
+// flood-fills to GUARANTEE the boss + every chest reachable (anti-soft-lock).
 const SILVERWOOD_DUNGEON: DungeonLayout = {
-  w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 },
+  w: 24, h: 24, entry: { x: 1, y: 20 }, gate: { x: 1, y: 20 }, boss: { x: 20, y: 9 },
   rooms: [
-    { x: 2, y: 8, w: 6, h: 8 },     // grove root-hall (the fork)
-    { x: 10, y: 3, w: 6, h: 5 },    // north hollow bole (chest, on the loop)
+    { x: 2, y: 16, w: 6, h: 6 },    // sunken grove root-hall (the fork, low — you descend in here)
     { x: 9, y: 16, w: 7, h: 5 },    // south fungal gallery (chest, on the loop)
-    { x: 14, y: 8, w: 5, h: 7 },    // root-stair antechamber hub (the loop rejoins)
-    { x: 17, y: 8, w: 6, h: 6 },    // the Hollow King's heartwood arena
+    { x: 10, y: 4, w: 6, h: 5 },    // north hollow bole (chest, on the loop, risen high)
+    { x: 14, y: 9, w: 5, h: 7 },    // root-stair antechamber hub (the loop rejoins)
+    { x: 17, y: 6, w: 6, h: 6 },    // the Hollow King's heartwood arena
   ],
   paths: [
-    [{ x: 1, y: 12 }, { x: 5, y: 12 }],                            // mouth → root-hall
-    [{ x: 5, y: 10 }, { x: 13, y: 5 }, { x: 16, y: 9 }],           // hall → north bole → antechamber
-    [{ x: 5, y: 14 }, { x: 12, y: 18 }, { x: 16, y: 13 }],         // hall → south gallery → antechamber (the LOOP)
-    [{ x: 16, y: 11 }, { x: 19, y: 11 }],                          // antechamber → arena (boss)
+    [{ x: 1, y: 20 }, { x: 5, y: 19 }],                           // mouth → sunken root-hall
+    [{ x: 5, y: 17 }, { x: 13, y: 6 }, { x: 16, y: 10 }],         // hall → north bole (rising) → antechamber
+    [{ x: 5, y: 19 }, { x: 12, y: 18 }, { x: 16, y: 14 }],        // hall → south gallery → antechamber (the LOOP)
+    // SECOND, INDEPENDENT bole link (the upper section CIRCLES, not a there-and-back spur): a west wall-
+    // root riser drops the bole's far corner down to the south gallery on its OWN column (x=11), clear of
+    // the x=13 riser. So the bole sits on a genuine cycle — gallery → x11 riser → bole → x16 crossover →
+    // antechamber → south arm → gallery — and cutting either bole link leaves it reachable from the other.
+    [{ x: 11, y: 8 }, { x: 11, y: 16 }],                          // bole ↔ south gallery (west riser — the return arm)
+    [{ x: 16, y: 10 }, { x: 19, y: 9 }],                          // antechamber → arena (boss)
   ],
   chests: [
     { x: 12, y: 18 },  // south fungal gallery (loop, rich)
-    { x: 13, y: 4 },   // north hollow bole (loop, breather)
+    { x: 13, y: 5 },   // north hollow bole (loop, breather)
   ],
   scatter: 0.09,
 };

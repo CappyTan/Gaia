@@ -25,7 +25,6 @@
 import { $, el } from "../core/dom";
 import { Field } from "./field";
 import { Screens } from "./screens";
-import { Game } from "./game";
 import { ZONES } from "../data/zones";
 import { buildAuthoredGrid, placementOf } from "../data/world";
 
@@ -142,7 +141,7 @@ export const Minimap = {
     const z = ZONES.find((zz) => zz.id === zoneId);
     const pl = placementOf(zoneId);
     if (!z || !pl) { this.drawOpen(ctx, where); return; }
-    const grid = buildAuthoredGrid(zoneId, Game.miniBossDefeated);
+    const grid = buildAuthoredGrid(zoneId, Field.miniClearedFor(zoneId));
     const h = grid.length, w = grid[0]?.length ?? 0;
     if (!w) return;
     const { s, ox, oy } = this.fit(w, h);
