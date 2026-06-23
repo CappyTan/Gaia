@@ -70,8 +70,16 @@ Code correctness, layering (data vs controller), types → **code-reviewer**. On
 
 ## Method
 `git diff` the changed zone/field code and read it. Run `npm run typecheck && npm run build && npm
-test`. If cadence/depth changed, run `npm run sim 200` and read the pacing. Mentally generate the map a
-few times and trace a path to the boss and to each chest — hunt for the unreachable case.
+test`. **For a dungeon, lead with `npm run map <zone>`** (e.g. `npm run map greenvale`, or `npm run map
+greenvale 1` for one floor) — the `dungeon-map` tool (`app/tools/dungeon-map.ts`, on the pure
+`systems/dungeonTopology`) prints each floor's ASCII map + a rubric-keyed read so you grade the topology
+objectively instead of mentally simulating `genMap`: the **MESH vs CORRIDOR** verdict (cyclomatic loops
+→ §2), hubs vs dead-end rooms (spurs → §2), rest-node presence (§1), drop/shortcut count (§2/§4), the
+**soft-lock** check (every feature reachable from entry — your cardinal §1 rule), and the **gate-pinch**
+verdict (walling the lieutenant cuts off the stairs/boss, or it's bypassable). Read those signals first,
+then read the tiles for the qualitative calls (legibility, pacing, risk/reward) the tool can't make. If
+cadence/depth changed, run `npm run sim 200` and read the pacing. Still trace the worst-case map by hand
+for anything the analyzer flags — it confirms the topology, you own the judgment.
 
 ## Output
 Prioritized findings — **[Blocking] / [Should-fix] / [Polish]** — each with `file:line` or the

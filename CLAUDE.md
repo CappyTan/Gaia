@@ -23,6 +23,7 @@ frozen at `app/gaia.html` as a reference; see History.)
 | [`app/index.html`](app/index.html) | **Vite entry** — the shell markup + styles; loads `src/main.ts`. |
 | [`app/src/`](app/src/) | **The game**, as TypeScript modules (see Architecture). |
 | [`app/tools/balance-sim.ts`](app/tools/balance-sim.ts) | Headless full-run combat simulator; imports the *shipping* systems. |
+| [`app/tools/dungeon-map.ts`](app/tools/dungeon-map.ts) | Headless dungeon-floor **topology** dumper (`npm run map`); ASCII map + a rubric-keyed read (mesh/corridor loops, soft-lock, gate-pinch) on the pure `systems/dungeonTopology`. For the dungeon design/review agents. |
 | [`app/tools/slice-art.py`](app/tools/slice-art.py) | Reproducible art pipeline: slices Dara's reference sheets → transparent sprites in `app/assets/`. |
 | [`app/tests/`](app/tests/) | Vitest unit tests for the pure systems. |
 | [`app/assets/`](app/assets/) | Generated game sprites (items, enemies, heroes). Hashed + copied into the build by Vite. |
@@ -82,6 +83,10 @@ Requires Node (≥18) + npm. First time: `npm install`.
 - **Balance / regression sim:** `npm run sim` (60 runs) or `npm run sim 200`. Imports the real
   shipping systems. Targets: end-of-fight party HP ~55–75%, bosses lower (~30–50%), full-clear
   wipe rate <~10%. Tune by editing `data/enemies.ts` / `data/zones.ts`, then re-run.
+- **Dungeon topology map:** `npm run map` (every dungeon floor), `npm run map <zone>` (one zone, by id
+  or index), `npm run map <zone> <floor>` (one floor). ASCII map + a rubric-keyed read (mesh vs
+  corridor loops, hubs/dead-ends, rest/shortcut, **soft-lock**, mini-boss **gate-pinch**) for the
+  level-designer/level-design-reviewer to assess a floor objectively. Pure: `systems/dungeonTopology`.
 - **Rebuild art** (needs Python + Pillow): `python3 app/tools/slice-art.py` (`--preview` adds a
   montage). Writes `app/assets/{items,enemies,heroes}/*.png`.
 - **REQUIEM canon** — if `requiem-compendium.source.html` changes, re-run the parser; never

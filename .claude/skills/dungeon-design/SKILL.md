@@ -117,8 +117,19 @@ A **cave** or POI interior is a *small* dungeon: apply the spirit, not the full 
 - **Gradeable:** is it worth entering (a real reward), legible, and soft-lock-free? That's the bar.
 
 ## 8 · Verify (the real gate)
-- `npm run typecheck && npm run build && npm test` clean; **never soft-lock** (trace a path to the boss
-  and to every chest on several generated maps).
+- **Read the floor objectively first — `npm run map <zone>`.** The `dungeon-map` tool
+  (`app/tools/dungeon-map.ts`, on the pure `systems/dungeonTopology.floorTopology`) renders any dungeon
+  floor as ASCII + a read keyed straight to these checks, so authors and reviewers grade from the same
+  picture instead of mentally simulating `genMap`: **MESH vs CORRIDOR** (cyclomatic loops — the §2
+  "could I draw this as one trunk?" test, computed), hubs vs dead-end rooms (§2), rest-node presence
+  (§1), drop/shortcut count (§2/§4), the **soft-lock** check (every feature reachable from entry —
+  §2/§4, always [Blocking]), and the **mini-boss gate-pinch** verdict (does walling the lieutenant
+  actually cut off the stairs/boss, or is it bypassable? — §5). `npm run map greenvale` (all floors) or
+  `npm run map greenvale 1` (one floor). It reports the topology; the *qualitative* calls (legibility,
+  pacing feel, risk/reward) are still yours.
+- `npm run typecheck && npm run build && npm test` clean; **never soft-lock** (the `dungeon-topology`
+  test asserts every shipping floor is reachable + a mesh; trace a path to the boss and every chest on
+  several generated maps for anything new).
 - If cadence/depth/difficulty moved, run `npm run sim 200` and read the pacing against the targets:
   **end-of-fight party HP ~55–75%, boss ~30–50%, full-clear wipe <~10%, finish ~L10.** A party at
   near-full HP at the boss gate = **under-paced** (a time tax — see §1); a wipe on trash = over-spiked.
