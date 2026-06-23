@@ -1615,11 +1615,12 @@ export const Field = {
     if (biome === "forest") {
       const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground", water: "water" };
       const g = isObj ? "grove-ground" : (gm[kind] || "grove-ground");
-      // Placeholder flats (no grove art yet) tuned for LEGIBILITY: a lighter TRAIL for the walkable path,
-      // mid forest-green ground, DARK tree-walls + water so "where I can walk" reads (was one flat #2e4a26
-      // for path/ground/wall alike). Walkable = lighter/warmer; impassable = dark.
-      const f: Record<string, string> = { path: "#6f6a3e", grass: "#36522c", grass2: "#3a572f", bush: "#335028", rock: "#3c5230", tree: "#13230d", water: "#223a3e" };
-      return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: f[kind] ?? "#36522c" };
+      // D6 GREENVALE FOREST floor: a deep-BUT-LIT green (was near-black #36522c → read impassable). The grove
+      // floor is walkable "ground" so it's lit + warm-leaning; the trail a hair warmer/paler still; tree-WALLS
+      // + water stay DARK (they're overdrawn by the raised-sprite / recessed-water grammar below anyway). The
+      // bush/rock cells are walkable scatter-on-floor, so they share the lit grove-floor hue, not a wall hue.
+      const f: Record<string, string> = { path: "#7d7748", grass: "#4f7038", grass2: "#547640", bush: "#4f7038", rock: "#4f7038", tree: "#13230d", water: "#1c3236" };
+      return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: f[kind] ?? "#4f7038" };
     }
     if (biome === "mire" || biome === "water") {
       const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
@@ -1640,7 +1641,9 @@ export const Field = {
     if (biome === "orchard") {
       const gm: Record<string, string> = { grass: "orchard-ground", grass2: "orchard-ground2", path: "path", tree: "orchard-ground" };
       const g = isObj ? "orchard-ground" : (gm[kind] || "orchard-ground");
-      return { ground: g === "orchard-ground" ? alt("orchard-ground") : g, flat: "#557a30" };
+      // D6 GREENVALE ORCHARD/MEADOW: warm yellow-green SHIRE floor (orchard rows / tended meadow) — lit + warm
+      // so it's plainly walkable, distinct from the deeper-but-lit forest green. Tree-walls overdraw via D4.
+      return { ground: g === "orchard-ground" ? alt("orchard-ground") : g, flat: kind === "tree" ? "#3a5220" : "#6f8e34" };
     }
     if (biome === "meadow" || biome === "creek") {
       const gm: Record<string, string> = { grass: "meadow-ground", grass2: "meadow-ground2", path: "path", bush: "wheat", tree: "meadow-ground" };
@@ -1674,9 +1677,67 @@ export const Field = {
       const g = isObj ? "grass" : kind;
       return { ground: g === "grass" ? alt("grass") : g, flat: "#6f8a5a" };
     }
-    // plains / unknown = base shire grass + road + hedge-tree.
+    // plains / unknown = base shire grass + road + hedge-tree. D6 GREENVALE SHIRE: a warm yellow-green
+    // open floor (lit + walkable); tree-walls go dark (overdrawn by the raised-sprite grammar via D4).
     const g = isObj ? "grass" : kind;
-    return { ground: g === "grass" ? alt("grass") : g, flat: "#4a7a32" };
+    return { ground: g === "grass" ? alt("grass") : g, flat: kind === "tree" ? "#2c4418" : "#5a8a36" };
+  },
+
+  // ── D1 PASSABILITY-GRAMMAR primitives (the at-a-glance "blocked" tells) ──────────────────────────────
+  // RAISED + CAST-SHADOW = blocked; FLAT + LIT = walkable. These layer on TOP of whatever floor/sprite/emoji
+  // was drawn (real art or placeholder), so the read is consistent everywhere. FIXED TOP-LEFT light → the
+  // soft cast shadow always falls bottom-RIGHT onto the floor below. Cheap: one ellipse fill, no allocation.
+
+  // D4 SOLID raised object (tree/rock/cliff/decorative bush): a soft drop-shadow on the floor at the tile's
+  // foot, offset bottom-right (the cast of a top-left light). Call BEFORE the object sprite so the sprite
+  // sits on its own shadow. Mirrors the player foot-shadow primitive (drawBig ~:1940).
+  castShadow(c: CanvasRenderingContext2D, sx: number, sy: number, t: number, rx = 0.34, strength = 0.34): void {
+    c.save();
+    c.beginPath();
+    c.ellipse(sx + t * 0.56, sy + t * 0.84, t * rx, t * rx * 0.42, 0, 0, Math.PI * 2);
+    c.fillStyle = `rgba(0,0,0,${strength})`; c.fill();
+    c.restore();
+  },
+
+  // D4 CLIFF as a RAISED FACE (not a flat dark fill): a LIT cap edge along the top-left (catching the
+  // light) over a shadowed foot + a short cast shadow onto the tile below — so a cliff reads as a wall you
+  // skirt, the same "stands up off the floor" language as a tree, without bespoke art.
+  drawCliffFace(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
+    c.save();
+    // lit cap (top-left, the light-facing edge)
+    c.fillStyle = "rgba(120,128,140,.85)"; c.fillRect(sx, sy, t, Math.max(2, t * 0.22));
+    c.fillStyle = "rgba(160,168,180,.7)"; c.fillRect(sx, sy, Math.max(2, t * 0.18), t * 0.5); // left-face highlight
+    // shadowed foot (bottom band reads as the recessed base of the face)
+    c.fillStyle = "rgba(0,0,0,.4)"; c.fillRect(sx, sy + t * 0.78, t, t * 0.22);
+    c.restore();
+    this.castShadow(c, sx, sy, t, 0.32, 0.3); // short cast onto the floor below
+  },
+
+  // D5 RECESSED WATER/RIVER (the inverse of a raised object): a COOL reflective surface set BELOW the floor
+  // plane, with a lit shoreline LIP on the LAND side casting a short shadow DOWN into the water (the bank
+  // reads as a drop-off), plus a faint specular ripple for life. Shares the gorge's rim-lip grammar so chasm
+  // + water read alike. Probes orthogonal neighbours via `wet(dx,dy)` to find the land-side faces.
+  drawRecessedWater(c: CanvasRenderingContext2D, wx: number, wy: number, sx: number, sy: number, t: number): void {
+    const wet = (gx: number, gy: number) => { const k = this.cellAt(gx, gy).kind; return k === "water" || k === "river"; };
+    c.save();
+    // deepen + cool the surface so it sits below the floor plane (over the flat/sprite already laid)
+    c.fillStyle = "rgba(10,28,46,.32)"; c.fillRect(sx, sy, t, t);
+    // faint specular ripple highlight (life on the surface)
+    const n = ((wx * 0x9e3779b1) ^ (wy * 0x85ebca77)) >>> 0;
+    c.fillStyle = "rgba(150,200,230,.16)";
+    c.fillRect(sx + t * (0.2 + (n % 3) * 0.18), sy + t * (0.3 + ((n >> 3) % 3) * 0.16), t * 0.26, Math.max(1, t * 0.06));
+    // lit shoreline LIP + shadow drop on each LAND-side edge (the bank as a drop-off)
+    const lip = Math.max(2, t * 0.16);
+    const edge = (land: boolean, lx: number, ly: number, lw: number, lh: number, shx: number, shy: number, shw: number, shh: number) => {
+      if (!land) return;
+      c.fillStyle = "rgba(196,178,128,.7)"; c.fillRect(lx, ly, lw, lh);            // lit sandy/earth lip on the land tile edge
+      c.fillStyle = "rgba(0,0,0,.34)"; c.fillRect(shx, shy, shw, shh);            // short shadow cast DOWN into the water
+    };
+    edge(!wet(wx, wy - 1), sx, sy, t, lip, sx, sy + lip, t, lip * 0.7);            // north bank
+    edge(!wet(wx - 1, wy), sx, sy, lip, t, sx + lip, sy, lip * 0.7, t);           // west bank
+    edge(!wet(wx, wy + 1), sx, sy + t - lip, t, lip, sx, sy + t - lip * 1.7, t, lip * 0.7); // south bank (lip at base)
+    edge(!wet(wx + 1, wy), sx + t - lip, sy, lip, t, sx + t - lip * 1.7, sy, lip * 0.7, t); // east bank
+    c.restore();
   },
 
   // The dungeon/cave MOUTH gets a gold caption (like town POIs) so the east-spine POI reads as a named
@@ -1850,15 +1911,37 @@ export const Field = {
       const gimg = T[ground];
       if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
       else {
+        // D3 WALKABLE FLOOR (figure/ground): the floor is the calm receding "ground" — render it LIT + FLAT
+        // with only LOW-CONTRAST value-noise so it reads as living grass/moss/dirt MATERIAL, never a grid,
+        // never near-black. (Removed the forest-darkening overlay + the high-contrast checkerboard dither
+        // that made the overworld a muddy dark grid.) Darkness is reserved for walls/recesses (D4/D5), which
+        // overdraw this fill below. The noise is a cheap deterministic hash of (wx,wy) → a ±small value tint.
         c.fillStyle = flat; c.fillRect(sx, sy, t, t);
-        if ((wx + wy) % 2) { c.fillStyle = "rgba(0,0,0,.08)"; c.fillRect(sx, sy, t, t); }
-        if (biome === "forest") { c.fillStyle = "rgba(8,20,8,.34)"; c.fillRect(sx, sy, t, t); }
+        if (!FIELD_WALLS.has(cell.kind) && cell.kind !== "gorge") {
+          const n = ((wx * 73856093) ^ (wy * 19349663)) >>> 0;        // hash → cheap value-noise
+          const v = ((n % 5) - 2) * 3;                                 // ±6 max, low-contrast material grain
+          c.fillStyle = v >= 0 ? `rgba(255,250,235,${v / 60})` : `rgba(0,0,0,${-v / 90})`; // warm lift / faint shade
+          c.fillRect(sx, sy, t, t);
+        }
       }
       // object / scatter sprites (emoji fallback) — biome-skinned.
       c.font = `${t * 0.82}px serif`;
       const obj = (img: HTMLImageElement | undefined, emoji: string, sc = 0.9) => {
         if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
         else c.fillText(emoji, sx + t / 2, sy + t / 2);
+      };
+      // D4 RAISED solid (tree/cliff-prop): a cast shadow on the floor, then the sprite drawn OVERSIZED +
+      // bottom-anchored so it overhangs the tile below and stands UP off the floor (the player's own
+      // tall-sprite + foot-shadow language, :2010+). Works for real sprites AND the emoji fallback.
+      const tall = (img: HTMLImageElement | undefined, emoji: string, sc = 1.45) => {
+        this.castShadow(c, sx, sy, t);
+        if (img) {
+          const h = t * sc, w = h * (img.width / img.height), ay = sy + t * 0.86 - h;
+          c.drawImage(img, sx + t / 2 - w / 2, ay, w, h);
+        } else {
+          c.font = `${t * sc}px serif`; c.textBaseline = "alphabetic";
+          c.fillText(emoji, sx + t / 2, sy + t * 0.9); c.textBaseline = "middle"; c.font = `${t * 0.82}px serif`;
+        }
       };
       const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
       if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
@@ -1879,8 +1962,8 @@ export const Field = {
         this.drawMouthLabel(c, sx, sy, t, true);
       }
       else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
-      else if (cell.kind === "cliff" && !T.cliff) c.fillText("⛰️", sx + t / 2, sy + t / 2);
-      else if (cell.kind === "river" && !T.water) c.fillText("🌊", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "cliff") { if (T.cliff) this.castShadow(c, sx, sy, t, 0.34, 0.32); else this.drawCliffFace(c, sx, sy, t); } // D4 RAISED face
+      else if (cell.kind === "river") this.drawRecessedWater(c, wx, wy, sx, sy, t); // D5 RECESSED watercourse (over flat OR sprite)
       else if (cell.kind === "gorge" && !T.gorge) {
         // D3 LEGIBLE GORGE (placeholder until art-integrator slices a ravine sprite — flagged in the
         // hand-back). The flat already laid the DARK chasm floor (#0f1622); add a lighter ROCKY RIM on the
@@ -1904,18 +1987,23 @@ export const Field = {
         c.fillStyle = "rgba(214,180,110,.5)"; c.fillRect(sx, sy, Math.max(1, t * 0.1), t); c.fillRect(sx + t - Math.max(1, t * 0.1), sy, Math.max(1, t * 0.1), t);
       }
       else if (cell.kind === "tree") {
-        if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
-        else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);
-        else if (biome === "mire") obj(T.deadtree, "🌫️", 0.95);
-        else if (biome === "ruin") obj(T["ruin-wall"], "🧱", 1.0);                          // crumbling ruin wall
-        else if (biome === "snow" || biome === "ice") obj(T["snow-pine"], "🌲", 1.0);        // snow-laden conifers
-        else if (biome === "stone") obj(T["snow-crag"], "⛰️", 1.0);                          // ice-rimed crags
-        else if (biome === "rock") obj(T["coast-rock"], "⛰️", 1.0);
-        else if (biome === "coast" || biome === "beach" || biome === "harbor") obj(T["coast-rock"], "🌴", 1.0);
-        else if (!gimg) c.fillText("🌲", sx + t / 2, sy + t / 2);
+        // D4 SOLID WALL: trees/crags are RAISED — cast shadow + oversized bottom-anchored sprite so they
+        // stand up off the floor and read as "go around" at a glance (real sprite OR emoji fallback).
+        if (biome === "forest") tall(T.oldtree, "🌲");
+        else if (biome === "orchard") tall(T["orchard-tree"], "🌳");
+        else if (biome === "mire") tall(T.deadtree, "🌫️");
+        else if (biome === "ruin") tall(T["ruin-wall"], "🧱");                          // crumbling ruin wall
+        else if (biome === "snow" || biome === "ice") tall(T["snow-pine"], "🌲");        // snow-laden conifers
+        else if (biome === "stone") tall(T["snow-crag"], "⛰️");                          // ice-rimed crags
+        else if (biome === "rock") tall(T["coast-rock"], "⛰️");
+        else if (biome === "coast" || biome === "beach" || biome === "harbor") tall(T["coast-rock"], "🌴");
+        else tall(gimg, "🌲");
       }
-      else if (cell.kind === "water" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
+      else if (cell.kind === "water") this.drawRecessedWater(c, wx, wy, sx, sy, t); // D5 (over flat OR sprite)
       else if (cell.kind === "bush") {
+        // D4 DECORATIVE scatter (walkable floor): a SMALL soft shadow so the prop sits on the ground — NOT
+        // the full wall cast (a bush/fern is a low prop you walk past, not a wall to skirt).
+        this.castShadow(c, sx, sy, t, 0.22, 0.2);
         if (biome === "forest") obj(T.fern, "🌿", 0.85);
         else if (biome === "meadow" || biome === "creek") obj(T.wheat, "🌾", 0.85);
         else if (biome === "snow" || biome === "ice") obj(T["snow-cairn"], "❄️", 0.9);
@@ -1925,6 +2013,7 @@ export const Field = {
         else if (!gimg) c.fillText("🌿", sx + t / 2, sy + t / 2);
       }
       else if (cell.kind === "rock") {
+        this.castShadow(c, sx, sy, t, 0.24, 0.22); // small scatter shadow (walkable floor prop)
         if (biome === "forest") obj(T.mushroom, "🍄", 0.8);
         else if (biome === "snow" || biome === "ice" || biome === "stone") obj(T["snow-rock"], "🪨", 0.9);
         else if (biome === "ruin") obj(T["ruin-rubble"], "🪨", 0.95);
