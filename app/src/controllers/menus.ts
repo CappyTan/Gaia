@@ -11,7 +11,7 @@ import { ATT } from "../data/attunements";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
 import { itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
-import { HELD_ITEMS, type HeldKind } from "../data/heldItems";
+import { HELD_ITEMS, type HeldKind, type HeldItemDef } from "../data/heldItems";
 import { itemHtml, classBody } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Game, sellPriceOf } from "./game";
@@ -76,21 +76,23 @@ export const UI = {
   // ── ITEMS — the held-item inventory (quest/key items + consumables), distinct from the loot Bag.
   //    Key items (the raft, future keys/sigils) are held forever; consumables (none yet) will stack here.
   partyItems(): void {
-    const held = [...Game.heldItems].map((id) => HELD_ITEMS[id]).filter((d) => !!d);
+    const held = [...Game.heldItems].map((id) => HELD_ITEMS[id]).filter((d): d is HeldItemDef => !!d);
     const section = (kind: HeldKind, title: string, empty: string): string => {
-      const items = held.filter((d) => d!.kind === kind);
-      let s = `<div class="tag">${title}</div>`;
+      const items = held.filter((d) => d.kind === kind);
+      let s = `<div class="psec">${title}</div>`;
       if (!items.length) return s + `<p class="small" style="opacity:.7;margin:4px 0 8px">${empty}</p>`;
       items.forEach((d) => {
+        // a demoted "Opens: …" line tells the player WHAT a traversal key item is for (not just flavor).
+        const opens = d.opens ? `<div class="tag" style="margin-top:6px">Opens: ${d.opens}</div>` : "";
         s += `<div class="card" style="text-align:left;margin:6px 0">
-          <b class="r-legendary">${d!.icon} ${d!.name}</b>
-          <p class="small" style="margin-top:6px">${d!.blurb}</p></div>`;
+          <b class="title-gold">${d.icon} ${d.name}</b>
+          <p class="small" style="margin-top:6px">${d.blurb}</p>${opens}</div>`;
       });
       return s;
     };
     Overlay.show(`<h2 class="title-gold">Items</h2>
       <div class="scroll">
-        ${section("key", "Quest Items", "None yet — found as you explore (keys, rafts, sigils).")}
+        ${section("key", "Quest Items", "None yet — quest and traversal items appear here as you explore.")}
         ${section("consumable", "Consumables", "None yet — potions and antidotes will gather here.")}
       </div>
       <div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`);

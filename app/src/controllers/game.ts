@@ -11,7 +11,7 @@ import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
-import { HELD_ITEMS } from "../data/heldItems";
+import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
 import { GAME_VERSION } from "../data/version";
@@ -97,7 +97,7 @@ export const Game = {
   // item confers a traversal capability (the raft → "gorge"), grant it so owning the item drives the
   // unlock. Returns the def the FIRST time it's acquired (for a pickup notice), or null if already held
   // / unknown. The acquired set is reconciled with owned caps on save-load too (continueRun).
-  acquireItem(id: string): typeof HELD_ITEMS[string] | null {
+  acquireItem(id: string): HeldItemDef | null {
     const def = HELD_ITEMS[id];
     if (!def || this.heldItems.has(id)) { if (def) this.applyItemCaps(); return null; }
     grantItem(this.heldItems, id);

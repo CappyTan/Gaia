@@ -20,6 +20,7 @@ export interface HeldItemDef {
   kind: HeldKind;
   blurb: string;           // flavor line for the Items panel (no mechanics/numbers — narrative's lane)
   grantsCap?: Capability;  // KEY items only: owning it unlocks this run-traversal capability
+  opens?: string;          // KEY items with a cap: the place it lets you reach, shown demoted ("Opens: …")
 }
 
 // The registry. First entry: the raft hauled from the Bandit Warren — the run's first held quest item,
@@ -32,5 +33,6 @@ export const HELD_ITEMS: Record<string, HeldItemDef> = {
     kind: "key",
     blurb: "A crude raft of bound logs, hauled from the Bandit Warren. It bears the party across the Sunless Gorge into the Silverwood.",
     grantsCap: "gorge",
+    opens: "the Sunless Gorge, into the Silverwood",
   },
 };

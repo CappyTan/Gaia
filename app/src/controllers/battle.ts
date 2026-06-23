@@ -396,9 +396,10 @@ export const Battle = {
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
     if (gotItem) h += `<div class="card" style="background:#161226;border-color:var(--gold);text-align:left">
+      <div class="psec" style="margin:0 0 2px">Key Item</div>
       <b class="title-gold">${gotItem.icon} ${gotItem.name}</b>
       <div class="small" style="margin-top:4px">${gotItem.blurb}</div>
-      <div class="small" style="opacity:.7;margin-top:4px">Kept in your Items.</div></div>`;
+      <div class="small" style="opacity:.7;margin-top:4px">Kept in your Party → Items.</div></div>`;
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
       leveled.forEach((l) => { h += `<div class="small">${l.name} → Lv ${l.level} · +1 MNA point${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`; });

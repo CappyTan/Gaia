@@ -529,6 +529,9 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // HELD ITEMS — sanitized to known registry ids (drop junk/removed items; never throws). Empty on an
     // old save: the controller re-seeds any key item whose cap is owned, so the raft shows for a
     // Greenvale-beaten save. Reset when the zone changed under us (the run effectively restarts elsewhere).
+    // NOTE the deliberate asymmetry with ownedCaps (not reset on resetPos): if a vanished zone strands the
+    // held set, continueRun's cap→item re-seed self-heals it on the next load (the raft reappears from the
+    // still-owned cap), so the cap — the thing that prevents a soft-lock — is never lost.
     heldItems: resetPos ? [] : reviveHeldItems(r.heldItems),
     notes,
   };
