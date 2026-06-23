@@ -112,12 +112,14 @@ const HEARTHFORD: Settlement = {
         "Well met, traveler. You've a young road in your eyes — not yet worn the way mine is.",
         "I've watched over Hearthford forty winters, and never seen the fields so quiet. Bandits work the north end now, bold as crows on a scarecrow.",
         "Go north into Greenvale when you're ready — but mind the old warren they've made their nest. Brave folk have gone in. Fewer come out.",
+        "Your road runs east, in the end — to Silverwood, the ancient wood beyond the fields. But the Sunless Gorge cuts the way, a wound no boot can cross. One crossing remains: the Bandit Warren keeps a raft on the dark water, and the Kingpin keeps the Warren. Break him, and the east opens.",
       ] },
     { id: "guard", name: "Watchman Bram", spr: "💂", x: 11, y: 2,
       lines: [
         "Hold up. North gate? On your own head, then — Greenvale's no orchard stroll anymore.",
         "Slimes and kobolds in the long grass, that's the least of it. The bandits' Brigadier holds the choke into the warren, and he doesn't bluff.",
         "Sleep at the inn first. I've seen too many march out proud and come back on a board. Don't make me carry you.",
+        "Don't waste a thought on the east road — it's shut. Stays shut till the Bandit Warren's broken and the Kingpin with it. Until then, the Sunless Gorge keeps you this side of it.",
       ] },
     { id: "child", name: "Little Pip", spr: "🧒", x: 6, y: 6,
       lines: [
