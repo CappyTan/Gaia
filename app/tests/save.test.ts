@@ -54,6 +54,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     mouthCleared: { greenvale: true },
     ownedCaps: [],
     heldItems: [],
+    progress: { known: [], entered: [] },
   };
   return { party, inventory, snapshot };
 }
@@ -293,6 +294,34 @@ describe("save round-trip", () => {
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
     expect(r.mouthCleared).toEqual({ greenvale: true }); // only the boolean-true string key survives
+  });
+
+  // ── WAYFINDING PROGRESS (ADR 0011) ───────────────────────────────────────────────────────────
+  it("persists wayfinding progress (known + entered regions round-trip)", () => {
+    const { snapshot } = makeRun();
+    snapshot.progress = { known: ["greenvale", "silverwood"], entered: ["greenvale"] };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.progress.known).toEqual(["greenvale", "silverwood"]);
+    expect(r.progress.entered).toEqual(["greenvale"]);
+  });
+
+  it("a save with no progress field (old save) loads to empty progress, never throws", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).progress;          // legacy save predating the wayfinding overview
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.progress).toEqual({ known: [], entered: [] }); // absent field → empty (cosmetic; gates nothing)
+  });
+
+  it("a junk progress value degrades cleanly (drops non-strings + dupes, never throws)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    (env.run as any).progress = { known: ["greenvale", 5, null, "", "greenvale"], entered: "nope" };
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.progress.known).toEqual(["greenvale"]); // deduped, junk dropped
+    expect(r.progress.entered).toEqual([]);          // a non-array entered → empty
   });
 
   it("re-equipped affix labels render the saved value (no broken label fn)", () => {

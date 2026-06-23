@@ -268,9 +268,22 @@ export const ENCOUNTERS: EncounterBand[] = [
 // All terrain + POIs are taught to passable/flood/soft-lock, so the mouth + every chest/lair/POI stays
 // reachable. ART FLAG (art-integrator): river/cliff/bridge/ford + the four POI kinds draw as in-palette
 // placeholder fills/emoji until bespoke sprites land (see the hand-back).
+// LOCK-BEFORE-KEY RELOCATION (ADR 0011 D2-revised, level-designer 2026-06-23). The Warren MOUTH no
+// longer sits on the direct spawn→east path (old local (40,12) → world (167,74), met BEFORE the gorge
+// at world x208 — key before lock). The obvious eastward route now funnels to a GORGE RIM lookout at
+// the grid's east edge (the put-in signpost row y10 → the player walks off the core east and meets the
+// impassable chasm at world x208, the Elder-Oak looming across it). The Warren is discovered as "the
+// OTHER WAY" — a SOUTH branch off the staging green down to a Warren-approach hollow (mouth local
+// (35,20) → world (162,82), SOUTH of the spawn latitude). Beat: push east → hit gorge (stuck) → see the
+// Oak across it → turn back, take the south branch → clear the Warren → raft → return → cross. The boss
+// tile/gateWallX stay legacy (the dungeon is its own grid); only the OVERWORLD mouth + routing move.
 const GREENVALE_LAYOUT: ZoneLayout = {
-  w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 12 }, gateWallX: 40, boss: { x: 60, y: 11 },
-  mouth: { x: 40, y: 12 }, // the dungeon mouth = the old gate tile (the Brigadier guards it)
+  w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 20 }, gateWallX: 40, boss: { x: 60, y: 11 },
+  // The OVERWORLD MOUTH is now DECOUPLED from the legacy combined-grid gate (ADR 0008 new model): the
+  // live big map stamps the mouth at `mouth`, the legacy combined-grid scaffolding still uses gate/gateWallX
+  // at x=40 (its wall gap rides `gate.y`). RELOCATED SOUTH off the spawn→gorge path (was (40,12) → world
+  // (167,74), met before the gorge). Now world (162,82) — a south branch, so the gorge is met first.
+  mouth: { x: 35, y: 20 }, // the Bandit-Warren mouth (the Brigadier guards it) — SOUTH branch, off the east route
   fieldRects: [
     { x: 1, y: 10, w: 7, h: 6 },    // spawn green (the village road mouth)
     { x: 10, y: 8, w: 7, h: 8 },    // WEST HUB — the first crossroads, three roads leave it
@@ -279,14 +292,20 @@ const GREENVALE_LAYOUT: ZoneLayout = {
     { x: 24, y: 8, w: 8, h: 8 },    // CENTRAL HUB — the three roads rejoin here
     { x: 24, y: 2, w: 8, h: 5 },    // NE thicket (chest, on the north ridge)
     { x: 23, y: 17, w: 9, h: 5 },   // the hidden grove (Hogger's lair, off the south loop)
-    { x: 34, y: 9, w: 5, h: 6 },    // east staging green before the gate
+    { x: 34, y: 8, w: 5, h: 5 },    // east staging green — the eastward main flow continues to the GORGE RIM
+    { x: 32, y: 16, w: 7, h: 7 },   // SE WARREN-APPROACH hollow — the south branch down to the relocated mouth
   ],
   fieldPaths: [
     [{ x: 5, y: 12 }, { x: 13, y: 12 }],                                   // spawn → west hub
     [{ x: 13, y: 10 }, { x: 15, y: 4 }, { x: 27, y: 4 }, { x: 27, y: 9 }], // NORTH road: hub → orchard → NE thicket → central
     [{ x: 16, y: 12 }, { x: 24, y: 12 }],                                  // MIDDLE road: hub → central (fast, exposed)
     [{ x: 13, y: 14 }, { x: 15, y: 19 }, { x: 27, y: 19 }, { x: 27, y: 15 }], // SOUTH road: hub → meadow → grove → central
-    [{ x: 31, y: 12 }, { x: 36, y: 12 }, { x: 39, y: 12 }],                // central → staging → gate
+    // EAST MAIN FLOW → the GORGE RIM. central → staging green → the east lookout (the put-in signpost row
+    // y10), where the player walks off the core into open continent and meets the impassable chasm.
+    [{ x: 31, y: 11 }, { x: 36, y: 10 }, { x: 39, y: 10 }],
+    // THE SOUTH BRANCH → the Warren mouth (discovered as "the other way" once the gorge blocks the east).
+    [{ x: 36, y: 12 }, { x: 36, y: 17 }, { x: 35, y: 19 }],                // staging → Warren-approach hollow → the mouth
+    [{ x: 31, y: 19 }, { x: 33, y: 19 }],                                  // grove ↔ Warren-approach (a back way in / loop)
     [{ x: 16, y: 4 }, { x: 16, y: 9 }],   // cross-link: orchard ↔ west hub
     [{ x: 15, y: 17 }, { x: 15, y: 15 }], // cross-link: meadow ↔ west hub
     [{ x: 27, y: 6 }, { x: 27, y: 9 }],   // cross-link: NE thicket ↔ central hub
@@ -324,7 +343,14 @@ const GREENVALE_LAYOUT: ZoneLayout = {
     { x: 18, y: 4, kind: "shrine", name: "Wayside Shrine" },                                 // orchard — heal
     { x: 16, y: 18, kind: "camp", name: "Bandit Camp", pack: ["gbandit", "gbandit", "kobold"] }, // south meadow — optional fight
     { x: 30, y: 4, kind: "landmark", name: "The Standing Stones", note: "Moss-furred stones older than the shire — they hum faintly at dusk." }, // north ridge crest
-    { x: 12, y: 13, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the gate lies east." }, // west fork
+    // WEST FORK SIGN — now points the Warren south (the gate left the east road).
+    { x: 12, y: 13, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the bandit warren lies southeast." }, // west fork
+    // NOTE: the Sunless-Gorge put-in signpost is NO LONGER a core-bound POI here. The authored grid ends
+    // ~world x190, but the chasm's west face / put-in sits at world ~x206,y72 — so a grid-bound sign read
+    // "the road ends at a sheer chasm" ~16–40 tiles short, before the chasm was even in view. It is now an
+    // OPEN-CONTINENT RIM PROP rendered at the real rim tile (world ≈205,72) by field.ts (drawGorgeRimProps),
+    // beside the gorge band the draw path already special-cases — so the "push east → hit the wall → see the
+    // Elder-Oak across it" beat lands where the wall actually is.
   ],
 };
 
@@ -594,6 +620,7 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
   mouth: { x: 36, y: 20 }, // the Sunless-Grove mouth at the SE RAVINE FOOT (south + east), guarded by the Elder Treant
   fieldRects: [
     { x: 1, y: 1, w: 7, h: 6 },     // NW spawn glade — the high crown's bright threshold
+    { x: 1, y: 7, w: 5, h: 6 },     // WEST-SHORE LANDING — where the gorge take-out trail enters the wood (ADR 0011 D4)
     { x: 4, y: 2, w: 8, h: 7 },     // HEARTWOOD CROWN hub — the Elder-Oak's stand; three descents leave it
     { x: 13, y: 1, w: 8, h: 6 },    // north fern stand (chest) — the high CREST line
     { x: 24, y: 2, w: 8, h: 6 },    // NE canopy nook (chest) — the crest's far medium stand
@@ -604,6 +631,10 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
   ],
   fieldPaths: [
     [{ x: 3, y: 4 }, { x: 6, y: 5 }],                                       // spawn → crown hub
+    // THE GORGE TAKE-OUT TRAIL, in-zone leg (ADR 0011 D4): the trail crossing from Greenvale's gorge
+    // enters at the WEST-SHORE LANDING and bends SE, past the crown, DOWNHILL into the descending spine —
+    // delivering the player to Silverwood's start, where the in-zone routes carry them to the ravine mouth.
+    [{ x: 1, y: 10 }, { x: 5, y: 9 }, { x: 6, y: 6 }],                       // west-shore landing → crown hub (the handoff)
     // NORTH CREST (the high, dry way): crown → fern stand → NE canopy → drop SE into the pre-gate ravine.
     [{ x: 8, y: 4 }, { x: 16, y: 3 }, { x: 27, y: 4 }, { x: 31, y: 9 }, { x: 31, y: 15 }],
     // MIDDLE SPINE (the fast read): crown → central crossing → pre-gate hollow → the mouth.
@@ -651,6 +682,9 @@ const SILVERWOOD_LAYOUT: ZoneLayout = {
     { x: 26, y: 2, kind: "landmark", name: "The Standing Stones", note: "A moss-furred ring the forest grew up around — older than memory, humming faintly at dusk." }, // NE canopy crest (medium landmark)
     { x: 19, y: 13, kind: "landmark", name: "The Fungal Hollow", note: "A sunless dell where pale fungus climbs the dead boles — the air down here turns cold and still." }, // central crossing (descent beat)
     { x: 3, y: 4, kind: "signpost", name: "Trailhead Marker", note: "Fern crest north · the mossbed deep south · the Elder Treant's gate lies down the ravine, southeast." }, // crown fork
+    // WEST-SHORE HANDOFF (ADR 0011 D4) — where the gorge take-out trail meets the wood: names Silverwood
+    // and points the descent on toward the Sunless Grove (the "Sunless Grove ↓" handoff at the wood's edge).
+    { x: 2, y: 9, kind: "signpost", name: "The Wood's Edge", note: "You make landfall on Silverwood's shore, the gorge behind you. The old wood climbs to the Elder-Oak's crown, then falls away southeast — the Sunless Grove lies down the ravine. ↓" }, // west-shore landing
   ],
 };
 // THE SUNLESS GROVE as its own grid (ADR 0008 Stage 2). You DESCEND INTO the grove from the SE ravine

@@ -12,6 +12,7 @@ import { describe, it, expect } from "vitest";
 import {
   BARRIERS, barrierAt, isBarrierCrossing, barrierBlocks, OVERWORLD_ID,
   buildAuthoredGrid, placementOf, unreachableWorldTargets,
+  realizeKindWorld, inZonePolygon,
 } from "../src/data/world";
 import {
   emptyCaps, hasCap, grantCap, traversalBlocks, serializeCaps, reviveCaps,
@@ -19,7 +20,15 @@ import {
 import { ZONES } from "../src/data/zones";
 
 const GORGE = BARRIERS.find((b) => b.id === "greenvale-gorge")!;
-const band = GORGE.band[0]; // [x0,x1) × [y0,y1)
+const band = GORGE.band[0]; // first rect of the (possibly multi-rect) band; [x0,x1) × [y0,y1)
+// A tile that is OUTSIDE EVERY band rect — used for the half-open / out-of-band assertions, since the
+// gorge is now a multi-rect organic band (a north reach stacked on a wider waist, D2 reposition), so a
+// rect's own y1/x1 edge may be covered by the NEXT rect. Min over all rects keeps the boundary honest.
+const inAnyRect = (x: number, y: number) =>
+  GORGE.band.some((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
+const bandMinX = Math.min(...GORGE.band.map((r) => r.x0));
+const bandMaxX = Math.max(...GORGE.band.map((r) => r.x1)); // exclusive across the whole band
+const bandMinY = Math.min(...GORGE.band.map((r) => r.y0));
 
 describe("traversal barrier predicates (data/world.ts) — the cartography Should-fix", () => {
   it("a barrier exists on the overworld with a band and crossing tiles", () => {
@@ -34,12 +43,19 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
     // a tile strictly inside the band → the barrier.
     const ix = band.x0 + 1, iy = band.y0 + 1;
     expect(barrierAt(OVERWORLD_ID, ix, iy)?.id).toBe("greenvale-gorge");
-    // HALF-OPEN [x0,x1) × [y0,y1): the min edge is IN, the max edge is OUT.
-    expect(barrierAt(OVERWORLD_ID, band.x0, band.y0)?.id).toBe("greenvale-gorge"); // min corner inside
-    expect(barrierAt(OVERWORLD_ID, band.x1, band.y0)).toBeUndefined();             // x1 is exclusive
-    expect(barrierAt(OVERWORLD_ID, band.x0, band.y1)).toBeUndefined();             // y1 is exclusive
+    // HALF-OPEN [x0,x1) × [y0,y1): the min edge is IN. (Use the WHOLE-band extremes — the gorge is a
+    // multi-rect organic band now, so a single rect's max edge can be covered by the next rect; only the
+    // band's outermost max edges are truly exclusive.)
+    expect(barrierAt(OVERWORLD_ID, bandMinX, bandMinY)?.id).toBe("greenvale-gorge"); // min corner inside
+    expect(barrierAt(OVERWORLD_ID, bandMaxX, bandMinY)).toBeUndefined();             // outer x1 is exclusive
+    // a tile just past the WHOLE band's south edge (below every rect) → out (y1 exclusive).
+    const bandMaxY = Math.max(...GORGE.band.map((r) => r.y1));
+    expect(barrierAt(OVERWORLD_ID, bandMinX, bandMaxY)).toBeUndefined();             // outer y1 is exclusive
+    // sanity: those "outside" probes really are outside every rect.
+    expect(inAnyRect(bandMaxX, bandMinY)).toBe(false);
+    expect(inAnyRect(bandMinX, bandMaxY)).toBe(false);
     // far outside the band → nothing.
-    expect(barrierAt(OVERWORLD_ID, band.x0 - 50, band.y0)).toBeUndefined();
+    expect(barrierAt(OVERWORLD_ID, bandMinX - 50, bandMinY)).toBeUndefined();
     // wrong map → nothing.
     expect(barrierAt("underworld", band.x0 + 1, band.y0 + 1)).toBeUndefined();
   });
@@ -63,6 +79,122 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
       expect(isBarrierCrossing(GORGE, c.x, c.y)).toBe(true);
       expect(barrierBlocks(OVERWORLD_ID, c.x, c.y, locked)).toBe(false); // the route across is always open
     }
+  });
+
+  // SECONDARY CHECK (NOT the seal proof — the seal proof is the BFS describe block below). On the
+  // CRITICAL PATH — the player's eastward roam from Greenvale's spawn — the impassable gorge is
+  // ENCOUNTERED BEFORE they can reach/enter the Bandit-Warren mouth (the raft "key"). The mechanism is
+  // that the gorge spans the spawn's LATITUDE (walk straight east → hit the wall) while the Warren mouth
+  // has been RELOCATED OFF that eastward path (a SOUTH branch, a different latitude). So:
+  //   • walking due east from spawn, the FIRST barrier band tile reached on the spawn row is the gorge;
+  //   • the Warren mouth is NOT on the spawn row — it's south of it, requiring the player to turn off the
+  //     east route to find it (so they meet the lock, get stuck, THEN seek the key);
+  //   • the mouth is reachable WITHOUT touching the gorge band (mouth west of the wall, no soft-lock);
+  //   • the Elder-Oak (Silverwood crown ≈ (280,46)) stays OUTSIDE the band (visible across, not buried).
+  // This single-ray check is necessary-but-not-sufficient (it MISSED the walk-around-the-end leak the
+  // BFS seal test now catches), so it is kept only as a critical-path-ordering sanity check.
+  it("on the eastward critical path the impassable gorge is reached BEFORE the relocated Warren mouth (secondary, ordering only)", () => {
+    const gvL = ZONES.find((z) => z.id === "greenvale")!.layout;
+    const gvPl = placementOf("greenvale")!;
+    const spawnWX = gvPl.wx + gvL.spawn.x, spawnWY = gvPl.wy + gvL.spawn.y; // the player's start, world space
+    const mouthWX = gvPl.wx + gvL.mouth.x, mouthWY = gvPl.wy + gvL.mouth.y; // the raft-dropping mouth, world space
+
+    // (1) The spawn's LATITUDE crosses the gorge band — walking due east, the player runs into the wall.
+    const bandMaxY = Math.max(...GORGE.band.map((r) => r.y1));
+    expect(spawnWY).toBeGreaterThanOrEqual(bandMinY);
+    expect(spawnWY).toBeLessThan(bandMaxY);
+    // the first barrier tile due-east of spawn (on the spawn row) is a gorge band tile, and it is east of spawn.
+    let firstGorgeX = Infinity;
+    for (let x = spawnWX + 1; x <= bandMaxX; x++) {
+      if (barrierAt(OVERWORLD_ID, x, spawnWY)?.id === "greenvale-gorge") { firstGorgeX = x; break; }
+    }
+    expect(firstGorgeX).toBeLessThan(Infinity);  // the eastward ray HITS the gorge
+    expect(firstGorgeX).toBeGreaterThan(spawnWX); // and the wall is ahead (east) of the player
+
+    // (2) The Warren mouth is OFF the eastward path — NOT on the spawn row (it's a south branch). So the
+    //     player meets the LOCK (the gorge, straight ahead) before they can reach the KEY (the mouth).
+    expect(mouthWY).not.toBe(spawnWY);            // the mouth is at a different latitude than the spawn
+    expect(mouthWY).toBeGreaterThan(spawnWY);     // specifically SOUTH of the spawn row (the relocation)
+
+    // (3) The mouth is reachable WITHOUT crossing the gorge (it sits WEST of the wall) — no soft-lock; the
+    //     order is purely "which do you meet first on the obvious east route", and that is the gorge.
+    expect(mouthWX).toBeLessThan(bandMinX);
+    expect(barrierAt(OVERWORLD_ID, mouthWX, mouthWY)).toBeUndefined(); // the mouth tile is not in the band
+
+    // (4) The Elder-Oak weenie is NOT swallowed by the band — it remains visible ACROSS the gorge.
+    expect(inAnyRect(280, 46)).toBe(false);
+  });
+});
+
+// ── THE TRUE SEAL PROOF (ADR 0011 D2, the [Blocking] walk-around fix) ──────────────────────────────
+// The single due-east ray above is necessary-but-NOT-sufficient: the prior band spanned only y40→110,
+// so a LOCKED-state player could walk AROUND its north end (rows y14–39, between the ocean and the band
+// top) or its south end and reach a Silverwood-zone tile (e.g. world (244,52)) WITHOUT owning the raft —
+// the lock-before-key beat was cosmetic. This is the HONEST proof: a full 8-way BFS over the LOCKED
+// overworld asserting there is NO walkable path from Greenvale's spawn to ANY Silverwood-zone tile
+// EXCEPT via a crossing tile, and that WITH the cap a path exists. The BFS replicates the real
+// `controllers/field.ts bigPassable` rule exactly: a world tile is walkable iff its realized kind is not
+// "uncharted"/a FIELD wall (tree/water/cliff/river) AND it is not blocked by `traversalBlocks` (the
+// barrier band, while the cap is unowned, except on a crossing tile).
+describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [Blocking] walk-around fix)", () => {
+  const FIELD_WALLS = new Set(["tree", "water", "cliff", "river"]);
+  // Build every placed zone's authored core once (the realizer windows these into world space).
+  const authoredGrids: Record<string, string[][]> = {};
+  for (const z of ZONES) authoredGrids[z.id] = buildAuthoredGrid(z.id, true);
+
+  const gvL = ZONES.find((z) => z.id === "greenvale")!.layout;
+  const gvPl = placementOf("greenvale")!;
+  const SPAWN = { x: gvPl.wx + gvL.spawn.x, y: gvPl.wy + gvL.spawn.y };
+
+  // The exact `bigPassable` predicate (data/world + systems/traversal), parameterised by owned caps.
+  const passable = (x: number, y: number, caps: Set<string>) => {
+    if (traversalBlocks(OVERWORLD_ID, x, y, caps)) return false;
+    const k = realizeKindWorld(OVERWORLD_ID, authoredGrids, x, y);
+    return k !== "uncharted" && !FIELD_WALLS.has(k);
+  };
+  const isSilverwood = (x: number, y: number) => inZonePolygon("silverwood", x, y);
+  const isCrossing = (x: number, y: number) => {
+    const b = barrierAt(OVERWORLD_ID, x, y);
+    return !!b && isBarrierCrossing(b, x, y);
+  };
+
+  /** 8-way BFS from Greenvale's spawn. `forbidCrossing` treats crossing tiles as walls (the leak test). */
+  const reachesSilverwood = (caps: Set<string>, forbidCrossing: boolean): { x: number; y: number } | null => {
+    const seen = new Set<string>();
+    const key = (x: number, y: number) => x + "," + y;
+    const q: { x: number; y: number }[] = [SPAWN];
+    seen.add(key(SPAWN.x, SPAWN.y));
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    while (q.length) {
+      const { x, y } = q.shift()!;
+      if (isSilverwood(x, y)) return { x, y };
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx > 959 || ny > 639 || seen.has(key(nx, ny))) continue;
+        if (forbidCrossing && isCrossing(nx, ny)) continue;
+        if (!passable(nx, ny, caps)) continue;
+        seen.add(key(nx, ny));
+        q.push({ x: nx, y: ny });
+      }
+    }
+    return null;
+  };
+
+  it("LOCKED + crossing-FORBIDDEN: Silverwood is UNREACHABLE (no walk-around-the-end leak)", () => {
+    // The bug-catching assert: with the raft unowned AND the crossing treated as a wall, the BFS must
+    // find NO path to any Silverwood-zone tile. (Before the re-seal this LEAKED at world (244,52) via the
+    // open continent north/south of the short band.)
+    expect(reachesSilverwood(emptyCaps(), true)).toBeNull();
+  });
+
+  it("LOCKED + crossing allowed: Silverwood IS reachable — the crossing is the ONLY locked passage", () => {
+    // With the crossing usable (but the cap still unowned) a path opens — proving the ONLY locked-state
+    // route across is the raft crossing tiles (the seal has exactly one gate, the lock-before-key beat).
+    expect(reachesSilverwood(emptyCaps(), false)).not.toBeNull();
+  });
+
+  it("UNLOCKED (cap owned): the band opens and Silverwood is reachable", () => {
+    expect(reachesSilverwood(grantCap(emptyCaps(), "gorge"), false)).not.toBeNull();
   });
 });
 

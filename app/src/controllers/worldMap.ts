@@ -36,8 +36,10 @@ function suggestedLevelOf(zoneId: string): number | undefined {
   return min === Infinity ? undefined : min;
 }
 
-// Palette (gold-on-dark, matches index.html CSS vars).
-const C = {
+// Palette (gold-on-dark, matches index.html CSS vars). EXPORTED so the minimap's continent overview
+// (controllers/minimap.ts) reuses this view's polygon RENDERING (the same coastline/fill colors) without
+// duplicating the palette — see Minimap's two-axis header comment.
+export const C = {
   empty: "#0a0a0f",      // backlog / unpainted space
   grid: "rgba(120,110,150,.10)",
   continentFill: "rgba(224,169,46,.07)",
@@ -53,6 +55,44 @@ const C = {
 };
 
 const CANVAS_ID = "worldMapCanvas";
+
+// ── Reusable polygon RENDERING (shared with the minimap's continent overview) ────────────────────
+// These are the pure draw primitives — trace an organic region path, hatch-fill a draft region — that
+// BOTH this World Map view and controllers/minimap.ts use, so the overview reads as the same map (same
+// coastline shapes + gold-on-dark palette). `px`/`py` map tile coords → CSS px under the caller's window.
+
+/** Trace an organic region polygon into the current path (caller fills/strokes). */
+export function tracePoly(ctx: CanvasRenderingContext2D, poly: Polygon, px: (n: number) => number, py: (n: number) => number): void {
+  ctx.beginPath();
+  poly.forEach((p, i) => (i ? ctx.lineTo(px(p.x), py(p.y)) : ctx.moveTo(px(p.x), py(p.y))));
+  ctx.closePath();
+}
+
+/** Diagonal hatch fill clipped to an organic polygon — marks draft/provisional regions (ADR 0009 §1). */
+export function hatchPoly(ctx: CanvasRenderingContext2D, poly: Polygon, px: (n: number) => number, py: (n: number) => number): void {
+  ctx.save();
+  tracePoly(ctx, poly, px, py);
+  ctx.clip();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of poly) {
+    const x = px(p.x), y = py(p.y);
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  ctx.strokeStyle = "rgba(199,154,82,.28)";
+  ctx.lineWidth = 1;
+  const h = maxY - minY;
+  for (let d = minX - h; d < maxX; d += 6) {
+    ctx.beginPath();
+    ctx.moveTo(d, minY);
+    ctx.lineTo(d + h, maxY);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** A built zone's SUGGESTED entry level (the relative-danger signal) — exported for the minimap overview. */
+export { suggestedLevelOf };
 // Levels deep, for the breadcrumb + "what does a click drill to next" logic.
 type Level = "overworld" | "continent" | "zone" | "area";
 
@@ -207,11 +247,7 @@ export const WorldMapView = {
     const px = (x: number) => (x - ox) * s;
     const py = (y: number) => (y - oy) * s;
 
-    const trace = (poly: Polygon) => {
-      ctx.beginPath();
-      poly.forEach((p, i) => (i ? ctx.lineTo(px(p.x), py(p.y)) : ctx.moveTo(px(p.x), py(p.y))));
-      ctx.closePath();
-    };
+    const trace = (poly: Polygon) => tracePoly(ctx, poly, px, py);
 
     // Backdrop = ocean / empty / backlog (the Great Expanse and named seas).
     ctx.fillStyle = C.empty;
@@ -407,28 +443,8 @@ export const WorldMapView = {
   },
 
   // Diagonal hatch fill (clipped to an organic polygon) to mark draft regions/areas as provisional
-  // (lore/build = Dara's; ADR 0009 §1). `px`/`py` map tile coords → CSS px under the focus window.
+  // (lore/build = Dara's; ADR 0009 §1). Delegates to the shared `hatchPoly` (also used by the minimap).
   hatchPath(ctx: CanvasRenderingContext2D, poly: Polygon, px: (n: number) => number, py: (n: number) => number): void {
-    ctx.save();
-    ctx.beginPath();
-    poly.forEach((p, i) => (i ? ctx.lineTo(px(p.x), py(p.y)) : ctx.moveTo(px(p.x), py(p.y))));
-    ctx.closePath();
-    ctx.clip();
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const p of poly) {
-      const x = px(p.x), y = py(p.y);
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }
-    ctx.strokeStyle = "rgba(199,154,82,.28)";
-    ctx.lineWidth = 1;
-    const h = maxY - minY;
-    for (let d = minX - h; d < maxX; d += 6) {
-      ctx.beginPath();
-      ctx.moveTo(d, minY);
-      ctx.lineTo(d + h, maxY);
-      ctx.stroke();
-    }
-    ctx.restore();
+    hatchPoly(ctx, poly, px, py);
   },
 };

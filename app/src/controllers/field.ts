@@ -6,9 +6,10 @@ import { clamp, ri, pick } from "../core/rng";
 import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
-  buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, type Capability,
+  buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
 } from "../data/world";
 import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
+import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
@@ -130,6 +131,11 @@ export const Field = {
   // impassable terrain until its cap is owned; bigPassable consults `traversalBlocks` BEFORE the
   // cell-kind check. PERSISTED in the save (string[]); a fresh run owns nothing.
   ownedCaps: new Set<string>() as OwnedCaps,
+  // WAYFINDING PROGRESS (ADR 0011): the run's known/entered regions that drive the derived Objective +
+  // the continent overview-map reveal. PERSISTED in the save (two string[]s); a fresh run knows nothing.
+  // Cosmetic/wayfinding only — it gates no traversal, so an old save loading to empty is always safe.
+  // NB named `wayfinding` (not `progress`) to avoid colliding with the existing progress() depth-fraction method.
+  wayfinding: emptyProgress() as Progress,
   poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
   openedChests: {} as Record<string, boolean>, // chest key (overworld "<zoneId>:ow:<x>,<y>" / dungeon "<zoneId>:d<floor>:<x>,<y>") → looted; PERSISTED in the save (per-RUN, like poisCleared)
   pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
@@ -159,6 +165,10 @@ export const Field = {
   // (back-compat: an old save with the global `miniBossDefeated` seeds the zone it was in — see deserialize).
   // Legacy combined-grid zones map onto the SAME per-zone state (keyed by their zone id).
   mouthCleared: {} as Record<string, boolean>,
+  // The one-time "you raft across the Sunless Gorge" use-feedback callout (ADR 0011 D3): fired the first
+  // time the player steps onto a barrier crossing tile this session. Not persisted (a re-cross after a
+  // reload showing it once more is harmless), so it lives here, not in the save.
+  _gorgeCrossed: false,
   // The floor whose in-dungeon mini-boss fight is in flight (so battle.ts → onMiniDefeated can mark
   // THIS floor cleared, distinct from the overworld mouth guard). -1 = none / the mouth guard fight.
   pendingFloorMini: -1,
@@ -213,6 +223,7 @@ export const Field = {
     // TRAVERSAL BARRIER (D2): the locked "gorge" chasm wall (placeholder fill until art-integrator slices
     // a ravine/raft sprite — flagged in the hand-back). Reuses the in-palette dark fill meanwhile.
     names.push("gorge");
+    names.push("crossing"); // the UNLOCKED raft/plank causeway over the gorge (placeholder plank fill until sliced — see asset-gaps.md)
     // marsh (Duskmarsh) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["water", "mire-ground", "mire-ground2", "mire-path", "deadtree", "reed", "bog"]) names.push(n);
     // ancient-forest (Silverwood) overworld flavor kinds — placeholders until sliced (see asset-gaps.md)
@@ -362,7 +373,9 @@ export const Field = {
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
     this.ownedCaps = new Set(); // fresh run — no traversal caps owned (the gorge stays locked until the Warren falls; a resume restores the set AFTER init())
+    this.wayfinding = emptyProgress(); // fresh run — nothing known/entered yet (a resume restores it AFTER init())
     this.mouthCleared = {}; // fresh run — every zone's overworld mouth guard stands (a resume restores the saved set AFTER init())
+    this._gorgeCrossed = false; // the one-time "you raft across" callout hasn't fired this session yet
     this.resize();
     this.loadTiles();
     this.genMap(); // sets spawn (px/py) from the zone layout
@@ -1012,6 +1025,15 @@ export const Field = {
         const L = this.zone().layout;
         this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
       }
+      // WAYFINDING (ADR 0011): mark this zone ENTERED (reveals it on the overview map) and SEED the next
+      // spine zone as KNOWN so the overview points AHEAD (entering Greenvale reveals Silverwood — the
+      // "world told you where to go" reveal Maelis voices). Seeding on entry is what BOOTSTRAPS the reveal:
+      // a `travel` Objective only arises once a region is already known, so without this seed known would
+      // never outgrow entered and the overview could only ever show where you'd already stood. Pure
+      // systems/progress; idempotent.
+      markRegionEntered(this.wayfinding, builtId);
+      const next = zi >= 0 ? ZONES[zi + 1] : undefined; // spine-successor heuristic (a future Quest could refine)
+      if (next) markRegionKnown(this.wayfinding, next.id);
     }
     // MUSIC: Area identity music with a zone/open-continent fallback; duck-swap only when it changes.
     const key = Music.forField(res.area?.identity.music, builtId || undefined);
@@ -1048,6 +1070,9 @@ export const Field = {
         // not by this dressing, so the crossing tiles stay walkable once unlocked.
         const bar = barrierAt(OVERWORLD_ID, wx, wy);
         if (bar && !this.ownedCaps.has(bar.cap)) kind = bar.terrainKind;
+        // D3 — once UNLOCKED, the put-in/take-out tiles read as a RAFT/PLANK CAUSEWAY ("crossing"), the
+        // legible "way across", rather than reverting to bare open-continent grass. Walkable (not a wall).
+        else if (bar && isBarrierCrossing(bar, wx, wy)) kind = "crossing";
         // (b) IDENTITY / DRESSING — cached so the per-frame draw path never calls regionAt.
         const id = regionAt(OVERWORLD_ID, wx, wy);
         const ai = id.area?.identity;
@@ -1140,6 +1165,13 @@ export const Field = {
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
     if (POI_KINDS.has(cell.kind)) { this.touchBigPoi(nx, ny); return; } // shrine / camp / landmark / signpost
+    // D3 USE-FEEDBACK: the FIRST step onto a now-unlocked gorge crossing fires a one-time callout (reuses
+    // the pickup-callout overlay style). The crossing stays walkable — this never blocks the step.
+    if (cell.kind === "crossing" && !this._gorgeCrossed) {
+      this._gorgeCrossed = true;
+      Overlay.show(`<h2 class="title-gold">The Sunless Gorge</h2><p class="small">You haul the raft to the put-in and push off across the Sunless Gorge — the chasm that turned you back, now crossed. Silverwood waits on the far rim.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Cross</button></div>`);
+      return;
+    }
     // OPEN CONTINENT (no built zone under the player) is backlog land — no random encounters yet (G22).
     if (!this.bigZone) return;
     this.stepsToEncounter--;
@@ -1576,6 +1608,7 @@ export const Field = {
     if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
     if (kind === "cliff") return { ground: "cliff", flat: "#2b2f37" }; // a cliff is a WALL — DARK so it recedes (was #3f4450, which read as the palest = most "walkable"-looking tile, exactly backwards)
     if (kind === "gorge") return { ground: "gorge", flat: "#0f1622" }; // the locked traversal barrier — a DARK sunless chasm so it reads as impassable (raft it once the "gorge" cap is earned)
+    if (kind === "crossing") return { ground: "crossing", flat: "#7a6242" }; // the UNLOCKED raft/plank causeway over the gorge (plank-brown, like a bridge — "the way across")
     if (kind === "bridge") return { ground: "bridge", flat: "#7a6242" };
     if (kind === "ford") return { ground: "ford", flat: "#86b0c4" };
     // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
@@ -1699,6 +1732,42 @@ export const Field = {
     }
   },
 
+  // GORGE-RIM PROPS (ADR 0011 D4 fix, level-designer 2026-06-23). The Sunless-Gorge put-in signpost is an
+  // OPEN-CONTINENT prop, NOT a core-bound POI: Greenvale's authored grid ends ~world x190, but the chasm's
+  // west face / put-in is at world ~(206,72), so a grid-bound sign read "the road ends at a sheer chasm"
+  // ~16–40 tiles short. This renders it (and an optional take-out marker) at the REAL rim — purely visual,
+  // never touching passability (the gorge band's walls + the crossing route are owned by world.ts/
+  // barrierBlocks, unchanged). Coords are DERIVED from the barrier's crossing so they track world.ts:
+  //   • PUT-IN SIGN  — one tile WEST of the crossing's min-x (the last walkable Greenvale-side rim tile,
+  //     where the funnelled east road meets the impassable chasm; Elder-Oak visible across it).
+  //   • TAKE-OUT MARK — one tile EAST of the crossing's max-x (Silverwood-shore landfall), so the far rim reads.
+  // Drawn only while the gorge is LOCKED (the put-in beat is "see it now, reach it later"); once crossed the
+  // crossing/causeway tiles carry the read. Returns true if it drew a captioned prop at (wx,wy).
+  drawGorgeRimProps(c: CanvasRenderingContext2D, wx: number, wy: number, sx: number, sy: number, t: number): boolean {
+    if (this.ownedCaps.has("gorge")) return false;            // unlocked → the crossing/causeway reads instead
+    // A rim tile is OPEN CONTINENT just outside the chasm band; probe the adjacent E/W tile for the gorge
+    // barrier so we can derive its crossing extents (cheap; the band is small + this is off the hot path).
+    const gorge = [barrierAt(OVERWORLD_ID, wx + 1, wy), barrierAt(OVERWORLD_ID, wx - 1, wy)]
+      .find((b) => b?.cap === "gorge");
+    if (!gorge) return false;
+    const xs = gorge.crossing.map((p) => p.x), ys = gorge.crossing.map((p) => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), cy = ys[0];
+    let label = "";
+    if (wy === cy && wx === minX - 1) label = "The Sunless Gorge ⟶";   // Greenvale-side put-in rim (last walkable tile)
+    else if (wy === cy && wx === maxX + 1) label = "Silverwood Shore"; // far rim take-out (landfall)
+    if (!label) return false;
+    // signpost glyph (reuse the POI signpost emoji until art lands) + a gold caption — on-brand gold-on-dark.
+    c.font = `${t * 0.7}px serif`; c.fillText("🪧", sx + t / 2, sy + t / 2);
+    c.save();
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `bold ${Math.max(9, t * 0.24)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const ly = sy + t * 1.02;
+    c.strokeText(label, sx + t / 2, ly); c.fillText(label, sx + t / 2, ly);
+    c.restore();
+    return true;
+  },
+
   // MULTI-FLOOR stairs (placeholder until art-integrator slices warren/grove/vault-stairsdown/up): draw
   // the sprite if present, else a clear ⬇/⬆ glyph + a small gold caption so the descent/climb reads.
   // `up` = an up-stair (climb / out); else a down-stair (descend). ART FLAG — see the hand-back.
@@ -1812,7 +1881,28 @@ export const Field = {
       else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
       else if (cell.kind === "cliff" && !T.cliff) c.fillText("⛰️", sx + t / 2, sy + t / 2);
       else if (cell.kind === "river" && !T.water) c.fillText("🌊", sx + t / 2, sy + t / 2);
-      else if (cell.kind === "gorge" && !T.gorge) c.fillText("🏔️", sx + t / 2, sy + t / 2); // locked sunless gorge (placeholder)
+      else if (cell.kind === "gorge" && !T.gorge) {
+        // D3 LEGIBLE GORGE (placeholder until art-integrator slices a ravine sprite — flagged in the
+        // hand-back). The flat already laid the DARK chasm floor (#0f1622); add a lighter ROCKY RIM on the
+        // band's outward faces so it reads as a sheer ravine you walk UP TO, not bare dark ground. A barrier
+        // tile whose orthogonal neighbour is NOT gorge is a rim edge → draw a pale rock lip on that side.
+        const isGorge = (gx: number, gy: number) => barrierAt(OVERWORLD_ID, gx, gy)?.terrainKind === "gorge" && !this.ownedCaps.has("gorge");
+        c.fillStyle = "#3a4250"; // pale rim rock
+        const lip = Math.max(2, t * 0.2);
+        if (!isGorge(wx, wy - 1)) c.fillRect(sx, sy, t, lip);                 // north rim
+        if (!isGorge(wx, wy + 1)) c.fillRect(sx, sy + t - lip, t, lip);       // south rim
+        if (!isGorge(wx - 1, wy)) c.fillRect(sx, sy, lip, t);                 // west rim (the Greenvale-side face)
+        if (!isGorge(wx + 1, wy)) c.fillRect(sx + t - lip, sy, lip, t);       // east rim
+        // a hint of jagged depth in the chasm interior
+        if ((wx + wy) % 2) { c.fillStyle = "rgba(0,0,0,.45)"; c.fillRect(sx + t * 0.35, sy + t * 0.3, Math.max(1, t * 0.12), t * 0.5); }
+      }
+      else if (cell.kind === "crossing" && !T.crossing) {
+        // D3 RAFT/PLANK CAUSEWAY (placeholder). The flat laid plank-brown; add cross-planks so it reads as
+        // a deliberate raft span "the way across", distinct from the dark chasm + the bare grass beyond.
+        c.fillStyle = "rgba(0,0,0,.3)";
+        for (let py = 0; py < 3; py++) c.fillRect(sx, sy + py * t * 0.36 + t * 0.1, t, Math.max(1, t * 0.08));
+        c.fillStyle = "rgba(214,180,110,.5)"; c.fillRect(sx, sy, Math.max(1, t * 0.1), t); c.fillRect(sx + t - Math.max(1, t * 0.1), sy, Math.max(1, t * 0.1), t);
+      }
       else if (cell.kind === "tree") {
         if (biome === "forest") obj(T.oldtree, "🌲", 1.0);
         else if (biome === "orchard") obj(T["orchard-tree"], "🌳", 1.0);
@@ -1840,6 +1930,9 @@ export const Field = {
         else if (biome === "ruin") obj(T["ruin-rubble"], "🪨", 0.95);
         else if (biome === "coast" || biome === "beach" || biome === "harbor" || biome === "rock") obj(T["coast-piling"], "⛰️", 0.9);
       }
+      // OPEN-CONTINENT gorge-rim props (put-in sign at the real chasm rim / take-out shore marker) — purely
+      // visual, drawn over the realized ground; never affects passability. Only the locked-gorge rim tiles match.
+      this.drawGorgeRimProps(c, wx, wy, sx, sy, t);
     }
     // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback).
     const cx = (this.wx - camx) * t + t / 2, cy = (this.wy - camy) * t + t / 2;

@@ -271,12 +271,16 @@ const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
     shape: ring([116, 52], [150, 40], [188, 44], [206, 64], [202, 92], [180, 108], [150, 110],
                 [124, 98], [110, 76]) },
   // #2 Silverwood (Ancient Forest) — top-CENTER (N), EAST of Greenvale, ~same latitude. RESHAPED
-  // (Silverwood Overhaul A0): the wood now reads NORTH→SOUTH, DESCENDING — a broad rounded NORTH CROWN
-  // (the great Elder-Oak's high stand, visible across the gorge from Greenvale) tapering to a SUNLESS
-  // RAVINE THROAT at the south foot (the Sunless-Grove mouth latitude, ~world y114). Centroid ≈ (300,70)
-  // (still EAST of Greenvale, ~same latitude — drift-guard holds); bbox 110×80 hosts the 60×24 authored
-  // core centered at (270,58). The southern throat tapers to a point ABOVE Goldmeadow's north rim (open
-  // continent / the ravine sits between them — no overlap).
+  // (Silverwood Overhaul A0; D8 CONFIRMED 2026-06-23): the wood reads NORTH→SOUTH, DESCENDING — a broad
+  // rounded NORTH CROWN (the great Elder-Oak's high stand, world ≈ (280,46), visible across the gorge
+  // from Greenvale) tapering to a SUNLESS RAVINE THROAT at the south foot (the Sunless-Grove / Elder-
+  // Treant mouth, ~world y114). This is ONE descending spine: crown (high/NW, y34) → throat (low/SE,
+  // y114), matched by the authored core (spawn (2,3) NW crown → mouth (36,20) SE foot) and the gorge
+  // take-out trail that flows downhill into it (D4). ADR 0011 D8 — no polygon change needed; the
+  // N-crown→S-throat read already holds. Centroid ≈ (300,70) (still EAST of Greenvale, ~same latitude —
+  // drift-guard holds); bbox 110×80 hosts the 60×24 authored core centered at (270,58). The southern
+  // throat tapers to a point ABOVE Goldmeadow's north rim (open continent / the ravine sits between them
+  // — no overlap).
   { id: "silverwood", name: "Silverwood", continent: AURELION_ID, zone: "silverwood",
     shape: ring([244, 52], [258, 40], [286, 34], [316, 38], [344, 52], [354, 72], [348, 88],
                 [336, 100], [324, 108], [310, 114], [298, 108], [286, 100], [266, 90], [250, 72]) },
@@ -1245,14 +1249,46 @@ export interface Barrier {
   crossing: Point[];
 }
 
-// THE GREENVALE↔SILVERWOOD GORGE (D2). A sunless water/gorge chasm in the OPEN CONTINENT between
-// Greenvale's east shore (poly edge ~x206) and Silverwood's west shore (poly edge ~x244) — a clean
-// ~45-tile gap that touches NEITHER zone polygon NOR either authored core (gv core east x191, sw core
-// west x270), so it severs no existing in-core route. It spans the latitudes the player crosses at
-// (y≈46–96, i.e. Greenvale/Silverwood's shared band). IMPASSABLE until the raft/bridge-kit ("gorge") is
-// owned (dropped by clearing the Bandit Warren / Kingpin); then the put-in→take-out crossing opens.
-// The Elder-Oak (Silverwood crown, world ≈ (280,46)) stands NORTH of and ABOVE this band, so it is
-// visible from the Greenvale side of the gorge ("see it now, reach it later").
+// THE GREENVALE↔SILVERWOOD GORGE (D2 — TRUE LOCK-BEFORE-KEY, re-sealed 2026-06-23). A sunless
+// water/gorge chasm in the OPEN CONTINENT between Aurelion's WEST cluster (Greenvale + the Duskmarsh +
+// Dawnfall + Storm Coast) and its EAST cluster (Silverwood + Goldmeadow + Riverhearth + …). It touches
+// NEITHER any zone polygon NOR any authored core (verified 0 overlaps in the seal test below) and so
+// severs no existing in-core route — that clearance is the invariant the comment + tests guard.
+//
+// WHY THE RE-SEAL (the [Blocking] bug the level-design-reviewer BFS-found). The PRIOR band was a short
+// two-rect wall spanning only y40→110 across x∈[208,240]. It plugged the player's SPAWN-ROW lane, but
+// NORTH of it (rows y14–39, between the north OCEAN at ~y15–20 and the band top y40) and SOUTH of it
+// (rows y110+) the inter-cluster continent was OPEN walkable ground. A locked-state BFS simply walked
+// AROUND the band's north (or south) end and reached a Silverwood-zone tile (e.g. world (244,52))
+// WITHOUT ever owning the "gorge" cap — so the chasm gated nothing and the lock-before-key beat was
+// cosmetic. (The old traversal test missed it: it fired a single due-east ray on the spawn row y74,
+// which the band did block, so the walk-AROUND never showed up.)
+//   THE FIX — seal the WHOLE roamable corridor, ocean-to-ocean. The band is now a multi-rect ORGANIC
+// chasm whose NORTH end butts the Aurelion north coast/ocean (y14, the coast min is y15 at this
+// longitude — no north lane) and whose SOUTH end butts the south coast (y306; below it Aurelion only
+// continues on its SW tip x≤216, ALL west-cluster, then open ocean before Myr'Thalas — no south lane).
+// Between the two it threads the inter-cluster gap: a CROSSING WAIST over both zones' mouth latitudes
+// (y60–78, crossing at y72), the tight Duskmarsh↔Goldmeadow waist (x212–239 at y138–166), and the
+// open southern corridor. Every rect's x-range is kept strictly INSIDE the gap — east of the nearest
+// west-zone polygon, west of the nearest east-zone polygon — so the band is disjoint from all polygons
+// + cores (the invariant). The result (BFS-proven in traversal.test.ts): with the cap UNOWNED there is
+// NO walkable path from a Greenvale-side tile to ANY Silverwood-zone tile EXCEPT across a crossing tile;
+// with the cap OWNED the crossing opens and Silverwood (and the rest of the east cluster) is reachable.
+//   The Bandit-Warren mouth (the raft "key") sits well WEST inside Greenvale's core, reachable WITHOUT
+// touching the chasm: the player meets the wall on the obvious east route, can't cross, sees the
+// Elder-Oak across it, turns back, and the Warren becomes the legible answer. Lock-before-key.
+//   The Elder-Oak (Silverwood crown, world ≈ (280,46)) stands EAST of the band, ACROSS the chasm from
+// the Greenvale side — visible but unreachable ("see it now, reach it later"); it is OUTSIDE the band.
+//
+// TRADE-OFF FLAGGED FOR DARA (the geometry forces it). The inter-cluster gap NEVER pinches shut between
+// the north and south coasts — so the ONLY seal that gates Silverwood pre-raft is a full corridor wall,
+// which ALSO gates the rest of the EAST cluster (Goldmeadow, Riverhearth, Frostpeak, Whisper Hills,
+// Sunbridge) behind the raft. That matches the arc order (Greenvale → Silverwood → …east), and the WEST
+// cluster (Greenvale, the Duskmarsh, Dawnfall, Storm Coast) stays freely roamable pre-raft. But it does
+// mean the raft is the single key to the entire eastern half of Aurelion. If you'd rather the gorge gate
+// ONLY Silverwood (and leave Goldmeadow et al. reachable by a southern land route pre-raft), that needs
+// a SECOND geographic feature (a southern pass/bridge or a moved zone) — flag it and the cartographer
+// will re-trace. (No clean localized seal exists with the current polygon layout.)
 export const BARRIERS: Barrier[] = [
   {
     id: "greenvale-gorge",
@@ -1260,17 +1296,71 @@ export const BARRIERS: Barrier[] = [
     map: OVERWORLD_ID,
     terrainKind: "gorge",
     cap: "gorge",
-    // A single vertical chasm band in the gap. Its west face is the Greenvale-side rim, its east face
-    // the Silverwood-side rim; the crossing punches straight across at the latitude of both zones'
-    // east/west mouths (world y≈70 — Greenvale mouth world (167,74), Silverwood spawn world (272,70)).
-    band: [{ x0: 212, y0: 46, x1: 238, y1: 96 }],
-    // Raft route across the chasm at y=70: put-in on the Greenvale (west) rim → take-out on the
-    // Silverwood (east) rim. A contiguous walkable line so the crossing is a real path once unlocked.
+    // The chasm as a stacked, organic, ocean-to-ocean band threading the inter-cluster gap. Each rect's
+    // x-window is inside the gap (clear of every zone polygon + core); rects are contiguous (each y1 ==
+    // the next y0, with x-overlap) so no diagonal lane slips between them. Top butts the north ocean
+    // (y14; coast min y15), bottom butts the south coast (y306). The crossing waist (y60–78) hosts the
+    // raft route at y72.
+    band: [
+      { x0: 170, y0: 14,  x1: 248, y1: 36 },   // N mouth — butts the north ocean (coast min y15)
+      { x0: 188, y0: 36,  x1: 248, y1: 42 },   // shoulder — Silverwood NW lip approaches from the E
+      { x0: 196, y0: 42,  x1: 244, y1: 50 },   // narrowing toward the crossing waist
+      { x0: 203, y0: 50,  x1: 243, y1: 60 },   // upper waist (clear of gv poly E, sw poly W)
+      { x0: 206, y0: 60,  x1: 244, y1: 78 },   // CROSSING WAIST — the raft put-in→take-out at y72
+      { x0: 206, y0: 78,  x1: 248, y1: 92 },   // lower waist
+      { x0: 202, y0: 92,  x1: 246, y1: 110 },  // descending past Silverwood's south throat lip
+      { x0: 191, y0: 110, x1: 246, y1: 122 },  // throat gap (no zones; Goldmeadow begins ~y122)
+      { x0: 212, y0: 122, x1: 240, y1: 138 },  // Duskmarsh↔Goldmeadow waist top
+      { x0: 212, y0: 138, x1: 239, y1: 166 },  // the NARROWEST waist (dusk E ≤211, gold W ≥240)
+      { x0: 212, y0: 166, x1: 245, y1: 182 },  // widening below the waist
+      { x0: 185, y0: 182, x1: 247, y1: 196 },  // corridor opens as the Duskmarsh drops away west
+      { x0: 185, y0: 196, x1: 247, y1: 246 },  // the open southern corridor
+      { x0: 212, y0: 246, x1: 259, y1: 256 },  // the Dawnfall/Riverhearth pinch begins
+      { x0: 222, y0: 256, x1: 269, y1: 296 },  // south pinch (Dawnfall E ≤221, Sunbridge W ≥270)
+      { x0: 185, y0: 296, x1: 272, y1: 306 },  // S mouth — butts the south coast (Aurelion ends ~y306)
+    ],
+    // Raft route across the chasm at y=72 (inside the crossing waist, the latitude of both zones' mouths
+    // — Greenvale Warren mouth world (162,82), Silverwood spawn world (272,61)→core): a CONTIGUOUS line
+    // of put-in (Greenvale-side rim x206) → take-out (Silverwood-side rim x243) tiles, every tile in
+    // between, so it is a real walkable path once unlocked (8-way movement needs no gaps). From the
+    // take-out the player steps onto ~5 tiles of open continent (x244–249) onto Silverwood's west shore
+    // (poly W ~x250). The level-designer dresses the put-in/take-out props; the trail spec follows below.
     crossing: [
-      { x: 212, y: 70 }, { x: 218, y: 70 }, { x: 224, y: 70 }, { x: 230, y: 70 }, { x: 237, y: 70 },
+      { x: 206, y: 72 }, { x: 207, y: 72 }, { x: 208, y: 72 }, { x: 209, y: 72 }, { x: 210, y: 72 },
+      { x: 211, y: 72 }, { x: 212, y: 72 }, { x: 213, y: 72 }, { x: 214, y: 72 }, { x: 215, y: 72 },
+      { x: 216, y: 72 }, { x: 217, y: 72 }, { x: 218, y: 72 }, { x: 219, y: 72 }, { x: 220, y: 72 },
+      { x: 221, y: 72 }, { x: 222, y: 72 }, { x: 223, y: 72 }, { x: 224, y: 72 }, { x: 225, y: 72 },
+      { x: 226, y: 72 }, { x: 227, y: 72 }, { x: 228, y: 72 }, { x: 229, y: 72 }, { x: 230, y: 72 },
+      { x: 231, y: 72 }, { x: 232, y: 72 }, { x: 233, y: 72 }, { x: 234, y: 72 }, { x: 235, y: 72 },
+      { x: 236, y: 72 }, { x: 237, y: 72 }, { x: 238, y: 72 }, { x: 239, y: 72 }, { x: 240, y: 72 },
+      { x: 241, y: 72 }, { x: 242, y: 72 }, { x: 243, y: 72 },
     ],
   },
 ];
+
+// ── THE GUIDING TRAIL — take-out → Silverwood (ADR 0011 D4, EDGE SPEC for the level-designer) ────────
+// Once the gorge cap is owned the crossing opens at world (206,72)→(243,72). D4 ("tighten + trail")
+// asks for TWO things, both delivered here as a hand-off (the trail itself is `path` TILES the
+// level-designer lays — geometry/data only here, no tile authoring):
+//
+//  (1) TIGHTEN the empty continent. The crossing waist take-out lands at x243; the Silverwood polygon
+//      begins at x250 — so the open continent between take-out (x243) and Silverwood's west shore is
+//      only ~6 tiles. The wide blank field the old narrow band left east of it is GONE (the band now
+//      fills the whole inter-cluster gap as chasm). No further polygon move is needed; the take-out
+//      lands the player almost on Silverwood's doorstep.
+//
+//  (2) THE TRAIL (a directional, curving leading line — overworld-design §4, NOT a straight A→B):
+//        FROM  the take-out             world (243, 72)   [Silverwood-side rim]
+//        VIA   Silverwood west shore     world (250, 66)   [enters the zone polygon at the crown's SW lip]
+//        TO    the Sunless-Grove mouth   world (306, 78)   [the descending-spine foot, the dungeon mouth]
+//      DIRECTION: leave the take-out heading E, BEND SOUTH-EAST down the descending spine — the crown
+//      (Elder-Oak, the weenie) is high/NW and the ravine throat is low/SE, so the trail visually flows
+//      DOWNHILL toward the mouth. Keep it MEANDERING + partially occluded by the wood (don't reveal the
+//      mouth from the take-out). The trail should pass NEAR (not into) the spawn-crown so the player is
+//      delivered to Silverwood's start, then the IN-ZONE descending route (already authored in
+//      zones.ts: spawn (2,3) NW crown → mouth (36,20) SE foot) carries them to the Elder-Treant gate.
+//      The level-designer lays this as `path` tiles bending S; the cartographer owns only the endpoints
+//      + the bend intent above. Reciprocal direction for a player walking back is NW (mouth → take-out).
 
 /** The barrier covering a world tile on a map (first match; bands don't overlap), or undefined. */
 export function barrierAt(map: string, wx: number, wy: number): Barrier | undefined {

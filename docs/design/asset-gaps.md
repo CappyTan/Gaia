@@ -255,4 +255,21 @@ designer / art with the Brigadier placeholder).
 
 ---
 
+## Wayfinding & the Sunless Gorge (Greenvale↔Silverwood flow — ADR 0011)
+The quest-flow streamline pass (grill-with-docs session): make the raft/gorge a legible
+lock-before-key beat and guide the player Greenvale → Silverwood environmentally. The traversal
+barrier + capability system already exists (`data/world.BARRIERS`, `systems/traversal`); these are
+the ART gaps it needs to read. The zoomed-out overview map needs **no art** (canvas blobs + labels).
+
+| Status | Asset | Where used | Placeholder | Notes |
+|---|---|---|---|---|
+| ◐ | Gorge ravine band (`gorge`) | The Sunless Gorge, locked (Greenvale↔Silverwood) | **DONE (placeholder, 2026-06-23):** dark chasm fill `#0f1622` + a procedurally-drawn lighter **rim edge** on the band's outward faces + jagged depth hatching (`field.ts` drawBig, replaced the 🏔️). | Reads "impassable ravine you'd raft across." Wants a real deep sunless-chasm tile sprite (the rim/depth are drawn in code meanwhile). |
+| ◐ | Raft / plank crossing (`crossing`) | the 6 unlocked crossing tiles (world (208,72)→(239,72)) | **DONE (placeholder, 2026-06-23):** plank-brown `#7a6242` + drawn cross-planks + pale rail edges (`field.ts` drawBig + `bigGround`). Realized as kind `crossing` once the `gorge` cap is owned (was bare grass). | A raft/plank causeway span **across** the chasm; reads distinctly "the way over," not walkable ground. Wants a real raft-causeway sprite (tile name `crossing`). |
+| ☐ | Elder-Oak landmark (colossal ancient oak) | Silverwood north crown (≈ world 280,46), visible across the gorge | reuse `landmark` 🗿 / `oldtree` 🌲 | The "see it now, reach it later" beacon. A singular **giant** oak distinct from the wall-tile `oldtree`; should read at distance and loom larger on approach. |
+| ◐ | Raft key-item icon (`raft` = "Lashed Raft") | Items panel | 🛶 emoji (`data/heldItems.ts`) | Item sprite for the held quest item (Dara's lane). Emoji is fine meanwhile. |
+| | _(REUSE — no new art)_ `signpost` 🪧 | gorge put-in sign (now an **open-continent RIM PROP** at the real chasm rim, world ≈205,72) + optional take-out shore marker (world ≈244,72) + the "Sunless Grove ↓" wood's-edge sign | as today | The put-in/take-out are NOT core POIs — they're rendered at the real rim by `field.ts drawGorgeRimProps` (derived from the barrier crossing extents), purely visual, drawn only while the gorge is locked. Reuses the 🪧 signpost glyph + gold caption; no new art. |
+| | _(REUSE — no new art)_ `path` | the open-continent guiding trail (take-out → Silverwood) + Silverwood's root-trail spine (crown → grove throat) | as today | A dedicated open-continent "trade-road" tile would be a nice-to-have, not a blocker. |
+
+---
+
 *Keep this list current as each region is built. The art pass happens after, in one go.*

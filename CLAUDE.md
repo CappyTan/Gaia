@@ -9,7 +9,8 @@ Guidance for AI assistants working in this repo. Read this first, then the docs 
 random affixes.
 
 A collaboration: **Dara Saadat** owns the world, lore, classes, and art. This repo brings the
-gameplay mechanics. It is an early, playable POC (`v0.12`).
+gameplay mechanics. It began as a single-zone POC and is now a substantial vertical slice
+(`v0.116`): one full continent — **Aurelion** — built and playable as a seamless overworld.
 
 The game is a **TypeScript + Vite** app (ADR 0005). Source lives in `app/src/`, split into clean
 layers; it builds to a static bundle hosted on **GitHub Pages**. No runtime framework — vanilla
@@ -24,7 +25,7 @@ frozen at `app/gaia.html` as a reference; see History.)
 | [`app/src/`](app/src/) | **The game**, as TypeScript modules (see Architecture). |
 | [`app/tools/balance-sim.ts`](app/tools/balance-sim.ts) | Headless full-run combat simulator; imports the *shipping* systems. |
 | [`app/tools/dungeon-map.ts`](app/tools/dungeon-map.ts) | Headless dungeon-floor **topology** dumper (`npm run map`); ASCII map + a rubric-keyed read (mesh/corridor loops, soft-lock, gate-pinch) on the pure `systems/dungeonTopology`. For the dungeon design/review agents. |
-| [`app/tools/slice-art.py`](app/tools/slice-art.py) | Reproducible art pipeline: slices Dara's reference sheets → transparent sprites in `app/assets/`. |
+| [`app/tools/slice-art.py`](app/tools/slice-art.py) | Reproducible art pipeline: slices Dara's reference sheets → transparent sprites in `app/assets/` (companions `slice-enemies`/`slice-equipment`/`slice-rares`/`slice-backgrounds`/`slice-crit-fx`/`process-bg` handle the specific sheet types). |
 | [`app/tests/`](app/tests/) | Vitest unit tests for the pure systems. |
 | [`app/assets/`](app/assets/) | Generated game sprites (items, enemies, heroes). Hashed + copied into the build by Vite. |
 | `app/gaia.html` | **Frozen** pre-modular single-file build (v0.11), kept as reference/fallback. Don't develop here. |
@@ -56,12 +57,12 @@ data  ←  systems  ←  controllers  →  ui
 
 | Layer | Dir | What lives here |
 |---|---|---|
-| **Content** | `data/` | `attunements`, `rarity`, `items` (+affixes), `skills`, `party`, `enemies`, `zones`, `art` tables, `version`. Pure data — add a zone/enemy/class/skill here, not in the engine. `db` is the **content registry** (typed query API + cross-refs: which zones spawn an enemy, which classes use a skill); `validate` is the **integrity check** (run in tests + a dev-startup assert). Query via `DB` rather than reaching into raw consts. |
-| **Logic** | `systems/` | **Pure, no DOM, tested:** `affinity`, `combat` (`combatDamage`, `makeEnemy`, status), `loot`, `progression`, `enemyAbilities`. RNG is injectable for determinism. |
-| **Presentation** | `ui/` | `render` (paper-doll, item HTML, sprites, badges) + `overlay`. Returns HTML/draws; no game flow. |
-| **Orchestration** | `controllers/` | DOM-touching app flow: `game` (lifecycle + run state + merchant), `battle` (ATB engine + battle screen), `field` (tile map), `menus` (party/bag/equip), `screens`. |
-| **Infra** | `core/` | `rng`/utils, `dom` helpers, `events` (typed bus), `assets` (Vite `import.meta.glob` URL resolver). |
-| **Services** | `audio/`, `telemetry/` | `Music` (procedural chiptune), `Telemetry` (localStorage metrics). |
+| **Content** | `data/` | `attunements`, `rarity`, `items` (+affixes), `skills`/`classes`/`requiem-kits` (the 45 class kits), `party`, `enemies`, `zones`, `world` (the seamless Map/Continent/Zone/Area hierarchy + traversal `BARRIERS`, ADR 0009), `towns` (settlements + NPCs), `heldItems`, `art` tables, `changelog`, `version`. Pure data — add a zone/enemy/class/skill/region here, not in the engine. `db` is the **content registry** (typed query API + cross-refs: which zones spawn an enemy, which classes use a skill); `validate` is the **integrity check** (run in tests + a dev-startup assert). Query via `DB` rather than reaching into raw consts. |
+| **Logic** | `systems/` | **Pure, no DOM, tested:** `affinity`, `combat` (`combatDamage`, `makeEnemy`, status), `loot`, `progression`, `enemyAbilities`, `save` (versioned run state, ADR 0007), `inventory`, `traversal` (capability-gated barriers), `gearScore`, `reprieve` (dungeon rest, ADR 0010), `dungeonTopology`. RNG is injectable for determinism. |
+| **Presentation** | `ui/` | `render` (paper-doll, item HTML, sprites, badges), `overlay`, `dialogue` (NPC conversations). Returns HTML/draws; no game flow. |
+| **Orchestration** | `controllers/` | DOM-touching app flow: `game` (lifecycle + run state + merchant), `battle` (ATB engine + battle screen), `field` (seamless overworld + towns + dungeons, chunk streaming), `roster` (party builder), `menus` (party/bag/equip), `minimap` + `worldMap` (wayfinding), `dataBrowser`, `screens`. |
+| **Infra** | `core/` | `rng`/utils, `dom` helpers, `events` (typed bus), `assets` (Vite `import.meta.glob` URL resolver), `wakelock` (keep-awake). |
+| **Services** | `audio/`, `telemetry/` | `Music` (procedural chiptune), `Telemetry` (localStorage metrics + optional `endpoint` upload). |
 | **Boot** | `main.ts` | Wires controllers to the DOM, publishes the inline-handler `window` bridge, starts music + title. |
 
 `types.ts` holds shared domain interfaces (`Unit`, `Member`, `Enemy`, `Item`, `Skill`, …).
@@ -154,11 +155,11 @@ finicky parts don't surface:
   - **Weapon Archetype** (9 of them), not "weapon class". **Class** = Attunement × Archetype (45).
   - **Rarity** for loot quality (Common→Artifact), never "tier" or "grade".
   - **Elite** = affixed normal enemy; **Champion** = a tankier multi-affix *pack leader* (a tier
-    above elite); the **boss** is the Bandit Brute (don't conflate the three).
+    above elite); each zone has its own **boss** zone-gate fight (Greenvale's is the Bandit Kingpin) — don't conflate the three.
 - **REQUIEM is canon; the POC is a slice.** `docs/design/requiem/` is Dara's authoritative
   design (per-attunement mana, per-class resources, full kits, Ascension/Soul Burn/Archon). The
   game ships an *invented placeholder* (a damage affinity ring + one signature effect per
-  attunement) and only the four SOL classes. When they disagree, REQUIEM wins; reconcile toward it.
+  attunement) and all 45 class kits (8 hand-tuned, 37 generated from canon). When they disagree, REQUIEM wins; reconcile toward it.
 - **Dara is the primary designer of classes, abilities, and lore; agents are support.** He authors
   this content; AI agents (and the main loop) **assist** — implement his designs, draft proposals for
   his review, fill genuine gaps, and **flag conflicts/issues for him to decide**. Agents never
@@ -174,40 +175,50 @@ finicky parts don't surface:
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.33)
+## Current state (v0.116)
 
-Two zones — **Greenvale** (Lv 1–6) → **The Duskmarsh** (Lv 7–10, dungeon = the Drowned Vault) —
-with a **merchant** between them. **Party of five** (3 front / 2 back): the front line is targeted
-first, the back line (casters/ranged) is shielded. At the start the player **builds their own
-party** in the **Roster picker** — each hero's **Attunement × Archetype** (= class) and row.
-**No SOL default / no SOL bias anywhere**: the suggested default party is Attunement-diverse
-(Auren SOL S&S · Kaela NOX Dual · Rion ANIMA Spellblade front, Sephi SOL Staff · Liora QUANTA Staff
-back) and enemy attunements are spread across the ring so any comp gets matchups. **All 45 classes
-have distinct ability kits**: the 8 SOL/NOX S&S·Dual·Staff·Spellblade kits are hand-tuned; the
-other 37 are generated from Dara's REQUIEM canon by `docs/design/requiem/gen-kits.cjs` →
-`data/requiem-kits.ts` (canon names, heuristic mechanics — reconcile/balance over time).
-`KITS_GENERIC` remains only as a safety fallback.
+**One full continent — Aurelion, the Heartland — is built and playable** as a single **seamless
+overworld** (ADR 0008/0009): one continuous ~960×640-tile coordinate space you roam with **no
+loads**, streamed in chunks, with a `Map › Continent › Zone › Area › Tile` hierarchy resolved by
+point-in-polygon (`data/world.ts`). The other three continents (Varkhaz, Myr'Thalas, the Sundering)
+and the whole underworld are **mapped but unbuilt backlog** — filled in via the `world-builder` /
+`creative-director` pipeline.
 
-ATB combat, affinity ring + signature effects, status effects, Diablo loot (per-attunement
-painterly weapon + armor art, ilvl/MNA scaling), **elites + champion packs** (tanky multi-affix
-pack leaders), XP/levels/MNA allocator, mini-boss + zone-boss gates, treasure chests, and a
-procedural chiptune soundtrack are all implemented. **Six equip slots** — weapon · helmet · armor
-(chest) · gloves · boots · trinket; the four armor-family slots share the armor art/name set and
-each has its own stat lean (chest=HP, helmet=HP/MP, gloves=ATK, boots=SPD). Loot rarity is
-**level-banded** (`rarityBand` in `systems/loot.ts`: ~L10 uncommon/rare→lucky epic, L20 rare/epic→
-lucky legendary, L30+ artifacts appear) with steep **ilvl scaling** so a deep low-rarity piece can
-out-base a shallow high-rarity one (rarity still wins on affix count). The **merchant buys loot
-back** (Bag/Sell, ~40% of asking). **Crit-hit burst VFX** (per-Attunement, sliced from Dara's
-montage, CSS pop-and-fade). **Ultra-rare "treasure" monsters** (Metal-Slime / Warmech tier:
-`rare` flag, ~4% encounter replace, exceptional loot) — first entry **Hogger** in Greenvale
-(`RARE_MONSTERS` in `data/enemies.ts`). The bestiary is now **Dara's canon roster** (Greenvale:
-Green Slime/Kobold/Greenvale Bandit/Mage + Kingpin boss; Drowned Vault: Cave Rat/Spider/Leper +
-Cave Troll boss — Kingpin **SOL-infused**, Troll **NOX-infused** for a final-fight matchup), with sliced sprites for all of them. Art: all
-45 weaponless class bodies + the paper-doll with hero-sized weapons; **Greenvale field tileset** +
-Bandit Warren / Drowned Vault dungeon tilesets; a top-down player walker. **Still placeholder:**
-helmet/gloves/boots share the chest armor art, dungeon-floor/merchant field markers,
-armour-over-body layer, save/persistence (`localStorage` autosave planned). Balance is tuned via
-`balance-sim.ts` (models rows + champion packs).
+**The Aurelion arc (≈L1–25), ten zones, each with a front-door town + a dungeon:** Greenvale
+(Hearthford) → Silverwood (Elderbough) → The Duskmarsh (Miregard) → Goldmeadow (Wheatcross) → Storm
+Coast (Wrackport) → Riverhearth (the trade city) → Frostpeak (Frosthold) → Dawnfall (Lastlight) →
+Whisper Hills (Vesperhal) → Sunbridge (Sunpier, the siege finale). Some zones are **spine** (the
+critical path), others **optional** side-content. Crossings between zones can be **soft-gated by
+traversal barriers / capabilities** — e.g. the **Sunless Gorge**, crossable once you own the
+**raft** dropped by the Bandit Kingpin (the wayfinding model is ADR 0011).
+
+**Towns & NPCs (ADR 0006):** ten explorable settlements, each its own walkable place with named,
+hand-painted townsfolk whose talk points you down the road — plus an inn (paid rest), a market
+(merchant), a smith, and a shrine.
+
+**Combat & systems:** ATB **battle screen**; the **affinity ring** + per-Attunement signature
+effects; status effects; a **party of five** (3 front / 2 back) the player **builds in the Roster
+picker** (Attunement-diverse default, **no SOL bias**); **all 45 classes** have distinct kits (8
+SOL/NOX hand-tuned, 37 generated from REQUIEM canon → `data/requiem-kits.ts`); **MNA-gated**
+abilities + a point allocator; XP/levels; Diablo **loot** with **six equip slots**, **level-banded**
+rarity + steep **ilvl scaling**, **elites + champion packs**, a **gear score** read-out; ultra-rare
+**treasure monsters**; mini-boss + zone-boss gates; **ten multi-floor dungeons** (each a distinct
+layout) with **tailored rest reprieves** (ADR 0010 — partial/themed, never a full heal; the two
+caves get none). The currency is **Aether (◈)**. Balance is tuned via `balance-sim.ts`.
+
+**Persistence & platform:** **version-tolerant save/resume** (ADR 0007 — autosave + Continue,
+graceful migration). Installs as an **iOS/desktop PWA**: offline service worker, auto-update,
+full-screen with notch / home-indicator safe areas, screen-wake-lock, branded splash. A player
+**minimap** (`m`) + a (dev) **world map** aid orientation.
+
+**Art:** the **entire Aurelion pack is real hand-painted art** (Dara's sheets, sliced) — every town,
+dungeon, biome, enemy, NPC, the hero walk cycle, all six equip slots across five Attunements × six
+rarities, and crit-hit VFX. Gold-on-dark emoji / flat-fill placeholders now remain **only for the
+unbuilt backlog continents**; every gap is logged in `docs/design/asset-gaps.md`.
+
+**In flight:** the Greenvale→Silverwood **wayfinding / quest-flow streamline** (ADR 0011) —
+environmental guidance via *derived* **Objectives**, a persisted **known-regions** fog-of-war on a
+zoomed-out map, and a more legible gorge/raft "lock-before-key" beat.
 
 ## History
 

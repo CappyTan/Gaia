@@ -123,6 +123,10 @@ export interface SavedRun {
   // string[]. OPTIONAL + degrade-never-throw — absent on an old save = none held, EXCEPT the controller
   // re-seeds a key item whose cap the save already owns (a Greenvale-beaten save shows the raft). No bump.
   heldItems?: string[];
+  // WAYFINDING PROGRESS (ADR 0011): the run's known/entered regions, two zone-id string[]s. Drives the
+  // derived Objective + the continent overview-map reveal. OPTIONAL + degrade-never-throw — absent on an
+  // old save = empty progress (cosmetic/wayfinding only; gates nothing, so no soft-lock risk). No bump.
+  progress?: { known?: string[]; entered?: string[] };
 }
 
 export interface SaveEnvelope {
@@ -162,6 +166,7 @@ export interface RunSnapshot {
   mouthCleared: Record<string, boolean>;
   ownedCaps: string[];
   heldItems: string[];
+  progress: { known: string[]; entered: string[] };
 }
 
 /** A rebuilt run, content-validated, ready for the controller to install. */
@@ -194,6 +199,7 @@ export interface LoadedRun {
   mouthCleared: Record<string, boolean>; // zones whose OVERWORLD mouth guard was beaten (per zone id); old saves seed from the global miniBossDefeated
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   heldItems: string[];       // held quest/key item ids (e.g. ["raft"]); empty on an old save (the controller re-seeds a key item whose cap is already owned)
+  progress: { known: string[]; entered: string[] }; // wayfinding known/entered regions (ADR 0011); empty on an old save (cosmetic — gates nothing)
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
 }
@@ -275,6 +281,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     mouthCleared: { ...s.mouthCleared },
     ownedCaps: [...s.ownedCaps],
     heldItems: [...s.heldItems],
+    progress: { known: [...s.progress.known], entered: [...s.progress.entered] },
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -425,6 +432,22 @@ function reviveHeldItems(v: unknown): string[] {
   return [...out];
 }
 
+/**
+ * Sanitize the persisted wayfinding progress (ADR 0011) → two clean zone-id string[]s (drop non-string
+ * junk; dedup via the consuming Set; never throws). Old saves with NO `progress` field → empty progress
+ * (cosmetic/wayfinding only — gates nothing, so there is no soft-lock to back-compat around). Mirrors
+ * reviveOwnedCaps. The entered ⊂ known invariant is re-established by reviveProgress in systems/progress.
+ */
+function reviveProgressSave(v: unknown): { known: string[]; entered: string[] } {
+  const take = (arr: unknown): string[] => {
+    const out = new Set<string>();
+    if (Array.isArray(arr)) for (const k of arr) if (typeof k === "string" && k) out.add(k);
+    return [...out];
+  };
+  const o = (v ?? {}) as { known?: unknown; entered?: unknown };
+  return { known: take(o.known), entered: take(o.entered) };
+}
+
 /** Flatten a numeric floor→beaten map to a string-keyed dict for JSON (a Record<number> isn't JSON-native). */
 function serializeFloorFlags(v: Record<number, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -536,6 +559,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // held set, continueRun's cap→item re-seed self-heals it on the next load (the raft reappears from the
     // still-owned cap), so the cap — the thing that prevents a soft-lock — is never lost.
     heldItems: resetPos ? [] : reviveHeldItems(r.heldItems),
+    // WAYFINDING PROGRESS (ADR 0011) — sanitized known/entered region ids. Cosmetic (gates nothing), so an
+    // old save with no field loads empty; reset when the zone changed under us (the run restarts elsewhere,
+    // and syncZoneFromWorld re-marks the landing zone entered on the first step).
+    progress: resetPos ? { known: [], entered: [] } : reviveProgressSave(r.progress),
     notes,
   };
 }
