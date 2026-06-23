@@ -1,5 +1,7 @@
 // Encounter tables + zone definitions. Adding a zone/band is pure data — no engine changes.
 
+import type { Reprieve } from "../types";
+
 export interface EncounterBand {
   at: number;
   sets: string[][];
@@ -131,14 +133,20 @@ export interface DungeonLayout {
    */
   stairsDown?: Pt;
   /**
-   * BREATHER / REST NODES (dungeon-design skill §1) — walkable campfire tiles that give the party a
-   * low-intensity safe beat between combat spikes: stepping onto one RESTORES the party (full heal)
-   * ONCE, then it's spent (reverts to floor, like a used overworld shrine — keyed per-floor in
-   * `poisCleared`). Author one per floor as the deliberate tension valley (e.g. after the twisting B1
-   * mesh, just before the B3 throne threshold). Each gets a walkable halo + is a flood target so it can
-   * never be walled off; it sits ON walkable ground and never blocks a route.
+   * BREATHER / REST NODES (dungeon-design skill §1) — walkable tiles that give the party a low-intensity
+   * safe beat between combat spikes. Stepping onto one applies this dungeon's `reprieve` ONCE, then it's
+   * spent (reverts to floor, like a used overworld shrine — keyed per-floor in `poisCleared`). Author one
+   * per floor as the deliberate tension valley. Each gets a walkable halo + is a flood target so it can
+   * never be walled off. CAVES omit `rests` entirely (no rest); a dungeon with `rests` MUST set `reprieve`.
    */
   rests?: Pt[];
+  /**
+   * THE REST NODE'S TAILORED RELIEF (ADR 0010) — what the `rests` tiles do. Deliberately partial + themed,
+   * never a full heal (a full HP+MP refill every floor trivialises the game — Dara). One per dungeon; the
+   * kind ("mend" HP / "mana" MP / "regen" carried heal-over-time) leans to the dungeon's identity. Absent ⇒
+   * the `rests`, if any, do nothing meaningful — so authoring `rests` without `reprieve` is a content bug.
+   */
+  reprieve?: Reprieve;
   /**
    * THE WARREN COLLAPSE — the dungeon's signature gimmick (skill §4: one light, optional gimmick per
    * dungeon, here a one-way collapse SHORTCUT). A `rubble` drop tile: stepping onto it COLLAPSES the
@@ -413,6 +421,14 @@ export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undef
 // the SE den that caves you straight down to it (reward the brave); two breather chests sit on the loop
 // arms. A second collapse drop loops the far NE burrow back to the entry hall (the found shortcut). Stays
 // 24-wide (the combined-grid redundancy test stamps B1 east of Greenvale's gate wall at x=40, W=64).
+// The Warren's tailored reprieve (ADR 0010): a bandit hearth dresses WOUNDS but won't restore your magic —
+// "mend" heals 40% of max HP to standing heroes, no MP. Shared across all three floors (each hearth a
+// breather valley before its spike), so even the full 3-floor descent never refills the party (no more
+// trivialising full HP+MP heal). The fallen still need a town to revive.
+const WARREN_HEARTH: Reprieve = {
+  kind: "mend", amount: 0.4, name: "A Bandit Hearth",
+  blurb: "You catch your breath at a guttering fire and bind your wounds — your standing heroes recover some health, but the embers do nothing for spent magic. The fallen still need a town to revive.",
+};
 const WARREN_B1: DungeonLayout = {
   w: 24, h: 24, entry: { x: 1, y: 12 }, gate: { x: 1, y: 12 }, boss: { x: 20, y: 11 }, // boss unused on B1
   stairsDown: { x: 20, y: 11 }, // descend to B2
@@ -446,6 +462,7 @@ const WARREN_B1: DungeonLayout = {
     { x: 19, y: 19, to: { x: 4, y: 20 } }, // SE den collapse → caves you DOWN into the deep spoil cache (the brave shortcut to the richest chest)
     { x: 19, y: 4, to: { x: 4, y: 11 } },  // NE burrow collapse → drops you back to the entry hall (found shortcut home; no backtrack)
   ],
+  reprieve: WARREN_HEARTH,
   scatter: 0.06,
 };
 // B2 — THE BARRACKS & THE VAULT (the gated descent, 28-wide). Reads distinct from B1's twisting tunnels:
@@ -498,6 +515,7 @@ const WARREN_B2: DungeonLayout = {
   drops: [
     { x: 14, y: 19, to: { x: 4, y: 14 } }, // south bunk-row collapse → caves back to the muster hall (optional found shortcut, WEST of the gate — never bypasses it)
   ],
+  reprieve: WARREN_HEARTH,
   scatter: 0.07,
 };
 // B3 — THE KINGPIN'S THRONE HALL (the finale, 28-wide). Reads distinct: a grand PILLARED hall, not a
@@ -530,6 +548,7 @@ const WARREN_B3: DungeonLayout = {
     { x: 11, y: 15 },  // south gallery (loop)
   ],
   rests: [{ x: 17, y: 11 }], // the watch-FIRE at the threshold — the LAST breather before the telegraphed Kingpin
+  reprieve: WARREN_HEARTH,
   scatter: 0.06,
 };
 // The Bandit Warren = the 3-floor stack. `layout` MUST equal `floors[0]` (the single-floor contract

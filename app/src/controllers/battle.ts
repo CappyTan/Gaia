@@ -45,7 +45,9 @@ export const Battle = {
     if (this.enemies.some((e) => e.elite)) Telemetry.noteElite();
     Telemetry.encounterStart(enemyKeys, env || "plains", !!isBoss);
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
-    Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
+    // per-battle status starts clean; a carried dungeon "regen" reprieve (ADR 0010) seeds in AFTER the wipe
+    // (and is spent), so a regen rest node heals gradually across THIS fight rather than instantly at the node.
+    Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; if (m.pendingRegen) { m.status.regen = m.pendingRegen; m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
