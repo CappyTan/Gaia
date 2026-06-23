@@ -270,10 +270,16 @@ const SURFACE_ZONE_REGIONS: ZoneRegion[] = [
   { id: "greenvale", name: "Greenvale", continent: AURELION_ID, zone: "greenvale",
     shape: ring([116, 52], [150, 40], [188, 44], [206, 64], [202, 92], [180, 108], [150, 110],
                 [124, 98], [110, 76]) },
-  // #2 Silverwood (Ancient Forest) — top-CENTER (N), EAST of Greenvale, ~same latitude.
+  // #2 Silverwood (Ancient Forest) — top-CENTER (N), EAST of Greenvale, ~same latitude. RESHAPED
+  // (Silverwood Overhaul A0): the wood now reads NORTH→SOUTH, DESCENDING — a broad rounded NORTH CROWN
+  // (the great Elder-Oak's high stand, visible across the gorge from Greenvale) tapering to a SUNLESS
+  // RAVINE THROAT at the south foot (the Sunless-Grove mouth latitude, ~world y114). Centroid ≈ (300,70)
+  // (still EAST of Greenvale, ~same latitude — drift-guard holds); bbox 110×80 hosts the 60×24 authored
+  // core centered at (270,58). The southern throat tapers to a point ABOVE Goldmeadow's north rim (open
+  // continent / the ravine sits between them — no overlap).
   { id: "silverwood", name: "Silverwood", continent: AURELION_ID, zone: "silverwood",
-    shape: ring([244, 44], [286, 36], [326, 44], [350, 64], [344, 92], [318, 106], [284, 106],
-                [256, 92], [240, 68]) },
+    shape: ring([244, 52], [258, 40], [286, 34], [316, 38], [344, 52], [354, 72], [348, 88],
+                [336, 100], [324, 108], [310, 114], [298, 108], [286, 100], [266, 90], [250, 72]) },
   // The Duskmarsh — NOT on the canon map (Dara's "it's in Aurelion" ruling). Placed as a low wet
   // basin SOUTH of Greenvale (between Storm Coast and Goldmeadow). FLAGGED for Dara (foot of section).
   { id: "duskmarsh", name: "The Duskmarsh", continent: AURELION_ID, zone: "duskmarsh",
@@ -461,25 +467,32 @@ export const AREAS: Area[] = [
     shape: ring([189, 43], [208, 64], [204, 92], [182, 108], [182, 92], [178, 78], [150, 86], [148, 64], [182, 60]),
     identity: { biome: "plains", tileset: "shire", encounterLean: "miniboss-gate", music: "field" } },
 
-  // ── Silverwood (the Ancient Forest) — denser/darker old-growth, the same open mesh hushed by trees.
-  //    The west Heartwood Crossing (spawn + central crossing), the north Fern Hollows, the NE Canopy
-  //    Nook crest, the south Deep Mossbed (Mossback's lair), and the east Sunless-Grove Approach (the
-  //    Sunless Grove mouth). Tiled; seams are root-trails + the deep mossbed front. ──
-  { id: "sw-heartwood", name: "Heartwood Crossing", zone: "silverwood", draft: true,
-    shape: ring([238, 68], [244, 42], [284, 52], [282, 68], [274, 82], [256, 86]),
+  // ── Silverwood (the Ancient Forest) — denser/darker old-growth, RE-TILED to the DESCENDING N→S read
+  //    (Silverwood Overhaul A0). The wood drops from a bright high CROWN in the north into rising dread at
+  //    the sunless ravine throat in the south. Five Areas TILE the reshaped polygon (100% coverage, 0%
+  //    overlap, verified in world.test.ts): the NW Heartwood Crown (spawn + the Elder-Oak's high stand,
+  //    open dappled wood), the N-center Fern Hollows, the NE Canopy Nook crest, the SW/S Deep Mossbed
+  //    (Mossback's lair, the descending forest floor), and the E Sunless-Grove Approach (the E lobe that
+  //    descends to the RAVINE THROAT where the Sunless Grove mouth waits). Seams are the central root-spine
+  //    (x≈300) + the crown/floor front. Biomes carry the descent in TERRAIN flavor only (no Attunement —
+  //    D1): open wood high → ravine-edge dread low. The level-designer dresses the ravine lip + Elder-Oak;
+  //    the ELDER-OAK (large weenie) sits in the Heartwood Crown at world ≈ (280,46), high + west-facing so
+  //    it is visible across the gorge from Greenvale ("see it now, reach it later"). ──
+  { id: "sw-heartwood", name: "Heartwood Crown", zone: "silverwood", draft: true,
+    shape: ring([244, 52], [258, 40], [286, 34], [300, 52], [300, 74], [276, 80], [266, 90], [250, 72]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "wolf-thornling", music: "forest" } },
   { id: "sw-fern-hollows", name: "Fern Hollows", zone: "silverwood", draft: true,
-    shape: ring([244, 42], [286, 34], [318, 42], [306, 72], [282, 68], [284, 52]),
+    shape: ring([286, 34], [316, 38], [326, 56], [300, 74], [300, 52]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "archer-wisp", music: "forest" } },
   { id: "sw-canopy", name: "Canopy Nook", zone: "silverwood", draft: true,
-    shape: ring([318, 42], [328, 42], [352, 64], [324, 80], [306, 72]),
+    shape: ring([316, 38], [344, 52], [354, 72], [330, 78], [326, 56]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "archer", music: "forest" } },
   { id: "sw-mossbed", name: "Deep Mossbed", zone: "silverwood", draft: true,
-    shape: ring([238, 68], [256, 86], [274, 82], [290, 88], [316, 90], [319, 108], [284, 108], [254, 92]),
+    shape: ring([266, 90], [276, 80], [300, 74], [300, 98], [298, 108], [286, 100]),
     identity: { biome: "forest", tileset: "grove", encounterLean: "rare-lair", music: "forest" } },
   { id: "sw-grove-approach", name: "Sunless-Grove Approach", zone: "silverwood", draft: true,
-    shape: ring([352, 64], [346, 92], [319, 108], [316, 90], [290, 88], [274, 82], [282, 68], [306, 72], [324, 80]),
-    identity: { biome: "forest", tileset: "grove", encounterLean: "miniboss-gate", music: "forest" } },
+    shape: ring([300, 74], [326, 56], [330, 78], [354, 72], [348, 88], [336, 100], [324, 108], [310, 114], [298, 108], [300, 98]),
+    identity: { biome: "ravine", tileset: "grove", encounterLean: "miniboss-gate", music: "forest" } },
 
   // ── The Duskmarsh — water-framed mire. The west mire-head Causeways (spawn/fork, wrapping the north
   //    & west banks), the Central Lagoon they loop around (open water, the finest pocket), the south
@@ -888,7 +901,7 @@ export function polyCentroid(poly: Polygon): Point {
 // The placement table for the three BUILT zones. Each `(wx,wy)` is computed so the authored grid
 // (w×h from its ZoneLayout) is centered on the zone polygon's shoelace centroid:
 //   greenvale  (64×24) centroid ≈ (159, 74)  → wx,wy = (127, 62)   rect [127,62)..[191,86)
-//   silverwood (60×24) centroid ≈ (295, 71)  → wx,wy = (265, 59)   rect [265,59)..[325,83)
+//   silverwood (60×24) centroid ≈ (300, 70)  → wx,wy = (270, 58)   rect [270,58)..[330,82)  (RESHAPED A0)
 //   duskmarsh  (56×22) centroid ≈ (176, 151) → wx,wy = (148, 140)  rect [148,140)..[204,162)
 // (Hard-coded — pure data the engine reads at startup — but derived exactly by `polyCentroid` above;
 // the test recomputes them from the polygons + ZoneLayouts to guard against drift.)
@@ -903,7 +916,7 @@ export function polyCentroid(poly: Polygon): Point {
 //   sunbridge    (60×24) centroid ≈ (304.9,290.0) → (275, 278)  rect [275,278)..[335,302)
 export const WORLD_PLACEMENT: Record<string, ZonePlacement> = {
   greenvale: { wx: 127, wy: 62, scale: 1 },
-  silverwood: { wx: 265, wy: 59, scale: 1 },
+  silverwood: { wx: 270, wy: 58, scale: 1 },
   duskmarsh: { wx: 148, wy: 140, scale: 1 },
   goldmeadow: { wx: 269, wy: 137, scale: 1 },
   stormcoast: { wx: 96, wy: 193, scale: 1 },
@@ -1185,4 +1198,102 @@ export function unreachableContinentTargets(
     }
   }
   return targetsW.filter((t) => !seen.has(key(t.x, t.y)));
+}
+
+// ── Traversal-gating BARRIERS (Silverwood Overhaul, D2 — the reusable system, declared as DATA) ─────
+// A0 cartographer's headline deliverable: a GENERIC, data-declared traversal barrier. A barrier is a
+// band of world tiles that realize as an IMPASSABLE terrain kind UNTIL the run owns a named CAPABILITY,
+// after which the band's CROSSING tiles open (the rest of the band stays terrain). It is the macro
+// "soft-gate by terrain" (overworld-design §5) made concrete: legible "not yet" wall, then a clear
+// route once earned — no invisible wall, no auto-warp.
+//
+// HOW THE DIRECTOR WIRES IT (engine integration — NOT done here; this is pure data + pure predicates):
+//   • systems/traversal (NEW pure logic): an owned-capability Set<string> in run state (saved/restored
+//     via the ADR 0007 envelope). `hasCap(caps, "gorge")` etc. Grant "gorge" on the Bandit-Warren /
+//     Kingpin clear; back-compat default-grants it to any save that has already beaten Greenvale.
+//   • controllers/field.ts `bigPassable(wx,wy)`: BEFORE the cell-kind check, consult
+//     `barrierBlocks(wx, wy, ownedCaps)` — if a barrier covers the tile and its cap is NOT owned and the
+//     tile is not a crossing put-in/take-out, return false (impassable). Cheap: a handful of rect tests.
+//   • the chunk realizer (field.ts realizeChunk) MAY paint the band as the barrier's `terrainKind`
+//     ("gorge") for the look (a ravine-water chasm), and the crossing tiles as a raft put-in/take-out
+//     prop, by calling `barrierAt(wx,wy)`. Realization stays deterministic (no RNG).
+// Generic by construction: later zones add their own { id, terrainKind, cap, band, crossing } row; no
+// engine change. PURE (ADR 0005): data + point-in-rect predicates only, no DOM/controller import.
+
+/** A run-capability key that a barrier consults (the item/clear that "opens" the terrain). */
+export type Capability = "gorge"; // extend as later barriers declare their own unlock keys.
+
+/** A traversal barrier: an impassable terrain band gated behind owning `cap`, with crossing tiles. */
+export interface Barrier {
+  /** Stable id (also a good music/copy key). */
+  id: string;
+  /** Human label for tooling / the "see it now, reach it later" barrier copy. */
+  name: string;
+  /** Which map this barrier lives on. */
+  map: string;
+  /** The terrain kind the band realizes as while LOCKED (a new wall kind the renderer dresses). */
+  terrainKind: string;
+  /** The run capability that UNLOCKS it (own this ⇒ the crossing opens). */
+  cap: Capability;
+  /** The impassable band, as one or more world-space rects (half-open [x0,x1) × [y0,y1)). */
+  band: { x0: number; y0: number; x1: number; y1: number }[];
+  /**
+   * The CROSSING tiles (raft put-in on the source side → take-out on the far side): once `cap` is owned
+   * these tiles are WALKABLE so a clear route exists across the band. While locked they stay blocked.
+   * Listed source→far so the level-designer/renderer can place the put-in and take-out props.
+   */
+  crossing: Point[];
+}
+
+// THE GREENVALE↔SILVERWOOD GORGE (D2). A sunless water/gorge chasm in the OPEN CONTINENT between
+// Greenvale's east shore (poly edge ~x206) and Silverwood's west shore (poly edge ~x244) — a clean
+// ~45-tile gap that touches NEITHER zone polygon NOR either authored core (gv core east x191, sw core
+// west x270), so it severs no existing in-core route. It spans the latitudes the player crosses at
+// (y≈46–96, i.e. Greenvale/Silverwood's shared band). IMPASSABLE until the raft/bridge-kit ("gorge") is
+// owned (dropped by clearing the Bandit Warren / Kingpin); then the put-in→take-out crossing opens.
+// The Elder-Oak (Silverwood crown, world ≈ (280,46)) stands NORTH of and ABOVE this band, so it is
+// visible from the Greenvale side of the gorge ("see it now, reach it later").
+export const BARRIERS: Barrier[] = [
+  {
+    id: "greenvale-gorge",
+    name: "The Sunless Gorge",
+    map: OVERWORLD_ID,
+    terrainKind: "gorge",
+    cap: "gorge",
+    // A single vertical chasm band in the gap. Its west face is the Greenvale-side rim, its east face
+    // the Silverwood-side rim; the crossing punches straight across at the latitude of both zones'
+    // east/west mouths (world y≈70 — Greenvale mouth world (167,74), Silverwood spawn world (272,70)).
+    band: [{ x0: 212, y0: 46, x1: 238, y1: 96 }],
+    // Raft route across the chasm at y=70: put-in on the Greenvale (west) rim → take-out on the
+    // Silverwood (east) rim. A contiguous walkable line so the crossing is a real path once unlocked.
+    crossing: [
+      { x: 212, y: 70 }, { x: 218, y: 70 }, { x: 224, y: 70 }, { x: 230, y: 70 }, { x: 237, y: 70 },
+    ],
+  },
+];
+
+/** The barrier covering a world tile on a map (first match; bands don't overlap), or undefined. */
+export function barrierAt(map: string, wx: number, wy: number): Barrier | undefined {
+  return BARRIERS.find((bar) =>
+    bar.map === map && bar.band.some((r) => wx >= r.x0 && wx < r.x1 && wy >= r.y0 && wy < r.y1));
+}
+
+/** Is a world tile one of a barrier's crossing put-in/take-out tiles? */
+export function isBarrierCrossing(bar: Barrier, wx: number, wy: number): boolean {
+  return bar.crossing.some((p) => p.x === wx && p.y === wy);
+}
+
+/**
+ * Does a barrier BLOCK movement onto (wx,wy) given the run's owned capabilities? PURE — the Director's
+ * `bigPassable` calls this before its cell-kind check. Blocked iff a barrier covers the tile, its cap
+ * is NOT owned, and the tile is not a crossing put-in/take-out. Once the cap is owned the whole band is
+ * passable (the crossing is the route; the rest is dressed water but no longer walls movement — keeps
+ * the rule cheap and avoids a one-tile-wide pinch the player can miss). `ownedCaps` is a plain Set so
+ * the check stays O(1) membership.
+ */
+export function barrierBlocks(map: string, wx: number, wy: number, ownedCaps: Set<string>): boolean {
+  const bar = barrierAt(map, wx, wy);
+  if (!bar) return false;
+  if (ownedCaps.has(bar.cap)) return false;       // unlocked → the band no longer blocks
+  return !isBarrierCrossing(bar, wx, wy);          // locked → blocked unless it's a crossing tile
 }
