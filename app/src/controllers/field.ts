@@ -13,6 +13,7 @@ import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
 import { rollItemAtLevel } from "../systems/loot";
+import { applyReprieve } from "../systems/reprieve";
 import { CHEST_LEVEL, DROP_MODS } from "../data/loot";
 import { itemHtml } from "../ui/render";
 import { Overlay } from "../ui/overlay";
@@ -1347,17 +1348,22 @@ export const Field = {
     this.draw(); this.hint();
     Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
-  // DUNGEON REST NODE (skill §1 breather): a campfire that fully restores the party ONCE per visit, then
-  // spends (reverts to floor). Keyed per-FLOOR in poisCleared (the same persisted set as overworld shrines,
-  // namespaced "<zoneId>:d<floor>" so a B1 and B2 fire at the same x,y can't collide). A spent fire is
-  // already carved as floor by genDungeon, so this only fires on a live one.
+  // DUNGEON REST NODE (skill §1 breather, ADR 0010): a rest tile that applies THIS dungeon's TAILORED
+  // reprieve ONCE per visit, then spends (reverts to floor). Deliberately partial + themed — never a full
+  // heal (a full HP+MP refill every floor trivialises the game — Dara); caves carry no reprieve so they
+  // never get a rest tile. Keyed per-FLOOR in poisCleared (namespaced "<zoneId>:d<floor>" so a B1/B2 fire
+  // at the same x,y can't collide). A spent fire is already carved as floor by genDungeon, so this only
+  // fires on a live one. If a layout authored a rest with NO reprieve (a content bug), it's a no-op beat.
   restAt(x: number, y: number): void {
     const key = this.poiKey(this.zone().id + ":d" + this.dungeonFloor, x, y);
     this.poisCleared[key] = true;
     this.map[y][x] = "path";
-    Game.restParty();
+    const rep = this.curFloor().reprieve;
+    if (rep) applyReprieve(Game.party, rep);
     this.draw(); this.hint(); Game.saveNow?.();
-    Overlay.show(`<h2 class="title-gold">A Bandit Hearth</h2><p class="small">You catch your breath at a guttering fire and tend your wounds — your standing heroes' HP and MP are fully restored (the fallen need a town to revive). The embers die as you rise.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+    const title = rep?.name ?? "A Quiet Beat";
+    const body = rep?.blurb ?? "You catch your breath a moment before pressing on.";
+    Overlay.show(`<h2 class="title-gold">${title}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
   // THE WARREN COLLAPSE (skill §4 gimmick / §2 shortcut): stepping onto a `rubble` tile caves the floor in
   // and drops the player to its paired landing — a ONE-WAY shortcut (no fight, no soft-lock; the landing is

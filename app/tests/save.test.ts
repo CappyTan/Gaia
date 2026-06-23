@@ -216,6 +216,14 @@ describe("save round-trip", () => {
     expect(r.heldItems).toEqual(["raft"]);      // deduped, only known registry ids survive
   });
 
+  it("persists a carried 'regen' reprieve (pendingRegen) across save/resume (ADR 0010)", () => {
+    const { snapshot } = makeRun();
+    snapshot.party[0].pendingRegen = 5;       // hero picked up a regen reprieve mid-dungeon
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.party[0].pendingRegen).toBe(5);
+    expect(r.party[1].pendingRegen).toBeUndefined(); // not carried by heroes who didn't get it
+  });
+
   it("a save with explicit empty ownedCaps stays empty even past Greenvale (no spurious auto-grant)", () => {
     const { snapshot } = makeRun();         // zoneIndex 1, ownedCaps []
     snapshot.ownedCaps = [];

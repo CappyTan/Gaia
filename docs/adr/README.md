@@ -14,3 +14,4 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0007](0007-versioned-save-resume.md) | Version-tolerant save & resume (autosave + Continue; id-based, graceful migration) |
 | [0008](0008-seamless-continuous-overworld.md) | Seamless continuous overworld — no-load region roaming (staged) |
 | [0009](0009-world-hierarchy-bigmap.md) | World hierarchy (Map/Continent/Zone/Area/Tile) & the big-map paint-regions model |
+| [0010](0010-tailored-dungeon-reprieves.md) | Tailored dungeon reprieves — partial, themed rest nodes (no full-heal); caves get none |

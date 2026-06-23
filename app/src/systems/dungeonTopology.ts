@@ -77,6 +77,7 @@ export interface FloorMetrics {
   hubRooms: number[];         // room ids with degree ≥ 3 (the hubs the layout orbits)
   chestCount: number;
   restCount: number;          // breather nodes (skill §1)
+  reprieveKind: string | null; // the rest node's tailored reprieve (ADR 0010): "mend"|"mana"|"regen", or null
   dropCount: number;          // one-way shortcuts (skill §2/§4)
   /** ANTI-SOFT-LOCK: every feature + room reachable from entry (gate passable). The cardinal check. */
   softLock: { ok: boolean; unreachable: Feature[] };
@@ -337,6 +338,7 @@ export function floorTopology(D: DungeonLayout, opts: TopologyOpts = {}): FloorT
     hubRooms: rooms.filter((r) => r.degree >= 3).map((r) => r.id),
     chestCount: D.chests.length,
     restCount: D.rests?.length ?? 0,
+    reprieveKind: D.reprieve?.kind ?? null,
     dropCount: D.drops?.length ?? 0,
     softLock: { ok: unreachable.length === 0, unreachable },
     gate,
@@ -377,7 +379,15 @@ export function renderTopology(t: FloorTopology): string {
   lines.push("── topology ──");
   lines.push(`rooms ${m.roomCount} · links ${m.edgeCount} · components ${m.components} · loops ${m.loops}  →  ${m.isMesh ? "MESH (loops present)" : "TREE/CORRIDOR (no loops — §2 flag)"}`);
   lines.push(`hubs(deg≥3): [${m.hubRooms.join(", ") || "—"}]   dead-end rooms(deg≤1): [${m.deadEndRooms.join(", ") || "—"}]`);
-  lines.push(`chests ${m.chestCount} · rests ${m.restCount} ${m.restCount ? "(§1 breather ok)" : "(§1: NO rest node)"} · drops/shortcuts ${m.dropCount}`);
+  // §1 reprieve read (ADR 0010): a rest node should carry a TAILORED reprieve (mend/mana/regen, never a
+  // full heal). NO rest is legitimate — required for caves, optional for short dungeons — so it's not a
+  // flaw. A rest tile WITHOUT a reprieve is the only real fault (a dead beat / content bug).
+  const restNote = m.restCount === 0
+    ? "(§1: no rest — fine for a cave / short floor; a dungeon may add a tailored reprieve)"
+    : m.reprieveKind
+      ? `(§1 reprieve: ${m.reprieveKind})`
+      : "(§1: ⚠ rest node with NO reprieve — dead beat, set dungeon.reprieve)";
+  lines.push(`chests ${m.chestCount} · rests ${m.restCount} ${restNote} · drops/shortcuts ${m.dropCount}`);
   lines.push(`soft-lock safe (all reachable): ${yn(m.softLock.ok)}${m.softLock.ok ? "" : "  ⚠ UNREACHABLE: " + m.softLock.unreachable.map((f) => `${f.kind}@${f.x},${f.y}`).join(", ")}`);
   if (m.gate) lines.push(`mini-boss gate pinches: ${yn(m.gate.pinches)}${m.gate.pinches ? "  (gates: " + m.gate.behind.join(", ") + ")" : "  ⚠ gate is BYPASSABLE — nothing behind it"}`);
   lines.push(`egress: ${m.egress.kind}${m.egress.at ? `@${m.egress.at.x},${m.egress.at.y}` : ""} · reachable ${yn(m.egress.reachable)} · ${m.egress.pathLen} steps from entry`);

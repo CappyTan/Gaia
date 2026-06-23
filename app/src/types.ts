@@ -13,6 +13,27 @@ export type RarityKey =
 /** A status/buff timer keyed by effect name (burn, poison, decay, regen, stun, blind, atkup, wardArmor). */
 export type StatusMap = Record<string, number>;
 
+/**
+ * DUNGEON REPRIEVE (ADR 0010) — a dungeon rest node's TAILORED relief. Deliberately NOT a full heal:
+ * each kind relieves ONE axis, partially, so a deep dungeon stays punishing (a full HP+MP refill every
+ * floor trivialises the game — Dara). Caves declare NO reprieve (no rest node at all). Themed per dungeon:
+ *   • "mend"   — restores `amount` fraction of MAX HP to standing heroes (no MP). A field-dressing fire.
+ *   • "mana"   — restores `amount` fraction of MAX MP to standing heroes (no HP). An arcane wellspring.
+ *   • "regen"  — grants a carried Regeneration that seeds into the NEXT battle (`amount` regen ticks);
+ *                heals gradually IN combat, never instantly — relief you have to survive into. A living
+ *                wood / lava-vent's restorative warmth.
+ * (A "cleanse" reprieve that lifts a lingering ailment like petrification awaits persistent out-of-combat
+ * statuses — a later mechanic; statuses are per-battle today.)
+ */
+export type ReprieveKind = "mend" | "mana" | "regen";
+export interface Reprieve {
+  kind: ReprieveKind;
+  amount?: number;   // mend/mana: fraction of max (0..1, default 0.4); regen: number of regen ticks (default 5)
+  name: string;      // the node's themed name shown in the overlay (e.g. "A Bandit Hearth")
+  blurb: string;     // overlay flavor — what the party does here (words only; the mechanic is the kind)
+}
+
+
 /** Per-Attunement mana. A threshold that gates abilities AND scales output (REQUIEM). */
 export type MnaPools = Record<Attunement, number>;
 export const ATTUNEMENTS: Attunement[] = ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"];
@@ -185,6 +206,9 @@ export interface Member extends Unit {
   mp: number;
   maxmp: number;
   acted?: boolean;
+  /** A carried Regeneration from a dungeon "regen" reprieve — seeded into status at the next battle start
+   *  (statuses are otherwise wiped per-battle), then spent. Gradual in-combat healing, never an instant heal. */
+  pendingRegen?: number;
   _init?: boolean;
 }
 

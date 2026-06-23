@@ -56,6 +56,7 @@ export interface SavedMember {
   mnaAlloc: Record<Attunement, number>;
   mnaPoints: number;
   equip: Partial<Record<Slot, SavedItem | null>>;
+  pendingRegen?: number; // carried dungeon "regen" reprieve (ADR 0010); absent on most saves
 }
 
 export interface SavedRun {
@@ -249,6 +250,7 @@ function serializeMember(m: Member): SavedMember {
   return {
     def: m.def, level: m.level, xp: m.xp, row: m.row, hp: m.hp, mp: m.mp, alive: m.alive,
     mnaAlloc, mnaPoints: m.mnaPoints, equip,
+    ...(m.pendingRegen ? { pendingRegen: m.pendingRegen } : {}),
   };
 }
 
@@ -357,6 +359,7 @@ function reviveMember(sm: SavedMember, notes: string[]): Member | null {
   m.alive = sm.alive === false ? false : m.hp > 0;
   if (m.alive && m.hp <= 0) m.hp = 1;          // alive must have ≥1 hp (guards a bad save)
   if (!m.alive) m.hp = 0;
+  if (sm.pendingRegen && sm.pendingRegen > 0) m.pendingRegen = Math.floor(sm.pendingRegen); // carried reprieve (ADR 0010)
   return m;
 }
 

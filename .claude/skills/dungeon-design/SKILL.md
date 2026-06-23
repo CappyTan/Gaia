@@ -31,16 +31,30 @@ that tests what the dungeon taught. Everything below serves that loop.
 
 ## 1 · Pace by tension-and-release (don't run a constant gauntlet)
 - **Alternate combat with breather beats.** Players go numb under unrelenting intensity. After a spike
-  (a champion pack, the mini-boss), give a low-intensity beat — a cleared room, a chest, a **rest/save
+  (a champion pack, the mini-boss), give a low-intensity beat — a cleared room, a chest, a **rest
   node** — before the next climb. Sawtooth the curve; never a flat ramp.
+- **A rest node is a TAILORED REPRIEVE, never a full heal (Dara, ADR 0010).** A full HP+MP refill on
+  every floor trivialises the game — the resource squeeze is the whole tension. So a rest node relieves
+  **one axis, partially, themed to the dungeon**, leaving the party to press on imperfect:
+  - **`mend`** — restores a fraction of MAX HP only (no MP). A field-dressing fire (e.g. the Bandit Warren).
+  - **`mana`** — restores a fraction of MAX MP only (no HP). An arcane wellspring (a vault / arcane crypt).
+  - **`regen`** — a *carried* heal-over-time that only pays out **in the next fight** (relief you must
+    survive into), not at the node. A living wood, a lava-vent's warmth.
+  - *(A `cleanse` that lifts a lingering ailment like petrification awaits persistent out-of-combat
+    statuses — not yet a mechanic. Don't author it until it exists.)*
+  Mechanic: set `dungeon.reprieve = { kind, amount, name, blurb }` and place the tile(s) in each floor's
+  `rests`. Lean the kind to the dungeon's identity; vary it across dungeons so no two rests feel the same.
+- **CAVES GET NO REST.** A cave (and any short, sharp interior) omits `rests` entirely — punishing
+  end-to-end. No-rest is *correct*, not a deficiency (the topology analyzer no longer flags it).
 - **Resource depletion is the tension, not per-fight lethality.** The dungeon is interesting because
   the party might run low on **MP/HP/items before the next safe node** — *that's* what makes each
   fight matter. If healing/MP is so abundant that fights are just a time tax, the dungeon has failed,
   however "hard" the numbers are. (This is exactly what the sim's HP targets protect — see §8.)
 - **Give a long dungeon internal milestones.** Segment it into a few distinct sub-areas with their own
   read, so the run has waypoints rather than one undifferentiated slog.
-- **Gradeable:** is there a breather beat between spikes? A rest/save node mid-dungeon? Does the run
-  segment into legible sub-areas, or is it one long same-y stretch?
+- **Gradeable:** between spikes, is there a breather beat? If a rest node exists, is its reprieve
+  **partial + themed** (not a full heal), and does a cave correctly carry none? Does the run segment
+  into legible sub-areas, or is it one long same-y stretch?
 
 ## 2 · Build interconnected, legible space (loops & shortcuts, not dead-end spurs)
 This is **Dara's open-world directive applied inside a dungeon** — the cardinal layout rule.
