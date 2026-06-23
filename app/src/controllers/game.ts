@@ -119,6 +119,9 @@ export const Game = {
       // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
       dungeonFloor: Field.dungeonFloor,
       dungeonMiniCleared: Field.dungeonMiniCleared,
+      // PER-ZONE OVERWORLD MOUTH-CLEARED (Silverwood Overhaul fix) — which zones' dungeon-mouth guard is
+      // beaten, by zone id; persisted so the right zones' mouths stay open across a reload (not a global).
+      mouthCleared: Field.mouthCleared,
       // OWNED TRAVERSAL CAPS (Silverwood Overhaul, D2) — the run's macro-traversal unlocks (e.g. "gorge"),
       // as a plain string[] for JSON; restored into Field.ownedCaps (a Set) on resume.
       ownedCaps: [...Field.ownedCaps],
@@ -161,6 +164,10 @@ export const Game = {
     // the chunk realizer consult Field.ownedCaps, so the gorge re-opens (or stays locked) correctly on
     // resume. An old save that beat Greenvale already had "gorge" granted in deserialize (no soft-lock).
     Field.ownedCaps = new Set(r.ownedCaps);
+    // Restore PER-ZONE mouth-cleared state (Silverwood Overhaul fix) BEFORE any grid rebuild below —
+    // buildAuthoredGrid / genOverworld read miniClearedFor(id), so a beaten zone's mouth stays open (and
+    // an unbeaten zone's guard stays up) on resume, per zone. An old save seeds this in deserialize.
+    Field.mouthCleared = { ...r.mouthCleared };
     Field.zoneIndex = r.zoneIndex;
     if (r.inTown && r.townId) {
       this.rollMerchantStock();        // re-roll shop stock (transient, never persisted)
@@ -303,6 +310,9 @@ export const Game = {
       // Roam-first: mark the Warren cleared, climb out to the seamless surface (raft in hand), and let the
       // player navigate to the now-open gorge. Position-derived state carries the zone over when they cross.
       this.bossDefeated = true;
+      // DELIBERATE roam-first reset: drop the in-town/merchant flags directly (no hub chain to enter here —
+      // unlike enterNextHubChain, which routes through a settlement). Keep in sync with that path's bookkeeping
+      // if its flag handling changes.
       this._inTown = false; this._inMerchant = false;
       Field.ascend();                       // back onto the big-map overworld at the Warren mouth (out of the dungeon)
       this.saveNow();

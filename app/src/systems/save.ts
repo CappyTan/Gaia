@@ -105,6 +105,12 @@ export interface SavedRun {
   // (no surprise re-fight / no being stranded past a gate the state thinks is closed). OPTIONAL +
   // degrade-never-throw — absent on an old save = nothing beaten (back-compatible, no schema bump).
   dungeonMiniCleared?: Record<string, boolean>;
+  // PER-ZONE OVERWORLD-MOUTH cleared state (Silverwood Overhaul fix): which zones' overworld dungeon-mouth
+  // guard (the zone mini-boss) has been beaten, by STABLE zone id ("<zoneId>" → true). The seamless big map
+  // hosts SEVERAL new-model zones live at once, so this is per-zone, not the single global `miniBossDefeated`.
+  // OPTIONAL + degrade-never-throw — absent on an old save: the legacy global `miniBossDefeated` seeds the
+  // zone the save was in (back-compatible: an old save that beat Greenvale gets greenvale in the set).
+  mouthCleared?: Record<string, boolean>;
   // OWNED TRAVERSAL CAPABILITIES (Silverwood Overhaul, D2): the macro-traversal unlocks the run owns
   // (e.g. "gorge" — the raft/bridge-kit from the Bandit Warren), as a plain string[]. A barrier band is
   // impassable terrain until its cap is owned. OPTIONAL + degrade-never-throw — absent on an old save =
@@ -147,6 +153,7 @@ export interface RunSnapshot {
   openedChests: Record<string, boolean>;
   dungeonFloor: number;
   dungeonMiniCleared: Record<number, boolean>;
+  mouthCleared: Record<string, boolean>;
   ownedCaps: string[];
 }
 
@@ -177,6 +184,7 @@ export interface LoadedRun {
   openedChests: Record<string, boolean>; // looted chests (per-context keys); empty on an old save
   dungeonFloor: number;      // which multi-floor dungeon floor to resume on (0 if not / single-floor)
   dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
+  mouthCleared: Record<string, boolean>; // zones whose OVERWORLD mouth guard was beaten (per zone id); old saves seed from the global miniBossDefeated
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
@@ -255,6 +263,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     openedChests: { ...s.openedChests },
     dungeonFloor: s.dungeonFloor,
     dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
+    mouthCleared: { ...s.mouthCleared },
     ownedCaps: [...s.ownedCaps],
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
@@ -378,6 +387,25 @@ function reviveOwnedCaps(v: unknown, zoneIndex: number, bossDefeated: boolean): 
   return [...out];
 }
 
+/**
+ * Sanitize the persisted per-zone mouth-cleared map → a clean {zoneId→true} dict (drop junk; never
+ * throws). BACK-COMPAT (no soft-lock): a save with NO `mouthCleared` field that has the legacy global
+ * `miniBossDefeated` set seeds the zone the save was IN (`zoneIndex` → id) — so an old save that beat
+ * Greenvale's mouth guard resumes with greenvale in the cleared set (its mouth stays open). A save that
+ * also advanced past that zone (zoneIndex>0) likewise seeds its current zone; the earlier zone's mouth is
+ * cosmetic on resume (you've moved on). Legacy combined-grid zones map onto the same per-zone state.
+ */
+function reviveMouthCleared(v: unknown, miniBossDefeated: boolean, zoneIndex: number): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (v && typeof v === "object") {
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string" && k) out[k] = true;
+    return out;
+  }
+  // legacy save (no field): seed the current zone from the global flag so its mouth stays open on resume.
+  if (miniBossDefeated) { const id = ZONES[zoneIndex]?.id; if (id) out[id] = true; }
+  return out;
+}
+
 /** Flatten a numeric floor→beaten map to a string-keyed dict for JSON (a Record<number> isn't JSON-native). */
 function serializeFloorFlags(v: Record<number, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -474,6 +502,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // controller on resume). Reset to 0 if the zone changed under us. Degrade-never-throw.
     dungeonFloor: resetPos ? 0 : Math.max(0, Math.floor(r.dungeonFloor || 0)),
     dungeonMiniCleared: resetPos ? {} : reviveFloorFlags(r.dungeonMiniCleared),
+    // PER-ZONE MOUTH-CLEARED — sanitized {zoneId→true}. BACK-COMPAT (no soft-lock): an old save with no
+    // field but the legacy global `miniBossDefeated` set seeds its current zone (so a Greenvale-beaten save
+    // keeps greenvale's mouth open on resume). Empty if the zone changed out from under us (resetPos).
+    mouthCleared: resetPos ? {} : reviveMouthCleared(r.mouthCleared, !!r.miniBossDefeated, zoneIndex),
     // OWNED TRAVERSAL CAPS — sanitized string[]. BACK-COMPAT (no soft-lock): a save that already PASSED
     // Greenvale (any later zone, OR Greenvale itself with its boss down) predates the gorge gate, so
     // auto-grant "gorge" — otherwise an in-flight run could be stranded at a barrier it earned long ago.

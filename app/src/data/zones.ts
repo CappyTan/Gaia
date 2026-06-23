@@ -654,6 +654,11 @@ const SILVERWOOD_DUNGEON: DungeonLayout = {
     [{ x: 1, y: 20 }, { x: 5, y: 19 }],                           // mouth → sunken root-hall
     [{ x: 5, y: 17 }, { x: 13, y: 6 }, { x: 16, y: 10 }],         // hall → north bole (rising) → antechamber
     [{ x: 5, y: 19 }, { x: 12, y: 18 }, { x: 16, y: 14 }],        // hall → south gallery → antechamber (the LOOP)
+    // SECOND, INDEPENDENT bole link (the upper section CIRCLES, not a there-and-back spur): a west wall-
+    // root riser drops the bole's far corner down to the south gallery on its OWN column (x=11), clear of
+    // the x=13 riser. So the bole sits on a genuine cycle — gallery → x11 riser → bole → x16 crossover →
+    // antechamber → south arm → gallery — and cutting either bole link leaves it reachable from the other.
+    [{ x: 11, y: 8 }, { x: 11, y: 16 }],                          // bole ↔ south gallery (west riser — the return arm)
     [{ x: 16, y: 10 }, { x: 19, y: 9 }],                          // antechamber → arena (boss)
   ],
   chests: [

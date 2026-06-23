@@ -51,6 +51,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     openedChests: {},
     dungeonFloor: 1,
     dungeonMiniCleared: { 0: true },
+    mouthCleared: { greenvale: true },
     ownedCaps: [],
   };
   return { party, inventory, snapshot };
@@ -222,6 +223,43 @@ describe("save round-trip", () => {
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
     expect(r.ownedCaps).toEqual(["gorge"]);  // deduped, junk dropped
+  });
+
+  // ── PER-ZONE mouth-cleared (Silverwood Overhaul fix) ──────────────────────────────────────────
+  it("persists PER-ZONE mouth-cleared state (which zones' overworld mouth guard was beaten round-trips)", () => {
+    const { snapshot } = makeRun();
+    snapshot.mouthCleared = { greenvale: true, silverwood: true };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.mouthCleared.greenvale).toBe(true);
+    expect(r.mouthCleared.silverwood).toBe(true);
+    expect(r.mouthCleared.duskmarsh).toBeUndefined(); // only beaten zones present
+  });
+
+  it("an OLD save (no mouthCleared field) that beat the mini SEEDS the zone it was in (back-compat, no soft-lock)", () => {
+    const { snapshot } = makeRun();          // zoneIndex 1 (silverwood), miniBossDefeated true
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).mouthCleared;    // legacy save predating per-zone state
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.mouthCleared).toEqual({ silverwood: true }); // the global flag → the current zone's mouth stays open
+  });
+
+  it("an OLD save (no mouthCleared) with the mini NOT beaten seeds NOTHING (the guard still stands)", () => {
+    const { snapshot } = makeRun();
+    snapshot.miniBossDefeated = false;
+    const env = serialize(snapshot, "v1");
+    delete (env.run as any).mouthCleared;
+    const r = deserialize(env)!;
+    expect(r.mouthCleared).toEqual({});      // nothing beaten → no zone seeded
+  });
+
+  it("a junk mouthCleared value degrades cleanly (drops non-true / non-string keys, never throws)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    (env.run as any).mouthCleared = { greenvale: true, silverwood: 1, "": true, duskmarsh: false };
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.mouthCleared).toEqual({ greenvale: true }); // only the boolean-true string key survives
   });
 
   it("re-equipped affix labels render the saved value (no broken label fn)", () => {
