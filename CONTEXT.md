@@ -94,6 +94,28 @@ The status/effect flavor tied to each Attunement (e.g. SOL = Burn/Blind). Distin
 the affinity ring; the ring governs damage multipliers, the signature effect is what an
 attunement's skills tend to *inflict*.
 
+**Objective**:
+The player's current "where to go next" — the single active goal the world's *environmental*
+guidance reflects (an NPC's directions, a signpost, the lit destination on the zoomed-out map).
+Today it is always **derived** from run state (gates cleared, capabilities owned, known regions),
+never authored; the term is deliberately **source-agnostic** so a future authored **Quest** can
+supply one without renaming. Surfaced diegetically, not as a HUD quest marker.
+_Avoid_: "quest" for the derived objective (see Flagged ambiguities).
+
+**Known region**:
+A region the player has either **entered** or been **told of** (e.g. an NPC naming a destination).
+Gates what the zoomed-out overview map reveals — known regions show; unbuilt or unheard-of regions
+stay fogged. Persisted in run state (the `OwnedCaps` pattern).
+_Avoid_: using "discovered"/"visited" as synonyms — *entered* is a subset of *known* (you can know
+a region from a rumor without having set foot in it).
+
+**Traversal barrier**:
+A band of terrain that reads as impassable (e.g. the **Sunless Gorge**) until the run owns the
+**Capability** that opens it (the gorge's raft/bridge-kit → the `"gorge"` capability), after which a
+clear crossing opens. The legible "see it now, reach it later" soft-gate.
+_Avoid_: "wall"/"invisible wall" — a traversal barrier is capability-gated and always crossable once
+the capability is earned (never an auto-warp).
+
 **Ascension** (canon, per REQUIEM):
 A proc effect that unlocks **Soul Burn**. Gear-gated — rare gear can force-cast it, and better
 gear raises its proc chance and uptime. See
@@ -151,6 +173,11 @@ under-defined.
   full combination. ("Weapon Class" was earlier EA shorthand; Dara's canon is "Archetype".)
 - **"Tier"** often means loot quality in other games. In Gaia, loot quality is **Rarity**,
   not tier. Keep "tier" out of the loot vocabulary.
+- **"Quest" is reserved, not built.** The game has **no authored quest system yet**. Player
+  direction comes from *derived* **Objectives** surfaced environmentally (NPC lines, signposts,
+  the map highlight). The naming deliberately leaves room for an authored **Quest** layer later (a
+  `Quest` would *supply* an Objective), but until then don't call the derived objective a "quest,"
+  and don't add a quest engine without an ADR.
 - **Canon vs. POC.** REQUIEM (`docs/design/requiem/`) is Dara's authoritative class/combat
   design — distinct per-attunement mana mechanics, per-class resources, full ability kits.
   The playable POC (`app/gaia.html`) currently uses an **invented placeholder** (a damage
