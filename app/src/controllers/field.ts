@@ -402,7 +402,7 @@ export const Field = {
   // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
   loadZone(i: number): void {
     this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false; this.enteredDungeon = false;
-    delete this.mouthCleared[ZONES[i]?.id ?? ""]; // a fresh entry → this zone's mouth guard stands again
+    const zid = ZONES[i]?.id; if (zid) delete this.mouthCleared[zid]; // a fresh entry → this zone's mouth guard stands again
     this.resize(); this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     Screens.show("field");
