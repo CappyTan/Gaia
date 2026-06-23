@@ -32,6 +32,38 @@ infers beyond Dara's text is marked **(proposed)** and stays subordinate to his 
 
 ---
 
+## Combat behavior — Ascension as a temporary enrage (DESIGN OPTION, not built)
+
+> **Status: OPTION — logged by Dara, not yet designed or built. Surface this when we design
+> late-game enemy encounters** (the encounter-designer + `dungeon-design`/`overworld-design`
+> passes for end-game zones).
+
+When a Legendary NPC is fought, it **may** be able to trigger its own **Ascension** — borrowing the
+hero [Ascension / Soul Burn](battle-system-2.0.md) idea as an **NPC-side "temporary enrage."** The
+intent (Dara):
+
+- **A *maybe*, not a guarantee.** Like the hero Ascension proc, it's a **chance per turn**, not a
+  scripted phase. Some fights it fires; some it never does — that randomness is the point (it makes
+  each encounter with the figure feel different and tense).
+- **Buffs + debuffs, similar in spirit to hero Ascension/Soul Burn** (a damage/speed/throughput
+  spike), but **NOT the same numbers.** The **damage scaling and the per-turn HP cost** are tuned
+  *for the NPC*, independent of how Soul Burn drains/scales a hero — an enemy shouldn't melt itself
+  on the hero formula, and its burst shouldn't be the hero's either.
+- **Distinct from the existing boss "Omega" enrage.** Today's `triggerEnrage` (in
+  `controllers/battle.ts`) is **deterministic** — it fires once at ≤20% HP and is permanent
+  (double ATB + double damage, art swap to the Omega sprite). This proposed mechanic is
+  **probabilistic and temporary** — a windowed buff that can come and go (and could fire more than
+  once a fight). They can coexist; this is a *new* axis, not a replacement.
+- **Scope:** reserved for **certain Legendary NPCs** (e.g. The Last Lagrangian), not ordinary
+  bosses/elites — it's part of what makes a Legendary Figure feel above the normal scale.
+
+**Open questions for when we design it:** proc chance + duration (mirror Ascension's "≥5 turns,
+then 50%/turn to drop"? or its own curve); the exact buff set and its per-turn self-cost (if any);
+whether it should telegraph (so the player can react/burst) or surprise; and how it reads on the
+battle screen (a clear "ENRAGED/ASCENDED" state, reusing the enrage VFX language).
+
+---
+
 ## Roster
 
 | Figure | Attunement | Archetype / Class | Nature | Status |
