@@ -132,7 +132,14 @@ finicky parts don't surface:
 - **Respect the layering.** `data/` and `systems/` stay pure (no DOM, no controller imports) so
   they remain testable and reusable. New content goes in `data/`; new pure logic in `systems/`
   (with a test); DOM/flow in `controllers/`/`ui/`. Keep combat math in `systems/combat` so the
-  sim and tests exercise the same code the game ships.
+  sim and tests exercise the same code the game ships. The full architectural-health rubric —
+  layering, the `DB` registry seam + `validate` net, injectable RNG, `types.ts` modeling,
+  abstractions/coupling — is the **`architecture-review`** skill
+  ([`.claude/skills/architecture-review/SKILL.md`](.claude/skills/architecture-review/SKILL.md));
+  read it before a non-trivial change to `app/src/**`, and use the **`architecture-reviewer`**
+  agent (read-only, whole-module/repo structural review) and the **`refactorer`** agent
+  (applies behavior-preserving structural fixes) to keep the codebase easy to work in. They are
+  the structural lens; `code-reviewer` / `/code-review` stay the diff-correctness lens.
 - **Match the existing code style.** Terse, idiomatic, data-driven; small helpers (`$`, `el`,
   `rnd`, `ri`, `pick`, `clamp`, `cap`). Write to blend in.
 - **Type it.** `strict` is on; keep `npm run typecheck` clean. Prefer real interfaces in
