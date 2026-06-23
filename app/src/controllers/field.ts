@@ -9,7 +9,7 @@ import {
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
 } from "../data/world";
 import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
-import { emptyProgress, markRegionEntered, markRegionKnown, currentObjective, type Progress } from "../systems/progress";
+import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
@@ -1025,12 +1025,15 @@ export const Field = {
         const L = this.zone().layout;
         this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
       }
-      // WAYFINDING (ADR 0011): standing in a built zone marks it ENTERED (lights it on the overview map),
-      // and the derived next Objective — if it's a TRAVEL goal — marks that destination KNOWN so the next
-      // place lights up too (the "the world told you where to go" reveal). Pure systems/progress; idempotent.
+      // WAYFINDING (ADR 0011): mark this zone ENTERED (reveals it on the overview map) and SEED the next
+      // spine zone as KNOWN so the overview points AHEAD (entering Greenvale reveals Silverwood — the
+      // "world told you where to go" reveal Maelis voices). Seeding on entry is what BOOTSTRAPS the reveal:
+      // a `travel` Objective only arises once a region is already known, so without this seed known would
+      // never outgrow entered and the overview could only ever show where you'd already stood. Pure
+      // systems/progress; idempotent.
       markRegionEntered(this.wayfinding, builtId);
-      const obj = currentObjective(this.wayfinding, { currentZone: builtId, gateCleared: (z) => this.miniClearedFor(z) });
-      if (obj.kind === "travel") markRegionKnown(this.wayfinding, obj.zoneId);
+      const next = zi >= 0 ? ZONES[zi + 1] : undefined; // spine-successor heuristic (a future Quest could refine)
+      if (next) markRegionKnown(this.wayfinding, next.id);
     }
     // MUSIC: Area identity music with a zone/open-continent fallback; duck-swap only when it changes.
     const key = Music.forField(res.area?.identity.music, builtId || undefined);

@@ -115,8 +115,10 @@
   #minimapCanvas{image-rendering:pixelated; border:1px solid var(--line); border-radius:6px; background:#0a0a0f; max-width:100%;}
   /* A subtle "there's somewhere to head" pulse on the continent overview when an objective region is lit.
      The global prefers-reduced-motion rule above collapses this to instant (no looping motion). */
-  .minimap-card.has-objective #minimapCanvas{animation:minimapPulse 2.4s ease-in-out infinite;}
-  @keyframes minimapPulse{0%,100%{box-shadow:0 0 0 0 rgba(244,210,122,0);}50%{box-shadow:0 0 10px 1px rgba(244,210,122,.45);}}
+  .minimap-card.has-objective #minimapCanvas{box-shadow:0 0 6px 0 rgba(244,210,122,.3); animation:minimapPulse 2.4s ease-in-out infinite;}
+  /* Pulse breathes between the base glow and a brighter one (never to zero), so when prefers-reduced-motion
+     freezes the animation the static base glow still marks "there's somewhere to head". */
+  @keyframes minimapPulse{0%,100%{box-shadow:0 0 6px 0 rgba(244,210,122,.3);}50%{box-shadow:0 0 12px 2px rgba(244,210,122,.55);}}
   .minimap-legend{display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--ink);}
   .minimap-legend i{display:inline-block; width:9px; height:9px; border-radius:50%; vertical-align:middle; margin-right:4px; border:1px solid rgba(0,0,0,.6);}
   .minimap-foot{text-align:center; opacity:.7;}

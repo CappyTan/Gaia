@@ -172,7 +172,7 @@ export const Minimap = {
     legend.innerHTML = continent
       ? `<span><i style="background:${POI.player}"></i>You</span>
          <span><i style="background:var(--gold2)"></i>Next — head here</span>
-         <span><i style="background:var(--gold);opacity:.45"></i>Named — not yet visited</span>`
+         <span><i style="background:#7fd8b0;opacity:.55"></i>Known region</span>`
       : `<span><i style="background:${POI.player}"></i>You</span>
          <span><i style="background:${POI.mouth}"></i>Dungeon</span>
          <span><i style="background:${POI.chest}"></i>Chest</span>
@@ -262,7 +262,10 @@ export const Minimap = {
     // The derived next step (pure). We only HIGHLIGHT a destination region (travel / known-not-entered),
     // never a "clear-gate" (that's a local-zone task with no other region to point at).
     const obj = currentObjective(Field.wayfinding, { currentZone: curZone, gateCleared: (z) => Field.miniClearedFor(z) });
-    let highlightId = obj.kind === "travel" ? obj.zoneId : "";
+    // Light a DESTINATION for a `travel` goal, OR the CURRENT zone for a `clear-gate` goal (its own dungeon
+    // is the next step) — so a fresh run (gate uncleared, nothing else known) still lights "you're here,
+    // clear it" instead of nothing. `explore` falls through to the known-not-entered fallback below.
+    let highlightId = (obj.kind === "travel" || obj.kind === "clear-gate") ? obj.zoneId : "";
     if (!highlightId) {
       // fall back: the first KNOWN-but-not-entered region (a place the world named you haven't reached).
       for (const zr of ZONE_REGIONS)
@@ -300,8 +303,10 @@ export const Minimap = {
       ctx.stroke();
       const bb = bbox(zr.shape);
       const z = ZONES.find((zz) => zz.id === zr.zone);
-      if (z) {
-        // worldMap's Lv N+ danger label on revealed BUILT zones (the relative-danger read).
+      // Label only the OBJECTIVE zone + the zone the player stands in — labelling every revealed zone
+      // smears overlapping "Name Lv N+" text at full-continent zoom; the others read as known land by
+      // their (muted) shape alone. worldMap's Lv N+ danger read is kept on the two we do label.
+      if (z && (focused || zr.zone === curZone)) {
         const sug = suggestedLevelOf(zr.zone!);
         const label = z.name + (sug != null ? `  Lv ${sug}+` : "");
         ctx.fillStyle = focused ? "#f4d27a" : "rgba(154,147,168,.85)";
@@ -317,9 +322,9 @@ export const Minimap = {
 
     // Honest, diegetic where-line (mirrors the open-continent compass; never regress it). Name the
     // objective if there is one; otherwise the nearest settled land's direction.
-    const hz = highlightId ? ZONES.find((zz) => zz.id === highlightId) : undefined;
     if (where) {
-      if (hz) where.textContent = `Aurelion — make for ${hz.name}`;
+      if (obj.kind === "clear-gate") where.textContent = `Aurelion — ${obj.label}`; // "Clear the Bandit Warren" (you're already here)
+      else if (obj.kind === "travel") where.textContent = `Aurelion — make for ${ZONES.find((zz) => zz.id === obj.zoneId)?.name ?? obj.zoneId}`;
       else { const near = Field.nearestBuiltZone(); where.textContent = near ? `Aurelion — ${near.name} lies ${near.dir}` : "Aurelion"; }
     }
   },
