@@ -44,16 +44,17 @@ describe("skillAnimator compositor", () => {
       onComplete: () => calls.push("complete"),
     });
 
-    // hideActor: the static sprite is hidden while the firing frames play
+    // hideActor: the static sprite is hidden while the firing frames play (set synchronously)
     expect(actor.style.visibility).toBe("hidden");
 
-    // mid-animation: frame <img>s are composited onto the stage
-    vi.advanceTimersByTime(450);
+    // frames preload first; in jsdom <img> never fires load, so the timeline starts via the 350ms
+    // safety cap. Advance past that + the damage frame.
+    vi.advanceTimersByTime(900);
     expect(stage.querySelectorAll("img.anim-frame").length).toBeGreaterThan(0);
-    expect(calls).toContain("damage"); // damage frame (4) ≈ 390ms has passed
+    expect(calls).toContain("damage");
 
     // run to the end
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(4000);
     expect(calls).toEqual(["damage", "impact", "complete"]); // order: hit lands, number, done
     expect(actor.style.visibility).toBe(""); // sprite restored
     expect(stage.querySelectorAll("img.anim-frame").length).toBe(0); // every frame cleaned up

@@ -16,6 +16,7 @@ from PIL import Image
 
 REF = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "reference")
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "fx")
+BODIES = os.path.join(os.path.dirname(__file__), "..", "assets", "bodies")
 
 # Per-sheet frame boxes: (x0, x1) column span + (y0frac, y1frac) art window (excludes caption band).
 # Derived from the sheets' content profiles (see commit notes); explicit because the art doesn't
@@ -26,6 +27,9 @@ SHEETS = {
         "frames": [  # the 5 firing poses: idle, load, aim, fire, final
             ("01", 16, 300), ("02", 300, 576), ("03", 576, 896), ("04", 896, 1216), ("05", 1216, 1512),
         ],
+        # Dara: the FINAL STANCE (frame 5) is also the Photon Vanguard's idle battle sprite — write it
+        # out as the SOL × Rifle class body so the hero stands ready in that pose between actions.
+        "body_from": "05", "body_out": "sol-rifle",
     },
     "photon-beam": {
         "src": "anim-photon-beam.png", "knockout_white": False, "ywin": (0.05, 0.55),
@@ -77,15 +81,20 @@ def main():
         W, H = src.size
         y0, y1 = int(cfg["ywin"][0] * H), int(cfg["ywin"][1] * H)
         outdir = os.path.join(OUT, setname); os.makedirs(outdir, exist_ok=True)
-        thumbs = []
+        thumbs = []; cells = {}
         for name, x0, x1 in cfg["frames"]:
             cell = src.crop((x0, y0, x1, y1))
             if cfg["knockout_white"]:
                 cell = knock_white(cell)
             cell = tight(cell)
             cell.save(os.path.join(outdir, f"{name}.png"))
-            thumbs.append(cell)
+            cells[name] = cell; thumbs.append(cell)
         print(f"{setname}: {len(cfg['frames'])} frames -> {outdir}")
+        if cfg.get("body_from"):  # also use one frame as a class battle body (idle sprite)
+            os.makedirs(BODIES, exist_ok=True)
+            bpath = os.path.join(BODIES, f"{cfg['body_out']}.png")
+            cells[cfg["body_from"]].save(bpath)
+            print(f"  body (frame {cfg['body_from']}) -> {bpath}")
         if montage:
             mh = 200; pad = 8
             ws = [int(t.width * mh / t.height) for t in thumbs]
