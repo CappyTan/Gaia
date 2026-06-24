@@ -227,26 +227,41 @@ def slice_impact(att, montage=False):
     im = np.asarray(src).astype(float)
     H, W, _ = im.shape
     art = im[: int(H * IMPACT_LABEL_CUT)]                 # drop the caption band
-    AH = art.shape[0]; colw = W // IMPACT_FRAMES; cyc = AH // 2
+    AH = art.shape[0]; colw = W // IMPACT_FRAMES
     a = _impact_alpha(art)
-    half = 0; centres = []                                # one shared square half-size for all frames
+    # CENTRE EACH FRAME ON ITS OWN LUMINOUS MASS (alpha-weighted centroid), not the cell centre. The
+    # artist drew the slash/burst/shards at DIFFERENT spots within their cells, so cell-centred crops made
+    # the bright mass drift sideways across frames — in game the impact appeared to slide across the enemy.
+    # Aligning every frame's centroid to the canvas centre makes the four bloom CONCENTRICALLY (in place).
+    # The source window is clamped to each frame's OWN cell so a neighbouring burst can never bleed in; a
+    # shared half-size keeps the four frames' relative scale intact.
+    half = 0; cents = []
     for i in range(IMPACT_FRAMES):
-        x0, x1 = i * colw, (i + 1) * colw; cxc = (x0 + x1) // 2; centres.append(cxc)
-        ys, xs = np.where(a[:, x0:x1] > 0.12)
+        cx0, cx1 = i * colw, (i + 1) * colw
+        cell = a[:, cx0:cx1]                              # this frame's cell ONLY (no neighbour bleed)
+        ys, xs = np.where(cell > 0.12)
         if len(xs):
-            half = max(half, (xs + x0 - cxc).max(), (cxc - (xs + x0)).max(), (ys - cyc).max(), (cyc - ys).max())
-    half = int(half) + 6
+            wv = cell[ys, xs]
+            gcx = int(round(((xs + cx0) * wv).sum() / wv.sum()))   # global centroid (luminous mass)
+            gcy = int(round((ys * wv).sum() / wv.sum()))
+            half = max(half, gcx - (int(xs.min()) + cx0), (int(xs.max()) + cx0) - gcx, gcy - int(ys.min()), int(ys.max()) - gcy)
+        else:
+            gcx, gcy = (cx0 + cx1) // 2, AH // 2
+        cents.append((gcx, gcy, cx0, cx1))
+    R = int(half) + 6
     outdir = os.path.join(OUT, f"impact-{att}"); os.makedirs(outdir, exist_ok=True)
     thumbs = []
-    for i, cxc in enumerate(centres):
-        y0, y1, x0, x1 = cyc - half, cyc + half, cxc - half, cxc + half
-        canvas = np.zeros((2 * half, 2 * half, 4), np.uint8)
-        ay0, ax0, ay1, ax1 = max(0, y0), max(0, x0), min(AH, y1), min(W, x1)
-        rgb = art[ay0:ay1, ax0:ax1]
+    for i, (gcx, gcy, cx0, cx1) in enumerate(cents):
+        canvas = np.zeros((2 * R, 2 * R, 4), np.uint8)
+        # source window centred on the centroid, clamped to the cell (x) and art band (y)
+        rx0, rx1 = max(gcx - R, cx0), min(gcx + R, cx1)
+        ry0, ry1 = max(gcy - R, 0), min(gcy + R, AH)
+        rgb = art[ry0:ry1, rx0:rx1]
         al = _impact_alpha(rgb)
         al = np.maximum(al, _fill_holes(al > 0.12).astype(float))
         block = np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), (al * 255).astype(np.uint8)])
-        canvas[max(0, -y0):max(0, -y0) + block.shape[0], max(0, -x0):max(0, -x0) + block.shape[1]] = block
+        dx, dy = rx0 - (gcx - R), ry0 - (gcy - R)         # place so the centroid lands at canvas centre (R,R)
+        canvas[dy:dy + block.shape[0], dx:dx + block.shape[1]] = block
         fr = Image.fromarray(canvas, "RGBA")
         if fr.width > IMPACT_MAX:
             fr = fr.resize((IMPACT_MAX, IMPACT_MAX), Image.LANCZOS)
