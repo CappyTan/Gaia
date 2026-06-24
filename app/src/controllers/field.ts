@@ -1933,8 +1933,8 @@ export const Field = {
       // D4 RAISED solid (tree/cliff-prop): a cast shadow on the floor, then the sprite drawn OVERSIZED +
       // bottom-anchored so it overhangs the tile below and stands UP off the floor (the player's own
       // tall-sprite + foot-shadow language, :2010+). Works for real sprites AND the emoji fallback.
-      const tall = (img: HTMLImageElement | undefined, emoji: string, sc = 1.45) => {
-        this.castShadow(c, sx, sy, t);
+      const tall = (img: HTMLImageElement | undefined, emoji: string, sc = 1.45, shadow = 0.34) => {
+        this.castShadow(c, sx, sy, t, 0.34, shadow);
         if (img) {
           const h = t * sc, w = h * (img.width / img.height), ay = sy + t * 0.86 - h;
           c.drawImage(img, sx + t / 2 - w / 2, ay, w, h);
@@ -1993,8 +1993,8 @@ export const Field = {
         else if (biome === "orchard") tall(T["orchard-tree"], "🌳");
         else if (biome === "mire") tall(T.deadtree, "🌫️");
         else if (biome === "ruin") tall(T["ruin-wall"], "🧱");                          // crumbling ruin wall
-        else if (biome === "snow" || biome === "ice") tall(T["snow-pine"], "🌲");        // snow-laden conifers
-        else if (biome === "stone") tall(T["snow-crag"], "⛰️");                          // ice-rimed crags
+        else if (biome === "snow" || biome === "ice") tall(T["snow-pine"], "🌲", 1.45, 0.5);  // cold biomes: a snow-laden wall can be LIGHTER than the near-white floor (the value law inverts), so a STRONGER cast shadow must carry figure-ground
+        else if (biome === "stone") tall(T["snow-crag"], "⛰️", 1.45, 0.5);                     // ice-rimed crags — same inversion guard
         else if (biome === "rock") tall(T["coast-rock"], "⛰️");
         else if (biome === "coast" || biome === "beach" || biome === "harbor") tall(T["coast-rock"], "🌴");
         else tall(gimg, "🌲");
