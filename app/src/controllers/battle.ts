@@ -185,12 +185,15 @@ export const Battle = {
     this.selecting = null;
     const s = act.skill;
     if (s && s.mp) actor.mp = Math.max(0, (actor.mp ?? 0) - s.mp);
-    this.markActing(actor);
 
     // Layered combat animation (REQUIEM): a skill with an `anim` plays its character/effect/impact
     // sequence, applying damage + floating the number on the configured frames. Single-target only.
+    // markActing is intentionally NOT called here — its lunge would bob the hero's doll for a frame
+    // before the animation hides it (an intermittent flicker). The firing frames ARE the action.
     const anim = s && s.anim ? SKILL_ANIM[s.anim] : null;
     if (anim && targets.length === 1) { this.animatedStrike(actor, targets[0], act, anim); return; }
+
+    this.markActing(actor);
 
     if (s && s.type === "heal") {
       targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });

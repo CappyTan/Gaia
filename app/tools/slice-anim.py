@@ -27,9 +27,6 @@ SHEETS = {
         "frames": [  # the 5 firing poses: idle, load, aim, fire, final
             ("01", 16, 300), ("02", 300, 576), ("03", 576, 896), ("04", 896, 1216), ("05", 1216, 1512),
         ],
-        # Dara: the FINAL STANCE (frame 5) is also the Photon Vanguard's idle battle sprite — write it
-        # out as the SOL × Rifle class body so the hero stands ready in that pose between actions.
-        "body_from": "05", "body_out": "sol-rifle",
     },
     "photon-beam": {
         "src": "anim-photon-beam.png", "knockout_white": False, "ywin": (0.05, 0.55),
@@ -44,6 +41,13 @@ SHEETS = {
             ("01", 0, 305), ("02", 305, 610), ("03", 610, 916), ("04", 959, 1258), ("05", 1307, 1490),
         ],
     },
+}
+
+# Single hero idle/battle sprites → written as the class body (bodies/<out>.png). Source may already
+# be transparent (preferred — cleanest), else a flat GRAY background knocked out by low-chroma flood.
+# Dara's idle for the Photon Vanguard (SOL × Rifle) is a clean transparent PNG.
+SINGLE_BODIES = {
+    "sol-rifle": {"src": "anim-photon-vanguard-idle.png"},
 }
 
 
@@ -88,6 +92,32 @@ def tight(im, pad=6, thr=20):
     return im.crop((xs0, ys0, xs1, ys1))
 
 
+def knock_gray(im, spread=22):
+    """Knock a flat/gradient GRAY background off a single sprite via edge flood-fill: a pixel is
+    'background' if it's low-chroma (max-min channel <= spread) and reachable from the border. Keeps
+    the figure's gold + coloured/shadowed armour (high chroma) and any interior silver (not border-
+    connected). Soft-ramps the edge."""
+    from collections import deque
+    im = im.convert("RGBA"); px = im.load(); W, H = im.size
+    gray = lambda x, y: (max(px[x, y][:3]) - min(px[x, y][:3])) <= spread
+    dq = deque(); seen = set()
+    for x in range(W):
+        for y in (0, H - 1):
+            if gray(x, y) and (x, y) not in seen: seen.add((x, y)); dq.append((x, y))
+    for y in range(H):
+        for x in (0, W - 1):
+            if gray(x, y) and (x, y) not in seen: seen.add((x, y)); dq.append((x, y))
+    while dq:
+        x, y = dq.popleft()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < W and 0 <= ny < H and (nx, ny) not in seen and gray(nx, ny):
+                seen.add((nx, ny)); dq.append((nx, ny))
+    for (x, y) in seen:
+        r, g, b, a = px[x, y]; sp = max(r, g, b) - min(r, g, b)
+        px[x, y] = (r, g, b, 0) if sp <= spread - 6 else (r, g, b, int(a * (spread - sp) / 6))
+    return im
+
+
 def uniform_beam(strip, width=320):
     """Turn a tapering beam streak into a UNIFORM bar the compositor can stretch into a clean beam:
     take the streak's brightest column (its glow cross-section) and tile it along the length. Keeps
@@ -104,6 +134,14 @@ def uniform_beam(strip, width=320):
 
 def main():
     montage = "--montage" in sys.argv
+    os.makedirs(BODIES, exist_ok=True)
+    for out, cfg in SINGLE_BODIES.items():       # single idle sprites → class bodies
+        sp = Image.open(os.path.join(REF, cfg["src"])).convert("RGBA")
+        if cfg.get("spread"):                     # gray-background source: knock it out
+            sp = knock_gray(sp, cfg["spread"])
+        sp = tight(sp)                            # transparent source: just crop to the figure
+        sp.save(os.path.join(BODIES, f"{out}.png"))
+        print(f"body {out} <- {cfg['src']} ({sp.size[0]}x{sp.size[1]})")
     for setname, cfg in SHEETS.items():
         src = Image.open(os.path.join(REF, cfg["src"])).convert("RGBA")
         W, H = src.size
