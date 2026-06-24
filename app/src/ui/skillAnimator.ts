@@ -44,8 +44,8 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   const timers: number[] = [];
   const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, Math.max(0, ms)));
   const nat: Record<string, { w: number; h: number }> = {};   // natural frame sizes (from preload)
-
-  if (anim.hideActor) (o.actor as HTMLElement).style.visibility = "hidden";
+  const actorEl = o.actor as HTMLElement;
+  const setActorHidden = (h: boolean) => { if (anim.hideActor) actorEl.style.visibility = h ? "hidden" : ""; };
 
   // Where + how big a layer's frame draws. Offsets are FRACTIONS of the actor sprite (x→width,
   // y→height). A `muzzleToTarget` beam spans from the muzzle (actor centre + offset) to the target.
@@ -101,7 +101,11 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     const layerStart = (l: AnimLayer, fallback: number) =>
       l.startMs != null ? l.startMs : l.startFrame != null ? (l.startFrame - 1) * charMs : fallback;
 
+    // Hide the static doll only WHILE the firing frames play, then restore it (its idle pose is the
+    // final firing stance) so the hero holds that pose through the beam/impact — never absent.
+    setActorHidden(true);
     playLayer(ch, 0);
+    at(charDur, () => setActorHidden(false));
     let lastEnd = charDur;
 
     let effectEnd = charDur;
@@ -126,7 +130,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     at(lastEnd + 320, () => {
       timers.forEach(clearTimeout);
       live.forEach((e) => e.remove());
-      if (anim.hideActor) (o.actor as HTMLElement).style.visibility = "";
+      setActorHidden(false); // safety: ensure the doll is visible again
       o.onComplete && o.onComplete();
     });
   }
