@@ -312,7 +312,7 @@
   @keyframes enragepulse{50%{filter:contrast(1.15) saturate(1.2) drop-shadow(0 0 3px #000) drop-shadow(0 0 22px rgba(255,70,40,.85)) drop-shadow(0 6px 8px rgba(0,0,0,.75));}}
 
   .float{position:absolute; font-weight:bold; font-size:16px; pointer-events:none; text-shadow:0 2px 3px #000;
-    animation:floatup .85s ease-out forwards;}
+    z-index:9; animation:floatup .85s ease-out forwards;}
   @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
   /* crit burst: Dara's per-Attunement spark, popped + faded over a struck unit (screen-blended
      so the knocked-out glow reads as light, not a flat decal) */
@@ -330,6 +330,12 @@
   .anim-sprite{position:absolute; pointer-events:none; z-index:7; transform-origin:center; opacity:0;
     filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));}
   .anim-sprite.glow{filter:drop-shadow(0 0 7px rgba(255,205,90,.9)) drop-shadow(0 0 16px rgba(255,150,40,.5));}
+  /* universal combat impact burst (ui/skillAnimator.playImpact): the attacker-Attunement explosion on
+     the struck foe. Centred on its sprite, above the sprite but BELOW the damage numbers. Frames stacked
+     + cross-faded by toggling opacity (no src swap); a soft glow halo so it reads as light. */
+  .impact-fx{position:absolute; pointer-events:none; z-index:6; transform:translate(-50%,-50%);
+    transform-origin:center; opacity:0; transition:opacity 40ms linear;
+    filter:drop-shadow(0 0 6px rgba(255,255,255,.35));}
 
   /* ---- Overlays: loot / levelup / menus ---- */
   .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;

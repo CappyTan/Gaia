@@ -6,7 +6,7 @@
 // frame element afterwards. Visual tuning (scale/offsets/timing) lives in data/skillAnimations.ts.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { playSkillAnim } from "../src/ui/skillAnimator";
+import { playSkillAnim, playImpact } from "../src/ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM } from "../src/data/skillAnimations";
 
 function stageWith() {
@@ -91,5 +91,34 @@ describe("skillAnimator compositor", () => {
     expect(calls).toEqual(["damage", "impact", "complete"]);
     expect(actor.style.visibility).toBe("");
     expect(stage.querySelectorAll("img.anim-sprite").length).toBe(0); // tracer wrapper + frames gone
+  });
+});
+
+describe("universal impact VFX (playImpact)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("spawns a 4-frame Attunement burst on the target, then destroys it (no loop)", () => {
+    const { stage, target } = stageWith();
+    playImpact(stage, target, "QUANTA");
+    expect(stage.querySelectorAll("img.impact-fx").length).toBe(4); // all four frames stacked
+    // frames advance; after the last frame the burst is removed — it does NOT loop
+    vi.advanceTimersByTime(83 * 4 + 300);
+    expect(stage.querySelectorAll("img.impact-fx").length).toBe(0);
+  });
+
+  it("resolves the sheet from the attacker's Attunement (each of the five exists)", () => {
+    for (const att of ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"]) {
+      const { stage, target } = stageWith();
+      playImpact(stage, target, att);
+      expect(stage.querySelectorAll("img.impact-fx").length).toBe(4);
+      vi.advanceTimersByTime(83 * 4 + 300);
+    }
+  });
+
+  it("is a graceful no-op when that Attunement has no art", () => {
+    const { stage, target } = stageWith();
+    playImpact(stage, target, "NOPE");
+    expect(stage.querySelectorAll("img.impact-fx").length).toBe(0);
   });
 });

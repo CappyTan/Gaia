@@ -13,7 +13,7 @@ import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml, critFxUrl } from "../ui/render";
-import { playSkillAnim } from "../ui/skillAnimator";
+import { playSkillAnim, playImpact } from "../ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM, type SkillAnim } from "../data/skillAnimations";
 import { assetUrl } from "../core/assets";
 import { Overlay } from "../ui/overlay";
@@ -40,7 +40,10 @@ export const Battle = {
   STATUS_NAMES: { burn: "Burn", poison: "Poison", decay: "Decay", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", def: "Guard", wardArmor: "Ward" } as Record<string, string>,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
   // damage numbers held back during an animated skill, flushed when the hit lands (see animatedStrike).
-  _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"] }[],
+  // `univ` = also play the universal Attunement impact burst here (skills with their OWN bespoke impact
+  // layer set it false so the two don't stack — see strike/animatedStrike).
+  _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean }[],
+  _animHasImpact: false,   // true while resolving an animatedStrike whose anim supplies its own impact
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
@@ -239,6 +242,7 @@ export const Battle = {
       recalc(Game.party); this.renderAll(); setTimeout(() => this.afterAction(actor), 360); return;
     }
     this._animFloats = [];
+    this._animHasImpact = !!anim.impact;   // a bespoke impact layer overrides the universal burst
     playSkillAnim(anim, {
       stage, actor: aEl, target: tEl,
       onDamage: () => {
@@ -251,7 +255,7 @@ export const Battle = {
     });
   },
   flushAnimFloats(): void {
-    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color); if (f.crit) this.critFx(f.u, f.att); });
+    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color); if (f.univ) this.impactFx(f.u, f.att); if (f.crit) this.critFx(f.u, f.att); });
     this._animFloats = [];
   },
 
@@ -259,7 +263,7 @@ export const Battle = {
     const s = act.skill;
     const r = combatDamage(actor, target, act);
     if (r.miss) {
-      if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att });
+      if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att, univ: false });
       else this.float(target, "miss", "#bbb");
       this.log(`${actor.name} misses ${target.name}.`); return;
     }
@@ -270,8 +274,10 @@ export const Battle = {
     Telemetry.dmg(actor.side, dmg, crit, mult);
     const txt = (crit ? "✦" : "") + dmg, color = mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff";
     const fxAtt = s && s.sol ? "SOL" : actor.att;
-    if (silent) this._animFloats.push({ u: target, txt, color, crit, att: fxAtt }); // deferred to impact
-    else { this.float(target, txt, color); if (crit) this.critFx(target, fxAtt); } // burst in the power's color
+    // Impact burst on the struck foe, coloured by the power's Attunement (the universal VFX system) —
+    // unless this skill's own animation supplies a bespoke impact layer, which overrides it.
+    if (silent) this._animFloats.push({ u: target, txt, color, crit, att: fxAtt, univ: !this._animHasImpact }); // deferred to impact
+    else { this.float(target, txt, color); this.impactFx(target, fxAtt); if (crit) this.critFx(target, fxAtt); } // burst in the power's color
     // FULL combat log line: who hit whom for how much (both directions) — the scrollable history.
     const power = s && s.sol ? "SOL" : actor.att;
     const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";
@@ -704,5 +710,12 @@ export const Battle = {
     img.style.top = r.top - s.top + r.height / 2 + "px"; // centred on the sprite
     $("#stage")!.appendChild(img);
     setTimeout(() => img.remove(), 500);
+  },
+  // Universal combat impact: a 4-frame Attunement burst on the struck unit's centre mass, played for
+  // every landed hit and tinted to the attacker's Attunement (delegates to ui/skillAnimator.playImpact;
+  // no-op if the stage/sprite aren't in the DOM or that Attunement's art is missing).
+  impactFx(u: Unit, att: Unit["att"]): void {
+    const stage = $("#stage"), anchor = this.spriteEl(u);
+    if (stage && anchor) playImpact(stage, anchor, att);
   },
 };
