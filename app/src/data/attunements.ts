@@ -16,8 +16,8 @@ export const ATT: Record<Attunement, AttInfo> = {
   SOL: { color: "#f4b942", sig: "burn" }, // light/fire  -> Burn
   NOX: { color: "#7ad0c0", sig: "decay" }, // cold/decay  -> Decay (DoT)
   ANIMA: { color: "#7ad06b", sig: "poison" }, // life/nature -> Poison
-  QUANTA: { color: "#b46bff", sig: "none" }, // probability -> crit/dodge swings (passive)
-  UMBRAXIS: { color: "#9a9aa8", sig: "drain" }, // shadow/void -> Drain
+  QUANTA: { color: "#ef5350", sig: "none" }, // probability -> crit/dodge swings (passive); RED
+  UMBRAXIS: { color: "#b46bff", sig: "drain" }, // shadow/void -> Drain; PURPLE
 };
 
 // Modest ±15% swing (Dara's tuning): ~30% total spread between attacking your prey vs your
