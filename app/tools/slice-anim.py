@@ -93,6 +93,7 @@ SHEETS = {
 # Dara's idle for the Photon Vanguard (SOL × Rifle) is a clean transparent PNG.
 SINGLE_BODIES = {
     "sol-rifle": {"src": "anim-photon-vanguard-idle.png"},
+    "umbraxis-daggers": {"src": "idle-umbraxis-daggers.png"}, # The Lagrangian (UMBRAXIS × Dual Daggers)
 }
 
 

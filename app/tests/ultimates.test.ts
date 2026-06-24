@@ -17,9 +17,20 @@ describe("Ultimates", () => {
     expect(u.mp).toBe(0); // TEST build: free
   });
 
-  it("its cutscene video resolves through the asset pipeline (mp4 glob)", () => {
-    const u = ULTIMATES["SOL:Rifle"];
-    expect(u.cutscene).toBeTruthy();
-    expect(assetUrl(u.cutscene!)).toBeTruthy(); // bundled + hashed by Vite
+  it("defines the Lagrangian's Umbraxian Fealty (UMBRAXIS:Dual Daggers) as a single-target nuke", () => {
+    const u = ULTIMATES["UMBRAXIS:Dual Daggers"];
+    expect(u).toBeTruthy();
+    expect(u.name).toBe("Umbraxian Fealty");
+    expect(u.damage).toBe(9999);
+    expect(u.target).toBe("enemy"); // single target, not AoE
+    expect(u.mp).toBe(0);
+  });
+
+  it("every ultimate's cutscene resolves through the asset pipeline (mp4 glob)", () => {
+    for (const key of Object.keys(ULTIMATES)) {
+      const u = ULTIMATES[key];
+      expect(u.cutscene, key).toBeTruthy();
+      expect(assetUrl(u.cutscene!), key).toBeTruthy(); // bundled + hashed by Vite
+    }
   });
 });

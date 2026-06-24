@@ -13,8 +13,8 @@ export interface Ultimate {
   cutscene?: string;
   /** Flat damage dealt (bypasses the affinity ring — this is a fixed-number showcase nuke for now). */
   damage: number;
-  /** Who it hits. Only allEnemies for now. */
-  target: "allEnemies";
+  /** Who it hits: every foe, or one chosen target. */
+  target: "allEnemies" | "enemy";
   /** MP cost (0 = free, for testing). */
   mp: number;
 }
@@ -26,6 +26,14 @@ export const ULTIMATES: Record<string, Ultimate> = {
     cutscene: "cutscenes/orbital-cannon.mp4",
     damage: 9999,
     target: "allEnemies",
+    mp: 0, // TEST: free + usable every turn
+  },
+  "UMBRAXIS:Dual Daggers": { // The Lagrangian
+    name: "Umbraxian Fealty",
+    desc: "Swear the void's oath and unmake one foe — 9999 to a single target.",
+    cutscene: "cutscenes/umbraxian-fealty.mp4",
+    damage: 9999,
+    target: "enemy",
     mp: 0, // TEST: free + usable every turn
   },
 };
