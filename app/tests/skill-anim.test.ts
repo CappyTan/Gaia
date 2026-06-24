@@ -42,13 +42,14 @@ describe("skillAnimator compositor", () => {
       onComplete: () => calls.push("complete"),
     });
 
-    // hideActor: the static sprite is hidden while the firing frames play (set synchronously)
+    // frames preload first (jsdom <img> never fires load → timeline starts via the 350ms safety cap).
+    // The static doll is hidden only WHILE the firing frames play.
+    vi.advanceTimersByTime(550);
     expect(actor.style.visibility).toBe("hidden");
-
-    // frames preload first; in jsdom <img> never fires load, so the timeline starts via the 350ms
-    // safety cap. Advance past that + the damage time (damageMs 600).
-    vi.advanceTimersByTime(1100);
     expect(stage.querySelectorAll("img.anim-sprite").length).toBeGreaterThan(0);
+
+    // past the damage time + the character frames (the doll is restored to its held pose)
+    vi.advanceTimersByTime(700);
     expect(calls).toContain("damage");
 
     // run to the end
