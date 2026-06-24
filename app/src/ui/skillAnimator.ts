@@ -6,13 +6,12 @@
 //   character / effect / impact =  transparent frame PNGs composited on top
 //   damage timing               =  scheduled to land with the hit
 //
-// Each layer is ONE persistent <img> sprite that stays in place and swaps through its frames (a
-// ranged attack: the figure animates where it stands; nobody slides across the screen). The whole
-// sprite fades in at the start and out at the end. The beam layer is special: it SPANS from the
-// actor's muzzle to the target, so it reads as a shot fired from the gun into the enemy. Pure
-// presentation — the caller (battle controller) applies damage / floats the number via callbacks.
-//
-// Frames are PRELOADED first so each sprite gets an explicit width AND height the instant it appears.
+// Each layer pre-creates ALL its frame <img>s up front, stacked in place, and animates by toggling
+// which one is visible — we NEVER swap a live image's src (that re-decodes and flashes a blank frame,
+// which read as the sprite "flickering / going invisible"). A ranged attack: the character animates
+// where it stands; the beam layer SPANS from the actor's muzzle to the target. Glows render with a
+// normal alpha composite + a drop-shadow halo (NOT mix-blend screen, which washes out over bright
+// backgrounds). Pure presentation — the caller applies damage / floats the number via callbacks.
 
 import { assetUrl } from "../core/assets";
 import type { AnimLayer, SkillAnim } from "../data/skillAnimations";
@@ -49,8 +48,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   if (anim.hideActor) (o.actor as HTMLElement).style.visibility = "hidden";
 
   // Where + how big a layer's frame draws. Offsets are FRACTIONS of the actor sprite (x→width,
-  // y→height) so placement scales with the rendered size. A `muzzleToTarget` beam spans from the
-  // muzzle (actor centre + offset) to the target, with a fixed thickness.
+  // y→height). A `muzzleToTarget` beam spans from the muzzle (actor centre + offset) to the target.
   function box(layer: AnimLayer, url: string): Box {
     const n = nat[url] || { w: 1, h: 1 }, scale = layer.scale ?? 1;
     const ox = (layer.offsetX || 0) * A.w, oy = (layer.offsetY || 0) * A.h;
@@ -68,30 +66,31 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     return { cx: cx + ox, cy: cy + oy, w, h, flip: !!layer.flip };
   }
 
-  // One layer = one sprite that swaps frames in place and fades in/out as a whole.
+  // One layer = all its frames pre-stacked at the same spot; we toggle which is visible (no src swap).
   function playLayer(layer: AnimLayer, startMs: number): void {
     const total = layer.frames * layer.frameMs;
-    let img: HTMLImageElement;
-    const setFrame = (idx: number) => {
-      const url = frameUrl(layer, idx); if (!url || !img) return;
-      const b = box(layer, url);
-      img.src = url;
-      img.style.width = Math.round(b.w) + "px"; img.style.height = Math.round(b.h) + "px";
-      img.style.left = b.cx + "px"; img.style.top = b.cy + "px";
-    };
+    const imgs: HTMLImageElement[] = [];
     at(startMs, () => {
-      img = document.createElement("img");
-      img.className = "anim-sprite" + (layer.blend === "screen" ? " screen" : "");
-      img.decoding = "sync";
-      img.style.transform = "translate(-50%,-50%)" + (layer.flip ? " scaleX(-1)" : "");
-      img.style.opacity = "0";
-      setFrame(0);
-      stage.appendChild(img); live.push(img);
+      for (let i = 0; i < layer.frames; i++) {
+        const url = frameUrl(layer, i); if (!url) { imgs.push(null as unknown as HTMLImageElement); continue; }
+        const b = box(layer, url);
+        const img = document.createElement("img");
+        img.className = "anim-sprite" + (layer.blend === "screen" ? " glow" : "");
+        img.decoding = "sync"; img.src = url;
+        img.style.width = Math.round(b.w) + "px"; img.style.height = Math.round(b.h) + "px";
+        img.style.left = b.cx + "px"; img.style.top = b.cy + "px";
+        img.style.transform = "translate(-50%,-50%)" + (b.flip ? " scaleX(-1)" : "");
+        img.style.transition = "opacity 70ms linear";
+        img.style.opacity = "0";
+        stage.appendChild(img); imgs.push(img); live.push(img);
+      }
     });
-    at(startMs + 16, () => { if (img) { img.style.transition = "opacity 110ms ease"; img.style.opacity = "1"; } });
-    for (let i = 1; i < layer.frames; i++) at(startMs + i * layer.frameMs, () => setFrame(i));
-    at(startMs + total, () => { if (img) { img.style.transition = "opacity 200ms ease"; img.style.opacity = "0"; } });
-    at(startMs + total + 240, () => { if (img) img.remove(); });
+    // show each frame in turn (cross-fade via the 70ms transition); never touches src.
+    for (let i = 0; i < layer.frames; i++) {
+      at(startMs + 8 + i * layer.frameMs, () => imgs.forEach((im, j) => { if (im) im.style.opacity = j === i ? "1" : "0"; }));
+    }
+    at(startMs + total, () => { const last = imgs[layer.frames - 1]; if (last) { last.style.transition = "opacity 180ms ease"; last.style.opacity = "0"; } });
+    at(startMs + total + 240, () => imgs.forEach((im) => im && im.remove()));
   }
 
   function runTimeline(): void {
@@ -121,7 +120,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     at(dmgTime, () => o.onDamage && o.onDamage());
     at(anim.damageAfterImpact ? impactEnd : dmgTime, () => o.onImpact && o.onImpact());
 
-    at(lastEnd + 300, () => {
+    at(lastEnd + 320, () => {
       timers.forEach(clearTimeout);
       live.forEach((e) => e.remove());
       if (anim.hideActor) (o.actor as HTMLElement).style.visibility = "";
@@ -130,7 +129,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   }
 
   // PRELOAD every frame (capturing natural size), then run — with a hard cap so a slow/missing image
-  // can never stall the turn. Preloaded images are cached, so the sprites paint immediately.
+  // can never stall the turn. Preloaded images are cached, so the stacked sprites paint immediately.
   const urls: string[] = [];
   for (const L of [anim.character, anim.effect, anim.impact]) {
     if (!L) continue;
