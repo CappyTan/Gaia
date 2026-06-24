@@ -272,4 +272,43 @@ the ART gaps it needs to read. The zoomed-out overview map needs **no art** (can
 
 ---
 
+## TILE-ART SPEC — the overworld passability LAW (for Dara's repainted sheets)
+*Added 2026-06-23 (level-designer, overworld depth + passability-legibility pass). The engine now layers a
+universal **lighting/depth grammar** over every overworld tile (real sprite OR placeholder) in `field.ts`
+`drawBig`/`bigGround`. So a tile reads as walk / go-around / can't-cross at a glance. **When you repaint the
+biome sheets, bake the same law into the pixels** so the painted tiles reinforce (not fight) the engine.*
+
+**The D1 LAW — bake it into every tile:**
+- **FIXED TOP-LEFT light source for the whole overworld.** Highlights face up-left; cast shadows fall
+  down-right. Paint every tile to this one light so nothing looks lit from a different angle.
+- **FLOOR tiles (grass/path/dirt/moss/sand/snow — anything walkable) = FLAT + LIT.** Paint them as the calm,
+  *receding* "ground": evenly lit, low internal contrast (soft material grain only — no hard checkerboard,
+  no near-black patches, no baked-in deep shadow). Walkable floor should read slightly **lighter + warmer**
+  than the walls sitting on it. The floor is never the darkest thing on screen.
+- **WALL / SOLID tiles (tree/cliff/rock-wall/ruin-wall) = RAISED + CAST-SHADOW.** Paint a **lit cap/edge on
+  the top-left** and a **darker base/foot**, and let the sprite be **taller than its tile** so it overhangs
+  the tile below (the engine bottom-anchors it + drops a soft shadow down-right; paint to match that). The
+  cast shadow + the raised body are the at-a-glance "go around" tell.
+- **WATER / VOID tiles (water/river/gorge) = RECESSED + RIM.** Paint a **cool** surface that sits *below* the
+  floor plane, with a **lit shoreline lip** on the land-facing edges and a short shadow dropping *down into*
+  the water (the inverse of a raised object — a drop-off). A faint specular ripple gives it life. Chasm +
+  water share this one "recessed + rim" grammar.
+
+**Net: three unmistakable reads — warm-flat = walk · raised+shadow = around · cool/void+rim = can't-cross.**
+
+**GREENVALE KEY PALETTE (tuned first; other biomes inherit the grammar, palettes are a follow-up):**
+| Biome / floor | Key floor hue (engine flat now) | Read |
+|---|---|---|
+| **Shire** (plains grass / open meadow) | warm yellow-green `#5a8a36` | the bright, inviting open walkable floor |
+| **Orchard / tended meadow** | warm yellow-green `#6f8e34` | walkable rows — kin to shire, a touch yellower |
+| **Forest / Grove floor** | deep-BUT-LIT green `#4f7038` (`grass2` `#547640`) | obviously walkable woodland floor — *not* near-black |
+| **Forest trail (path)** | warm lit dirt `#7d7748` | the inviting route through the wood |
+| **Tree-wall (forest/orchard)** | dark `#13230d` / `#2c4418` | recedes; the raised sprite + shadow carries the read |
+| **Water / river surface** | cool `#1c3236` + engine cool-tint + lit rim | recessed; reads as a crossing-only drop-off |
+
+Pair the lit floors with the **signature scatter** (forest → fern + mushroom, meadow → wheat) at a deliberate
+density so terrain *kind* reads from the floor hue even before you notice the scatter.
+
+---
+
 *Keep this list current as each region is built. The art pass happens after, in one go.*
