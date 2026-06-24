@@ -323,12 +323,13 @@
   @keyframes critpop{0%{opacity:0; transform:translate(-50%,-50%) scale(.4);}
     35%{opacity:1; transform:translate(-50%,-50%) scale(1.08);}
     100%{opacity:0; transform:translate(-50%,-50%) scale(1.25);}}
-  /* layered skill-animation sprites (ui/skillAnimator): one <img> per layer that swaps frames and
-     glides; opacity + position transitions are set inline so it fades in/out (like the crit burst)
-     and slides smoothly. `.screen` = glowing energy (beam/impact); plain = a solid figure. */
+  /* layered skill-animation sprites (ui/skillAnimator): all of a layer's frames are stacked here and
+     cross-faded by toggling opacity (no src swap → no decode flicker). `.glow` = energy (beam/impact)
+     given a gold halo via drop-shadow; plain = a solid figure. NOTE: deliberately NOT mix-blend
+     screen — that washes bright effects out over bright backgrounds. */
   .anim-sprite{position:absolute; pointer-events:none; z-index:7; transform-origin:center; opacity:0;
-    filter:drop-shadow(0 3px 6px rgba(0,0,0,.55)); will-change:left,top,opacity;}
-  .anim-sprite.screen{mix-blend-mode:screen; filter:drop-shadow(0 0 10px rgba(255,200,90,.5));}
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));}
+  .anim-sprite.glow{filter:drop-shadow(0 0 7px rgba(255,205,90,.9)) drop-shadow(0 0 16px rgba(255,150,40,.5));}
 
   /* ---- Overlays: loot / levelup / menus ---- */
   .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;
