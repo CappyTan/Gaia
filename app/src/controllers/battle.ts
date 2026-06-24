@@ -15,6 +15,8 @@ import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml, critFxUrl } from "../ui/render";
 import { playSkillAnim, playImpact } from "../ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM, type SkillAnim } from "../data/skillAnimations";
+import { ULTIMATES, type Ultimate } from "../data/ultimates";
+import { playCutscene } from "../ui/cutscene";
 import { assetUrl } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
@@ -122,6 +124,10 @@ export const Battle = {
     mk("Attack", 0, () => this.chooseTarget(m, { type: "attack" }));
     const known = m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s));
     const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, known); list.appendChild(skBtn);
+    // Ultimate: a per-class signature super (its own button, between Skill and Defend). Only shown for
+    // members who have one (e.g. the Photon Vanguard's Orbital Cannon).
+    const ult = ULTIMATES[`${m.att}:${m.cls}`];
+    if (ult) { const uBtn = el("button", "cmd", "Ultimate ▸"); uBtn.onclick = () => this.showUltimate(m, ult); list.appendChild(uBtn); }
     mk("Defend", 0, () => { m.guarding = true; this.log(`${m.name} braces.`); this.endTurn(m); });
     mk("Flee", 0, () => this.confirmFlee(m), this.isBoss); // confirm so a stray tap never flees
     this.lockInput(350); // stray-tap guard: ignore taps for a beat after the menu opens
@@ -155,6 +161,40 @@ export const Battle = {
     if (known.length === 0) list.appendChild(el("div", "small", "No abilities unlocked yet — raise MNA in the Party screen."));
   },
   setCmdWide(on: boolean): void { $("#cmdPanel")?.classList.toggle("cmd-wide", on); },
+  // Ultimate submenu: a single big button for the class's signature super.
+  showUltimate(m: Member, ult: Ultimate): void {
+    this.setCmdWide(true);
+    const list = $("#cmdList")!; list.innerHTML = "";
+    const back = el("button", "cmd", "◂ Back"); back.onclick = () => { this.setCmdWide(false); this.showCommands(m); }; list.appendChild(back);
+    const afford = m.mp >= ult.mp;
+    const cost = `<span class="cost${afford ? "" : " low"}">${ult.mp ? `${ult.mp} MP` : "FREE"}${afford ? "" : " — low"}</span>`;
+    const b = el("button", "cmd", `★ ${ult.name}${cost}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${ult.desc}</div>`) as HTMLButtonElement;
+    if (!afford) b.disabled = true; else b.onclick = () => { this.setCmdWide(false); this.useUltimate(m, ult); };
+    list.appendChild(b);
+  },
+  // Fire the ultimate: take the turn, roll the cutscene (if any), and once the screen is back, apply
+  // the hit to every living foe (with an impact burst), then resolve the turn / victory.
+  useUltimate(m: Member, ult: Ultimate): void {
+    this.selecting = null; this.awaiting = true; this.current = m;
+    if (ult.mp) m.mp = Math.max(0, m.mp - ult.mp);
+    const list = $("#cmdList"); if (list) list.innerHTML = "";
+    $("#cmdWho")!.textContent = `${m.name} — ${ult.name}!`;
+    this.lockInput(99999); // hold input through the cutscene; cleared when the next menu opens
+    const apply = () => {
+      if (!this.active) return;
+      this.livingEnemies().forEach((e) => {
+        damage(e, ult.damage);
+        this.float(e, String(ult.damage), "#ffd97a");
+        this.impactFx(e, m.att);
+        if (!e.alive) this.onDeath(e);
+      });
+      this.log(`${m.name} unleashes ${ult.name} — ${ult.damage} to all foes!`);
+      recalc(Game.party); this.renderAll();
+      setTimeout(() => this.afterAction(m), 500);
+    };
+    const url = ult.cutscene ? assetUrl(ult.cutscene) : null;
+    if (url) playCutscene(url, apply); else apply();
+  },
   useSkill(m: Member, s: Skill): void {
     if (s.target === "self") { this.resolve(m, [m], { skill: s }); return; }
     if (s.target === "allEnemies") { this.resolve(m, this.livingEnemies(), { skill: s }); return; }

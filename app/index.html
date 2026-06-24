@@ -336,6 +336,12 @@
   .impact-fx{position:absolute; pointer-events:none; z-index:6; transform:translate(-50%,-50%);
     transform-origin:center; opacity:0; transition:opacity 40ms linear;
     filter:drop-shadow(0 0 6px rgba(255,255,255,.35));}
+  /* fullscreen cutscene (ui/cutscene): a black wash fades the app out, the video plays at full
+     resolution (letterboxed via object-fit:contain), then both fade back out. Above everything. */
+  .cutscene-scrim{position:fixed; inset:0; background:#000; z-index:10000; opacity:0;
+    transition:opacity .42s ease;}
+  .cutscene-video{position:fixed; inset:0; width:100%; height:100%; object-fit:contain; background:#000;
+    z-index:10001; opacity:0; transition:opacity .42s ease; pointer-events:none;}
 
   /* ---- Overlays: loot / levelup / menus ---- */
   .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;
