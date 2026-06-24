@@ -51,3 +51,10 @@ export const RIG: { weapon: Record<string, WeaponXform> } = {
 export const BODY_LAYER: Record<string, string> = {};
 // armor over-body by class id -> { rarity: art } (later)
 export const ARMOR_LAYER: Record<string, Record<string, string>> = {};
+
+// Per-class body RENDER SCALE (×), keyed by "Attunement:Archetype". For bodies whose source art draws
+// the figure smaller/larger than the shared 45-class sheet, so every hero reads at a consistent size in
+// the party row. Applied as a bottom-anchored transform on the doll layers (feet stay grounded).
+export const BODY_SCALE: Record<string, number> = {
+  "SOL:Rifle": 1.18, // Photon Vanguard's idle is from his own sheet — drew a touch small; bump ~18%.
+};

@@ -5,7 +5,7 @@ import type { Attunement, Enemy, Item, Member, Unit } from "../types";
 import { isArmorSlot } from "../types";
 import { cap, clamp } from "../core/rng";
 import { assetUrl } from "../core/assets";
-import { WEAP_IMG, ARCH_SLUG, RIG, DEFAULT_WEAPON, BODY_LAYER, ARMOR_LAYER } from "../data/art";
+import { WEAP_IMG, ARCH_SLUG, RIG, DEFAULT_WEAPON, BODY_LAYER, ARMOR_LAYER, BODY_SCALE } from "../data/art";
 
 // Resolve a weapon's sprite. Prefers attunement-specific art (items/{stem}-{att}-{rarity}.png,
 // e.g. a NOX blade gets the NOX painterly sprite) and falls back to the legacy SOL-keyed file
@@ -68,10 +68,13 @@ export function heroSprite(m: Member): string {
 export function renderDoll(m: Member): string {
   const id = m.id;
   const body = BODY_LAYER[id] || classBody(m.att, m.cls, id);
-  let h = `<div class="doll"><img class="dl-body" decoding="sync" src="${body}" alt="${m.name}">`;
+  // some bodies render small/large vs the shared sheet — scale to match, anchored at the feet.
+  const sc = BODY_SCALE[`${m.att}:${m.cls}`];
+  const ss = sc ? ` style="transform:scale(${sc});transform-origin:bottom center"` : "";
+  let h = `<div class="doll"><img class="dl-body"${ss} decoding="sync" src="${body}" alt="${m.name}">`;
   const ar = m.equip && m.equip.armor;
   if (ar && ARMOR_LAYER[id] && ARMOR_LAYER[id][ar.rarity]) {
-    h += `<img class="dl-layer" decoding="sync" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
+    h += `<img class="dl-layer"${ss} decoding="sync" src="${ARMOR_LAYER[id][ar.rarity]}" alt="">`;
   }
   // Weapon overlay DISABLED for now (Dara): the v2 class bodies already depict the held weapon,
   // and the separate weapon-sprite layer doesn't align cleanly over them. Revisit later — kept
