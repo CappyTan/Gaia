@@ -3,7 +3,7 @@
 // via import.meta.glob and resolve by relative path at runtime. Missing art returns null so
 // callers can fall back to an emoji glyph.
 
-const modules = import.meta.glob<string>("../../assets/**/*.png", {
+const modules = import.meta.glob<string>("../../assets/**/*.{png,mp4}", {
   eager: true,
   query: "?url",
   import: "default",
