@@ -234,7 +234,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
 // dissolves into 2 into 3 into 4 in one continuous, smooth blend (no hard frame-swap / slideshow) —
 // then the last frame fades out. The whole burst is held a touch translucent (PEAK < 1).
 const IMPACT_FRAMES = 4;
-const IMPACT_STEP_MS = 120;     // time between frame peaks; the cross-fade itself spans a full step
+const IMPACT_STEP_MS = 65;      // ~15 fps; with the overlapping fades the whole burst runs ~0.33s
 const IMPACT_PEAK = 0.8;        // slight transparency — the burst never goes fully opaque
 const IMPACT_SCALE = 1.35;      // burst height vs. the target sprite (sits over it, a touch larger)
 
