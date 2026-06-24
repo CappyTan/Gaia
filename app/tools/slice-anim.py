@@ -33,9 +33,10 @@ SHEETS = {
     },
     "photon-beam": {
         "src": "anim-photon-beam.png", "knockout_white": False, "ywin": (0.05, 0.55),
-        # the beam STREAK only (held for a few frames; the compositor spans it muzzle->target and
-        # fades it in/out). The charge ball is dropped — a span layer would stretch it.
-        "frames": [("01", 440, 1383), ("02", 440, 1383), ("03", 440, 1383)],
+        # UNIFORM beam: the compositor rotates + stretches this bar from the muzzle to the target,
+        # so it reads as one clean beam (the original streak tapered to faint points at both ends,
+        # which looked disjointed and never reached the gun). Built from the streak's bright core.
+        "uniform_beam": (440, 1383),
     },
     "sol-aloha": {
         "src": "anim-sol-aloha-impact.png", "knockout_white": False, "ywin": (0.04, 0.60),
@@ -87,6 +88,20 @@ def tight(im, pad=6, thr=20):
     return im.crop((xs0, ys0, xs1, ys1))
 
 
+def uniform_beam(strip, width=320):
+    """Turn a tapering beam streak into a UNIFORM bar the compositor can stretch into a clean beam:
+    take the streak's brightest column (its glow cross-section) and tile it along the length. Keeps
+    the art's exact gold colour + vertical falloff, but removes the taper that made the beam look
+    disjointed / never reach the muzzle."""
+    strip = tight(strip); sw, sh = strip.size; px = strip.load()
+    best, bx = -1, sw // 2
+    for x in range(sw):                      # brightest column by summed alpha
+        s = sum(px[x, y][3] for y in range(0, sh, 2))
+        if s > best: best, bx = s, x
+    col = strip.crop((max(0, bx - 10), 0, min(sw, bx + 10), sh))   # a few px around it, averaged by resize
+    return col.resize((width, sh), Image.BICUBIC)
+
+
 def main():
     montage = "--montage" in sys.argv
     for setname, cfg in SHEETS.items():
@@ -95,6 +110,15 @@ def main():
         y0, y1 = int(cfg["ywin"][0] * H), int(cfg["ywin"][1] * H)
         outdir = os.path.join(OUT, setname); os.makedirs(outdir, exist_ok=True)
         thumbs = []; cells = {}
+        if cfg.get("uniform_beam"):           # build a clean uniform beam, with a subtle intensity pulse
+            bx0, bx1 = cfg["uniform_beam"]
+            base = uniform_beam(src.crop((bx0, y0, bx1, y1)))
+            for i, mult in enumerate([0.82, 1.0, 0.9]):
+                fr = base.copy()
+                fr.putalpha(fr.getchannel("A").point(lambda v: int(v * mult)))
+                fr.save(os.path.join(outdir, f"0{i + 1}.png")); thumbs.append(fr)
+            print(f"{setname}: 3 uniform-beam frames -> {outdir}")
+            continue
         for name, x0, x1 in cfg["frames"]:
             cell = src.crop((x0, y0, x1, y1))
             if cfg["knockout_white"]:

@@ -17,7 +17,7 @@ import { assetUrl } from "../core/assets";
 import type { AnimLayer, SkillAnim } from "../data/skillAnimations";
 
 interface Geo { cx: number; cy: number; w: number; h: number; }
-interface Box { cx: number; cy: number; w: number; h: number; flip: boolean; }
+interface Box { cx: number; cy: number; w: number; h: number; flip: boolean; rot: number; }
 
 export interface PlayOpts {
   stage: HTMLElement;
@@ -53,17 +53,20 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     const n = nat[url] || { w: 1, h: 1 }, scale = layer.scale ?? 1;
     const ox = (layer.offsetX || 0) * A.w, oy = (layer.offsetY || 0) * A.h;
     if (layer.at === "muzzleToTarget") {
+      // a uniform bar from the muzzle (actor centre + offset) to the target, ROTATED to connect the
+      // two points exactly (so the ends meet the gun and the enemy regardless of height difference).
       const mx = A.cx + ox, my = A.cy + oy;
-      const w = Math.max(1, Math.hypot(T.cx - mx, T.cy - my)) * scale;
+      const dx = T.cx - mx, dy = T.cy - my;
+      const w = Math.max(1, Math.hypot(dx, dy)) * scale;     // scale slightly >1 to overlap the impact
       const h = (layer.thickness ?? 0.18) * A.h;
-      return { cx: (mx + T.cx) / 2, cy: (my + T.cy) / 2, w, h, flip: !!layer.flip };
+      return { cx: (mx + T.cx) / 2, cy: (my + T.cy) / 2, w, h, flip: false, rot: Math.atan2(dy, dx) };
     }
     const refH = layer.at === "target" ? T.h : A.h;     // explosion scales to the enemy
     const h = scale * refH, w = (h * n.w) / n.h;
     let cx = A.cx, cy = A.cy;
     if (layer.at === "target") { cx = T.cx; cy = T.cy; }
     else if (layer.at === "between") { cx = (A.cx + T.cx) / 2; cy = (A.cy + T.cy) / 2; }
-    return { cx: cx + ox, cy: cy + oy, w, h, flip: !!layer.flip };
+    return { cx: cx + ox, cy: cy + oy, w, h, flip: !!layer.flip, rot: 0 };
   }
 
   // One layer = all its frames pre-stacked at the same spot; we toggle which is visible (no src swap).
@@ -79,7 +82,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
         img.decoding = "sync"; img.src = url;
         img.style.width = Math.round(b.w) + "px"; img.style.height = Math.round(b.h) + "px";
         img.style.left = b.cx + "px"; img.style.top = b.cy + "px";
-        img.style.transform = "translate(-50%,-50%)" + (b.flip ? " scaleX(-1)" : "");
+        img.style.transform = "translate(-50%,-50%)" + (b.rot ? ` rotate(${b.rot}rad)` : "") + (b.flip ? " scaleX(-1)" : "");
         img.style.transition = "opacity 70ms linear";
         img.style.opacity = "0";
         stage.appendChild(img); imgs.push(img); live.push(img);

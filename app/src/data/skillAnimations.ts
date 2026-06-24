@@ -75,7 +75,7 @@ export const SKILL_ANIM: Record<string, SkillAnim> = {
     character: { dir: "photon-vanguard", frames: 5, frameMs: 130, at: "actor", scale: 1.12 },
     effect: {
       dir: "photon-beam", frames: 3, frameMs: 100, at: "muzzleToTarget", startMs: 520,
-      offsetX: -0.42, offsetY: -0.08, thickness: 0.22, scale: 1.0, flip: true, blend: "screen",
+      offsetX: -0.46, offsetY: -0.12, thickness: 0.16, scale: 1.06, blend: "screen",
     },
     impact: {
       dir: "sol-aloha", frames: 5, frameMs: 95, at: "target", startMs: 580,
