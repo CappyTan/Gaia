@@ -1020,11 +1020,16 @@ export const Field = {
     // keeps the last entered zone (there's no zone out in the wilds).
     if (builtId) {
       const zi = ZONES.findIndex((z) => z.id === builtId);
-      if (zi >= 0 && zi !== this.zoneIndex) {
-        this.zoneIndex = zi;
-        const L = this.zone().layout;
-        this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
-      }
+      if (zi >= 0 && zi !== this.zoneIndex) this.zoneIndex = zi;
+      // Keep this.mouth/gate synced to the CURRENT zone's layout EVERY time we're over a built zone —
+      // NOT only on a zone CHANGE. A run starts already in zone 0 (greenvale, the default zoneIndex), so
+      // the change-guard above never fires on entry; without this the stale DEFAULT mouth (field.ts:151,
+      // the old (40,12)) persisted, and once the Greenvale mouth was relocated to (35,20), ascend() —
+      // which returns the player to `this.mouth` — dropped them at the wrong tile north of the real mouth
+      // (the reported "Bandit Warren entrance is messed up / came out displaced" bug). Cheap object copy,
+      // off the per-frame path (syncZoneFromWorld runs per move).
+      const L = this.zone().layout;
+      this.mouth = { ...L.mouth }; this.gate = { ...L.mouth };
       // WAYFINDING (ADR 0011): mark this zone ENTERED (reveals it on the overview map) and SEED the next
       // spine zone as KNOWN so the overview points AHEAD (entering Greenvale reveals Silverwood — the
       // "world told you where to go" reveal Maelis voices). Seeding on entry is what BOOTSTRAPS the reveal:
