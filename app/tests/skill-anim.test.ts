@@ -55,8 +55,9 @@ describe("skillAnimator compositor", () => {
       onComplete: () => calls.push("complete"),
     });
 
-    // frames preload first (jsdom <img> never fires load → timeline starts via the 350ms safety cap).
-    // The static doll is hidden only WHILE the firing frames play.
+    // The timeline runs immediately (NOT gated on image preload — jsdom <img> never fires load, which
+    // is exactly the iOS/PWA case that used to leave the hero hidden with nothing drawn). The static
+    // doll is hidden only WHILE the firing frames play, and is restored purely off the timeline clock.
     vi.advanceTimersByTime(550);
     expect(actor.style.visibility).toBe("hidden");
     expect(stage.querySelectorAll("img.anim-sprite").length).toBeGreaterThan(0);

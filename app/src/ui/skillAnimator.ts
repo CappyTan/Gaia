@@ -100,7 +100,13 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
         const u = frameUrl(layer, i);
         const img = document.createElement("img");
         img.className = "anim-sprite" + (layer.blend === "screen" ? " glow" : "");
-        img.decoding = "sync"; if (u) img.src = u;
+        img.decoding = "sync";
+        img.onload = () => {   // refine the wrapper to the streak's real aspect once known
+          if (!img.naturalWidth) return;
+          nat[u || ""] = { w: img.naturalWidth, h: img.naturalHeight };
+          wrap.style.width = Math.round((h * img.naturalWidth) / img.naturalHeight) + "px";
+        };
+        if (u) img.src = u;
         img.style.position = "absolute"; img.style.left = "0"; img.style.top = "0";
         img.style.width = "100%"; img.style.height = "100%"; img.style.transform = "none";
         img.style.transition = "opacity 60ms linear"; img.style.opacity = i === 0 ? "1" : "0";
@@ -115,6 +121,13 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     });
   }
 
+  // Apply a layer-frame's computed geometry (size + position + rotation/flip) to an <img>.
+  const applyBox = (img: HTMLImageElement, b: Box) => {
+    img.style.width = Math.round(b.w) + "px"; img.style.height = Math.round(b.h) + "px";
+    img.style.left = b.cx + "px"; img.style.top = b.cy + "px";
+    img.style.transform = "translate(-50%,-50%)" + (b.rot ? ` rotate(${b.rot}rad)` : "") + (b.flip ? " scaleX(-1)" : "");
+  };
+
   // One layer = all its frames pre-stacked at the same spot; we toggle which is visible (no src swap).
   function playLayer(layer: AnimLayer, startMs: number): void {
     if (layer.at === "travel") { playTravelLayer(layer, startMs); return; }
@@ -123,13 +136,14 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     at(startMs, () => {
       for (let i = 0; i < layer.frames; i++) {
         const url = frameUrl(layer, i); if (!url) { imgs.push(null as unknown as HTMLImageElement); continue; }
-        const b = box(layer, url);
         const img = document.createElement("img");
         img.className = "anim-sprite" + (layer.blend === "screen" ? " glow" : "");
-        img.decoding = "sync"; img.src = url;
-        img.style.width = Math.round(b.w) + "px"; img.style.height = Math.round(b.h) + "px";
-        img.style.left = b.cx + "px"; img.style.top = b.cy + "px";
-        img.style.transform = "translate(-50%,-50%)" + (b.rot ? ` rotate(${b.rot}rad)` : "") + (b.flip ? " scaleX(-1)" : "");
+        img.decoding = "sync";
+        applyBox(img, box(layer, url));          // sized from the known/fallback aspect …
+        img.onload = () => {                       // … then snap to the real aspect once it loads
+          if (img.naturalWidth) { nat[url] = { w: img.naturalWidth, h: img.naturalHeight }; applyBox(img, box(layer, url)); }
+        };
+        img.src = url;
         img.style.transition = "opacity 70ms linear";
         img.style.opacity = "0";
         stage.appendChild(img); imgs.push(img); live.push(img);
@@ -191,20 +205,21 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     });
   }
 
-  // PRELOAD every frame (capturing natural size), then run — with a hard cap so a slow/missing image
-  // can never stall the turn. Preloaded images are cached, so the stacked sprites paint immediately.
-  const urls: string[] = [];
+  // RUN IMMEDIATELY — do NOT gate the timeline on a preload. We used to hide the actor up front, then
+  // wait for every frame to preload before starting; on iOS/PWA a cached image's load event can simply
+  // never fire, so the start fell to a 350ms safety AND the real frame requests stalled — the hero sat
+  // hidden with nothing drawn for ~a second (the intermittent "vanish"). Now each frame paints with a
+  // sane fallback size and snaps to its true aspect on its own load (see playLayer/applyBox), so the
+  // sequence always renders on time and the hide↔restore is driven purely by the timeline clock.
+  // We still warm the cache (best-effort, ungated) so the first paint is crisp.
   for (const L of [anim.character, anim.muzzle, anim.effect, anim.impact]) {
     if (!L) continue;
-    for (let i = 0; i < L.frames; i++) { const u = frameUrl(L, i); if (u) urls.push(u); }
+    for (let i = 0; i < L.frames; i++) {
+      const u = frameUrl(L, i); if (!u || nat[u]) continue;
+      const im = new Image();
+      im.onload = () => { nat[u] = { w: im.naturalWidth || 1, h: im.naturalHeight || 1 }; };
+      im.src = u;
+    }
   }
-  let pending = urls.length, started = false;
-  const start = () => { if (!started) { started = true; runTimeline(); } };
-  if (!pending) start();
-  urls.forEach((u) => {
-    const im = new Image();
-    im.onload = im.onerror = () => { nat[u] = { w: im.naturalWidth || 1, h: im.naturalHeight || 1 }; if (--pending <= 0) start(); };
-    im.src = u;
-  });
-  window.setTimeout(start, 350); // safety: never wait on a hung load
+  runTimeline();
 }
