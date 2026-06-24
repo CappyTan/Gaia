@@ -14,7 +14,7 @@ import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../syste
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml, critFxUrl } from "../ui/render";
 import { playSkillAnim } from "../ui/skillAnimator";
-import { SKILL_ANIM, type SkillAnim } from "../data/skillAnimations";
+import { SKILL_ANIM, BASIC_ATTACK_ANIM, type SkillAnim } from "../data/skillAnimations";
 import { assetUrl } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
@@ -186,11 +186,15 @@ export const Battle = {
     const s = act.skill;
     if (s && s.mp) actor.mp = Math.max(0, (actor.mp ?? 0) - s.mp);
 
-    // Layered combat animation (REQUIEM): a skill with an `anim` plays its character/effect/impact
-    // sequence, applying damage + floating the number on the configured frames. Single-target only.
-    // markActing is intentionally NOT called here — its lunge would bob the hero's doll for a frame
-    // before the animation hides it (an intermittent flicker). The firing frames ARE the action.
-    const anim = s && s.anim ? SKILL_ANIM[s.anim] : null;
+    // Layered combat animation (REQUIEM): a skill with an `anim` — or a class whose plain Attack has
+    // a bespoke animation (BASIC_ATTACK_ANIM, e.g. the Photon Vanguard's rifle shot) — plays its
+    // character/muzzle/projectile/impact sequence, applying damage + floating the number on the
+    // configured beats. Single-target only. markActing is intentionally NOT called here — its lunge
+    // would bob the hero's doll for a frame before the animation hides it (an intermittent flicker).
+    const animKey = s && s.anim ? s.anim
+      : !s && actor.side === "party" ? BASIC_ATTACK_ANIM[`${actor.att}:${(actor as Member).cls}`]
+      : undefined;
+    const anim = animKey ? SKILL_ANIM[animKey] : null;
     if (anim && targets.length === 1) { this.animatedStrike(actor, targets[0], act, anim); return; }
 
     this.markActing(actor);

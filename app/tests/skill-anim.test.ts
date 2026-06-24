@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { playSkillAnim } from "../src/ui/skillAnimator";
-import { SKILL_ANIM } from "../src/data/skillAnimations";
+import { SKILL_ANIM, BASIC_ATTACK_ANIM } from "../src/data/skillAnimations";
 
 function stageWith() {
   document.body.innerHTML = `<div id="stage"><img id="a" src=""><img id="t" src=""></div>`;
@@ -25,6 +25,19 @@ describe("Photon Beam definition", () => {
     expect(a.effect?.at).toBe("muzzleToTarget"); // beam spans the muzzle to the foe
     expect(a.impact?.at).toBe("target");          // explosion on the struck enemy
     expect(typeof a.damageMs).toBe("number");      // damage scheduled to land with the hit
+  });
+});
+
+describe("Photon Shot (basic attack) definition", () => {
+  it("is the Photon Vanguard's (SOL×Rifle) basic attack — muzzle flash + travelling tracer + impact", () => {
+    expect(BASIC_ATTACK_ANIM["SOL:Rifle"]).toBe("photonShot");
+    const a = SKILL_ANIM.photonShot;
+    expect(a.character.frames).toBeGreaterThan(0);
+    expect(a.muzzle?.at).toBe("muzzle");        // cast flash at the barrel
+    expect(a.effect?.at).toBe("travel");         // a bullet that flies to the foe
+    expect(a.effect?.travelMs).toBeGreaterThan(0);
+    expect(a.impact?.at).toBe("target");         // burst on the struck enemy
+    expect(typeof a.damageMs).toBe("number");
   });
 });
 
@@ -57,5 +70,25 @@ describe("skillAnimator compositor", () => {
     expect(calls).toEqual(["damage", "impact", "complete"]); // order: hit lands, number, done
     expect(actor.style.visibility).toBe(""); // sprite restored
     expect(stage.querySelectorAll("img.anim-sprite").length).toBe(0); // every frame cleaned up
+  });
+
+  it("plays a projectile basic attack (muzzle flash + travelling tracer) and cleans it all up", () => {
+    const { stage, actor, target } = stageWith();
+    const calls: string[] = [];
+    playSkillAnim(SKILL_ANIM.photonShot, {
+      stage, actor, target,
+      onDamage: () => calls.push("damage"),
+      onImpact: () => calls.push("impact"),
+      onComplete: () => calls.push("complete"),
+    });
+
+    // mid-flight: the muzzle flash + the moving tracer wrapper are on the stage
+    vi.advanceTimersByTime(900);
+    expect(stage.querySelectorAll("img.anim-sprite").length).toBeGreaterThan(0);
+
+    vi.advanceTimersByTime(4000);
+    expect(calls).toEqual(["damage", "impact", "complete"]);
+    expect(actor.style.visibility).toBe("");
+    expect(stage.querySelectorAll("img.anim-sprite").length).toBe(0); // tracer wrapper + frames gone
   });
 });

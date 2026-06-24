@@ -41,6 +41,37 @@ SHEETS = {
             ("01", 0, 305), ("02", 305, 610), ("03", 610, 916), ("04", 959, 1258), ("05", 1307, 1490),
         ],
     },
+    # ── Reusable projectile-attack VFX (SOL) ─────────────────────────────────────────────────────
+    # A gun-style basic attack: muzzle flash at the barrel → a tracer bullet that travels to the
+    # target → an impact burst on the foe. Generic gold-on-dark sets, meant for ANY class/ability
+    # that fires a projectile (catalogued in docs/art/projectile-vfx.md). White-background sheets
+    # with number labels above + caption text below the art, so the ywin bounds just the art band.
+    "muzzle-flash-sol": {
+        "src": "anim-muzzle-flash-sol.png", "knockout_white": True, "ywin": (0.30, 0.66),
+        "drop_caption": True,
+        # 3 frames: compressed spark → spark expands forward → solar particles shoot out. (The sheet's
+        # 4th "particles fade" frame is too faint to slice cleanly; the compositor fades the final
+        # frame out, which covers that beat.) drop_caption trims the "1-4" label below each effect.
+        "frames": [
+            ("01", 40, 330), ("02", 384, 740), ("03", 760, 1150),
+        ],
+    },
+    "bullet-tracer": {
+        "src": "anim-bullet-projectile.png", "knockout_white": True, "ywin": (0.37, 0.66),
+        "drop_caption": True,
+        # ONE clean tracer (the compact frame-1 bullet with its symmetric trail): the compositor
+        # rotates it along the muzzle→target line and TRANSLATES it across the stage, so the screen
+        # travel IS the motion. (Frames 2-4 are one continuous, merged streak — slicing them yields
+        # disjoint cut segments, the same problem the photon-beam had; a single tracer reads cleaner.)
+        "frames": [("01", 16, 332)],
+    },
+    "bullet-impact": {
+        "src": "anim-bullet-impact.png", "knockout_white": True, "ywin": (0.20, 0.74),
+        "drop_caption": True,
+        "frames": [  # sparkle contact, starburst pinnacle, outward solar explosion, fade
+            ("01", 56, 300), ("02", 344, 745), ("03", 768, 1135), ("04", 1180, 1460),
+        ],
+    },
 }
 
 # Single hero idle/battle sprites → written as the class body (bodies/<out>.png). Source may already
@@ -74,6 +105,28 @@ def knock_white(im, thr=236, soft=205):
     for (x, y) in seen:
         r, g, b, a = px[x, y]; m = min(r, g, b)
         px[x, y] = (r, g, b, 0) if m >= thr else (r, g, b, int(a * (thr - m) / (thr - soft)))
+    return im
+
+
+def drop_caption(im, min_gap=15, thr=24):
+    """Drop the number/caption that sits BELOW the art. The reference frames carry a small label
+    ("1".."4" + a caption) under each effect, on a fixed baseline — so a small effect (the spark)
+    leaves a wide empty gap above its label while a big burst nearly touches it, and no single
+    y-window separates them. Instead: scan down from the first art row and, at the FIRST run of
+    >= min_gap near-empty rows, crop to the art above it (the label lives below the gap)."""
+    px = im.load(); W, H = im.size
+    rowcnt = [sum(1 for x in range(W) if px[x, y][3] > thr) for y in range(H)]
+    art = [y for y in range(H) if rowcnt[y] > max(3, int(W * 0.02))]
+    if not art:
+        return im
+    run = 0
+    for y in range(art[0], H):
+        if rowcnt[y] <= 2:
+            run += 1
+            if run >= min_gap:
+                return im.crop((0, 0, W, y - run + 1))
+        else:
+            run = 0
     return im
 
 
@@ -161,6 +214,8 @@ def main():
             cell = src.crop((x0, y0, x1, y1))
             if cfg["knockout_white"]:
                 cell = knock_white(cell)
+            if cfg.get("drop_caption"):
+                cell = drop_caption(cell)
             cell = tight(cell)
             cell.save(os.path.join(outdir, f"{name}.png"))
             cells[name] = cell; thumbs.append(cell)
