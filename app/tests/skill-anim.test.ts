@@ -103,7 +103,7 @@ describe("universal impact VFX (playImpact)", () => {
     playImpact(stage, target, "QUANTA");
     expect(stage.querySelectorAll("img.impact-fx").length).toBe(4); // all four frames stacked
     // frames advance; after the last frame the burst is removed — it does NOT loop
-    vi.advanceTimersByTime(83 * 4 + 300);
+    vi.advanceTimersByTime(1200);   // past the full cross-fade + fade-out + cleanup
     expect(stage.querySelectorAll("img.impact-fx").length).toBe(0);
   });
 
@@ -112,7 +112,7 @@ describe("universal impact VFX (playImpact)", () => {
       const { stage, target } = stageWith();
       playImpact(stage, target, att);
       expect(stage.querySelectorAll("img.impact-fx").length).toBe(4);
-      vi.advanceTimersByTime(83 * 4 + 300);
+      vi.advanceTimersByTime(1200);   // past the full cross-fade + fade-out + cleanup
     }
   });
 
