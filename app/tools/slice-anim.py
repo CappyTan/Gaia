@@ -33,8 +33,9 @@ SHEETS = {
     },
     "photon-beam": {
         "src": "anim-photon-beam.png", "knockout_white": False, "ywin": (0.05, 0.55),
-        # charge ball, then the beam streak (held for a few frames; the compositor fades them).
-        "frames": [("01", 10, 431), ("02", 440, 1383), ("03", 440, 1383), ("04", 440, 1383)],
+        # the beam STREAK only (held for a few frames; the compositor spans it muzzle->target and
+        # fades it in/out). The charge ball is dropped — a span layer would stretch it.
+        "frames": [("01", 440, 1383), ("02", 440, 1383), ("03", 440, 1383)],
     },
     "sol-aloha": {
         "src": "anim-sol-aloha-impact.png", "knockout_white": False, "ywin": (0.04, 0.60),
@@ -45,17 +46,29 @@ SHEETS = {
 }
 
 
-def knock_white(im):
-    """White/near-white -> transparent, with a soft edge. Keeps gold (low blue) opaque."""
+def knock_white(im, thr=236, soft=205):
+    """Knock the WHITE BACKGROUND off via an edge flood-fill: only near-white pixels CONNECTED to the
+    border become transparent, so the figure's bright/gold interior highlights stay fully opaque (a
+    plain global white-threshold ate those highlights and left the sprite looking faded). Soft-ramps
+    the anti-aliased halo at the figure edge."""
+    from collections import deque
     im = im.convert("RGBA"); px = im.load(); W, H = im.size
+    isbg = lambda x, y: min(px[x, y][0], px[x, y][1], px[x, y][2]) >= soft
+    dq = deque(); seen = set()
+    for x in range(W):                       # seed from every border pixel that is background-ish
+        for y in (0, H - 1):
+            if isbg(x, y) and (x, y) not in seen: seen.add((x, y)); dq.append((x, y))
     for y in range(H):
-        for x in range(W):
-            r, g, b, a = px[x, y]
-            bg = min(r, g, b)            # how "white" (all channels high) the pixel is
-            if bg >= 240:
-                px[x, y] = (r, g, b, 0)
-            elif bg >= 212:              # ramp the anti-aliased halo
-                px[x, y] = (r, g, b, int(a * (240 - bg) / 28))
+        for x in (0, W - 1):
+            if isbg(x, y) and (x, y) not in seen: seen.add((x, y)); dq.append((x, y))
+    while dq:                                 # flood the connected background region
+        x, y = dq.popleft()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < W and 0 <= ny < H and (nx, ny) not in seen and isbg(nx, ny):
+                seen.add((nx, ny)); dq.append((nx, ny))
+    for (x, y) in seen:
+        r, g, b, a = px[x, y]; m = min(r, g, b)
+        px[x, y] = (r, g, b, 0) if m >= thr else (r, g, b, int(a * (thr - m) / (thr - soft)))
     return im
 
 
