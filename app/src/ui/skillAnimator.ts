@@ -65,14 +65,59 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     }
     const refH = layer.at === "target" ? T.h : A.h;     // explosion scales to the enemy
     const h = scale * refH, w = (h * n.w) / n.h;
+    if (layer.at === "muzzle") {
+      // the cast flash sits at the barrel (actor centre + offset), ROTATED to face the target so it
+      // points down-range (works for either side — the angle flips it toward a left- or right-hand foe).
+      const mx = A.cx + ox, my = A.cy + oy;
+      return { cx: mx, cy: my, w, h, flip: !!layer.flip, rot: Math.atan2(T.cy - my, T.cx - mx) };
+    }
     let cx = A.cx, cy = A.cy;
     if (layer.at === "target") { cx = T.cx; cy = T.cy; }
     else if (layer.at === "between") { cx = (A.cx + T.cx) / 2; cy = (A.cy + T.cy) / 2; }
     return { cx: cx + ox, cy: cy + oy, w, h, flip: !!layer.flip, rot: 0 };
   }
 
+  // A PROJECTILE that flies from the barrel to the target: its frames live in a wrapper we TRANSLATE
+  // (CSS left/top transition) from muzzle → target over travelMs, rotated along the path, while the
+  // frames cross-fade inside it. The screen travel IS the motion (a bullet leaving the rifle).
+  function playTravelLayer(layer: AnimLayer, startMs: number): void {
+    const url0 = frameUrl(layer, 0); if (!url0) return;
+    const n = nat[url0] || { w: 1, h: 1 }, scale = layer.scale ?? 0.35;
+    const h = scale * A.h, w = (h * n.w) / n.h;
+    const ox = (layer.offsetX || 0) * A.w, oy = (layer.offsetY || 0) * A.h;
+    const mx = A.cx + ox, my = A.cy + oy;          // barrel (start)
+    const rot = Math.atan2(T.cy - my, T.cx - mx);  // aim the streak along its flight
+    const travel = layer.travelMs ?? 260;
+    at(startMs, () => {
+      const wrap = document.createElement("div");
+      wrap.style.position = "absolute"; wrap.style.pointerEvents = "none";
+      wrap.style.width = Math.round(w) + "px"; wrap.style.height = Math.round(h) + "px";
+      wrap.style.left = mx + "px"; wrap.style.top = my + "px";
+      wrap.style.transform = `translate(-50%,-50%) rotate(${rot}rad)` + (layer.flip ? " scaleX(-1)" : "");
+      wrap.style.transition = `left ${travel}ms linear, top ${travel}ms linear`;
+      const imgs: HTMLImageElement[] = [];
+      for (let i = 0; i < layer.frames; i++) {
+        const u = frameUrl(layer, i);
+        const img = document.createElement("img");
+        img.className = "anim-sprite" + (layer.blend === "screen" ? " glow" : "");
+        img.decoding = "sync"; if (u) img.src = u;
+        img.style.position = "absolute"; img.style.left = "0"; img.style.top = "0";
+        img.style.width = "100%"; img.style.height = "100%"; img.style.transform = "none";
+        img.style.transition = "opacity 60ms linear"; img.style.opacity = i === 0 ? "1" : "0";
+        wrap.appendChild(img); imgs.push(img);
+      }
+      stage.appendChild(wrap); live.push(wrap);
+      requestAnimationFrame(() => { wrap.style.left = T.cx + "px"; wrap.style.top = T.cy + "px"; });
+      for (let i = 1; i < layer.frames; i++)
+        at(startMs + i * layer.frameMs, () => imgs.forEach((im, j) => { im.style.opacity = j === i ? "1" : "0"; }));
+      at(startMs + travel, () => { wrap.style.transition += ", opacity 120ms ease"; wrap.style.opacity = "0"; });
+      at(startMs + travel + 220, () => wrap.remove());
+    });
+  }
+
   // One layer = all its frames pre-stacked at the same spot; we toggle which is visible (no src swap).
   function playLayer(layer: AnimLayer, startMs: number): void {
+    if (layer.at === "travel") { playTravelLayer(layer, startMs); return; }
     const total = layer.frames * layer.frameMs;
     const imgs: HTMLImageElement[] = [];
     at(startMs, () => {
@@ -103,6 +148,9 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     const layerStart = (l: AnimLayer, fallback: number) =>
       l.startMs != null ? l.startMs : l.startFrame != null ? (l.startFrame - 1) * charMs : fallback;
 
+    // A layer's on-screen duration: a travel projectile lasts its flight time; others, all their frames.
+    const dur = (l: AnimLayer) => l.at === "travel" ? (l.travelMs ?? 260) : l.frames * l.frameMs;
+
     // The doll was hidden up front; restore it when the firing frames end so the hero's idle pose
     // holds through the beam/impact (never absent). (Hidden immediately at call time, not here, so no
     // pre-animation flicker.)
@@ -110,18 +158,24 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     at(charDur, () => setActorHidden(false));
     let lastEnd = charDur;
 
+    if (anim.muzzle) {                         // cast VFX at the barrel (the muzzle flash)
+      const s = layerStart(anim.muzzle, charDur);
+      playLayer(anim.muzzle, s);
+      lastEnd = Math.max(lastEnd, s + dur(anim.muzzle));
+    }
+
     let effectEnd = charDur;
     if (anim.effect) {
       const s = layerStart(anim.effect, charDur);
       playLayer(anim.effect, s);
-      effectEnd = s + anim.effect.frames * anim.effect.frameMs;
+      effectEnd = s + dur(anim.effect);
       lastEnd = Math.max(lastEnd, effectEnd);
     }
     let impactEnd = effectEnd;
     if (anim.impact) {
       const s = layerStart(anim.impact, anim.effect ? effectEnd : charDur);
       playLayer(anim.impact, s);
-      impactEnd = s + anim.impact.frames * anim.impact.frameMs;
+      impactEnd = s + dur(anim.impact);
       lastEnd = Math.max(lastEnd, impactEnd);
     }
 
@@ -140,7 +194,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   // PRELOAD every frame (capturing natural size), then run — with a hard cap so a slow/missing image
   // can never stall the turn. Preloaded images are cached, so the stacked sprites paint immediately.
   const urls: string[] = [];
-  for (const L of [anim.character, anim.effect, anim.impact]) {
+  for (const L of [anim.character, anim.muzzle, anim.effect, anim.impact]) {
     if (!L) continue;
     for (let i = 0; i < L.frames; i++) { const u = frameUrl(L, i); if (u) urls.push(u); }
   }

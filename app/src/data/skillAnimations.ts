@@ -24,8 +24,12 @@ export interface AnimLayer {
    *   "actor"          — on the caster (the character animation)
    *   "target"         — on the struck foe (the impact); sized relative to the TARGET sprite
    *   "between"        — midpoint of actor↔target
+   *   "muzzle"         — at the actor's barrel (centre + offset), ROTATED to face the target (the
+   *                      muzzle flash / cast VFX, pointing down-range)
+   *   "travel"         — a PROJECTILE that flies from the barrel (centre + offset) to the target over
+   *                      `travelMs`, rotated along its path (the bullet/tracer)
    *   "muzzleToTarget" — a BEAM spanning from the actor's muzzle (centre + offset) to the target. */
-  at: "actor" | "target" | "between" | "muzzleToTarget";
+  at: "actor" | "target" | "between" | "muzzle" | "travel" | "muzzleToTarget";
   /** Offset from the anchor as a FRACTION of the actor sprite (x → its width, y → its height), so
    *  placement scales with the rendered size. For a muzzle, e.g. offsetX:-0.3 (left) offsetY:-0.06. */
   offsetX?: number;
@@ -40,6 +44,8 @@ export interface AnimLayer {
   flip?: boolean;
   /** Screen-blend for glowing energy (beam/impact); omit for a solid figure. */
   blend?: "screen" | "normal";
+  /** Flight time for a "travel" projectile, in ms (barrel → target). */
+  travelMs?: number;
   /** Start time, in ms from the animation start (preferred). */
   startMs?: number;
   /** Fallback start: which CHARACTER frame (1-based) launches this layer, if startMs is absent. */
@@ -49,7 +55,9 @@ export interface AnimLayer {
 export interface SkillAnim {
   /** The figure performing the skill — animates in place. */
   character: AnimLayer;
-  /** Projectile / beam / cast effect (e.g. the photon beam from the muzzle). */
+  /** Cast VFX at the barrel as the shot leaves (e.g. the SOL muzzle flash). Plays before the effect. */
+  muzzle?: AnimLayer;
+  /** Projectile / beam (e.g. the tracer bullet that travels, or the photon beam from the muzzle). */
   effect?: AnimLayer;
   /** Hit effect on the target (e.g. the Sol Aloha explosion). */
   impact?: AnimLayer;
@@ -82,4 +90,35 @@ export const SKILL_ANIM: Record<string, SkillAnim> = {
       scale: 1.25, blend: "screen",
     },
   },
+
+  // Photon Shot — the Photon Vanguard BASIC ATTACK: a gun-style shot built from the five REQUIEM
+  // phases (character → muzzle VFX → projectile → impact → damage → return to idle). The Vanguard
+  // runs his firing poses; on the FIRE beat a SOL muzzle flash blooms at the barrel, a tracer bullet
+  // leaves the rifle and travels to the foe, a solar burst detonates on impact, damage lands as it
+  // hits, and the number floats up after the blast. (Same barrel origin as the Photon Beam.)
+  photonShot: {
+    hideActor: true,
+    damageMs: 720,
+    damageAfterImpact: true,
+    character: { dir: "photon-vanguard", frames: 5, frameMs: 120, at: "actor", scale: 1.0 },
+    muzzle: {
+      dir: "muzzle-flash-sol", frames: 3, frameMs: 70, at: "muzzle", startMs: 360,
+      offsetX: -0.46, offsetY: -0.12, scale: 0.5, blend: "screen",
+    },
+    effect: {
+      dir: "bullet-tracer", frames: 1, frameMs: 90, at: "travel", startMs: 430, travelMs: 280,
+      offsetX: -0.46, offsetY: -0.12, scale: 0.32, blend: "screen",
+    },
+    impact: {
+      dir: "bullet-impact", frames: 4, frameMs: 80, at: "target", startMs: 700,
+      scale: 1.05, blend: "screen",
+    },
+  },
+};
+
+/** Bespoke BASIC-ATTACK animations, keyed by "Attunement:Archetype" (a Member's `att` × `cls`).
+ *  A class whose plain Attack has its own layered animation maps here — e.g. the Photon Vanguard
+ *  (SOL × Rifle) fires its rifle. Reusable for any gun/projectile class as those land. */
+export const BASIC_ATTACK_ANIM: Record<string, string> = {
+  "SOL:Rifle": "photonShot",
 };
