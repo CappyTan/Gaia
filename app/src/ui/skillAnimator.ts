@@ -223,3 +223,43 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   }
   runTimeline();
 }
+
+// ── Universal combat IMPACT VFX ──────────────────────────────────────────────────────────────────
+// A standalone burst played ON the struck unit whenever a hit lands, tinted by the ATTACKER's
+// Attunement (fx/impact-<att>/01..04.png). Independent of playSkillAnim so it fires for EVERY landed
+// hit — basic attacks, abilities, multi-hits, AoE, crits — unless the skill's own animation supplies a
+// bespoke impact (which overrides it). Four frames at 12 FPS, no loop, centred on the target's centre
+// mass, sized to the target sprite, then destroyed. No-op (graceful) if that Attunement's art is absent.
+const IMPACT_FRAMES = 4;
+const IMPACT_FRAME_MS = 83;     // ~12 FPS
+const IMPACT_SCALE = 1.4;       // burst height vs. the target sprite (reads a touch larger than the foe)
+
+/** Spawn the attunement impact burst over `targetEl`. att is a Unit Attunement (e.g. "SOL"). */
+export function playImpact(stage: HTMLElement, targetEl: Element, att: string): void {
+  const dir = `impact-${att.toLowerCase()}`;
+  if (!assetUrl(`fx/${dir}/01.png`)) return;                 // art not present → skip silently
+  const r = targetEl.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  const cx = r.left - s.left + (r.width || 1) / 2, cy = r.top - s.top + (r.height || 1) / 2;
+  const h = (r.height || 40) * IMPACT_SCALE;
+
+  const imgs: HTMLImageElement[] = [];
+  for (let i = 0; i < IMPACT_FRAMES; i++) {
+    const url = assetUrl(`fx/${dir}/${String(i + 1).padStart(2, "0")}.png`);
+    const img = document.createElement("img");
+    img.className = "impact-fx";
+    img.decoding = "sync";
+    const place = (w: number) => { img.style.width = Math.round(w) + "px"; img.style.height = Math.round(h) + "px"; };
+    place(h);                                                 // square fallback until the real aspect loads
+    img.onload = () => { if (img.naturalHeight) place((h * img.naturalWidth) / img.naturalHeight); };
+    if (url) img.src = url;
+    img.style.left = cx + "px"; img.style.top = cy + "px";
+    img.style.opacity = "0";
+    stage.appendChild(img); imgs.push(img);
+  }
+  const at = (ms: number, fn: () => void) => window.setTimeout(fn, Math.max(0, ms));
+  for (let i = 0; i < IMPACT_FRAMES; i++)
+    at(i * IMPACT_FRAME_MS, () => imgs.forEach((im, j) => { im.style.opacity = j === i ? "1" : "0"; }));
+  const end = IMPACT_FRAMES * IMPACT_FRAME_MS;
+  at(end, () => { const last = imgs[IMPACT_FRAMES - 1]; last.style.transition = "opacity 110ms ease"; last.style.opacity = "0"; });
+  at(end + 160, () => imgs.forEach((im) => im.remove()));     // no loop — destroy after the last frame
+}
