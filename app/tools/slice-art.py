@@ -441,6 +441,49 @@ for fn, cmap in BIOME_SETS.items():
         save(t, "field", f"{name}.png"); bsets[name] = (t, kind)
 for n in bgrid_notes: print("  grid:", n)
 
+# ---- OVERWORLD TERRAIN REFRESH (v0.121): the Greenvale-Shire + Silverwood-Forest depth-law sheets
+#      (docs/art/dalle-asset-prompts.md "OVERWORLD TERRAIN REFRESH"). Each is a clean magenta-gutter
+#      grid (greenvale 3x3, silverwood 2cols x 3rows, row-major) where every cell is a FULL-BLEED
+#      painted scene tile — magenta lives ONLY in the inter-cell gutters (verified ~0% interior
+#      magenta), exactly the BIOME_SETS situation. So:
+#        • GROUND cells [O] -> seamless OPAQUE swatch (biome_ground; BGROUND px), overwrites the live
+#          ground tile the engine already loads (grass/grass2/path/orchard-ground/wheat-as-ground? no
+#          — see below; grove-ground/grove-ground2/grove-path). Pure drop-in, no code change.
+#        • OBJECT cells [K] (tree/bush/rock/orchard-tree/oldtree/fern/mushroom + wheat) are painted ON
+#          a grass/forest-floor base that fills the whole cell — there is NO flat/magenta surround to
+#          knock out, and the painterly canopy blends softly into the grass, so a clean transparent
+#          overlay is NOT extractable (a baked opaque ground square would render as a lifted grass
+#          block under tall()/obj()). These are NOT written here — the existing transparent object
+#          sprites are kept; a tight re-gen of just those cells on FLAT magenta is the right fix
+#          (flagged in the hand-back). 'K' cells are reported and skipped, never written. ----------
+TERRAIN_REFRESH = {
+ "biome-greenvale-shire-set.png": (3, 3, [   # row-major 3x3
+   ("grass","O"),("grass2","O"),("path","O"),
+   ("tree","K"),("bush","K"),("rock","K"),
+   ("orchard-ground","O"),("orchard-tree","K"),("wheat","K")]),
+ "biome-silverwood-forest-set.png": (2, 3, [ # row-major 2 cols x 3 rows
+   ("grove-ground","O"),("grove-ground2","O"),
+   ("grove-path","O"),("oldtree","K"),
+   ("fern","K"),("mushroom","K")]),
+}
+trefresh_wrote = []; trefresh_skipped = []
+for fn, (ncols, nrows, cells) in TERRAIN_REFRESH.items():
+    rim = Image.open(os.path.join(REF, fn)).convert("RGB")
+    cols, rows = mag_cells(rim)
+    if len(cols) != ncols or len(rows) != nrows:   # gutters mis-detected -> even grid fallback
+        W, H = rim.size; cw, ch = W/ncols, H/nrows
+        cols = [(int(c*cw), int((c+1)*cw)) for c in range(ncols)]
+        rows = [(int(r*ch), int((r+1)*ch)) for r in range(nrows)]
+        bgrid_notes.append(f"{fn}: mag_cells gave {len(cols)}x{len(rows)}, used even {ncols}x{nrows}")
+    for i, (name, kind) in enumerate(cells):
+        r, c = i//ncols, i%ncols
+        if kind != "O":
+            trefresh_skipped.append(name); continue   # object cell — no clean knockout from this source
+        box = (cols[c][0]+BSET_INSET, rows[r][0]+BSET_INSET, cols[c][1]-BSET_INSET, rows[r][1]-BSET_INSET)
+        save(biome_ground(rim, box), "field", f"{name}.png"); trefresh_wrote.append(name)
+print(f"  terrain-refresh: wrote ground {trefresh_wrote}")
+print(f"  terrain-refresh: SKIPPED object cells (no clean knockout; kept existing sprites): {trefresh_skipped}")
+
 # ---- enemies (Greenvale bestiary, lower figure band) ----
 EB={"bandit":(12,380,300,815),"cutpurse":(312,380,600,815),"marauder":(614,380,902,815),
     "archer":(916,380,1204,815),"brute":(1218,380,1524,815)}

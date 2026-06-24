@@ -25,6 +25,129 @@ at a time**, then knock out the magenta background (→ transparent PNG) and sav
 
 ---
 
+## OVERWORLD TERRAIN REFRESH (v0.121 — bake in the depth & passability law)
+
+**Read this first.** The overworld got an engine depth pass (ADR 0011-era; cast shadows, lit floors,
+recessed water) — but the painted tiles must REINFORCE it, not fight it. The earlier terrain prompts
+(groups 1–3 below) asked for "deep shade" floors, which rendered as a muddy dark checkerboard you
+couldn't read. **These refreshed prompts supersede the terrain tiles in groups 1–3** (same filenames —
+regenerate over them). Paste the STYLE BLOCK **and** the DEPTH LAW below before every terrain prompt.
+
+### DEPTH & PASSABILITY LAW (paste after the STYLE BLOCK for every terrain tile)
+
+> DEPTH & PASSABILITY LAW — every terrain tile obeys this so the player can read the world at a glance.
+> One consistent light from the **top-left**. Three unmistakable reads:
+> • **WALKABLE GROUND** = an evenly-lit, fairly **bright**, LOW-contrast **flat** floor seen straight
+>   down (top-down), readable as open ground at thumbnail size. Never dark, never "deep shade", never a
+>   high-contrast pattern — it is the calm *ground* the eye glides over. Variants differ only subtly.
+> • **IMPASSABLE WALL** (tree, crag, ruin wall, dead trunk) = a **raised** form standing UP off the
+>   ground, with a bright top-left-lit crown/cap and a darker shaded underside, plus its OWN dark
+>   contact/cast shadow pooled to the lower-right at its base. It must read clearly **taller and busier
+>   than the floor** — the "figure" against the ground.
+> • **WATER / CHASM** = a **cool** surface set visually **below** the ground plane, with a thin **lit
+>   lip** along the near (lower) bank and shadow dropping into it — reads as a drop-off you can't cross,
+>   never confusable with dark ground.
+> Walkable floors are always **lighter and warmer** than the walls that sit on them. Every tile is a
+> seamlessly-tileable top-down square.
+
+### Greenvale — the Shire (PRIORITY: this is the zone the player sees first)
+> [STYLE BLOCK] [DEPTH LAW] … A 3×3 grid of top-down tiles for sunny temperate shire-land: (1) bright
+> sunlit grass meadow floor, warm yellow-green, evenly lit and flat (walkable); (2) a second subtle
+> variant of that grass; (3) a worn warm-tan dirt road/path, clearly a walkable lane; (4) a leafy
+> round broadleaf tree seen from above, lit green crown on the top-left, dark underside, casting a soft
+> shadow down-right — a raised impassable wall, clearly taller than the grass; (5) a low green shrub /
+> bush (walkable scatter, small, a hint of shadow); (6) a mossy grey boulder (low scatter); (7) tended
+> orchard grass, slightly tidier/striped; (8) a laden fruit tree from above (raised wall, red-dotted
+> green crown, shadow down-right); (9) golden wind-rippled wheat stalks (low scatter).
+
+Files: `grass.png`, `grass2.png`, `path.png`, `tree.png`, `bush.png`, `rock.png`, `orchard-ground.png`,
+`orchard-tree.png`, `wheat.png` (+ `orchard-ground2.png`, `meadow-ground.png`, `meadow-ground2.png` as a
+follow-up — same warm-grass family).
+
+### Silverwood — the Ancient Forest (PRIORITY: refresh — was the muddiest)
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down old-growth forest tiles. CRITICAL: the forest
+> FLOOR must stay clearly **walkable and lit** — not black. (1) mossy forest floor, a LIT mid-green
+> with dappled warm light, flat and readable (walkable — think a sunlit clearing floor, not deep
+> shade); (2) a subtle variant; (3) a root-worn dirt forest trail, warm brown, walkable; (4) a towering
+> ancient tree from above — a big dark-green canopy crown lit on the top-left, dense and tall, with a
+> strong shadow pooling down-right, unmistakably a raised wall far darker/taller than the floor; (5) a
+> green fern clump (low walkable scatter); (6) a cluster of pale mushrooms (low scatter).
+
+Files: `grove-ground.png`, `grove-ground2.png`, `grove-path.png`, `oldtree.png`, `fern.png`, `mushroom.png`.
+
+### The Duskmarsh — drowned marsh (refresh)
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down grim marsh tiles: (1) boggy walkable earth, a
+> readable muted olive-brown, damp but clearly LIT and flat (walkable, not black); (2) a variant; (3) a
+> weathered grey plank boardwalk causeway, obviously a raised dry walkable road; (4) **black still
+> water** — a cool dark pool set below the bank, with a thin lit muddy lip on the near edge (recessed,
+> impassable, reads as a drop-in); (5) a bare drowned dead-tree stump from above, pale and leafless, a
+> raised wall casting a shadow down-right; (6) a clump of tall marsh reeds (low scatter).
+
+Files: `mire-ground.png`, `mire-ground2.png`, `mire-path.png`, `water.png`, `deadtree.png`, `reed.png`
+(+ `bog.png`).
+
+### Frostpeak — snow / ice / dwarven stone
+> [STYLE BLOCK] [DEPTH LAW] … A 3×3 grid of top-down frozen-highland tiles: (1) packed snow ground,
+> bright blue-white, lit and flat (walkable); (2) a variant with faint wind-ripple; (3) a trodden snow
+> path, slightly warmer/greyer (walkable); (4) a snow-laden pine from above — green-and-white raised
+> conifer with a STRONG dark contact shadow down-right (the floor is bright, so lean on the shadow to
+> read it as a wall); (5) a snow cairn / drift (low scatter); (6) an ice-rimed grey crag, raised rock
+> wall, shadowed; (7) pale-blue glacier ice floor (walkable, cool but lit); (8) frozen pool — a cool
+> recessed ice-water surface with a lit near lip (impassable); (9) a snow-dusted grey rock (low scatter).
+
+Files: `snow-ground.png`, `snow-ground2.png`, `snow-path.png`, `snow-pine.png`, `snow-cairn.png`,
+`snow-crag.png`, `ice-ground.png`, `snow-frozen.png`, `snow-rock.png`.
+
+### Storm Coast / Sunbridge — shore & harbor
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down storm-coast tiles: (1) wet tan beach sand, lit and
+> flat (walkable); (2) a variant with shell flecks; (3) weathered grey dock planks (walkable raised
+> boardwalk); (4) **teal sea water** — a cool surface below the shore with a pale lit foam lip on the
+> near bank (recessed, impassable); (5) a barnacled coastal rock, raised wall with a shadow down-right;
+> (6) a tide pool / shell cluster (low scatter).
+
+Files: `coast-sand.png`, `coast-sand2.png`, `coast-dock.png`, `coast-sea.png`, `coast-rock.png`,
+`coast-pool.png`.
+
+### Dawnfall Hold — breached frontier ruins
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down ruined-keep tiles: (1) cracked flagstone ground,
+> warm grey, lit and flat (walkable); (2) a rubble-strewn flagstone variant; (3) a packed-earth rampart
+> walk (walkable path); (4) a crumbling stone wall section from above, raised wall, lit top-left cap +
+> shadow down-right; (5) tufts of dry grass through the stone (low scatter); (6) a heap of broken
+> masonry rubble (low scatter).
+
+Files: `ruin-flag.png`, `ruin-flag2.png`, `ruin-path.png`, `ruin-wall.png`, `ruin-grass.png`, `ruin-rubble.png`.
+
+### Whisper Hills / Riverhearth outskirts — green hills & riverside
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down tiles: (1) soft green monastic-hill grass, lit and
+> flat (walkable); (2) a variant; (3) a pale gravel pilgrim road (walkable); (4) a cypress / dark
+> sentinel tree from above (raised wall + shadow); (5) a mossy riverbank reed tuft (low scatter); (6) a
+> carved boundary stone (low scatter). [Riverside reuses the bridge/ford crossings below.]
+
+Files: `hills-ground.png`, `hills-ground2.png`, `hills-path.png`, `hills-tree.png`, `hills-reed.png`, `hills-stone.png`.
+
+### Shared crossings & barriers — the recessed/raised special cases
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down tiles: (1) a rocky **cliff** face from above — a
+> raised grey-stone ridge with a bright top-left cap and a deep shadowed foot, clearly an impassable
+> wall (NOT a flat grey tile); (2) a winding **river** water tile, cool blue, set below its banks with
+> lit near lips, impassable (a flowing variant of still water); (3) a wooden plank **bridge** span over
+> water, warm planks, obviously a raised walkable crossing; (4) a shallow pale stepping-stone **ford**,
+> bright walkable crossing; (5) a **sunless gorge / chasm** — a deep near-black ravine seen from above
+> with pale rocky rim-lips catching the top-left light on its edges and darkness falling away in the
+> middle (impassable drop); (6) a lashed-log **raft / plank causeway** spanning a chasm — a deliberate
+> walkable span of bound timber with rope rails, reads as "the way across".
+
+Files: `cliff.png`, `river.png`, `bridge.png`, `ford.png`, `gorge.png`, `crossing.png`.
+
+### Elder-Oak landmark (the Silverwood beacon, seen across the gorge)
+> [STYLE BLOCK] [DEPTH LAW] … A single top-down view of a COLOSSAL ancient oak — far larger than an
+> ordinary forest tree, a vast many-lobed green crown lit on the top-left with a huge shadow, an
+> ancient gnarled trunk; it should read as a singular landmark "weenie" you can spot from a distance,
+> distinct from the regular `oldtree` wall tile.
+
+File: `elder-oak.png` (landmark prop; see asset-gaps "Wayfinding" row).
+
+---
+
 ## 1 — Wetland (marsh) terrain tiles — top-down, seamlessly tileable squares
 > [STYLE BLOCK] … A 2×3 grid of top-down, seamlessly tileable square terrain tiles for a grim drowned
 > marsh: (1) boggy walkable earth, dark olive, wet; (2) a second variant of that boggy earth; (3) a
