@@ -1,23 +1,26 @@
 // Reusable combat-animation COMPOSITOR. Given a SkillAnim definition (data/skillAnimations) and the
-// actor + target sprite elements, it layers the character / effect / impact frames over the battle
-// stage and schedules them off the character layer's frames — exactly the pipeline Dara asked for:
+// actor + target sprite elements, it layers the character / effect / impact animations over the
+// battle stage and schedules them off the character layer's frames — exactly the pipeline Dara asked
+// for:
 //
 //   background + enemy sprite  =  the live stage (NOT baked into any layer)
 //   character / effect / impact =  transparent frame PNGs composited on top
 //   damage timing               =  driven by the character layer's frame index
 //
-// Each frame is a short-lived <img> that fades in and out (like the crit burst), so a sequence reads
-// as a smooth glowing animation. The compositor is pure presentation: the caller (battle controller)
-// passes callbacks for when to apply damage and when to float the number, and owns game state.
+// Each layer is ONE persistent <img> sprite that swaps through its frames and, if it has `travel`,
+// GLIDES smoothly (CSS-transitioned) from the actor toward the target — so the firing figure slides
+// in cleanly instead of stamping a row of stepped ghosts. The whole sprite fades in at the start and
+// out at the end (like the crit burst). Pure presentation: the caller (battle controller) applies
+// damage and floats the number via the callbacks and owns game state.
 //
-// Frames are PRELOADED before the timeline runs so every frame element gets an explicit width AND
-// height (from the image's natural aspect) the instant it spawns — otherwise a height + width:auto
-// element is zero-width until the PNG loads, and the brief fade finishes before it ever paints.
+// Frames are PRELOADED first so each sprite gets an explicit width AND height from the image's natural
+// aspect the instant it appears (a height + width:auto element is zero-width until the PNG loads).
 
 import { assetUrl } from "../core/assets";
 import type { AnimLayer, SkillAnim } from "../data/skillAnimations";
 
 interface Geo { cx: number; cy: number; w: number; h: number; }
+interface XY { x: number; y: number; }
 
 export interface PlayOpts {
   stage: HTMLElement;
@@ -49,40 +52,52 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
 
   if (anim.hideActor) (o.actor as HTMLElement).style.visibility = "hidden";
 
-  // Spawn one fading frame of a layer at frame index `idx` (0-based).
-  function spawnFrame(layer: AnimLayer, idx: number): void {
-    const url = frameUrl(layer, idx);
-    if (!url) return;
-    let cx = A.cx, cy = A.cy;
-    if (layer.at === "target") { cx = T.cx; cy = T.cy; }
-    else if (layer.at === "between") { cx = (A.cx + T.cx) / 2; cy = (A.cy + T.cy) / 2; }
-    else if (layer.travel) {                              // actor layer drifting toward the target
-      const f = (layer.frames > 1 ? idx / (layer.frames - 1) : 0) * layer.travel;
-      cx = A.cx + (T.cx - A.cx) * f; cy = A.cy + (T.cy - A.cy) * f;
-    }
-    cx += (layer.offsetX || 0) * (layer.flip ? -1 : 1);   // offset follows the facing
-    cy += (layer.offsetY || 0);
-
-    const n = nat[url] || { w: 1, h: 1 };
-    const scale = layer.scale ?? 1;
-    let w: number, h: number;
-    if (layer.sizeBy === "width") { w = Math.round(scale * dist); h = Math.round((w * n.h) / n.w); }
-    else { h = Math.round(scale * refH); w = Math.round((h * n.w) / n.h); }
-
-    const img = document.createElement("img");
-    img.className = "anim-frame" + (layer.blend === "screen" ? " screen" : "");
-    img.src = url;
-    img.decoding = "sync";
-    img.style.width = w + "px"; img.style.height = h + "px";
-    img.style.left = cx + "px"; img.style.top = cy + "px";
-    img.style.transform = "translate(-50%,-50%)" + (layer.flip ? " scaleX(-1)" : "");
-    img.style.setProperty("--d", Math.round(layer.frameMs * 1.6) + "ms");
-    stage.appendChild(img); live.push(img);
-    at(layer.frameMs * 1.6, () => img.remove());          // frame fades out and removes itself
+  // Anchor point for a layer at travel-fraction `frac` (0 = at the actor, travel = its glide end).
+  function anchor(layer: AnimLayer, frac: number): XY {
+    let x = A.cx, y = A.cy;
+    if (layer.at === "target") { x = T.cx; y = T.cy; }
+    else if (layer.at === "between") { x = (A.cx + T.cx) / 2; y = (A.cy + T.cy) / 2; }
+    else { x = A.cx + (T.cx - A.cx) * frac; y = A.cy + (T.cy - A.cy) * frac; } // actor (+ optional drift)
+    return { x: x + (layer.offsetX || 0) * (layer.flip ? -1 : 1), y: y + (layer.offsetY || 0) };
+  }
+  function sizeFor(layer: AnimLayer, url: string): { w: number; h: number } {
+    const n = nat[url] || { w: 1, h: 1 }, scale = layer.scale ?? 1;
+    if (layer.sizeBy === "width") { const w = Math.round(scale * dist); return { w, h: Math.round((w * n.h) / n.w) }; }
+    const h = Math.round(scale * refH); return { w: Math.round((h * n.w) / n.h), h };
   }
 
+  // One layer = one sprite that swaps frames, glides if it has travel, and fades in/out as a whole.
   function playLayer(layer: AnimLayer, baseDelay: number): void {
-    for (let i = 0; i < layer.frames; i++) at(baseDelay + i * layer.frameMs, () => spawnFrame(layer, i));
+    const total = layer.frames * layer.frameMs;
+    const tf = "translate(-50%,-50%)" + (layer.flip ? " scaleX(-1)" : "");
+    let img: HTMLImageElement;
+    const setFrame = (idx: number) => {
+      const url = frameUrl(layer, idx); if (!url || !img) return;
+      const sz = sizeFor(layer, url);
+      img.src = url; img.style.width = sz.w + "px"; img.style.height = sz.h + "px";
+    };
+    at(baseDelay, () => {
+      img = document.createElement("img");
+      img.className = "anim-sprite" + (layer.blend === "screen" ? " screen" : "");
+      img.decoding = "sync";
+      img.style.transform = tf;
+      const p = anchor(layer, 0);
+      img.style.left = p.x + "px"; img.style.top = p.y + "px";
+      img.style.opacity = "0";
+      setFrame(0);
+      stage.appendChild(img); live.push(img);
+    });
+    // next tick: fade in, and (if travelling) glide to the end anchor over the layer duration
+    at(baseDelay + 16, () => {
+      if (!img) return;
+      const glide = layer.travel ? `, left ${total}ms linear, top ${total}ms linear` : "";
+      img.style.transition = `opacity 120ms ease${glide}`;
+      img.style.opacity = "1";
+      if (layer.travel) { const e = anchor(layer, layer.travel); img.style.left = e.x + "px"; img.style.top = e.y + "px"; }
+    });
+    for (let i = 1; i < layer.frames; i++) at(baseDelay + i * layer.frameMs, () => setFrame(i));
+    at(baseDelay + total, () => { if (img) { img.style.transition = "opacity 180ms ease"; img.style.opacity = "0"; } });
+    at(baseDelay + total + 220, () => { if (img) img.remove(); });
   }
 
   function runTimeline(): void {
@@ -107,7 +122,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
     at((anim.damageFrame - 1) * charMs, () => o.onDamage && o.onDamage());
     at(anim.damageAfterImpact ? impactEnd : (anim.damageFrame - 1) * charMs, () => o.onImpact && o.onImpact());
 
-    at(lastEnd + 220, () => {
+    at(lastEnd + 460, () => {
       timers.forEach(clearTimeout);
       live.forEach((e) => e.remove());
       if (anim.hideActor) (o.actor as HTMLElement).style.visibility = "";
@@ -116,7 +131,7 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   }
 
   // PRELOAD every frame (capturing natural size), then run — with a hard cap so a slow/missing image
-  // can never stall the turn. Preloaded images are cached, so the spawned <img>s paint immediately.
+  // can never stall the turn. Preloaded images are cached, so the sprites paint immediately.
   const urls: string[] = [];
   for (const L of [anim.character, anim.effect, anim.impact]) {
     if (!L) continue;

@@ -323,13 +323,12 @@
   @keyframes critpop{0%{opacity:0; transform:translate(-50%,-50%) scale(.4);}
     35%{opacity:1; transform:translate(-50%,-50%) scale(1.08);}
     100%{opacity:0; transform:translate(-50%,-50%) scale(1.25);}}
-  /* layered skill-animation frames (ui/skillAnimator): each frame fades in and out (like the crit
-     burst) so a sequence reads smoothly; position/size/flip are set inline, so the keyframe only
-     touches opacity. `.screen` = glowing energy (beam/impact); plain = a solid figure. */
-  .anim-frame{position:absolute; pointer-events:none; z-index:7; transform-origin:center;
-    filter:drop-shadow(0 3px 6px rgba(0,0,0,.55)); animation:animframe var(--d,200ms) ease-out forwards;}
-  .anim-frame.screen{mix-blend-mode:screen; filter:drop-shadow(0 0 10px rgba(255,200,90,.5));}
-  @keyframes animframe{0%{opacity:0;}22%{opacity:1;}68%{opacity:1;}100%{opacity:0;}}
+  /* layered skill-animation sprites (ui/skillAnimator): one <img> per layer that swaps frames and
+     glides; opacity + position transitions are set inline so it fades in/out (like the crit burst)
+     and slides smoothly. `.screen` = glowing energy (beam/impact); plain = a solid figure. */
+  .anim-sprite{position:absolute; pointer-events:none; z-index:7; transform-origin:center; opacity:0;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.55)); will-change:left,top,opacity;}
+  .anim-sprite.screen{mix-blend-mode:screen; filter:drop-shadow(0 0 10px rgba(255,200,90,.5));}
 
   /* ---- Overlays: loot / levelup / menus ---- */
   .overlay{position:absolute; inset:0; background:rgba(4,4,10,.86); display:none; flex-direction:column;

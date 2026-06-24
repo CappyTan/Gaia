@@ -50,13 +50,13 @@ describe("skillAnimator compositor", () => {
     // frames preload first; in jsdom <img> never fires load, so the timeline starts via the 350ms
     // safety cap. Advance past that + the damage frame.
     vi.advanceTimersByTime(900);
-    expect(stage.querySelectorAll("img.anim-frame").length).toBeGreaterThan(0);
+    expect(stage.querySelectorAll("img.anim-sprite").length).toBeGreaterThan(0);
     expect(calls).toContain("damage");
 
     // run to the end
     vi.advanceTimersByTime(4000);
     expect(calls).toEqual(["damage", "impact", "complete"]); // order: hit lands, number, done
     expect(actor.style.visibility).toBe(""); // sprite restored
-    expect(stage.querySelectorAll("img.anim-frame").length).toBe(0); // every frame cleaned up
+    expect(stage.querySelectorAll("img.anim-sprite").length).toBe(0); // every frame cleaned up
   });
 });
