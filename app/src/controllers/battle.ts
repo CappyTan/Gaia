@@ -25,7 +25,7 @@ import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
 
-interface Selecting { m: Member; act: CombatAct; kind: "enemy" | "ally"; }
+interface Selecting { m: Member; act: CombatAct; kind: "enemy" | "ally" | "ult"; ult?: Ultimate; }
 
 export const Battle = {
   active: false,
@@ -169,12 +169,23 @@ export const Battle = {
     const afford = m.mp >= ult.mp;
     const cost = `<span class="cost${afford ? "" : " low"}">${ult.mp ? `${ult.mp} MP` : "FREE"}${afford ? "" : " — low"}</span>`;
     const b = el("button", "cmd", `★ ${ult.name}${cost}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${ult.desc}</div>`) as HTMLButtonElement;
-    if (!afford) b.disabled = true; else b.onclick = () => { this.setCmdWide(false); this.useUltimate(m, ult); };
+    if (!afford) b.disabled = true; else b.onclick = () => { this.setCmdWide(false); this.startUltimate(m, ult); };
     list.appendChild(b);
   },
+  // Begin an ultimate: a single-target one asks you to pick a foe first; an all-enemies one fires now.
+  startUltimate(m: Member, ult: Ultimate): void {
+    if (ult.target === "enemy") {
+      this.selecting = { m, act: {}, kind: "ult", ult };
+      $("#cmdWho")!.textContent = "Choose a target";
+      this.renderEnemies(true);
+      this.lockInput(350);
+      return;
+    }
+    this.fireUltimate(m, ult, this.livingEnemies());
+  },
   // Fire the ultimate: take the turn, roll the cutscene (if any), and once the screen is back, apply
-  // the hit to every living foe (with an impact burst), then resolve the turn / victory.
-  useUltimate(m: Member, ult: Ultimate): void {
+  // the hit to the chosen target(s) (with an impact burst), then resolve the turn / victory.
+  fireUltimate(m: Member, ult: Ultimate, targets: Unit[]): void {
     this.selecting = null; this.awaiting = true; this.current = m;
     if (ult.mp) m.mp = Math.max(0, m.mp - ult.mp);
     const list = $("#cmdList"); if (list) list.innerHTML = "";
@@ -182,13 +193,14 @@ export const Battle = {
     this.lockInput(99999); // hold input through the cutscene; cleared when the next menu opens
     const apply = () => {
       if (!this.active) return;
-      this.livingEnemies().forEach((e) => {
-        damage(e, ult.damage);
-        this.float(e, String(ult.damage), "#ffd97a");
-        this.impactFx(e, m.att);
-        if (!e.alive) this.onDeath(e);
+      targets.filter((t) => t.alive).forEach((t) => {
+        damage(t, ult.damage);
+        this.float(t, String(ult.damage), "#ffd97a");
+        this.impactFx(t, m.att);
+        if (!t.alive) this.onDeath(t);
       });
-      this.log(`${m.name} unleashes ${ult.name} — ${ult.damage} to all foes!`);
+      const who = ult.target === "enemy" ? (targets[0]?.name ?? "the target") : "all foes";
+      this.log(`${m.name} unleashes ${ult.name} — ${ult.damage} to ${who}!`);
       recalc(Game.party); this.renderAll();
       setTimeout(() => this.afterAction(m), 500);
     };
@@ -217,10 +229,11 @@ export const Battle = {
     });
   },
   targetClicked(e: Enemy): void {
-    if (!this.selecting || this.selecting.kind !== "enemy") return;
-    const m = this.selecting.m, act = this.selecting.act; this.selecting = null;
+    if (!this.selecting || (this.selecting.kind !== "enemy" && this.selecting.kind !== "ult")) return;
+    const sel = this.selecting; this.selecting = null;
     this.renderEnemies(false);
-    this.resolve(m, [e], act);
+    if (sel.kind === "ult") { this.fireUltimate(sel.m, sel.ult!, [e]); return; } // single-target ultimate
+    this.resolve(sel.m, [e], sel.act);
   },
 
   /* ---- resolution ---- */
@@ -365,7 +378,7 @@ export const Battle = {
       ov.style.width = r.width + "px"; ov.style.height = r.height + "px";
       $("#stage")!.appendChild(ov);
       requestAnimationFrame(() => ov.classList.add("show"));
-      setTimeout(() => { e.art = e.enrage!.omega; this.renderEnemies(!!this.selecting && this.selecting.kind === "enemy"); ov.remove(); }, 1100);
+      setTimeout(() => { e.art = e.enrage!.omega; this.renderEnemies(!!this.selecting && this.selecting.kind !== "ally"); ov.remove(); }, 1100);
     } else {
       e.art = e.enrage!.omega;
     }
