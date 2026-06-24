@@ -3,8 +3,10 @@
 // set of transparent frame PNGs under app/assets/fx/<dir>/NN.png (sliced by tools/slice-anim.py).
 //
 // Layers are composited over the live battle stage at runtime; backgrounds and the enemy sprite are
-// NEVER baked into a layer — they're the stage the layers play on top of. The character layer is the
-// MASTER CLOCK: effect/impact layers and the damage tick are scheduled off its frame indices.
+// NEVER baked into a layer — they're the stage the layers play on top of. The character animates IN
+// PLACE (a ranged attack — nobody slides across the screen); the effect/impact layers and the damage
+// tick are scheduled by time (startMs / damageMs), with character-frame fallbacks (startFrame /
+// damageFrame).
 //
 // This is pure data (no DOM). Add a skill's animation here and reference it from the Skill via
 // `anim` (data/skills.ts). To add a new animation: slice frames into app/assets/fx/<dir>/, then
@@ -16,62 +18,68 @@ export interface AnimLayer {
   dir: string;
   /** Frame count (zero-padded files 01..NN). */
   frames: number;
-  /** Milliseconds each frame is shown (frames cross-fade like the crit burst). */
+  /** Milliseconds each frame is shown. */
   frameMs: number;
-  /** Where the layer anchors: the actor sprite, the target sprite, or the midpoint between them. */
-  at: "actor" | "target" | "between";
-  /** Pixel offset from the anchor (+x right, +y down). X is mirrored when `flip` is set, so a
-   *  muzzle offset stays at the gun whichever way the figure faces. */
+  /** Where the layer anchors:
+   *   "actor"          — on the caster (the character animation)
+   *   "target"         — on the struck foe (the impact); sized relative to the TARGET sprite
+   *   "between"        — midpoint of actor↔target
+   *   "muzzleToTarget" — a BEAM spanning from the actor's muzzle (centre + offset) to the target. */
+  at: "actor" | "target" | "between" | "muzzleToTarget";
+  /** Offset from the anchor as a FRACTION of the actor sprite (x → its width, y → its height), so
+   *  placement scales with the rendered size. For a muzzle, e.g. offsetX:-0.3 (left) offsetY:-0.06. */
   offsetX?: number;
   offsetY?: number;
-  /** Size: frame HEIGHT = scale × the actor sprite height, unless sizeBy is "width" (then WIDTH =
-   *  scale × the actor→target distance, so a beam stretches to connect). Aspect is preserved. */
+  /** Size: frame HEIGHT = scale × the reference sprite height (actor, or the TARGET for "target"
+   *  layers); width follows the frame's aspect. For a "muzzleToTarget" beam, WIDTH = scale × the
+   *  muzzle→target distance and height = `thickness` × the actor height. */
   scale?: number;
-  sizeBy?: "height" | "width";
-  /** Mirror horizontally (the source sheets fire/charge rightward; flip to face the enemy at left). */
+  /** Beam thickness as a fraction of the actor height (only for "muzzleToTarget"). */
+  thickness?: number;
+  /** Mirror horizontally (the beam sheet points rightward; flip it to fire toward a left-side foe). */
   flip?: boolean;
-  /** Screen-blend for glowing energy (beam/impact); omit for solid figures. */
+  /** Screen-blend for glowing energy (beam/impact); omit for a solid figure. */
   blend?: "screen" | "normal";
-  /** Fraction (0..1) of the actor→target distance the layer drifts across its frames — gives the
-   *  firing figure its advance toward the enemy. Only meaningful for `at: "actor"`. */
-  travel?: number;
-  /** Which CHARACTER frame (1-based) launches this layer. Omit on the character layer itself. */
+  /** Start time, in ms from the animation start (preferred). */
+  startMs?: number;
+  /** Fallback start: which CHARACTER frame (1-based) launches this layer, if startMs is absent. */
   startFrame?: number;
 }
 
 export interface SkillAnim {
-  /** The figure performing the skill — the master clock the rest is scheduled against. */
+  /** The figure performing the skill — animates in place. */
   character: AnimLayer;
-  /** Projectile / beam / cast effect (e.g. the photon beam at the muzzle). */
+  /** Projectile / beam / cast effect (e.g. the photon beam from the muzzle). */
   effect?: AnimLayer;
   /** Hit effect on the target (e.g. the Sol Aloha explosion). */
   impact?: AnimLayer;
-  /** Character frame (1-based) on which damage is applied to the target. */
-  damageFrame: number;
-  /** Float the damage number after the impact finishes (vs. at the damage frame). */
+  /** When damage is applied, in ms from the animation start (preferred over damageFrame). */
+  damageMs?: number;
+  /** Fallback: character frame (1-based) on which damage is applied, if damageMs is absent. */
+  damageFrame?: number;
+  /** Float the damage number after the impact finishes (vs. at the damage moment). */
   damageAfterImpact?: boolean;
   /** Hide the actor's static battle sprite while the character frames play (they replace it). */
   hideActor?: boolean;
 }
 
 export const SKILL_ANIM: Record<string, SkillAnim> = {
-  // Photon Beam — the Photon Vanguard test sequence. Hero fires from the right, advancing left;
-  // the beam springs from the muzzle on the Aim frame; the Sol Aloha explosion blooms on the enemy
-  // as the shot lands; damage applies on the Fire frame, the number floats up after the blast.
+  // Photon Beam — the Photon Vanguard test sequence. The Vanguard animates IN PLACE through his five
+  // poses (idle → load → aim → fire → final); on the FIRE/FINAL beat a photon beam springs from his
+  // muzzle and spans to the enemy, the Sol-Aloha explosion blooms on the foe as it lands, damage is
+  // applied on impact, and the number floats up after the blast.
   photonBeam: {
     hideActor: true,
-    damageFrame: 4,
+    damageMs: 600,
     damageAfterImpact: true,
-    character: {
-      dir: "photon-vanguard", frames: 5, frameMs: 130, at: "actor", scale: 1.35, travel: 0.42, flip: false,
-    },
+    character: { dir: "photon-vanguard", frames: 5, frameMs: 130, at: "actor", scale: 1.12 },
     effect: {
-      dir: "photon-beam", frames: 4, frameMs: 95, at: "between", startFrame: 3,
-      sizeBy: "width", scale: 0.92, offsetY: -6, flip: true, blend: "screen",
+      dir: "photon-beam", frames: 3, frameMs: 100, at: "muzzleToTarget", startMs: 520,
+      offsetX: -0.30, offsetY: -0.06, thickness: 0.22, scale: 1.0, flip: true, blend: "screen",
     },
     impact: {
-      dir: "sol-aloha", frames: 5, frameMs: 110, at: "target", startFrame: 5,
-      scale: 1.5, blend: "screen",
+      dir: "sol-aloha", frames: 5, frameMs: 95, at: "target", startMs: 580,
+      scale: 1.25, blend: "screen",
     },
   },
 };

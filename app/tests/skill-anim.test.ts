@@ -19,14 +19,12 @@ function stageWith() {
 }
 
 describe("Photon Beam definition", () => {
-  it("is a well-formed layered animation (character master clock + effect + impact)", () => {
+  it("is a well-formed layered animation (in-place character + muzzle beam + impact on target)", () => {
     const a = SKILL_ANIM.photonBeam;
     expect(a.character.frames).toBeGreaterThan(0);
-    expect(a.effect?.startFrame).toBeGreaterThan(0);
-    expect(a.impact?.startFrame).toBeGreaterThan(0);
-    // damage frame must fall within the character animation
-    expect(a.damageFrame).toBeGreaterThan(0);
-    expect(a.damageFrame).toBeLessThanOrEqual(a.character.frames);
+    expect(a.effect?.at).toBe("muzzleToTarget"); // beam spans the muzzle to the foe
+    expect(a.impact?.at).toBe("target");          // explosion on the struck enemy
+    expect(typeof a.damageMs).toBe("number");      // damage scheduled to land with the hit
   });
 });
 
@@ -48,8 +46,8 @@ describe("skillAnimator compositor", () => {
     expect(actor.style.visibility).toBe("hidden");
 
     // frames preload first; in jsdom <img> never fires load, so the timeline starts via the 350ms
-    // safety cap. Advance past that + the damage frame.
-    vi.advanceTimersByTime(900);
+    // safety cap. Advance past that + the damage time (damageMs 600).
+    vi.advanceTimersByTime(1100);
     expect(stage.querySelectorAll("img.anim-sprite").length).toBeGreaterThan(0);
     expect(calls).toContain("damage");
 
