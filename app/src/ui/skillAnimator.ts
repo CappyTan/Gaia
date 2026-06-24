@@ -228,11 +228,15 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
 // A standalone burst played ON the struck unit whenever a hit lands, tinted by the ATTACKER's
 // Attunement (fx/impact-<att>/01..04.png). Independent of playSkillAnim so it fires for EVERY landed
 // hit — basic attacks, abilities, multi-hits, AoE, crits — unless the skill's own animation supplies a
-// bespoke impact (which overrides it). Four frames at 12 FPS, no loop, centred on the target's centre
-// mass, sized to the target sprite, then destroyed. No-op (graceful) if that Attunement's art is absent.
+// bespoke impact (which overrides it). No-op (graceful) if that Attunement's art is absent.
+//
+// Playback (Dara): the four frames are STACKED directly over the sprite and CROSS-FADED — frame 1
+// dissolves into 2 into 3 into 4 in one continuous, smooth blend (no hard frame-swap / slideshow) —
+// then the last frame fades out. The whole burst is held a touch translucent (PEAK < 1).
 const IMPACT_FRAMES = 4;
-const IMPACT_FRAME_MS = 83;     // ~12 FPS
-const IMPACT_SCALE = 1.4;       // burst height vs. the target sprite (reads a touch larger than the foe)
+const IMPACT_STEP_MS = 120;     // time between frame peaks; the cross-fade itself spans a full step
+const IMPACT_PEAK = 0.8;        // slight transparency — the burst never goes fully opaque
+const IMPACT_SCALE = 1.35;      // burst height vs. the target sprite (sits over it, a touch larger)
 
 /** Spawn the attunement impact burst over `targetEl`. att is a Unit Attunement (e.g. "SOL"). */
 export function playImpact(stage: HTMLElement, targetEl: Element, att: string): void {
@@ -254,12 +258,16 @@ export function playImpact(stage: HTMLElement, targetEl: Element, att: string): 
     if (url) img.src = url;
     img.style.left = cx + "px"; img.style.top = cy + "px";
     img.style.opacity = "0";
+    // each fade spans a whole step, so a rising frame and the falling one before it overlap → a smooth,
+    // continuous dissolve through all four frames (not a one-at-a-time toggle).
+    img.style.transition = `opacity ${IMPACT_STEP_MS}ms ease-in-out`;
     stage.appendChild(img); imgs.push(img);
   }
   const at = (ms: number, fn: () => void) => window.setTimeout(fn, Math.max(0, ms));
+  // Cross-fade: at each step bring frame i up to PEAK while the previous one falls to 0.
   for (let i = 0; i < IMPACT_FRAMES; i++)
-    at(i * IMPACT_FRAME_MS, () => imgs.forEach((im, j) => { im.style.opacity = j === i ? "1" : "0"; }));
-  const end = IMPACT_FRAMES * IMPACT_FRAME_MS;
-  at(end, () => { const last = imgs[IMPACT_FRAMES - 1]; last.style.transition = "opacity 110ms ease"; last.style.opacity = "0"; });
-  at(end + 160, () => imgs.forEach((im) => im.remove()));     // no loop — destroy after the last frame
+    at(20 + i * IMPACT_STEP_MS, () => { imgs[i].style.opacity = String(IMPACT_PEAK); if (i > 0) imgs[i - 1].style.opacity = "0"; });
+  const end = 20 + IMPACT_FRAMES * IMPACT_STEP_MS;
+  at(end, () => { imgs[IMPACT_FRAMES - 1].style.opacity = "0"; });   // fade the last frame out (no loop)
+  at(end + IMPACT_STEP_MS + 40, () => imgs.forEach((im) => im.remove()));
 }
