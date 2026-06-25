@@ -340,7 +340,16 @@ export function playCast(field: HTMLElement, casterEl: Element, att: string, onD
   const wrap = document.createElement("div"); wrap.className = "cast-circle";
   wrap.style.left = cx + "px"; wrap.style.top = cy + "px"; wrap.style.width = Math.round(w) + "px";
   wrap.style.opacity = "0"; wrap.style.transition = `opacity ${CAST_FADE_MS}ms ease`;
-  const img = document.createElement("img"); img.className = "cast-circle-img"; img.decoding = "sync"; img.src = url;
+  const img = document.createElement("img"); img.className = "cast-circle-img"; img.decoding = "sync";
+  // Per-asset squash so the spin stays in the ground plane: un-squash the ellipse to a circle, rotate,
+  // re-squash (see .cast-circle-img keyframes). k = width/height = how much to stretch height back up.
+  img.onload = () => {
+    if (!img.naturalHeight) return;
+    const k = img.naturalWidth / img.naturalHeight;
+    img.style.setProperty("--unsq", String(k));
+    img.style.setProperty("--sq", String(1 / k));
+  };
+  img.src = url;
   wrap.appendChild(img);
   field.insertBefore(wrap, field.children[1] || null); // after #battleBg, before the combatant zones
   requestAnimationFrame(() => { wrap.style.opacity = "1"; });

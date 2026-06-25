@@ -334,9 +334,15 @@
      an ability cast. Inserted BEHIND the combatant zones so the hero stands on it. Screen-blended; the
      img slowly spins + pulses while the wrap fades in/out. */
   .cast-circle{position:absolute; pointer-events:none; transform:translate(-50%,-50%);}
+  /* The circle must spin IN THE GROUND PLANE (a flat disc rotating under the feet), not tumble as a 2D
+     ellipse. The art is a pre-squashed perspective ellipse, so we rotate its CONTENT inside a fixed
+     ground-ellipse: un-squash to a circle (scaleY --unsq), rotate, re-squash (scaleY --sq). --sq/--unsq
+     are set per-asset from its aspect (playCast) so the ellipse OUTLINE stays put while the runes turn. */
   .cast-circle-img{display:block; width:100%; height:auto; transform-origin:center; mix-blend-mode:screen;
     animation:castspin 6s linear infinite, castpulse 1.3s ease-in-out infinite; will-change:transform,opacity,filter;}
-  @keyframes castspin{to{transform:rotate(360deg);}}
+  @keyframes castspin{
+    from{transform:scaleY(var(--sq,.5)) rotate(0deg) scaleY(var(--unsq,2));}
+    to{transform:scaleY(var(--sq,.5)) rotate(360deg) scaleY(var(--unsq,2));}}
   @keyframes castpulse{0%,100%{opacity:.72; filter:brightness(.95);}50%{opacity:1; filter:brightness(1.35);}}
   /* fullscreen cutscene (ui/cutscene): a black wash fades the app out, the video plays at full
      resolution (letterboxed via object-fit:contain), then both fade back out. Above everything. */
