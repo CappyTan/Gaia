@@ -21,6 +21,9 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   const mult = affinity(atkAtt, target.att);
   // "Power dmg" affix amplifies the wielder's own attunement attacks (any attunement).
   if (actor.solPct) raw *= 1 + actor.solPct / 100;
+  // V3 ability scaling: GEAR primaries amplify all ability output by the Attunement's tier (systems/stats).
+  // Zero with no gear, so a fresh hero is unchanged — gear primaries are the new damage axis.
+  if (actor.abp) raw *= 1 + actor.abp;
   // MNA scales output: SOL/NOX attunements amplify damage (up to +60% at 200 MNA).
   if ((atkAtt === "SOL" || atkAtt === "NOX") && actor.mna) raw *= 1 + mnaBonus(actor.mna[atkAtt]);
   raw *= mult;

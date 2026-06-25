@@ -1,7 +1,8 @@
-import type { Affix, Attunement, Implicit, Item, Slot } from "../types";
+import type { Affix, Attunement, Implicit, Item, PrimaryStat, Prims, Slot } from "../types";
 import type { Enemy } from "../types";
 import { ATTUNEMENTS, isArmorSlot } from "../types";
 import { ri, pick, clamp } from "../core/rng";
+import { GOVERNING_STAT } from "../data/statScaling";
 import { RARITY } from "../data/rarity";
 import { LOOT_BANDS, SPIKE_STEP, DROP_MODS, DROP_SLOTS, type RarityMod } from "../data/loot";
 import { ITEM_NAMES, ARMOR_SLOT_NOUNS, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
@@ -25,6 +26,17 @@ function rollWeaponClass(pref?: string): string {
 // is steep on purpose (Dara's "always exciting" rule): a high-ilvl low-rarity piece can out-stat
 // a low-ilvl high-rarity one — rarity sets the affix count + base rung, ilvl sets the magnitude.
 const ilvlMult = (ilvl: number): number => 1 + Math.max(0, ilvl) * 0.07;
+
+// V3 primary-attribute grant on a drop (Stat System V3). Every piece carries one primary by SLOT
+// IDENTITY: weapons grant their Attunement's governing stat; each armor slot leans a distinct stat
+// (helmet→MGC, chest→DEF, gloves→STR, boots→SPD); trinkets→AGI. Magnitude grows with rarity + ilvl.
+// These feed the wearer's ability scaling (systems/stats abp) and the character-sheet primaries.
+const primVal = (r: number, ilvl: number): number => Math.round(1.5 + r * 1.2 + Math.max(0, ilvl) * 0.15);
+const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "MGC", armor: "DEF", gloves: "STR", boots: "SPD" };
+function rollPrim(slot: Slot, att: Attunement, r: number, ilvl: number): Partial<Prims> {
+  const stat: PrimaryStat = slot === "weapon" ? GOVERNING_STAT[att] : slot === "trinket" ? "AGI" : ARMOR_SLOT_PRIM[slot] ?? "STR";
+  return { [stat]: primVal(r, ilvl) };
+}
 
 // Per-slot base stat budgets for the armor family (chest carries the most; gloves lean offence,
 // boots lean speed, helmet leans focus). `r` = rarity index, `k` = ilvl magnitude multiplier.
@@ -72,8 +84,10 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     if (!a) break;
     affixes.push({ key: a.key, stat: a.stat, value: a.roll(r), label: a.label });
   }
+  // every piece carries a V3 primary attribute by slot identity (weapon → governing stat, etc.)
+  const prim = rollPrim(slot, att, r, ilvl);
   // weapons + armor carry an attunement (weapon sets class/MNA; armor is art/name flavor); trinkets don't
-  return { slot, cls: weaponClass || cls || "", att: slot === "trinket" ? undefined : att, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, affixes };
+  return { slot, cls: weaponClass || cls || "", att: slot === "trinket" ? undefined : att, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, prim, affixes };
 }
 
 // crude power score for comparing/sorting items
@@ -88,6 +102,7 @@ export function itemScore(it: Item): number {
     s += a.value * (a.stat === "atkPct" ? 2 : a.stat === "critPct" ? 2 : a.stat.endsWith("Pct") ? 2 : 1.2);
   }
   if (it.mna) for (const v of Object.values(it.mna)) s += (v || 0) * 0.8; // MNA unlocks/scales — valued
+  if (it.prim) for (const v of Object.values(it.prim)) s += (v || 0) * 1.5; // V3 primaries — drive ability scaling
   return Math.round(s + it.rIx * 4);
 }
 

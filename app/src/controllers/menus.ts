@@ -12,6 +12,7 @@ import { PRIMARY_STATS, STAT_TIERS } from "../data/statScaling";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
 import { itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
+import { substats } from "../systems/stats";
 import { HELD_ITEMS, type HeldKind, type HeldItemDef } from "../data/heldItems";
 import { itemHtml, classBody } from "../ui/render";
 import { Overlay } from "../ui/overlay";
@@ -52,11 +53,10 @@ export const UI = {
           <div class="pm-line">Lv ${m.level} · <span style="color:${col}">${className(m.att, arch)}</span></div>
           <div class="pm-line"><span style="color:${col}">${m.att}</span> · MNA ${m.mna[m.att]}${m.mna[m.att] >= 100 ? " ⭐" : ""}</div>
           <div class="pm-line">HP <b>${Math.max(0, m.hp)}</b> / ${m.maxhp}</div>
-          <div class="pm-line">MP <b>${m.mp}</b> / ${m.maxmp}</div>
         </div></div>`;
     }).join("");
     const opts: [string, string][] = [
-      ["Items", "UI.partyItems()"], ["Abilities", "UI.partyAbilities()"], ["Equipment", "UI.partyEquipment()"],
+      ["Items", "UI.partyItems()"], ["Abilities", "UI.partyAbilities()"], ["Status &amp; Equipment", "UI.partyEquipment()"],
       ["Mana", "UI.partyMana()"], ["Formation", "UI.partyFormation()"],
     ];
     const menu = opts.map(([label, fn]) => `<button class="btn pm-opt" onclick="${fn}">${label}</button>`).join("");
@@ -135,39 +135,122 @@ export const UI = {
     this.partyAbilities();
   },
 
-  // ── EQUIPMENT: per-hero gear (full stats + affixes) with a side panel of that hero's TOTAL stats ─
+  // ── STATUS & EQUIPMENT ─────────────────────────────────────────────────────────────────────────
+  // Per-hero gear with a LIVE totals panel: Offense/Defense/Overall, a Primary-stat grid (col1
+  // HP/ATK/ARM · col2 STR/AGI/MGC/SPD/DEF) and a Secondary-stat sheet you toggle to. Choosing a slot
+  // swaps the left column to that slot's bag items IN PLACE; selecting one PREVIEWS its impact on the
+  // right BEFORE you equip. Swapping a weapon (which reclasses the hero) asks first.
+  _eq: null as null | { mid: string; slot: Slot | null; pick: number; view: "primary" | "secondary"; confirm: boolean },
   partyEquipment(memberId?: string): void {
     const m = (memberId && Game.party.find((x) => x.id === memberId)) || Game.party[0];
     if (!m) return;
+    this._eq = { mid: m.id, slot: null, pick: -1, view: this._eq?.view ?? "primary", confirm: false };
+    this.renderEquip();
+  },
+  eqMember(): Member | undefined { return this._eq ? Game.party.find((x) => x.id === this._eq!.mid) : undefined; },
+  eqOpenSlot(slot: Slot): void { if (this._eq) { this._eq.slot = slot; this._eq.pick = -1; this._eq.confirm = false; this.renderEquip(); } },
+  eqCloseSlot(): void { if (this._eq) { this._eq.slot = null; this._eq.pick = -1; this._eq.confirm = false; this.renderEquip(); } },
+  eqPick(invIdx: number): void { if (this._eq) { this._eq.pick = invIdx; this._eq.confirm = false; this.renderEquip(); } },
+  eqToggleView(): void { if (this._eq) { this._eq.view = this._eq.view === "primary" ? "secondary" : "primary"; this.renderEquip(); } },
+  eqConfirm(): void {
+    const st = this._eq, m = this.eqMember();
+    if (!st || !m || st.slot == null || st.pick < 0) return;
+    const it = Game.inventory[st.pick];
+    if (!it) { this.renderEquip(); return; }
+    // a weapon that reclasses the hero (different Attunement/Archetype) asks first
+    if (st.slot === "weapon" && (it.att !== m.att || it.cls !== m.cls) && !st.confirm) { st.confirm = true; this.renderEquip(); return; }
+    const slot = st.slot, old = m.equip[slot];
+    m.equip[slot] = it;
+    Game.inventory.splice(st.pick, 1);
+    if (old) Game.inventory.push(old);
+    recalc(Game.party);
+    Game.saveNow(); // autosave on equip change (ADR 0007)
+    st.pick = -1; st.confirm = false;
+    this.renderEquip();
+  },
+  renderEquip(): void {
+    const st = this._eq, m = this.eqMember();
+    if (!st || !m) return;
     const tabs = Game.party.map((p) => `<button class="btn${p.id === m.id ? " gold" : ""}" style="padding:6px 10px;font-size:12px" onclick="UI.partyEquipment('${p.id}')">${p.spr} ${p.name.split(" ")[0]}</button>`).join("");
-    const gear = EQUIP_SLOTS.map((slot) => {
-      const it = m.equip[slot];
-      const btn = `<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="btn" style="padding:6px 12px;font-size:12px" onclick="UI.equipPicker('${m.id}','${slot}')">${it ? "Swap" : "Equip"} ${slot} ▸</button></div>`;
-      return it ? itemHtml(it, btn) : `<div class="item" style="opacity:.7"><span class="tag">${slot}</span> — empty —${btn}</div>`;
-    }).join("");
-    const gs = gearScore(m);
-    const totals = `<div class="card pm-eq-tot" style="text-align:left">
-      <b class="title-gold">${m.name} — Totals</b>
-      <div class="gscore">
-        <span><span class="gs-k">Offense</span><b>${gs.offense}</b></span>
-        <span><span class="gs-k">Defense</span><b>${gs.defense}</b></span>
-        <span><span class="gs-k">Overall</span><b class="title-gold">${gs.overall}</b></span>
-      </div>
-      <div class="small" style="opacity:.55;margin-top:2px">Higher is better · Overall = Offense + Defense</div>
-      <div class="small" style="margin-top:6px;line-height:1.7">HP <b>${m.maxhp}</b><br>MP <b>${m.maxmp}</b><br>ATK <b>${m.atk}</b><br>MAG <b>${m.mag}</b><br>SPD <b>${m.spd}</b><br>ARM <b>${m.armor}</b><br>Crit <b>${m.critPct}%</b>${m.leech ? `<br>Leech <b>${m.leech}%</b>` : ""}</div>
-      <div class="psec">+MNA</div>
-      <div class="small">${ATTUNEMENTS.filter((a) => m.mna[a] > 0).map((a) => `<span style="color:${ATT[a].color}">${a} ${m.mna[a]}</span>`).join(" · ") || "—"}</div>
-      <div class="psec">Mana Scaling · <span style="color:${ATT[m.att].color}">${m.att}</span></div>
-      <div class="small" style="opacity:.55;margin-bottom:3px">How well this hero's abilities scale from each stat (S best → D minimal).</div>
-      <div class="statier">${PRIMARY_STATS.map((s) => { const t = STAT_TIERS[m.att][s]; return `<span class="st-row"><span class="st-name">${s}</span><span class="st-tier st-${t}">${t}</span></span>`; }).join("")}</div>
-    </div>`;
-    Overlay.show(`<h2 class="title-gold">Equipment</h2>
+    const left = st.slot == null ? this.eqGearList(m) : this.eqSlotList(m, st.slot, st.pick);
+    const preview = st.pick >= 0 && Game.inventory[st.pick] ? this._equipPreview(m, Game.inventory[st.pick]) : null;
+    Overlay.show(`<h2 class="title-gold">Status &amp; Equipment</h2>
       <div class="row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start">${tabs}</div>
       <div class="pm-eq">
-        <div class="pm-eq-gear scroll">${gear}</div>
-        ${totals}
+        <div class="pm-eq-gear scroll">${left}</div>
+        ${this.eqTotalsHtml(m, preview)}
       </div>
       <div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`, true);
+  },
+  // LEFT — the gear paper-doll (each slot opens its bag list in place).
+  eqGearList(m: Member): string {
+    return EQUIP_SLOTS.map((slot) => {
+      const it = m.equip[slot];
+      const btn = `<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="btn" style="padding:6px 12px;font-size:12px" onclick="UI.eqOpenSlot('${slot}')">${it ? "Swap" : "Equip"} ${slot} ▸</button></div>`;
+      return it ? itemHtml(it, btn) : `<div class="item" style="opacity:.7"><span class="tag">${slot}</span> — empty —${btn}</div>`;
+    }).join("");
+  },
+  // LEFT (slot mode) — the bag items for one slot; tap to preview (deltas show on the right).
+  eqSlotList(m: Member, slot: Slot, pick: number): string {
+    const usable = Game.inventory.filter((it) => it.slot === slot && (slot !== "weapon" || it.cls === m.cls));
+    let h = `<div class="row" style="justify-content:space-between;align-items:center"><b class="title-gold">Choose ${cap(slot)}</b><button class="btn" style="padding:4px 10px;font-size:12px" onclick="UI.eqCloseSlot()">◂ Gear</button></div>`;
+    h += `<div class="small" style="margin:2px 0 6px;opacity:.8">Equipped: ${m.equip[slot] ? `<span class="r-${m.equip[slot]!.rarity}">${m.equip[slot]!.name}</span>` : "none"} — tap an item to preview, then Equip.</div>`;
+    if (!usable.length) return h + `<p class="small">No ${slot === "weapon" ? m.cls + " " : ""}${slot}s in your bag.</p>`;
+    usable.sort((a, b) => itemScore(b) - itemScore(a)).forEach((it) => {
+      const idx = Game.inventory.indexOf(it);
+      const sel = idx === pick;
+      const btn = `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${sel ? " gold" : ""}" onclick="UI.eqPick(${idx})">${sel ? "✓ Selected" : "Preview"}</button></div>`;
+      h += `<div style="${sel ? "outline:2px solid var(--gold);border-radius:8px" : ""}">${itemHtml(it, btn)}</div>`;
+    });
+    return h;
+  },
+  // RIGHT — the live totals panel; `preview` (if set) shows the would-be stats with green/red deltas.
+  eqTotalsHtml(m: Member, preview: Member | null): string {
+    const st = this._eq!;
+    const num = (a: number, b: number | null | undefined, unit = ""): string =>
+      b == null || a === b ? `${a}${unit}` : `${a}${unit} <span style="color:${b > a ? "#aef0a0" : "#e8888c"}">→ ${b}${unit}${b > a ? "↑" : "↓"}</span>`;
+    const gs = gearScore(m), pg = preview ? gearScore(preview) : null;
+    const gline = (k: string, a: number, b?: number) => `<span><span class="gs-k">${k}</span><b>${num(a, b)}</b></span>`;
+    const score = `<div class="gscore">${gline("Offense", gs.offense, pg?.offense)}${gline("Defense", gs.defense, pg?.defense)}${gline("Overall", gs.overall, pg?.overall)}</div>`;
+    const row = (label: string, a: number, b: number | null | undefined, unit = "") => `<span class="st-row"><span class="st-name">${label}</span><span class="st-val">${num(a, b, unit)}</span></span>`;
+    const toggle = `<div class="row" style="justify-content:flex-start;margin:8px 0 2px"><button class="btn" style="padding:4px 10px;font-size:12px" onclick="UI.eqToggleView()">${st.view === "primary" ? "Secondary Stats ▸" : "◂ Primary Stats"}</button></div>`;
+    let body: string;
+    if (st.view === "primary") {
+      const p = m.prim!, pp = preview?.prim;
+      const col1 = [row("HP", m.maxhp, preview?.maxhp), row("ATK", m.atk, preview?.atk), row("ARM", m.armor, preview?.armor)].join("");
+      const col2 = PRIMARY_STATS.map((s) => row(s, p[s], pp?.[s])).join("");
+      body = `<div class="eq-cols"><div class="statlist">${col1}</div><div class="statlist">${col2}</div></div>`;
+    } else {
+      const cur = substats(m.prim!, { crit: m.critPct, leech: m.leech });
+      const nxt = preview ? substats(preview.prim!, { crit: preview.critPct, leech: preview.leech }) : null;
+      body = `<div class="statlist">${cur.map((s, i) => row(s.label, s.value, nxt ? nxt[i].value : undefined, s.unit)).join("")}</div>`;
+    }
+    let action = "";
+    if (st.slot != null && st.pick >= 0 && preview && Game.inventory[st.pick]) {
+      const it = Game.inventory[st.pick];
+      const reclass = st.slot === "weapon" && (preview.att !== m.att || preview.cls !== m.cls);
+      if (st.confirm && reclass) {
+        action = `<div class="card" style="border-color:var(--legendary);margin-top:8px;text-align:left">
+          <b class="r-legendary">Change class?</b>
+          <div class="small" style="margin:4px 0">Equipping <b>${it.name}</b> reclasses ${m.name} to <b>${className(preview.att, preview.cls)}</b> — a different Attunement and ability kit.</div>
+          <div class="row" style="justify-content:flex-start"><button class="btn gold" onclick="UI.eqConfirm()">Yes, change class</button><button class="btn" onclick="UI.eqPick(${st.pick})">Cancel</button></div></div>`;
+      } else {
+        const note = reclass ? ` <span class="r-legendary" style="font-size:11px">→ ${className(preview.att, preview.cls)}</span>` : "";
+        action = `<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn gold" onclick="UI.eqConfirm()">Equip${note}</button></div>`;
+      }
+    }
+    const mnaLine = ATTUNEMENTS.filter((a) => m.mna[a] > 0).map((a) => `<span style="color:${ATT[a].color}">${a} ${m.mna[a]}</span>`).join(" · ") || "—";
+    const scaling = `<div class="psec">Mana Scaling · <span style="color:${ATT[m.att].color}">${m.att}</span></div>
+      <div class="small" style="opacity:.55;margin-bottom:3px">How well ${m.name}'s abilities scale from each stat (S best → D minimal).</div>
+      <div class="statier">${PRIMARY_STATS.map((s) => { const t = STAT_TIERS[m.att][s]; return `<span class="st-row"><span class="st-name">${s}</span><span class="st-tier st-${t}">${t}</span></span>`; }).join("")}</div>`;
+    return `<div class="card pm-eq-tot" style="text-align:left">
+      <b class="title-gold">${m.name}${preview ? " — preview" : ""}</b>
+      ${score}
+      <div class="small" style="opacity:.55;margin-top:2px">Higher is better · Overall = Offense + Defense</div>
+      ${toggle}${body}${action}
+      <div class="psec">+MNA</div><div class="small">${mnaLine}</div>
+      ${scaling}
+    </div>`;
   },
 
   // ── MANA: spend earned MNA points per hero (full-width thumb rows; ±1 and respec). ─────────────
@@ -221,48 +304,11 @@ export const UI = {
     m.row = row; recalc(Game.party); Game.saveNow();
     this.partyFormation();
   },
-  // Clicking an equipped item opens a window with its full stats (Dara). Swap from here too.
+  // Clicking an equipped item routes into the Status & Equipment screen with that slot open.
   showGear(memberId: string, slot: Slot): void {
-    const m = Game.party.find((x) => x.id === memberId);
-    const it = m?.equip[slot];
-    if (!m || !it) return;
-    Overlay.show(`<h2 class="title-gold">${cap(slot)} — ${m.name}</h2>${itemHtml(it)}
-      <div class="small" style="opacity:.7;margin-top:4px">Score ${itemScore(it)}</div>
-      <div class="row"><button class="btn gold" onclick="UI.equipPicker('${m.id}','${slot}')">Swap ▸</button>
-        <button class="btn" onclick="UI.openParty()">◂ Back</button></div>`);
-  },
-  equipPicker(memberId: string, slot: Slot): void {
-    const m = Game.party.find((x) => x.id === memberId);
-    if (!m) return;
-    const usable = Game.inventory.filter((it) => it.slot === slot && (slot !== "weapon" || it.cls === m.cls));
-    let h = `<h2 class="title-gold">${cap(slot)} — ${m.name}</h2>`;
-    h += `<div class="small">Equipped: ${m.equip[slot] ? `<span class="r-${m.equip[slot]!.rarity}">${m.equip[slot]!.name}</span> (score ${itemScore(m.equip[slot]!)})` : "none"}</div>`;
-    h += `<div class="scroll">`;
-    if (usable.length === 0) h += `<p class="small">No ${slot === "weapon" ? m.cls + " " : ""}${slot}s in your bag.</p>`;
-    usable.sort((a, b) => itemScore(b) - itemScore(a)).forEach((it) => {
-      const idx = Game.inventory.indexOf(it);
-      // a weapon of a different attunement reclasses the hero — say so up front
-      const reclass = slot === "weapon" && it.att && it.att !== m.att ? `<br><span class="r-legendary" style="font-size:11px">Reclass → ${className(it.att, it.cls)}</span>` : "";
-      // Show the OVERALL gear-score delta (the "is this an upgrade?" signal) instead of an opaque raw score,
-      // matching the bag→equip flow (equipChooser). Green up / red down.
-      const ov = gearScore(m).overall, nv = gearScore(this._equipPreview(m, it)).overall;
-      const od = nv === ov ? `Overall ${nv}` : `Overall <span style="color:${nv > ov ? "#aef0a0" : "#e8888c"}">${ov}→${nv}${nv > ov ? "↑" : "↓"}</span>`;
-      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="UI.doEquip('${memberId}','${slot}',${idx})">Equip · ${od}${reclass}</button></div>`);
-    });
-    h += `</div><div class="row"><button class="btn" onclick="UI.partyEquipment('${memberId}')">◂ Equipment</button></div>`;
-    Overlay.show(h);
-  },
-  doEquip(memberId: string, slot: Slot, invIdx: number): void {
-    const m = Game.party.find((x) => x.id === memberId);
-    const it = Game.inventory[invIdx];
-    if (!m || !it) return;
-    const old = m.equip[slot];
-    m.equip[slot] = it;
-    Game.inventory.splice(invIdx, 1);
-    if (old) Game.inventory.push(old);
-    recalc(Game.party);
-    Game.saveNow(); // autosave on equip change (ADR 0007)
-    this.equipPicker(memberId, slot);
+    if (!Game.party.find((x) => x.id === memberId)) return;
+    this.partyEquipment(memberId);
+    this.eqOpenSlot(slot);
   },
   // Re-render the Mana screen but KEEP the scroll position (so rapid +/- clicks don't jump to the
   // top — Dara). Overlay.show replaces the markup, so we snapshot/restore the scroller's scrollTop.
