@@ -6,7 +6,7 @@
 // frame element afterwards. Visual tuning (scale/offsets/timing) lives in data/skillAnimations.ts.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { playSkillAnim, playSlash } from "../src/ui/skillAnimator";
+import { playSkillAnim, playSlash, playCast } from "../src/ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM } from "../src/data/skillAnimations";
 
 function stageWith() {
@@ -122,5 +122,33 @@ describe("universal mana-slash VFX (playSlash)", () => {
     const { stage, target } = stageWith();
     playSlash(stage, target, "NOPE");
     expect(stage.querySelectorAll("div.slash-fx").length).toBe(0);
+  });
+});
+
+describe("mana casting circle (playCast)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("lays a circle under the caster, fires onDone at cast end, then removes it", () => {
+    document.body.innerHTML = `<div id="battleField"><div id="bg"></div><img id="c"></div>`;
+    const field = document.getElementById("battleField") as HTMLElement;
+    const caster = document.getElementById("c") as HTMLElement;
+    let done = false;
+    playCast(field, caster, "QUANTA", () => { done = true; });
+    expect(field.querySelector(".cast-circle")).toBeTruthy(); // circle is laid during the cast
+    expect(done).toBe(false);                                  // ability NOT applied until cast ends
+    vi.advanceTimersByTime(1500);
+    expect(done).toBe(true);                                   // applied at the ~1.5s cast end
+    vi.advanceTimersByTime(400);
+    expect(field.querySelector(".cast-circle")).toBeNull();    // faded out + removed
+  });
+
+  it("runs onDone immediately (no circle) when that Attunement has no art", () => {
+    document.body.innerHTML = `<div id="battleField"></div>`;
+    const field = document.getElementById("battleField") as HTMLElement;
+    let done = false;
+    playCast(field, field, "NOPE", () => { done = true; });
+    expect(done).toBe(true);
+    expect(field.querySelector(".cast-circle")).toBeNull();
   });
 });

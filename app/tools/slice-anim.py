@@ -28,6 +28,16 @@ BODIES = os.path.join(os.path.dirname(__file__), "..", "assets", "bodies")
 SLASH_ATTS = ["sol", "nox", "anima", "quanta", "umbraxis"]
 SLASH_MAX = 512           # cap the long edge (they render scaled to the target sprite; keeps it lean)
 
+# ── Mana CASTING-CIRCLE VFX (per Attunement) ─────────────────────────────────────────────────────
+# Dara's five casting circles (assets/reference/anim-cast-<att>.png) are 1536x1024 ground-perspective
+# magic circles on a near-WHITE CHECKERBOARD (painted, not real alpha). We knock the checker off by how
+# far each pixel deviates from the bright neutral background (DARK runic interiors and COLOURED glow are
+# kept; the ~248 checker → transparent), tight-crop, and downscale. The combat compositor
+# (ui/skillAnimator.playCast) lays one under the caster's feet during an ability cast, tinted by the
+# hero's Attunement, fading in then slowly rotating + pulsing. Output: app/assets/fx/cast-<att>.png.
+CAST_ATTS = ["sol", "nox", "anima", "quanta", "umbraxis"]
+CAST_MAX = 640            # cap the long edge (ground decals are wide; a bit larger than the slash)
+
 # Per-sheet frame boxes: (x0, x1) column span + (y0frac, y1frac) art window (excludes caption band).
 # Derived from the sheets' content profiles (see commit notes); explicit because the art doesn't
 # sit on a clean grid.
@@ -193,6 +203,24 @@ def slice_slash(att):
     print(f"slash-{att}.png  ({fr.width}x{fr.height})")
 
 
+def slice_cast(att):
+    """Knock the checker off one Attunement's casting circle, tight-crop, downscale → fx/cast-<att>.png."""
+    import numpy as np
+    rgb = np.asarray(Image.open(os.path.join(REF, f"anim-cast-{att}.png")).convert("RGB")).astype(float)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    minc = np.minimum(np.minimum(r, g), b)
+    sat = np.maximum(np.maximum(r, g), b) - minc
+    # opaque where the pixel is DARKER than the bright checker OR colourful; the ~248 neutral checker → 0
+    al = np.clip((np.clip(250 - minc - 10, 0, None) + np.clip(sat - 10, 0, None)) / 60.0, 0, 1)
+    out = np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), (al * 255).astype(np.uint8)])
+    fr = tight(Image.fromarray(out, "RGBA"), pad=4)
+    if max(fr.size) > CAST_MAX:
+        s = CAST_MAX / max(fr.size)
+        fr = fr.resize((max(1, round(fr.width * s)), max(1, round(fr.height * s))), Image.LANCZOS)
+    fr.save(os.path.join(OUT, f"cast-{att}.png"))
+    print(f"cast-{att}.png  ({fr.width}x{fr.height})")
+
+
 def uniform_beam(strip, width=320):
     """Turn a tapering beam streak into a UNIFORM bar the compositor can stretch into a clean beam:
     take the streak's brightest column (its glow cross-section) and tile it along the length. Keeps
@@ -212,6 +240,8 @@ def main():
     os.makedirs(BODIES, exist_ok=True)
     for att in SLASH_ATTS:                         # per-Attunement universal mana-slash impact VFX
         slice_slash(att)
+    for att in CAST_ATTS:                          # per-Attunement mana casting circles
+        slice_cast(att)
     for out, cfg in SINGLE_BODIES.items():       # single idle sprites → class bodies
         sp = Image.open(os.path.join(REF, cfg["src"])).convert("RGBA")
         if cfg.get("spread"):                     # gray-background source: knock it out

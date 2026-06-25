@@ -316,3 +316,38 @@ export function playSlash(stage: HTMLElement, targetEl: Element, att: string, op
   }
   window.setTimeout(release, dur + 120);             // safety: always return the unit to the pool
 }
+
+// ── Mana CASTING CIRCLE ──────────────────────────────────────────────────────────────────────────
+// A ground rune-circle laid UNDER a casting hero's feet for the duration of an ability cast, tinted to
+// the caster's Attunement (fx/cast-<att>.png). It fades in, slowly rotates + pulses for ~CAST_MS, fires
+// `onDone` (the caller applies the ability), then fades out. Centred under the feet, scaled to the
+// sprite, and inserted BEHIND the combatant zones so the hero stands on top of it. It does not move.
+// If the art is missing it just runs onDone immediately so the ability still resolves.
+const CAST_FADE_MS = 160;
+const CAST_HOLD_MS = 1500;     // ~1.5s cast, then apply + fade out
+const CAST_OUT_MS = 260;
+const CAST_W = 1.7;            // circle width vs. the caster sprite's larger dimension
+
+/** Play a casting circle under `casterEl` (positioned within `field`); calls `onDone` at cast end. */
+export function playCast(field: HTMLElement, casterEl: Element, att: string, onDone: () => void): void {
+  const url = assetUrl(`fx/cast-${att.toLowerCase()}.png`);
+  if (!url) { onDone(); return; }                    // no art → don't block the ability
+  const r = casterEl.getBoundingClientRect(), s = field.getBoundingClientRect();
+  const cx = r.left - s.left + (r.width || 1) / 2;
+  const cy = r.top - s.top + (r.height || 1);        // under the feet (sprite bottom)
+  const w = Math.max(r.width || 40, r.height || 40) * CAST_W;
+
+  const wrap = document.createElement("div"); wrap.className = "cast-circle";
+  wrap.style.left = cx + "px"; wrap.style.top = cy + "px"; wrap.style.width = Math.round(w) + "px";
+  wrap.style.opacity = "0"; wrap.style.transition = `opacity ${CAST_FADE_MS}ms ease`;
+  const img = document.createElement("img"); img.className = "cast-circle-img"; img.decoding = "sync"; img.src = url;
+  wrap.appendChild(img);
+  field.insertBefore(wrap, field.children[1] || null); // after #battleBg, before the combatant zones
+  requestAnimationFrame(() => { wrap.style.opacity = "1"; });
+
+  window.setTimeout(() => {
+    onDone();                                          // cast complete → apply the ability
+    wrap.style.opacity = "0";
+    window.setTimeout(() => wrap.remove(), CAST_OUT_MS + 40);
+  }, CAST_HOLD_MS);
+}

@@ -330,6 +330,14 @@
     transform-origin:center; mix-blend-mode:screen; will-change:transform,opacity;}
   .slash-part{position:absolute; left:50%; top:50%; border-radius:50%; pointer-events:none;
     transform:translate(-50%,-50%); mix-blend-mode:screen; will-change:transform,opacity;}
+  /* mana casting circle (ui/skillAnimator.playCast): a ground rune-circle under the caster's feet during
+     an ability cast. Inserted BEHIND the combatant zones so the hero stands on it. Screen-blended; the
+     img slowly spins + pulses while the wrap fades in/out. */
+  .cast-circle{position:absolute; pointer-events:none; transform:translate(-50%,-50%);}
+  .cast-circle-img{display:block; width:100%; height:auto; transform-origin:center; mix-blend-mode:screen;
+    animation:castspin 6s linear infinite, castpulse 1.3s ease-in-out infinite; will-change:transform,opacity,filter;}
+  @keyframes castspin{to{transform:rotate(360deg);}}
+  @keyframes castpulse{0%,100%{opacity:.72; filter:brightness(.95);}50%{opacity:1; filter:brightness(1.35);}}
   /* fullscreen cutscene (ui/cutscene): a black wash fades the app out, the video plays at full
      resolution (letterboxed via object-fit:contain), then both fade back out. Above everything. */
   .cutscene-scrim{position:fixed; inset:0; background:#000; z-index:10000; opacity:0;

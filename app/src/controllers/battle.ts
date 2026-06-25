@@ -13,7 +13,7 @@ import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml } from "../ui/render";
-import { playSkillAnim, playSlash } from "../ui/skillAnimator";
+import { playSkillAnim, playSlash, playCast } from "../ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM, type SkillAnim } from "../data/skillAnimations";
 import { ULTIMATES, type Ultimate } from "../data/ultimates";
 import { playCutscene } from "../ui/cutscene";
@@ -237,8 +237,26 @@ export const Battle = {
   },
 
   /* ---- resolution ---- */
+  // A hero ABILITY (skill) first plays a mana CASTING CIRCLE under the caster for ~1.5s (hero idles),
+  // then resolves. Basic attacks, enemy actions, and ultimates skip the circle (they resolve at once /
+  // have their own flow). Falls back to instant resolve if the stage/sprite aren't in the DOM.
   resolve(actor: Unit, targets: Unit[], act: CombatAct): void {
     this.selecting = null;
+    if (actor.side === "party" && act.skill) {
+      const field = $("#battleField"), cel = this.spriteEl(actor);
+      if (field && cel) {
+        this.awaiting = true; this.current = actor;
+        const list = $("#cmdList"); if (list) list.innerHTML = "";
+        $("#cmdWho")!.textContent = `${actor.name} casts ${act.skill.name}…`;
+        this.lockInput(99999); // hold input through the cast; cleared when the next menu opens
+        const att = act.skill.sol ? "SOL" : actor.att;
+        playCast(field, cel, att, () => this.resolveNow(actor, targets, act));
+        return;
+      }
+    }
+    this.resolveNow(actor, targets, act);
+  },
+  resolveNow(actor: Unit, targets: Unit[], act: CombatAct): void {
     const s = act.skill;
     if (s && s.mp) actor.mp = Math.max(0, (actor.mp ?? 0) - s.mp);
 
