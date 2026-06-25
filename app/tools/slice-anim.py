@@ -38,6 +38,18 @@ SLASH_MAX = 512           # cap the long edge (they render scaled to the target 
 CAST_ATTS = ["sol", "nox", "anima", "quanta", "umbraxis"]
 CAST_MAX = 640            # cap the long edge (ground decals are wide; a bit larger than the slash)
 
+# ── HEALING-CIRCLE VFX (per Attunement) ──────────────────────────────────────────────────────────
+# Dara's five healing effects (assets/reference/anim-heal-<att>.png) are tall COLUMNS on a near-white
+# checkerboard: a ground magic-circle at the base with themed energy/particles swirling upward. We knock
+# the checker off (same darkness+saturation deviation as the casting circles) and split each into two
+# layers — heal-disc-<att> (the base ground circle, which the compositor rotates flat) and
+# heal-col-<att> (the rising swirl/particles, which pulses). The combat compositor
+# (ui/skillAnimator.playHeal) lays them UNDER the healed target, tinted by the CASTER's Attunement.
+HEAL_ATTS = ["sol", "nox", "anima", "quanta", "umbraxis"]
+HEAL_MAX = 560
+HEAL_DISC_BAND = 0.66     # bottom fraction that holds the ground circle
+HEAL_COL_BAND = 0.82      # top fraction that holds the rising column (overlaps the disc a touch)
+
 # Per-sheet frame boxes: (x0, x1) column span + (y0frac, y1frac) art window (excludes caption band).
 # Derived from the sheets' content profiles (see commit notes); explicit because the art doesn't
 # sit on a clean grid.
@@ -221,6 +233,31 @@ def slice_cast(att):
     print(f"cast-{att}.png  ({fr.width}x{fr.height})")
 
 
+def _downscale(fr, cap):
+    if max(fr.size) > cap:
+        s = cap / max(fr.size)
+        fr = fr.resize((max(1, round(fr.width * s)), max(1, round(fr.height * s))), Image.LANCZOS)
+    return fr
+
+
+def slice_heal(att):
+    """Knock the checker off one Attunement's healing column, then split into a base ground DISC + the
+    rising COLUMN → fx/heal-disc-<att>.png + fx/heal-col-<att>.png."""
+    import numpy as np
+    rgb = np.asarray(Image.open(os.path.join(REF, f"anim-heal-{att}.png")).convert("RGB")).astype(float)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    minc = np.minimum(np.minimum(r, g), b)
+    sat = np.maximum(np.maximum(r, g), b) - minc
+    al = np.clip((np.clip(250 - minc - 10, 0, None) + np.clip(sat - 10, 0, None)) / 60.0, 0, 1)
+    full = Image.fromarray(np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), (al * 255).astype(np.uint8)]), "RGBA")
+    W, H = full.size
+    disc = _downscale(tight(full.crop((0, int(H * (1 - HEAL_DISC_BAND)), W, H)), pad=4), HEAL_MAX)
+    col = _downscale(tight(full.crop((0, 0, W, int(H * HEAL_COL_BAND))), pad=4), HEAL_MAX)
+    disc.save(os.path.join(OUT, f"heal-disc-{att}.png"))
+    col.save(os.path.join(OUT, f"heal-col-{att}.png"))
+    print(f"heal-{att}: disc {disc.size}  col {col.size}")
+
+
 def uniform_beam(strip, width=320):
     """Turn a tapering beam streak into a UNIFORM bar the compositor can stretch into a clean beam:
     take the streak's brightest column (its glow cross-section) and tile it along the length. Keeps
@@ -242,6 +279,8 @@ def main():
         slice_slash(att)
     for att in CAST_ATTS:                          # per-Attunement mana casting circles
         slice_cast(att)
+    for att in HEAL_ATTS:                          # per-Attunement healing circles (disc + column)
+        slice_heal(att)
     for out, cfg in SINGLE_BODIES.items():       # single idle sprites → class bodies
         sp = Image.open(os.path.join(REF, cfg["src"])).convert("RGBA")
         if cfg.get("spread"):                     # gray-background source: knock it out

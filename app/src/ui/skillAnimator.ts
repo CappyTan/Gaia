@@ -363,3 +363,54 @@ export function playCast(field: HTMLElement, casterEl: Element, att: string, onD
     window.setTimeout(() => wrap.remove(), CAST_OUT_MS + 60);
   }, CAST_HOLD_MS);
 }
+
+// ── HEALING CIRCLE ───────────────────────────────────────────────────────────────────────────────
+// Played UNDER a healed target, tinted to the CASTER's Attunement (not the recipient's). Two layers,
+// both SEMI-TRANSPARENT and inserted behind the combatant zones so the sprite stays fully visible:
+//   • a flat ground DISC (fx/heal-disc-<att>.png) that rotates in the ground plane (reuses the casting-
+//     circle spin), and
+//   • a rising COLUMN (fx/heal-col-<att>.png) of themed energy/particles that gently pulses.
+// Fades in ~0.15s, holds ~1.1s while the hero idles, fires `onDone` (apply the heal + numbers), then
+// fades out. No-op (runs onDone) if the art is absent.
+const HEAL_FADE_MS = 150;
+const HEAL_HOLD_MS = 1100;     // ~1.0-1.25s
+const HEAL_OUT_MS = 420;
+const HEAL_DISC_OP = 0.5;      // semi-transparent (40-60%) so the sprite reads through
+const HEAL_COL_OP = 0.55;
+
+/** Play a healing circle under `targetEl` (within `field`), in the caster's Attunement `att`. */
+export function playHeal(field: HTMLElement, targetEl: Element, att: string, onDone?: () => void): void {
+  const a = att.toLowerCase();
+  const discUrl = assetUrl(`fx/heal-disc-${a}.png`), colUrl = assetUrl(`fx/heal-col-${a}.png`);
+  if (!discUrl && !colUrl) { onDone?.(); return; }
+  const r = targetEl.getBoundingClientRect(), s = field.getBoundingClientRect();
+  const cx = r.left - s.left + (r.width || 1) / 2;
+  const feet = r.top - s.top + (r.height || 1);
+  const dim = Math.max(r.width || 40, r.height || 40);
+  const anchor = field.querySelector("#enemyZone") || field.children[1] || null;
+  const layers: { wrap: HTMLDivElement; op: number }[] = [];
+
+  if (discUrl) {                                      // rotating flat ground disc (reuses the cast spin)
+    const wrap = document.createElement("div"); wrap.className = "cast-circle";
+    wrap.style.left = cx + "px"; wrap.style.top = feet + "px"; wrap.style.width = Math.round(dim * 1.7) + "px";
+    const img = document.createElement("img"); img.className = "cast-circle-img"; img.decoding = "sync";
+    img.onload = () => { if (img.naturalHeight) { const k = img.naturalWidth / img.naturalHeight; img.style.setProperty("--unsq", String(k)); img.style.setProperty("--sq", String(CAST_FLATTEN / k)); } };
+    img.src = discUrl; wrap.appendChild(img);
+    field.insertBefore(wrap, anchor); layers.push({ wrap, op: HEAL_DISC_OP });
+  }
+  if (colUrl) {                                       // rising column of themed energy/particles
+    const wrap = document.createElement("div"); wrap.className = "heal-col";
+    wrap.style.left = cx + "px"; wrap.style.top = feet + "px"; wrap.style.width = Math.round(dim * 1.5) + "px";
+    const img = document.createElement("img"); img.className = "heal-col-img"; img.decoding = "sync"; img.src = colUrl;
+    wrap.appendChild(img);
+    field.insertBefore(wrap, anchor); layers.push({ wrap, op: HEAL_COL_OP });
+  }
+  layers.forEach((l) => { l.wrap.style.opacity = "0"; l.wrap.style.transition = `opacity ${HEAL_FADE_MS}ms ease`; });
+  requestAnimationFrame(() => layers.forEach((l) => { l.wrap.style.opacity = String(l.op); }));
+
+  window.setTimeout(() => {
+    onDone?.();                                        // heal resolves at the end (numbers appear)
+    layers.forEach((l) => { l.wrap.style.transition = `opacity ${HEAL_OUT_MS}ms ease`; l.wrap.style.opacity = "0"; });
+    window.setTimeout(() => layers.forEach((l) => l.wrap.remove()), HEAL_OUT_MS + 60);
+  }, HEAL_HOLD_MS);
+}

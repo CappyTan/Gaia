@@ -6,7 +6,7 @@
 // frame element afterwards. Visual tuning (scale/offsets/timing) lives in data/skillAnimations.ts.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { playSkillAnim, playSlash, playCast } from "../src/ui/skillAnimator";
+import { playSkillAnim, playSlash, playCast, playHeal } from "../src/ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM } from "../src/data/skillAnimations";
 
 function stageWith() {
@@ -150,5 +150,35 @@ describe("mana casting circle (playCast)", () => {
     playCast(field, field, "NOPE", () => { done = true; });
     expect(done).toBe(true);
     expect(field.querySelector(".cast-circle")).toBeNull();
+  });
+});
+
+describe("healing circle (playHeal)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("lays a rotating disc + rising column under the target, heals at the end, then clears", () => {
+    document.body.innerHTML = `<div id="battleField"><div id="bg"></div><div id="enemyZone"></div><img id="t"></div>`;
+    const field = document.getElementById("battleField") as HTMLElement;
+    const target = document.getElementById("t") as HTMLElement;
+    let done = false;
+    playHeal(field, target, "ANIMA", () => { done = true; });
+    expect(field.querySelector(".cast-circle")).toBeTruthy(); // the flat rotating ground disc
+    expect(field.querySelector(".heal-col")).toBeTruthy();    // the rising column
+    expect(done).toBe(false);                                  // heal applied only at the end
+    vi.advanceTimersByTime(1100);
+    expect(done).toBe(true);
+    vi.advanceTimersByTime(700);
+    expect(field.querySelector(".heal-col")).toBeNull();       // faded out + removed
+    expect(field.querySelector(".cast-circle")).toBeNull();
+  });
+
+  it("runs onDone immediately (no circle) when that Attunement has no art", () => {
+    document.body.innerHTML = `<div id="battleField"></div>`;
+    const field = document.getElementById("battleField") as HTMLElement;
+    let done = false;
+    playHeal(field, field, "NOPE", () => { done = true; });
+    expect(done).toBe(true);
+    expect(field.querySelector(".heal-col")).toBeNull();
   });
 });
