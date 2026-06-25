@@ -148,6 +148,71 @@ File: `elder-oak.png` (landmark prop; see asset-gaps "Wayfinding" row).
 
 ---
 
+## OVERWORLD IMPASSABLES REFRESH (v0.146 — mountains, water & the Sunless Gorge)
+
+**The priority refresh.** Playtest flagged three reads as weak: the **gorge looks terrible**, and
+**mountains and water** read as low-quality brown smears. These are the overworld's big impassable
+masses — the eye must read them as wall/drop instantly at thumbnail size, across the seamless map.
+**These supersede the matching tiles in the "Shared crossings & barriers" group above** (same
+filenames — regenerate over them). Paste the STYLE BLOCK **and** the DEPTH LAW before this prompt.
+
+> [STYLE BLOCK] [DEPTH LAW] … A 3×3 grid of top-down, seamlessly-tileable square overworld tiles for
+> the impassable masses of the world. Light from the top-left, every tile reads at thumbnail size:
+> (1) **MOUNTAIN / CRAG WALL** (`cliff`) — a raised grey-stone massif seen from above, a bright
+>   top-left-lit rocky crown of fractured planes stepping UP off the ground, deep shadow pooling to
+>   the lower-right, unmistakably a tall impassable wall far busier and higher than any floor (NOT a
+>   flat grey square); cool slate with warm gold rim-light on the lit faces.
+> (2) **DEEP WATER** (`water`) — a cool, clearly-recessed body of water set visually BELOW the ground
+>   plane, dark blue-teal with a thin bright lit lip along the near (lower) bank and a soft shadow
+>   dropping into it; gentle surface sheen, NOT muddy brown — reads as a drop-off you cannot cross.
+> (3) **RIVER** (`river`) — a flowing watercourse variant of the water tile, the same cool blue-teal
+>   with a suggestion of current/ripple lines, lit lips on both banks, impassable; tiles end-to-end
+>   into a channel.
+> (4) **SUNLESS GORGE / CHASM** (`gorge`) — a deep near-black ravine seen straight down: pale rocky
+>   rim-lips catching the top-left light along the upper edges, the rock walls falling away into pure
+>   darkness in the centre, a genuine bottomless drop. Cold, ominous, high-contrast between the lit
+>   rim and the black void — instantly reads "you cannot walk here." Tiles seamlessly into a long arm.
+> (5) **RAFT / PLANK CAUSEWAY** (`crossing`) — a deliberate walkable span of lashed timber logs with
+>   rope rails, warm lit wood laid ACROSS the dark chasm, obviously "the way over"; the dark gorge
+>   shows at the edges so it reads as a bridge over the void.
+> (6) **PLANK BRIDGE** (`bridge`) — a warm wooden plank-bridge span over water, a raised walkable
+>   crossing, lit planks with a slight arch, dark water showing at the sides.
+> (7) **STEPPING-STONE FORD** (`ford`) — a shallow pale crossing, bright flat stepping-stones just
+>   above the waterline, obviously a walkable wet crossing.
+> (8) a **second MOUNTAIN variant** (`cliff2`) — a taller, snow-flecked-bare crag of the same family,
+>   for ridge variety (optional — drop if you only want 7).
+> (9) leave blank.
+
+Files: `cliff.png`, `water.png`, `river.png`, `gorge.png`, `crossing.png`, `bridge.png`, `ford.png`
+(+ optional `cliff2.png` — needs a one-line `cliff2` registration if used; skip for a pure drop-in).
+
+**Note on the gorge:** it now reaches into Greenvale as a *chasm arm* (v0.146), so the player meets it
+early as a dead-end ravine with Silverwood's shore visible across it. The `gorge` tile is the chasm
+FILL; the rim lookout / "Silverwood Shore" markers and the `elder-oak` beacon are separate props
+(already prompted under "Elder-Oak landmark" above) — this sheet just needs the impassable masses to
+look like real mountains, water, and a true bottomless gorge.
+
+### Object / scatter props refresh (the rough tree/bush/rock/oldtree/fern/mushroom tiles)
+
+The walkable scatter + tree walls also read rough. Same STYLE BLOCK + DEPTH LAW; pure drop-in (no code
+change). Keep the two trees obviously TALL with cast shadows and the four scatter props obviously LOW.
+
+> [STYLE BLOCK] [DEPTH LAW] … A 2×3 grid of top-down, seamlessly-tileable square overworld props:
+> (1) **BROADLEAF TREE** (`tree`, a WALL) — a leafy round broadleaf tree from above, bright green
+>   crown lit top-left, dark underside, soft shadow down-right; stands UP off the ground, taller and
+>   busier than grass. (2) **ANCIENT FOREST TREE** (`oldtree`, a WALL) — a towering old-growth tree
+>   from above, a big dense dark-green canopy lit top-left, strong shadow down-right, unmistakably a
+>   tall raised wall far darker/taller than the floor. (3) **SHRUB / BUSH** (`bush`, low walkable
+>   scatter) — a small low rounded green bush flat ON the ground, faint shadow, clearly steppable,
+>   never a wall. (4) **BOULDER / ROCK** (`rock`, low walkable scatter) — a small mossy grey boulder
+>   resting low, slight top-left light + small shadow. (5) **FERN CLUMP** (`fern`, low walkable
+>   scatter) — a small spray of green ferns flat on the floor, low, soft. (6) **MUSHROOM CLUSTER**
+>   (`mushroom`, low walkable scatter) — a small cluster of pale capped mushrooms low on the ground.
+
+Files: `tree.png`, `oldtree.png`, `bush.png`, `rock.png`, `fern.png`, `mushroom.png` (pure drop-in).
+
+---
+
 ## 1 — Wetland (marsh) terrain tiles — top-down, seamlessly tileable squares
 > [STYLE BLOCK] … A 2×3 grid of top-down, seamlessly tileable square terrain tiles for a grim drowned
 > marsh: (1) boggy walkable earth, dark olive, wet; (2) a second variant of that boggy earth; (3) a
