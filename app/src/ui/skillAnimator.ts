@@ -14,6 +14,7 @@
 // backgrounds). Pure presentation — the caller applies damage / floats the number via callbacks.
 
 import { assetUrl } from "../core/assets";
+import { ATT } from "../data/attunements";
 import type { AnimLayer, SkillAnim } from "../data/skillAnimations";
 
 interface Geo { cx: number; cy: number; w: number; h: number; }
@@ -224,50 +225,94 @@ export function playSkillAnim(anim: SkillAnim, o: PlayOpts): void {
   runTimeline();
 }
 
-// ── Universal combat IMPACT VFX ──────────────────────────────────────────────────────────────────
-// A standalone burst played ON the struck unit whenever a hit lands, tinted by the ATTACKER's
-// Attunement (fx/impact-<att>/01..04.png). Independent of playSkillAnim so it fires for EVERY landed
-// hit — basic attacks, abilities, multi-hits, AoE, crits — unless the skill's own animation supplies a
-// bespoke impact (which overrides it). No-op (graceful) if that Attunement's art is absent.
+// ── Universal mana-SLASH impact VFX ──────────────────────────────────────────────────────────────
+// The single, universal hit-confirm played ON the struck unit for EVERY damaging hit (normal attacks,
+// skills, signatures, ultimates), tinted by the ATTACKER's Attunement (fx/slash-<att>.png). A directional
+// energy crescent that snaps over the target's centre, flashes (fade-in → peak glow + a particle burst →
+// brief hold → fade-out, ~150-180ms), and clears — it does NOT travel. Scales to the target sprite and
+// stays centred; screen-blended so the glow reads as light. No-op if that Attunement's art is absent.
 //
-// Playback (Dara): the four frames are STACKED directly over the sprite and CROSS-FADED — frame 1
-// dissolves into 2 into 3 into 4 in one continuous, smooth blend (no hard frame-swap / slideshow) —
-// then the last frame fades out. The whole burst is held a touch translucent (PEAK < 1).
-const IMPACT_FRAMES = 4;
-const IMPACT_STEP_MS = 65;      // ~15 fps; with the overlapping fades the whole burst runs ~0.33s
-const IMPACT_PEAK = 0.8;        // slight transparency — the burst never goes fully opaque
-const IMPACT_SCALE = 1.35;      // burst height vs. the target sprite (sits over it, a touch larger)
+//   • per hit: rotation jitter, scale ±10%, position ±5px (so combo hits never look identical)
+//   • crit:    bigger (~+20%), stronger glow, more particles, + a subtle camera shake
+//   • mirror:  the art is drawn for an enemy→hero hit; hero→enemy hits flip it horizontally (Dara)
+//   • pooled:  slash units (a root + img + particle spans) are reused, not re-created each hit
+//
+// Implemented with the Web Animations API (rich keyframes, auto-cleanup) + a setTimeout safety so the
+// unit is always returned to the pool even where WAAPI isn't driven (e.g. jsdom tests).
 
-/** Spawn the attunement impact burst over `targetEl`. att is a Unit Attunement (e.g. "SOL"). */
-export function playImpact(stage: HTMLElement, targetEl: Element, att: string): void {
-  const dir = `impact-${att.toLowerCase()}`;
-  if (!assetUrl(`fx/${dir}/01.png`)) return;                 // art not present → skip silently
+interface SlashUnit { root: HTMLDivElement; img: HTMLImageElement; parts: HTMLSpanElement[]; }
+const SLASH_PARTS = 12;        // max particles per unit (we show a subset per hit)
+const slashPool: SlashUnit[] = [];
+
+function makeSlashUnit(): SlashUnit {
+  const root = document.createElement("div"); root.className = "slash-fx";
+  const img = document.createElement("img"); img.className = "slash-img"; img.decoding = "sync";
+  root.appendChild(img);
+  const parts: HTMLSpanElement[] = [];
+  for (let i = 0; i < SLASH_PARTS; i++) { const s = document.createElement("span"); s.className = "slash-part"; root.appendChild(s); parts.push(s); }
+  return { root, img, parts };
+}
+
+export interface SlashOpts { crit?: boolean; mirror?: boolean; }
+
+/** Flash the attacker-Attunement slash over `targetEl`. att is a Unit Attunement (e.g. "SOL"). */
+export function playSlash(stage: HTMLElement, targetEl: Element, att: string, opts: SlashOpts = {}): void {
+  const url = assetUrl(`fx/slash-${att.toLowerCase()}.png`);
+  if (!url) return;                                  // art not present → skip silently
+  const crit = !!opts.crit, mir = opts.mirror ? -1 : 1;
+  const color = ATT[att as keyof typeof ATT]?.color || "#fff";
   const r = targetEl.getBoundingClientRect(), s = stage.getBoundingClientRect();
-  const cx = r.left - s.left + (r.width || 1) / 2, cy = r.top - s.top + (r.height || 1) / 2;
-  const h = (r.height || 40) * IMPACT_SCALE;
+  const cx = r.left - s.left + (r.width || 1) / 2 + (Math.random() * 10 - 5);   // centred ±5px
+  const cy = r.top - s.top + (r.height || 1) / 2 + (Math.random() * 10 - 5);
+  const span = Math.max(r.width || 40, r.height || 40) * (crit ? 1.85 : 1.5);   // ~1.5× the sprite
+  const sz = span * (0.9 + Math.random() * 0.2);                                 // scale ±10%
+  const rot = Math.random() * 44 - 22;                                           // ±22° jitter around base
 
-  const imgs: HTMLImageElement[] = [];
-  for (let i = 0; i < IMPACT_FRAMES; i++) {
-    const url = assetUrl(`fx/${dir}/${String(i + 1).padStart(2, "0")}.png`);
-    const img = document.createElement("img");
-    img.className = "impact-fx";
-    img.decoding = "sync";
-    const place = (w: number) => { img.style.width = Math.round(w) + "px"; img.style.height = Math.round(h) + "px"; };
-    place(h);                                                 // square fallback until the real aspect loads
-    img.onload = () => { if (img.naturalHeight) place((h * img.naturalWidth) / img.naturalHeight); };
-    if (url) img.src = url;
-    img.style.left = cx + "px"; img.style.top = cy + "px";
-    img.style.opacity = "0";
-    // each fade spans a whole step, so a rising frame and the falling one before it overlap → a smooth,
-    // continuous dissolve through all four frames (not a one-at-a-time toggle).
-    img.style.transition = `opacity ${IMPACT_STEP_MS}ms ease-in-out`;
-    stage.appendChild(img); imgs.push(img);
+  const u = slashPool.pop() || makeSlashUnit();
+  const { root, img, parts } = u;
+  img.src = url;
+  img.style.filter = crit
+    ? `drop-shadow(0 0 10px ${color}) drop-shadow(0 0 22px ${color}) brightness(1.25)`
+    : `drop-shadow(0 0 6px ${color}) brightness(1.1)`;
+  root.style.left = cx + "px"; root.style.top = cy + "px";
+  root.style.width = root.style.height = Math.round(sz) + "px";
+  stage.appendChild(root);
+
+  const peak = crit ? 0.98 : 0.9, dur = crit ? 210 : 170;
+  const tf = (k: number) => `rotate(${rot}deg) scale(${(k * mir).toFixed(3)},${k.toFixed(3)})`;
+  let released = false;
+  const release = () => { if (released) return; released = true; root.remove(); slashPool.push(u); };
+
+  if (img.animate) {
+    img.animate(
+      [ { opacity: 0, transform: tf(0.82) },
+        { opacity: peak, transform: tf(1.06), offset: 0.32 },
+        { opacity: peak, transform: tf(1.0), offset: 0.55 },
+        { opacity: 0, transform: tf(1.0) } ],
+      { duration: dur, easing: "ease-out" });
   }
-  const at = (ms: number, fn: () => void) => window.setTimeout(fn, Math.max(0, ms));
-  // Cross-fade: at each step bring frame i up to PEAK while the previous one falls to 0.
-  for (let i = 0; i < IMPACT_FRAMES; i++)
-    at(20 + i * IMPACT_STEP_MS, () => { imgs[i].style.opacity = String(IMPACT_PEAK); if (i > 0) imgs[i - 1].style.opacity = "0"; });
-  const end = 20 + IMPACT_FRAMES * IMPACT_STEP_MS;
-  at(end, () => { imgs[IMPACT_FRAMES - 1].style.opacity = "0"; });   // fade the last frame out (no loop)
-  at(end + IMPACT_STEP_MS + 40, () => imgs.forEach((im) => im.remove()));
+  // particle burst, fired outward from the centre
+  const n = crit ? 11 : 6;
+  for (let i = 0; i < SLASH_PARTS; i++) {
+    const p = parts[i];
+    if (i >= n) { p.style.display = "none"; continue; }
+    p.style.display = ""; p.style.background = color; p.style.boxShadow = `0 0 6px ${color}`;
+    const ps = (crit ? 7 : 5) * (0.7 + Math.random() * 0.7);
+    p.style.width = p.style.height = ps.toFixed(1) + "px";
+    if (p.animate) {
+      const ang = Math.random() * Math.PI * 2, dist = (crit ? 46 : 30) * (0.55 + Math.random() * 0.7);
+      p.animate(
+        [ { transform: "translate(-50%,-50%) translate(0,0) scale(1)", opacity: 1 },
+          { transform: `translate(-50%,-50%) translate(${(Math.cos(ang) * dist).toFixed(1)}px,${(Math.sin(ang) * dist).toFixed(1)}px) scale(.4)`, opacity: 0 } ],
+        { duration: dur + 50, easing: "ease-out" });
+    }
+  }
+  if (crit) {                                        // subtle camera shake on crits
+    const field = document.getElementById("battleField") || stage;
+    field.animate?.(
+      [ { transform: "translate(0,0)" }, { transform: "translate(-5px,3px)" },
+        { transform: "translate(4px,-3px)" }, { transform: "translate(-3px,2px)" }, { transform: "translate(0,0)" } ],
+      { duration: 200, easing: "ease-out" });
+  }
+  window.setTimeout(release, dur + 120);             // safety: always return the unit to the pool
 }

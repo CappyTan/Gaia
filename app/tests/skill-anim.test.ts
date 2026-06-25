@@ -6,7 +6,7 @@
 // frame element afterwards. Visual tuning (scale/offsets/timing) lives in data/skillAnimations.ts.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { playSkillAnim, playImpact } from "../src/ui/skillAnimator";
+import { playSkillAnim, playSlash } from "../src/ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM } from "../src/data/skillAnimations";
 
 function stageWith() {
@@ -94,31 +94,33 @@ describe("skillAnimator compositor", () => {
   });
 });
 
-describe("universal impact VFX (playImpact)", () => {
+describe("universal mana-slash VFX (playSlash)", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("spawns a 4-frame Attunement burst on the target, then destroys it (no loop)", () => {
+  it("flashes a slash over the target, then clears it (returns the pooled unit)", () => {
     const { stage, target } = stageWith();
-    playImpact(stage, target, "QUANTA");
-    expect(stage.querySelectorAll("img.impact-fx").length).toBe(4); // all four frames stacked
-    // frames advance; after the last frame the burst is removed — it does NOT loop
-    vi.advanceTimersByTime(1200);   // past the full cross-fade + fade-out + cleanup
-    expect(stage.querySelectorAll("img.impact-fx").length).toBe(0);
+    playSlash(stage, target, "QUANTA");
+    const fx = stage.querySelector("div.slash-fx");
+    expect(fx).toBeTruthy();
+    expect(fx!.querySelector("img.slash-img")).toBeTruthy();
+    // the safety timer always returns the unit to the pool (removes it from the stage)
+    vi.advanceTimersByTime(600);
+    expect(stage.querySelectorAll("div.slash-fx").length).toBe(0);
   });
 
-  it("resolves the sheet from the attacker's Attunement (each of the five exists)", () => {
+  it("resolves the slash from the attacker's Attunement (each of the five exists)", () => {
     for (const att of ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"]) {
       const { stage, target } = stageWith();
-      playImpact(stage, target, att);
-      expect(stage.querySelectorAll("img.impact-fx").length).toBe(4);
-      vi.advanceTimersByTime(1200);   // past the full cross-fade + fade-out + cleanup
+      playSlash(stage, target, att);
+      expect(stage.querySelectorAll("div.slash-fx").length).toBe(1);
+      vi.advanceTimersByTime(600);
     }
   });
 
   it("is a graceful no-op when that Attunement has no art", () => {
     const { stage, target } = stageWith();
-    playImpact(stage, target, "NOPE");
-    expect(stage.querySelectorAll("img.impact-fx").length).toBe(0);
+    playSlash(stage, target, "NOPE");
+    expect(stage.querySelectorAll("div.slash-fx").length).toBe(0);
   });
 });

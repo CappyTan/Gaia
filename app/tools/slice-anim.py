@@ -19,18 +19,14 @@ REF = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "reference")
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "fx")
 BODIES = os.path.join(os.path.dirname(__file__), "..", "assets", "bodies")
 
-# ── Combat IMPACT VFX packs (per Attunement) ─────────────────────────────────────────────────────
-# Dara's five impact sheets (assets/reference/anim-impact-<att>.png) are 1536x1024, four evenly-gridded
-# frames (slash → full burst+ring → shard explosion → dissipate) on a near-WHITE CHECKERBOARD, with a
-# "1 2 3 4" caption band along the bottom. We knock the checker off (soft alpha from colour + darkness
-# deviation, with interior hot-cores hole-filled solid), split into four even cells, and crop every
-# frame to one SHARED square centred on the cell — so the burst animates IN PLACE without jitter. The
-# combat compositor (ui/skillAnimator.playImpact) plays them on the struck foe, tinted by the
-# attacker's Attunement. Output: app/assets/fx/impact-<att>/01..04.png.
-IMPACT_ATTS = ["sol", "nox", "anima", "quanta", "umbraxis"]
-IMPACT_FRAMES = 4
-IMPACT_LABEL_CUT = 0.72   # rows below this fraction are the caption band — excluded from the art
-IMPACT_MAX = 320          # cap the long edge (they render at ~target height; keeps the bundle lean)
+# ── Universal mana-SLASH impact VFX (per Attunement) ─────────────────────────────────────────────
+# Dara's five slash sheets (assets/reference/anim-slash-<att>.png) are single transparent crescents — a
+# curved energy slash with particle flecks, one per Attunement (SOL gold, NOX blue, ANIMA green, QUANTA
+# red, UMBRAXIS purple). We just tight-crop to the art and downscale. The combat compositor
+# (ui/skillAnimator.playSlash) plays them over the struck unit, tinted by the attacker's Attunement,
+# with an animated fade-in→peak→fade-out + particle burst. Output: app/assets/fx/slash-<att>.png.
+SLASH_ATTS = ["sol", "nox", "anima", "quanta", "umbraxis"]
+SLASH_MAX = 512           # cap the long edge (they render scaled to the target sprite; keeps it lean)
 
 # Per-sheet frame boxes: (x0, x1) column span + (y0frac, y1frac) art window (excludes caption band).
 # Derived from the sheets' content profiles (see commit notes); explicit because the art doesn't
@@ -186,94 +182,15 @@ def knock_gray(im, spread=22):
     return im
 
 
-def _impact_alpha(rgb):
-    """Knock the near-white checkerboard off an impact frame: float alpha 0..1 from how far a pixel
-    deviates from the bright neutral background, by COLOUR (saturation) and DARKNESS combined. The
-    checker (~242-250, neutral) → ~0; the gold/blue/green/red/purple glow and sparkles → opaque."""
-    import numpy as np
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    minc = np.minimum(np.minimum(r, g), b)
-    sat = np.maximum(np.maximum(r, g), b) - minc
-    darkdev = np.clip(250 - minc - 12, 0, None)      # below the bright checker
-    satdev = np.clip(sat - 12, 0, None)              # colourful
-    return np.clip((darkdev + satdev) / 70.0, 0, 1)
-
-
-def _fill_holes(mask):
-    """Flood from the border; any empty pixel never reached is an interior hole (a white-hot core ringed
-    by glow) → mark it solid, so cores don't punch through as transparent."""
-    import numpy as np
-    h, w = mask.shape
-    seen = np.zeros_like(mask, bool); dq = deque()
-    for x in range(w):
-        for y in (0, h - 1):
-            if not mask[y, x] and not seen[y, x]: seen[y, x] = True; dq.append((y, x))
-    for y in range(h):
-        for x in (0, w - 1):
-            if not mask[y, x] and not seen[y, x]: seen[y, x] = True; dq.append((y, x))
-    while dq:
-        y, x = dq.popleft()
-        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            ny, nx = y + dy, x + dx
-            if 0 <= ny < h and 0 <= nx < w and not seen[ny, nx] and not mask[ny, nx]:
-                seen[ny, nx] = True; dq.append((ny, nx))
-    out = mask.copy(); out[~seen & ~mask] = True
-    return out
-
-
-def slice_impact(att, montage=False):
-    """Slice one Attunement's impact sheet into 4 in-place-aligned transparent frames."""
-    import numpy as np
-    src = Image.open(os.path.join(REF, f"anim-impact-{att}.png")).convert("RGB")
-    im = np.asarray(src).astype(float)
-    H, W, _ = im.shape
-    art = im[: int(H * IMPACT_LABEL_CUT)]                 # drop the caption band
-    AH = art.shape[0]; colw = W // IMPACT_FRAMES
-    a = _impact_alpha(art)
-    # CENTRE EACH FRAME ON ITS OWN LUMINOUS MASS (alpha-weighted centroid), not the cell centre. The
-    # artist drew the slash/burst/shards at DIFFERENT spots within their cells, so cell-centred crops made
-    # the bright mass drift sideways across frames — in game the impact appeared to slide across the enemy.
-    # Aligning every frame's centroid to the canvas centre makes the four bloom CONCENTRICALLY (in place).
-    # The source window is clamped to each frame's OWN cell so a neighbouring burst can never bleed in; a
-    # shared half-size keeps the four frames' relative scale intact.
-    half = 0; cents = []
-    for i in range(IMPACT_FRAMES):
-        cx0, cx1 = i * colw, (i + 1) * colw
-        cell = a[:, cx0:cx1]                              # this frame's cell ONLY (no neighbour bleed)
-        ys, xs = np.where(cell > 0.12)
-        if len(xs):
-            wv = cell[ys, xs]
-            gcx = int(round(((xs + cx0) * wv).sum() / wv.sum()))   # global centroid (luminous mass)
-            gcy = int(round((ys * wv).sum() / wv.sum()))
-            half = max(half, gcx - (int(xs.min()) + cx0), (int(xs.max()) + cx0) - gcx, gcy - int(ys.min()), int(ys.max()) - gcy)
-        else:
-            gcx, gcy = (cx0 + cx1) // 2, AH // 2
-        cents.append((gcx, gcy, cx0, cx1))
-    R = int(half) + 6
-    outdir = os.path.join(OUT, f"impact-{att}"); os.makedirs(outdir, exist_ok=True)
-    thumbs = []
-    for i, (gcx, gcy, cx0, cx1) in enumerate(cents):
-        canvas = np.zeros((2 * R, 2 * R, 4), np.uint8)
-        # source window centred on the centroid, clamped to the cell (x) and art band (y)
-        rx0, rx1 = max(gcx - R, cx0), min(gcx + R, cx1)
-        ry0, ry1 = max(gcy - R, 0), min(gcy + R, AH)
-        rgb = art[ry0:ry1, rx0:rx1]
-        al = _impact_alpha(rgb)
-        al = np.maximum(al, _fill_holes(al > 0.12).astype(float))
-        block = np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), (al * 255).astype(np.uint8)])
-        dx, dy = rx0 - (gcx - R), ry0 - (gcy - R)         # place so the centroid lands at canvas centre (R,R)
-        canvas[dy:dy + block.shape[0], dx:dx + block.shape[1]] = block
-        fr = Image.fromarray(canvas, "RGBA")
-        if fr.width > IMPACT_MAX:
-            fr = fr.resize((IMPACT_MAX, IMPACT_MAX), Image.LANCZOS)
-        fr.save(os.path.join(outdir, f"{i + 1:02d}.png")); thumbs.append(fr)
-    print(f"impact-{att}: {IMPACT_FRAMES} frames ({thumbs[0].width}x{thumbs[0].height}) -> {outdir}")
-    if montage:
-        mh = 180; pad = 8
-        sheet = Image.new("RGBA", (IMPACT_FRAMES * (mh + pad) + pad, mh + 2 * pad), (28, 34, 26, 255))
-        for j, t in enumerate(thumbs):
-            r = t.resize((mh, mh)); sheet.paste(r, (pad + j * (mh + pad), pad), r)
-        sheet.convert("RGB").save(os.path.join(OUT, f"_montage-impact-{att}.png"))
+def slice_slash(att):
+    """Tight-crop one Attunement's slash crescent to its art and downscale → fx/slash-<att>.png."""
+    src = Image.open(os.path.join(REF, f"anim-slash-{att}.png")).convert("RGBA")
+    fr = tight(src, pad=4)
+    if max(fr.size) > SLASH_MAX:
+        s = SLASH_MAX / max(fr.size)
+        fr = fr.resize((max(1, round(fr.width * s)), max(1, round(fr.height * s))), Image.LANCZOS)
+    fr.save(os.path.join(OUT, f"slash-{att}.png"))
+    print(f"slash-{att}.png  ({fr.width}x{fr.height})")
 
 
 def uniform_beam(strip, width=320):
@@ -293,8 +210,8 @@ def uniform_beam(strip, width=320):
 def main():
     montage = "--montage" in sys.argv
     os.makedirs(BODIES, exist_ok=True)
-    for att in IMPACT_ATTS:                       # per-Attunement combat impact VFX packs
-        slice_impact(att, montage)
+    for att in SLASH_ATTS:                         # per-Attunement universal mana-slash impact VFX
+        slice_slash(att)
     for out, cfg in SINGLE_BODIES.items():       # single idle sprites → class bodies
         sp = Image.open(os.path.join(REF, cfg["src"])).convert("RGBA")
         if cfg.get("spread"):                     # gray-background source: knock it out

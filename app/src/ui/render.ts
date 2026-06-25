@@ -46,12 +46,6 @@ export function classBody(att: Attunement | undefined, archetype: string, id?: s
     || (id ? assetUrl(`heroes/${id}.png`) : null) || "";
 }
 
-// Crit-burst VFX sprite for an attunement (fx/crit-{att}.png, sliced from Dara's montage), or
-// null if that art isn't present — callers just skip the flourish then.
-export function critFxUrl(att?: Attunement): string | null {
-  return assetUrl(`fx/crit-${(att || "SOL").toLowerCase()}.png`);
-}
-
 export function enemySprite(e: Enemy): string {
   const url = assetUrl(`enemies/${e.art || e.key}.png`); // variants reuse a base creature's art
   return url ? `<img class="spr-img" decoding="sync" src="${url}" alt="">` : `<div class="spr">${e.spr}</div>`;
