@@ -27,7 +27,7 @@ export const SKILLS: Record<string, Skill> = {
   sunderCombo: { name: "Sunder Combo", mp: 14, target: "enemy", att: "SOL", mnaReq: 70, type: "phys", power: 0.62, hits: 5, desc: "Five blistering strikes." },
   radiantTempest: { name: "Radiant Tempest", mp: 20, target: "allEnemies", att: "SOL", mnaReq: 100, ult: true, type: "mag", power: 1.7, sol: true, status: { burn: 2 }, desc: "ULTIMATE — a storm of SOL blades on all foes; Burn." },
   // Staff (caster/healer)
-  sunbolt: { name: "Sunbolt", mp: 4, target: "enemy", att: "SOL", mnaReq: 5, type: "mag", power: 1.3, sol: true, status: { burn: 2 }, desc: "SOL bolt; Burn." },
+  sunbolt: { name: "Sunbolt", mp: 4, target: "enemy", att: "SOL", mnaReq: 0, type: "mag", power: 1.3, sol: true, status: { burn: 2 }, desc: "SOL bolt; Burn." },
   heal: { name: "Heal", mp: 5, target: "ally", att: "SOL", mnaReq: 10, type: "heal", power: 1.4, desc: "Restore one ally's HP." },
   cleanse: { name: "Cleanse", mp: 6, target: "ally", att: "SOL", mnaReq: 20, type: "util", cleanse: true, desc: "Remove an ally's debuffs." },
   dawnsLight: { name: "Dawn's Light", mp: 14, target: "allAllies", att: "SOL", mnaReq: 45, type: "heal", power: 0.9, status: { regen: 3 }, desc: "Heal the party; grant Regen." },

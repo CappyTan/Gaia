@@ -107,7 +107,7 @@ export function itemHtml(it: Item, actionBtn?: string): string {
     ${ico}
     <div style="flex:1; min-width:0">
       <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${slotTag}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
-      ${imp ? `<div class="impline">${imp}</div>` : ""}${prim ? `<div class="affix" style="color:#e6c06a">◇ ${prim}</div>` : ""}${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${aff}${actionBtn || ""}
+      ${imp ? `<div class="impline">${imp}</div>` : ""}${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${prim ? `<div class="affix" style="color:#e6c06a">◇ ${prim}</div>` : ""}${aff}${actionBtn || ""}
     </div></div>`;
 }
 
