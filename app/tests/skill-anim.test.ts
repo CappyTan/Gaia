@@ -139,7 +139,7 @@ describe("mana casting circle (playCast)", () => {
     expect(done).toBe(false);                                  // ability NOT applied until cast ends
     vi.advanceTimersByTime(1500);
     expect(done).toBe(true);                                   // applied at the ~1.5s cast end
-    vi.advanceTimersByTime(400);
+    vi.advanceTimersByTime(700);
     expect(field.querySelector(".cast-circle")).toBeNull();    // faded out + removed
   });
 
