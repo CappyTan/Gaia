@@ -21,15 +21,25 @@ Dara's canonical class & combat system for Gaia ("Attunement Combat System"): 45
 [`docs/design/requiem/`](docs/design/requiem/README.md). The playable POC implements only a
 small placeholder subset (see Flagged ambiguities).
 
-**Attunement** (canon, per REQUIEM):
-One of the five "Powers" a Class draws from, each with a **domain** and a distinct **mana
-mechanic**:
-- **SOL** — Expansion · Light · Fire · Entropy — mana scales damage output (→+60% at 200)
-- **NOX** — Preservation · Cold · Darkness · Order · Anti-Entropy — mana scales damage output
-- **ANIMA** — Life · Purpose · Evolution · Vitality — mana scales healing potency
-- **QUANTA** — Probability · Time · Observation · Possibility — mana scales SPD / turn-order
-- **UMBRAXIS** — Gravity · Spacetime · Singularities · Cosmic Structure — mana scales Defense
-_Avoid_: element, school. Note the mechanic is per-attunement, NOT a damage rock-paper-scissors.
+**Attunement** (canon):
+One of the five "Powers" a Class draws from, each with a **domain** and a **governing stat** — the
+single primary stat its class abilities **scale from**. Per Dara, **all** of a class's outputs
+(damage, healing, speed, defense, etc.) scale off that one stat, so **every class can perform in
+every aspect of the game**; the attunement just sets which stat makes its abilities scale *best*. The
+five main stats are **STR, AGI, DEF, SPD, MGC**:
+- **SOL** — Expansion · Light · Fire · Entropy — abilities scale from **AGI**
+- **NOX** — Preservation · Cold · Darkness · Order · Anti-Entropy — abilities scale from **STR**
+- **ANIMA** — Life · Purpose · Evolution · Vitality — abilities scale from **MGC**
+- **QUANTA** — Probability · Time · Observation · Possibility — abilities scale from **SPD**
+- **UMBRAXIS** — Gravity · Spacetime · Singularities · Cosmic Structure — abilities scale from **DEF**
+_Avoid_: element, school. Note attunement is per-class flavor + a scaling stat, NOT a damage
+rock-paper-scissors (the ±15% affinity ring is a separate layer).
+_Relationship to REQUIEM:_ the governing **stat** above (Dara's ruling) is what abilities scale
+*from*; REQUIEM's per-attunement **MNA** mechanic (mana investment → +output, see
+[`docs/design/requiem/`](docs/design/requiem/README.md)) is a separate amplifier, reconciled toward
+this over time.
+_POC note:_ the playable build currently uses `atk/armor/mag/spd` (+`hp/mp`), not the canonical
+**STR/AGI/DEF/SPD/MGC** set — to be formalized/reconciled when stats are built out.
 
 **The Five / the Pantheon** (canon):
 The "gods" of Gaia ARE the five Attunements personified — **Sol, Nox, Anima, Quanta, Umbraxis** —

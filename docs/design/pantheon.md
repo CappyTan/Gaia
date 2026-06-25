@@ -52,8 +52,9 @@ This slots cleanly into lore already on the books (see [`world-atlas.md`](world-
 
 ## The Five (reference)
 
-Per-Attunement domains and mana mechanics are canon (`CONTEXT.md`); the "god / civilization" column
-is the new canon recorded here. Epithets/titles below are **(proposed)** placeholders — Dara names them.
+Per-Attunement domains and **governing stats** (the stat their abilities scale from) are canon
+(`CONTEXT.md`); the "god / civilization" column is the new canon recorded here. Epithets/titles below
+are **(proposed)** placeholders — Dara names them.
 
 | God | Attunement domain (canon) | Their people (canon: each leads a civilization/order) | Title *(proposed)* |
 |---|---|---|---|
