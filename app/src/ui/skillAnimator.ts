@@ -390,14 +390,9 @@ export function playHeal(field: HTMLElement, targetEl: Element, att: string, onD
   const anchor = field.querySelector("#enemyZone") || field.children[1] || null;
   const layers: { wrap: HTMLDivElement; op: number }[] = [];
 
-  if (discUrl) {                                      // rotating flat ground disc (reuses the cast spin)
-    const wrap = document.createElement("div"); wrap.className = "cast-circle";
-    wrap.style.left = cx + "px"; wrap.style.top = feet + "px"; wrap.style.width = Math.round(h * 2.2) + "px";
-    const img = document.createElement("img"); img.className = "cast-circle-img"; img.decoding = "sync";
-    img.onload = () => { if (img.naturalHeight) { const k = img.naturalWidth / img.naturalHeight; img.style.setProperty("--unsq", String(k)); img.style.setProperty("--sq", String(CAST_FLATTEN / k)); } };
-    img.src = discUrl; wrap.appendChild(img);
-    field.insertBefore(wrap, anchor); layers.push({ wrap, op: HEAL_DISC_OP });
-  }
+  // NOTE: the rotating ground DISC is intentionally disabled for now (Dara) — only the vertical column
+  // plays. The heal-disc art is still sliced so it's a one-line re-enable later.
+  void discUrl; void HEAL_DISC_OP;
   if (colUrl) {                                       // rising column of themed energy/particles (towers over the hero)
     const wrap = document.createElement("div"); wrap.className = "heal-col";
     wrap.style.left = cx + "px"; wrap.style.top = feet + "px"; wrap.style.width = Math.round(h * 2.0) + "px";

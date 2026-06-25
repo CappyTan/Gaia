@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.144", t: "Healing effect: removed the rotating circle at the target's feet for now — the heal is just the vertical column of rising energy." },
   { v: "v0.143", t: "Tuned the healing effect so it actually reads: the ground rune is larger and clearly sits under the recipient, and the rising energy column now towers over them and is bright enough to see against the battlefield (it was washing out and looked tiny)." },
   { v: "v0.142", t: "Healing now has its own effect. When a hero heals, a soft healing circle blooms beneath the recipient — a slowly-spinning ground rune with a gentle column of themed energy rising around them, in the CASTER'S Attunement color (SOL golden sunfire, NOX blue frost, ANIMA green life with leaves, QUANTA red geometry, UMBRAXIS purple void). It's kept semi-transparent so the character stays fully visible, fades in, pulses calmly, and the heal lands as it finishes — then it fades away. Used for every healing ability." },
   { v: "v0.141", t: "Casting circle polish: it now sits flatter on the ground (less like a round coin, more like a rune laid on the floor), and it fades out smoothly at the end of the cast instead of snapping off." },

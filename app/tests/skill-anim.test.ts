@@ -163,14 +163,13 @@ describe("healing circle (playHeal)", () => {
     const target = document.getElementById("t") as HTMLElement;
     let done = false;
     playHeal(field, target, "ANIMA", () => { done = true; });
-    expect(field.querySelector(".cast-circle")).toBeTruthy(); // the flat rotating ground disc
-    expect(field.querySelector(".heal-col")).toBeTruthy();    // the rising column
+    expect(field.querySelector(".heal-col")).toBeTruthy();    // the rising column (no ground disc for now)
+    expect(field.querySelector(".cast-circle")).toBeNull();   // disc intentionally disabled
     expect(done).toBe(false);                                  // heal applied only at the end
     vi.advanceTimersByTime(1100);
     expect(done).toBe(true);
     vi.advanceTimersByTime(700);
     expect(field.querySelector(".heal-col")).toBeNull();       // faded out + removed
-    expect(field.querySelector(".cast-circle")).toBeNull();
   });
 
   it("runs onDone immediately (no circle) when that Attunement has no art", () => {
