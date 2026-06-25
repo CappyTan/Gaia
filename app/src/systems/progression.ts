@@ -117,12 +117,15 @@ export interface LevelUp {
   arm?: number;
 }
 
-/** A level-up's MNA reward — a 50/50 gamble (Dara): half the time nothing, half the time a chunky +2
- *  (rarely a +3 jackpot). Averages ~1.05/level — about the same total as the old guaranteed +1, but
- *  lumpier, so leveling carries a real "did I get lucky?" thrill. */
+/** A level-up's MNA reward (Dara): usually +1, sometimes nothing, and a SUPER-RARE +2 jackpot.
+ *  ~5% +2 · ~75% +1 · ~20% nothing → averages ~0.85/level. The whiff/jackpot spread keeps a little
+ *  "did I get lucky?" thrill without the old swingy +2/+3. (rng()→0 yields the jackpot, so the
+ *  deterministic test still sees a gain.) */
 function rollLevelMna(rng: Rng): number {
-  if (rng() >= 0.5) return 0;
-  return rng() < 0.9 ? 2 : 3;
+  const r = rng();
+  if (r < 0.05) return 2; // super-rare jackpot
+  if (r < 0.80) return 1; // the common case
+  return 0;               // unlucky whiff
 }
 
 export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): LevelUp[] {
