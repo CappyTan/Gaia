@@ -12,8 +12,8 @@ import { ATT, RING } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
-import { enemySprite, renderDoll, statusBadges, pct, itemHtml, critFxUrl } from "../ui/render";
-import { playSkillAnim, playImpact } from "../ui/skillAnimator";
+import { enemySprite, renderDoll, statusBadges, pct, itemHtml } from "../ui/render";
+import { playSkillAnim, playSlash } from "../ui/skillAnimator";
 import { SKILL_ANIM, BASIC_ATTACK_ANIM, type SkillAnim } from "../data/skillAnimations";
 import { ULTIMATES, type Ultimate } from "../data/ultimates";
 import { playCutscene } from "../ui/cutscene";
@@ -42,9 +42,9 @@ export const Battle = {
   STATUS_NAMES: { burn: "Burn", poison: "Poison", decay: "Decay", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", def: "Guard", wardArmor: "Ward" } as Record<string, string>,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
   // damage numbers held back during an animated skill, flushed when the hit lands (see animatedStrike).
-  // `univ` = also play the universal Attunement impact burst here (skills with their OWN bespoke impact
-  // layer set it false so the two don't stack — see strike/animatedStrike).
-  _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean }[],
+  // `univ` = also play the universal mana-slash here (skills with their OWN bespoke impact layer set it
+  // false so the two don't stack); `mirror` flips the slash for a hero→enemy hit (see strike).
+  _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean; mirror: boolean }[],
   _animHasImpact: false,   // true while resolving an animatedStrike whose anim supplies its own impact
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
@@ -196,7 +196,7 @@ export const Battle = {
       targets.filter((t) => t.alive).forEach((t) => {
         damage(t, ult.damage);
         this.float(t, String(ult.damage), "#ffd97a");
-        this.impactFx(t, m.att);
+        this.slashFx(t, m.att, true, true); // hero-cast nuke: crit-grade slash, mirrored
         if (!t.alive) this.onDeath(t);
       });
       const who = ult.target === "enemy" ? (targets[0]?.name ?? "the target") : "all foes";
@@ -308,7 +308,7 @@ export const Battle = {
     });
   },
   flushAnimFloats(): void {
-    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color); if (f.univ) this.impactFx(f.u, f.att); if (f.crit) this.critFx(f.u, f.att); });
+    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color); if (f.univ) this.slashFx(f.u, f.att, f.crit, f.mirror); });
     this._animFloats = [];
   },
 
@@ -316,7 +316,7 @@ export const Battle = {
     const s = act.skill;
     const r = combatDamage(actor, target, act);
     if (r.miss) {
-      if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att, univ: false });
+      if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att, univ: false, mirror: false });
       else this.float(target, "miss", "#bbb");
       this.log(`${actor.name} misses ${target.name}.`); return;
     }
@@ -327,10 +327,11 @@ export const Battle = {
     Telemetry.dmg(actor.side, dmg, crit, mult);
     const txt = (crit ? "✦" : "") + dmg, color = mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff";
     const fxAtt = s && s.sol ? "SOL" : actor.att;
-    // Impact burst on the struck foe, coloured by the power's Attunement (the universal VFX system) —
-    // unless this skill's own animation supplies a bespoke impact layer, which overrides it.
-    if (silent) this._animFloats.push({ u: target, txt, color, crit, att: fxAtt, univ: !this._animHasImpact }); // deferred to impact
-    else { this.float(target, txt, color); this.impactFx(target, fxAtt); if (crit) this.critFx(target, fxAtt); } // burst in the power's color
+    // Mana-slash hit effect on the struck unit, coloured by the power's Attunement (mirrored for a
+    // hero→enemy hit). Unless the skill's own animation supplies a bespoke impact layer, which overrides it.
+    const mirror = actor.side === "party";
+    if (silent) this._animFloats.push({ u: target, txt, color, crit, att: fxAtt, univ: !this._animHasImpact, mirror }); // deferred to impact
+    else { this.float(target, txt, color); this.slashFx(target, fxAtt, crit, mirror); }
     // FULL combat log line: who hit whom for how much (both directions) — the scrollable history.
     const power = s && s.sol ? "SOL" : actor.att;
     const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";
@@ -747,28 +748,11 @@ export const Battle = {
     $("#stage")!.appendChild(f);
     setTimeout(() => f.remove(), 1000);
   },
-  // Pop-and-fade crit burst, CENTERED on the struck sprite and sized to ~half of it (Dara), tinted to
-  // the attacking Attunement. Single still (Dara's art) animated via CSS — no-op if not sliced yet.
-  critFx(u: Unit, att: Unit["att"]): void {
-    const url = critFxUrl(att);
-    if (!url) return;
-    const anchor = this.spriteEl(u);
-    if (!anchor) return;
-    const img = el("img", "crit-fx") as HTMLImageElement;
-    img.src = url;
-    const r = anchor.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
-    const sz = Math.round(Math.max(r.width, r.height) * 0.6); // proportional: about half the sprite
-    img.style.width = sz + "px"; img.style.height = sz + "px";
-    img.style.left = r.left - s.left + r.width / 2 + "px";
-    img.style.top = r.top - s.top + r.height / 2 + "px"; // centred on the sprite
-    $("#stage")!.appendChild(img);
-    setTimeout(() => img.remove(), 500);
-  },
-  // Universal combat impact: a 4-frame Attunement burst on the struck unit's centre mass, played for
-  // every landed hit and tinted to the attacker's Attunement (delegates to ui/skillAnimator.playImpact;
-  // no-op if the stage/sprite aren't in the DOM or that Attunement's art is missing).
-  impactFx(u: Unit, att: Unit["att"]): void {
+  // Universal mana-slash hit effect on the struck unit, tinted to the attacker's Attunement. Crit makes
+  // it bigger/glowier with a camera shake; mirror flips it for a hero→enemy hit. Delegates to
+  // ui/skillAnimator.playSlash (pooled) — no-op if the stage/sprite aren't in the DOM or the art is absent.
+  slashFx(u: Unit, att: Unit["att"], crit: boolean, mirror: boolean): void {
     const stage = $("#stage"), anchor = this.spriteEl(u);
-    if (stage && anchor) playImpact(stage, anchor, att);
+    if (stage && anchor) playSlash(stage, anchor, att, { crit, mirror });
   },
 };
