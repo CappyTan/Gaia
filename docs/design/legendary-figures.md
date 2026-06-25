@@ -2,9 +2,9 @@
 
 **Dara owns the world and lore; this catalogs his canon.** Legendary Figures are named, singular
 beings of extraordinary power that exist *above* the ordinary scale of the world — some human, some
-monster, some neither. They are not the party, not the regular bestiary, and not bound by the rules
-that govern ordinary combatants. They are added **as we go**; each gets an entry here as Dara
-provides it.
+monster, some neither. They are not the party and not the regular bestiary, and they operate on a
+power scale far above ordinary combatants (the affinity ring **still applies** to them, though — see
+below). They are added **as we go**; each gets an entry here as Dara provides it.
 
 This doc is the **roster + canon record**. Where a figure maps onto an existing REQUIEM class, the
 tie-in is noted (REQUIEM remains canon — see [`requiem/`](requiem/README.md)). Anything an agent
@@ -19,10 +19,12 @@ infers beyond Dara's text is marked **(proposed)** and stays subordinate to his 
   monsters and bosses, but mythic in scope.)
 - **Beyond the ordinary power scale.** Their strength can be world- or era-spanning. A Legendary
   Figure can plausibly overcome things an ordinary combatant of their Attunement never could.
-- **Transcends the affinity ring.** The ±15% [affinity ring](affinity-ring.md) governs *ordinary*
-  combat; at legendary scale raw power dwarfs a matchup swing. A Legendary Figure can hunt — and
-  beat — an entity it holds an *elemental disadvantage* to. (First demonstrated by The Last
-  Lagrangian; see his entry.)
+- **Still bound by the affinity ring — but power can override it (Dara).** The [affinity ring](affinity-ring.md)
+  **still applies** to Legendary Figures: a NOX legendary is still weak to a SOL legendary, and so on.
+  What sets them apart is that they vary **wildly** in raw power — so a figure strong enough **may
+  overcome an attunement disadvantage by sheer power**. It does **not** *ignore* or *transcend* the
+  ring; it **out-muscles** a matchup it should lose. (A weaker legendary still loses to its predator;
+  only a vast power gap flips the result. First demonstrated by The Last Lagrangian; see his entry.)
 - **A thread, not a stat block.** Each figure carries a story hook (who they hunt, what they guard,
   why they wander). How/whether they ever appear in-game (boss, cameo, questline) is a later
   decision — first they exist as canon.
@@ -119,10 +121,13 @@ figure is the one **running**.
 This is the striking part, and a deliberate canon point:
 
 - On the [affinity ring](affinity-ring.md), **QUANTA beats UMBRAXIS** ("Probability beats
-  Singularity"). By the ordinary rules he holds an *elemental disadvantage* to his prey.
-- Yet his power so far eclipses the matchup that the predator/prey relationship **inverts** — the
-  Quanta figure flees. This establishes that **Legendary Figures operate beyond the ±15% ring**;
-  raw legendary power outweighs attunement matchup.
+  Singularity"). By the ring he *genuinely* holds an **elemental disadvantage** to his prey — and the
+  ring still applies to him; it is not switched off.
+- Yet his raw power so far **eclipses** hers that he **overcomes** that disadvantage by sheer force —
+  the predator/prey relationship effectively inverts and the Quanta figure flees. This is the canon
+  example of the rule: Legendary Figures are **still bound by the ring**, but a vast enough power gap
+  can **out-muscle** an unfavorable matchup. (A QUANTA legendary of *comparable* power would still
+  have the edge on him.)
 - **(Proposed thematic reconciliation — for Dara to confirm/adjust):** it is *fitting* that the one
   Umbraxis being who can run down a Quanta entity is the assassin whose daggers **"sever
   probability"** — he has learned to turn his predator's own weapon (probability/observation)
