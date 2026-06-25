@@ -372,9 +372,9 @@ export function playCast(field: HTMLElement, casterEl: Element, att: string, onD
 //   • a rising COLUMN (fx/heal-col-<att>.png) of themed energy/particles that gently pulses.
 // Fades in ~0.15s, holds ~1.1s while the hero idles, fires `onDone` (apply the heal + numbers), then
 // fades out. No-op (runs onDone) if the art is absent.
-const HEAL_FADE_MS = 150;
+const HEAL_FADE_MS = 320;      // gentle ease-in (no pop)
 const HEAL_HOLD_MS = 1100;     // ~1.0-1.25s
-const HEAL_OUT_MS = 420;
+const HEAL_OUT_MS = 520;       // gentle ease-out
 const HEAL_DISC_OP = 0.6;      // semi-transparent (sprite still reads through), but clearly visible
 const HEAL_COL_OP = 0.72;
 
