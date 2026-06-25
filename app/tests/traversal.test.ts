@@ -73,11 +73,15 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
     expect(barrierBlocks(OVERWORLD_ID, band.x0 - 30, by, owned)).toBe(false);
   });
 
-  it("a CROSSING put-in/take-out tile is PASSABLE even while the barrier is locked", () => {
-    const locked = emptyCaps();
+  it("a CROSSING tile is BLOCKED while the barrier is locked (the raft is REQUIRED) and opens once owned", () => {
+    const locked = emptyCaps(), owned = grantCap(emptyCaps(), "gorge");
     for (const c of GORGE.crossing) {
       expect(isBarrierCrossing(GORGE, c.x, c.y)).toBe(true);
-      expect(barrierBlocks(OVERWORLD_ID, c.x, c.y, locked)).toBe(false); // the route across is always open
+      // The crossing is the RAFT route — it must be walled while locked (the contiguous crossing line
+      // was a free walk-across-without-the-raft before this fix); the `crossing` list now drives only
+      // RENDERING (where to draw the causeway once owned), not locked passability.
+      expect(barrierBlocks(OVERWORLD_ID, c.x, c.y, locked)).toBe(true);  // locked → walled (no free crossing)
+      expect(barrierBlocks(OVERWORLD_ID, c.x, c.y, owned)).toBe(false);  // owned → the raft route opens
     }
   });
 
@@ -153,13 +157,10 @@ describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [
     return k !== "uncharted" && !FIELD_WALLS.has(k);
   };
   const isSilverwood = (x: number, y: number) => inZonePolygon("silverwood", x, y);
-  const isCrossing = (x: number, y: number) => {
-    const b = barrierAt(OVERWORLD_ID, x, y);
-    return !!b && isBarrierCrossing(b, x, y);
-  };
 
-  /** 8-way BFS from Greenvale's spawn. `forbidCrossing` treats crossing tiles as walls (the leak test). */
-  const reachesSilverwood = (caps: Set<string>, forbidCrossing: boolean): { x: number; y: number } | null => {
+  /** 8-way BFS from Greenvale's spawn over the REAL `bigPassable` predicate (no crossing exception —
+   *  while the cap is unowned the crossing tiles are walled too, so the raft is the ONLY way across). */
+  const reachesSilverwood = (caps: Set<string>): { x: number; y: number } | null => {
     const seen = new Set<string>();
     const key = (x: number, y: number) => x + "," + y;
     const q: { x: number; y: number }[] = [SPAWN];
@@ -171,7 +172,6 @@ describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [
       for (const [dx, dy] of DIRS) {
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx > 959 || ny > 639 || seen.has(key(nx, ny))) continue;
-        if (forbidCrossing && isCrossing(nx, ny)) continue;
         if (!passable(nx, ny, caps)) continue;
         seen.add(key(nx, ny));
         q.push({ x: nx, y: ny });
@@ -180,21 +180,16 @@ describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [
     return null;
   };
 
-  it("LOCKED + crossing-FORBIDDEN: Silverwood is UNREACHABLE (no walk-around-the-end leak)", () => {
-    // The bug-catching assert: with the raft unowned AND the crossing treated as a wall, the BFS must
-    // find NO path to any Silverwood-zone tile. (Before the re-seal this LEAKED at world (244,52) via the
-    // open continent north/south of the short band.)
-    expect(reachesSilverwood(emptyCaps(), true)).toBeNull();
-  });
-
-  it("LOCKED + crossing allowed: Silverwood IS reachable — the crossing is the ONLY locked passage", () => {
-    // With the crossing usable (but the cap still unowned) a path opens — proving the ONLY locked-state
-    // route across is the raft crossing tiles (the seal has exactly one gate, the lock-before-key beat).
-    expect(reachesSilverwood(emptyCaps(), false)).not.toBeNull();
+  it("LOCKED: Silverwood is UNREACHABLE — the raft is required (no walk-around the ends, no free crossing line)", () => {
+    // The bug-catching assert: with the raft UNOWNED, a full 8-way BFS over the real passable predicate
+    // must find NO path to any Silverwood-zone tile. (Two prior leaks: walking around the short band's
+    // ends — fixed by the coast-to-coast seal; and the contiguous crossing line being walkable while
+    // locked — fixed by barrierBlocks now walling crossings too.)
+    expect(reachesSilverwood(emptyCaps())).toBeNull();
   });
 
   it("UNLOCKED (cap owned): the band opens and Silverwood is reachable", () => {
-    expect(reachesSilverwood(grantCap(emptyCaps(), "gorge"), false)).not.toBeNull();
+    expect(reachesSilverwood(grantCap(emptyCaps(), "gorge"))).not.toBeNull();
   });
 });
 
@@ -207,15 +202,16 @@ describe("systems/traversal — the owned-capability run state", () => {
     expect(caps.size).toBe(1);
   });
 
-  it("traversalBlocks: a locked gorge band tile blocks; granting the cap opens it; a crossing stays open", () => {
+  it("traversalBlocks: a locked gorge band tile blocks; granting the cap opens it; a crossing is walled too while locked", () => {
     const caps = emptyCaps();
     const bx = band.x0 + 3, by = band.y0 + 3;
     expect(traversalBlocks(OVERWORLD_ID, bx, by, caps)).toBe(true);  // locked
     grantCap(caps, "gorge");
     expect(traversalBlocks(OVERWORLD_ID, bx, by, caps)).toBe(false); // owned → open
-    // a crossing tile is open regardless of ownership.
+    // a crossing tile is BLOCKED while locked (the raft is required) and opens once owned.
     const c = GORGE.crossing[0];
-    expect(traversalBlocks(OVERWORLD_ID, c.x, c.y, emptyCaps())).toBe(false);
+    expect(traversalBlocks(OVERWORLD_ID, c.x, c.y, emptyCaps())).toBe(true);
+    expect(traversalBlocks(OVERWORLD_ID, c.x, c.y, grantCap(emptyCaps(), "gorge"))).toBe(false);
   });
 
   it("serializeCaps/reviveCaps round-trip; reviveCaps tolerates junk", () => {

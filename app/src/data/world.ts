@@ -1384,6 +1384,10 @@ export function isBarrierCrossing(bar: Barrier, wx: number, wy: number): boolean
 export function barrierBlocks(map: string, wx: number, wy: number, ownedCaps: Set<string>): boolean {
   const bar = barrierAt(map, wx, wy);
   if (!bar) return false;
-  if (ownedCaps.has(bar.cap)) return false;       // unlocked → the band no longer blocks
-  return !isBarrierCrossing(bar, wx, wy);          // locked → blocked unless it's a crossing tile
+  if (ownedCaps.has(bar.cap)) return false;       // unlocked → the whole band opens (the crossing is the route)
+  return true;                                     // locked → the WHOLE band blocks, crossing tiles INCLUDED:
+  // the raft is required to use the crossing. (Was `!isBarrierCrossing` — which left the crossing tiles
+  // walkable while locked; harmless when the crossing was a sparse non-contiguous set, but once the seal
+  // made it a CONTIGUOUS line at y=72 it became a free walk-across-without-the-raft. The `crossing` list
+  // now only drives RENDERING — where to draw the raft causeway once owned — not locked passability.)
 }
