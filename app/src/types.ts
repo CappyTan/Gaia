@@ -208,6 +208,9 @@ export interface Member extends Unit {
   mnaPoints: number;
   mp: number;
   maxmp: number;
+  /** Battle System 2.0: per-skill cooldown timers (skill key → turns remaining) — the substitute for
+   *  MP. Reset each battle; set on use, decremented at the start of the member's turn. */
+  cooldowns?: Record<string, number>;
   acted?: boolean;
   /** A carried Regeneration from a dungeon "regen" reprieve — seeded into status at the next battle start
    *  (statuses are otherwise wiped per-battle), then spent. Gradual in-combat healing, never an instant heal. */

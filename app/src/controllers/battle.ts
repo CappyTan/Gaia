@@ -56,7 +56,7 @@ export const Battle = {
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     // per-battle status starts clean; a carried dungeon "regen" reprieve (ADR 0010) seeds in AFTER the wipe
     // (and is spent), so a regen rest node heals gradually across THIS fight rather than instantly at the node.
-    Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; if (m.pendingRegen) { m.status.regen = m.pendingRegen; m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
+    Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.cooldowns = {}; if (m.pendingRegen) { m.status.regen = m.pendingRegen; m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
@@ -102,8 +102,15 @@ export const Battle = {
   },
 
   /* ---- player turn ---- */
+  // Battle System 2.0: abilities are gated by a per-skill cooldown (substitute for MP). 2 turns for now.
+  ABILITY_CD: 2,
+  tickCooldowns(m: Member): void {
+    const cd = m.cooldowns; if (!cd) return;
+    for (const k in cd) if (cd[k] > 0) cd[k]--;
+  },
   startPlayerTurn(m: Member): void {
     this.awaiting = true; this.current = m; this.selecting = null;
+    this.tickCooldowns(m); // count down this hero's ability cooldowns at the start of their turn
     this.tickStatuses(m, () => {
       if (!this.active) return; // the fight may have ENDED while this turn-start status tick was in flight
                                 // (e.g. another hero killed the boss) — never re-open commands on a finished battle
@@ -122,8 +129,8 @@ export const Battle = {
       list.appendChild(b);
     };
     mk("Attack", 0, () => this.chooseTarget(m, { type: "attack" }));
-    const known = m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s));
-    const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, known); list.appendChild(skBtn);
+    const knownKeys = m.skills.filter((k) => SKILLS[k] && skillUnlocked(m, SKILLS[k]));
+    const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, knownKeys); list.appendChild(skBtn);
     // Ultimate: a per-class signature super (its own button, between Skill and Defend). Only shown for
     // members who have one (e.g. the Photon Vanguard's Orbital Cannon).
     const ult = ULTIMATES[`${m.att}:${m.cls}`];
@@ -147,18 +154,21 @@ export const Battle = {
     clearTimeout(this._unlockT);
     this._unlockT = setTimeout(() => ids.forEach((s) => { const e = $(s); if (e) e.style.pointerEvents = ""; }), ms);
   },
-  showSkills(m: Member, known: Skill[]): void {
+  showSkills(m: Member, keys: string[]): void {
     this.setCmdWide(true); // give descriptions room to breathe
     const list = $("#cmdList")!; list.innerHTML = "";
     const back = el("button", "cmd", "◂ Back"); back.onclick = () => { this.setCmdWide(false); this.showCommands(m); }; list.appendChild(back);
-    known.forEach((s) => {
-      const afford = m.mp >= s.mp;
-      const cost = `<span class="cost${afford ? "" : " low"}">${s.mp} MP${afford ? "" : " — low"}</span>`;
-      const b = el("button", "cmd", `${s.name}${cost}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
-      if (!afford) b.disabled = true; else b.onclick = () => { this.setCmdWide(false); this.useSkill(m, s); };
+    const cds = (m.cooldowns ||= {});
+    keys.forEach((key) => {
+      const s = SKILLS[key]; if (!s) return;
+      const cd = cds[key] || 0, ready = cd <= 0; // Battle 2.0: cooldown-gated (no MP cost)
+      const tag = `<span class="cost${ready ? "" : " low"}">${ready ? "Ready" : `CD ${cd}`}</span>`;
+      const b = el("button", "cmd", `${s.name}${tag}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
+      if (!ready) b.disabled = true;
+      else b.onclick = () => { this.setCmdWide(false); cds[key] = this.ABILITY_CD; this.useSkill(m, s); };
       list.appendChild(b);
     });
-    if (known.length === 0) list.appendChild(el("div", "small", "No abilities unlocked yet — raise MNA in the Party screen."));
+    if (keys.length === 0) list.appendChild(el("div", "small", "No abilities unlocked yet — raise MNA in the Party screen."));
   },
   setCmdWide(on: boolean): void { $("#cmdPanel")?.classList.toggle("cmd-wide", on); },
   // Ultimate submenu: a single big button for the class's signature super.
@@ -267,7 +277,7 @@ export const Battle = {
   },
   resolveNow(actor: Unit, targets: Unit[], act: CombatAct): void {
     const s = act.skill;
-    if (s && s.mp) actor.mp = Math.max(0, (actor.mp ?? 0) - s.mp);
+    // Battle System 2.0: abilities no longer cost MP — they're gated by cooldown (set in showSkills).
 
     // Layered combat animation (REQUIEM): a skill with an `anim` — or a class whose plain Attack has
     // a bespoke animation (BASIC_ATTACK_ANIM, e.g. the Photon Vanguard's rifle shot) — plays its
