@@ -1,7 +1,7 @@
 // Traversal-gating — the OWNED-CAPABILITY layer for the macro "soft-gate by terrain" overworld lever
 // (Silverwood Overhaul, D2). PURE logic (ADR 0005): no DOM, no controller import. It owns the run's set
-// of unlocked traversal CAPABILITIES (e.g. "gorge" — the raft/bridge-kit from the Bandit Warren) and
-// the cheap predicates the field controller calls before its cell-kind check.
+// of unlocked traversal CAPABILITIES (e.g. "gorge" — the raft/bridge-kit recovered from the Duskmarsh's
+// Drowned Vault) and the cheap predicates the field controller calls before its cell-kind check.
 //
 // The DATA half lives in data/world.ts (the generic `BARRIERS` table + `barrierBlocks`): a barrier is a
 // band of world tiles that realize as an IMPASSABLE terrain kind UNTIL the run owns the named capability,
