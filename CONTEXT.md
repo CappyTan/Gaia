@@ -93,8 +93,10 @@ _Avoid_: boss (the Bandit Brute is the boss; elites are buffed normal enemies).
 
 **Legendary Figure**:
 A named, singular, mythic-scale being (human, monster, or non-human) that exists *above* the
-ordinary power scale and **transcends the affinity ring** — its raw power can overcome even an
-attunement it is the *prey* of. Distinct from a **boss** (a zone gate fight) and a **rare/treasure
+ordinary power scale. **They are still bound by the affinity ring** — a NOX legendary is still weak
+to a SOL legendary, etc. — but Legendary Figures vary **wildly** in raw power, so a figure powerful
+enough **may overcome an affinity disadvantage by sheer power** (it doesn't *ignore* the ring; it
+out-muscles it). Distinct from a **boss** (a zone gate fight) and a **rare/treasure
 monster** (an encounter spice). Dara's canon, added over time. Roster +
 first entry (The Last Lagrangian) in [`docs/design/legendary-figures.md`](docs/design/legendary-figures.md).
 _Not yet in the POC._
