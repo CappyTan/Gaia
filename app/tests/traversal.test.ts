@@ -85,23 +85,19 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
     }
   });
 
-  // SECONDARY CHECK (NOT the seal proof — the seal proof is the BFS describe block below). On the
-  // CRITICAL PATH — the player's eastward roam from Greenvale's spawn — the impassable gorge is
-  // ENCOUNTERED BEFORE they can reach/enter the Bandit-Warren mouth (the raft "key"). The mechanism is
-  // that the gorge spans the spawn's LATITUDE (walk straight east → hit the wall) while the Warren mouth
-  // has been RELOCATED OFF that eastward path (a SOUTH branch, a different latitude). So:
-  //   • walking due east from spawn, the FIRST barrier band tile reached on the spawn row is the gorge;
-  //   • the Warren mouth is NOT on the spawn row — it's south of it, requiring the player to turn off the
-  //     east route to find it (so they meet the lock, get stuck, THEN seek the key);
-  //   • the mouth is reachable WITHOUT touching the gorge band (mouth west of the wall, no soft-lock);
-  //   • the Elder-Oak (Silverwood crown ≈ (280,46)) stays OUTSIDE the band (visible across, not buried).
-  // This single-ray check is necessary-but-not-sufficient (it MISSED the walk-around-the-end leak the
-  // BFS seal test now catches), so it is kept only as a critical-path-ordering sanity check.
-  it("on the eastward critical path the impassable gorge is reached BEFORE the relocated Warren mouth (secondary, ordering only)", () => {
+  // SECONDARY CHECK (NOT the seal proof — the seal proof is the BFS describe block below). The redesigned
+  // ADR 0011 flow lands the "I want to go EAST but the gorge bars the way" beat INSIDE Greenvale: the
+  // WEST CHASM ARM reaches into Greenvale's eastern polygon edge, just east of the authored core, on the
+  // spawn's latitude. So walking due east from spawn the player dead-ends at the chasm arm BEFORE leaving
+  // the zone's eastern play-space. This single-ray check is necessary-but-not-sufficient (it MISSED the
+  // walk-around-the-end leak the BFS seal test now catches), so it is kept only as an arm-placement +
+  // dead-end-ordering sanity check; the BFS describe block is the real seal + no-soft-lock + south-route
+  // proof.
+  it("the west chasm arm dead-ends Greenvale's eastward approach just east of the core, Elder-Oak across it (secondary, ordering only)", () => {
     const gvL = ZONES.find((z) => z.id === "greenvale")!.layout;
     const gvPl = placementOf("greenvale")!;
     const spawnWX = gvPl.wx + gvL.spawn.x, spawnWY = gvPl.wy + gvL.spawn.y; // the player's start, world space
-    const mouthWX = gvPl.wx + gvL.mouth.x, mouthWY = gvPl.wy + gvL.mouth.y; // the raft-dropping mouth, world space
+    const coreEastX = gvPl.wx + gvL.w;            // east edge of Greenvale's authored core (world x190+1 exclusive)
 
     // (1) The spawn's LATITUDE crosses the gorge band — walking due east, the player runs into the wall.
     const bandMaxY = Math.max(...GORGE.band.map((r) => r.y1));
@@ -112,18 +108,20 @@ describe("traversal barrier predicates (data/world.ts) — the cartography Shoul
     for (let x = spawnWX + 1; x <= bandMaxX; x++) {
       if (barrierAt(OVERWORLD_ID, x, spawnWY)?.id === "greenvale-gorge") { firstGorgeX = x; break; }
     }
-    expect(firstGorgeX).toBeLessThan(Infinity);  // the eastward ray HITS the gorge
-    expect(firstGorgeX).toBeGreaterThan(spawnWX); // and the wall is ahead (east) of the player
+    expect(firstGorgeX).toBeLessThan(Infinity);   // the eastward ray HITS the gorge
+    expect(firstGorgeX).toBeGreaterThan(spawnWX);  // and the wall is ahead (east) of the player
 
-    // (2) The Warren mouth is OFF the eastward path — NOT on the spawn row (it's a south branch). So the
-    //     player meets the LOCK (the gorge, straight ahead) before they can reach the KEY (the mouth).
-    expect(mouthWY).not.toBe(spawnWY);            // the mouth is at a different latitude than the spawn
-    expect(mouthWY).toBeGreaterThan(spawnWY);     // specifically SOUTH of the spawn row (the relocation)
+    // (2) The dead-end lands INSIDE the zone's eastern edge: the arm's west face on the spawn row is only a
+    //     few tiles east of the authored core's east edge (it reaches into Greenvale's polygon, not far out
+    //     in empty wilds). The arm is at world x192; the core ends at world x190.
+    expect(firstGorgeX).toBeGreaterThanOrEqual(coreEastX);     // east of (or at) the core's edge
+    expect(firstGorgeX - coreEastX).toBeLessThanOrEqual(6);    // but only a hair beyond it (inside the zone)
+    expect(inZonePolygon("greenvale", firstGorgeX - 1, spawnWY)).toBe(true); // the rim tile is in Greenvale
 
-    // (3) The mouth is reachable WITHOUT crossing the gorge (it sits WEST of the wall) — no soft-lock; the
-    //     order is purely "which do you meet first on the obvious east route", and that is the gorge.
-    expect(mouthWX).toBeLessThan(bandMinX);
-    expect(barrierAt(OVERWORLD_ID, mouthWX, mouthWY)).toBeUndefined(); // the mouth tile is not in the band
+    // (3) The arm is a FINGER, not a wall through the interior: nothing west of the arm is in the band, so
+    //     the whole core (spawn, mouth, chests, lair, hub — all at world x≤166) is on the open west side.
+    const mouthWX = gvPl.wx + gvL.mouth.x;
+    expect(mouthWX).toBeLessThan(firstGorgeX);
 
     // (4) The Elder-Oak weenie is NOT swallowed by the band — it remains visible ACROSS the gorge.
     expect(inAnyRect(280, 46)).toBe(false);
@@ -157,10 +155,12 @@ describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [
     return k !== "uncharted" && !FIELD_WALLS.has(k);
   };
   const isSilverwood = (x: number, y: number) => inZonePolygon("silverwood", x, y);
+  const isDuskmarsh = (x: number, y: number) => inZonePolygon("duskmarsh", x, y);
 
   /** 8-way BFS from Greenvale's spawn over the REAL `bigPassable` predicate (no crossing exception —
-   *  while the cap is unowned the crossing tiles are walled too, so the raft is the ONLY way across). */
-  const reachesSilverwood = (caps: Set<string>): { x: number; y: number } | null => {
+   *  while the cap is unowned the crossing tiles are walled too, so the raft is the ONLY way across).
+   *  Returns the full reached set (so callers can probe any predicate against it in one pass). */
+  const reachedFrom = (caps: Set<string>): Set<string> => {
     const seen = new Set<string>();
     const key = (x: number, y: number) => x + "," + y;
     const q: { x: number; y: number }[] = [SPAWN];
@@ -168,7 +168,6 @@ describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [
     const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
     while (q.length) {
       const { x, y } = q.shift()!;
-      if (isSilverwood(x, y)) return { x, y };
       for (const [dx, dy] of DIRS) {
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx > 959 || ny > 639 || seen.has(key(nx, ny))) continue;
@@ -177,19 +176,44 @@ describe("the Sunless Gorge truly SEALS Greenvale→Silverwood (8-way BFS, the [
         q.push({ x: nx, y: ny });
       }
     }
-    return null;
+    return seen;
+  };
+  const anyReached = (seen: Set<string>, pred: (x: number, y: number) => boolean): boolean => {
+    for (const k of seen) { const [x, y] = k.split(",").map(Number); if (pred(x, y)) return true; }
+    return false;
   };
 
   it("LOCKED: Silverwood is UNREACHABLE — the raft is required (no walk-around the ends, no free crossing line)", () => {
     // The bug-catching assert: with the raft UNOWNED, a full 8-way BFS over the real passable predicate
     // must find NO path to any Silverwood-zone tile. (Two prior leaks: walking around the short band's
     // ends — fixed by the coast-to-coast seal; and the contiguous crossing line being walkable while
-    // locked — fixed by barrierBlocks now walling crossings too.)
-    expect(reachesSilverwood(emptyCaps())).toBeNull();
+    // locked — fixed by barrierBlocks now walling crossings too. The new west arm doesn't open a lane.)
+    expect(anyReached(reachedFrom(emptyCaps()), isSilverwood)).toBe(false);
   });
 
   it("UNLOCKED (cap owned): the band opens and Silverwood is reachable", () => {
-    expect(reachesSilverwood(grantCap(emptyCaps(), "gorge"))).not.toBeNull();
+    expect(anyReached(reachedFrom(grantCap(emptyCaps(), "gorge")), isSilverwood)).toBe(true);
+  });
+
+  it("LOCKED: the SOUTH route to the Duskmarsh stays OPEN — the player can reach the marsh (where the raft is) WITHOUT the raft", () => {
+    // The redesigned ADR 0011 flow: east is barred, but SOUTH to the Duskmarsh (which sits south, WEST of
+    // the gorge) must be open pre-raft, because the raft is now found there (the Drowned Vault). Neither
+    // the coast-to-coast seal nor the new west chasm arm may wall the marsh off.
+    expect(anyReached(reachedFrom(emptyCaps()), isDuskmarsh)).toBe(true);
+  });
+
+  it("NO SOFT-LOCK in Greenvale (LOCKED): spawn, the Warren mouth, chests, lair and hub stay reachable without the gorge cap", () => {
+    // The west arm is a DEAD-END finger into Greenvale's east edge, NOT a wall through the interior. Every
+    // authored Greenvale target must remain reachable from spawn over the LOCKED world (8-way BFS). Targets
+    // are taken from the live zone layout + placement (world space), so a future layout nudge re-checks.
+    const seen = reachedFrom(emptyCaps());
+    const pl = placementOf("greenvale")!;
+    const w = (p: { x: number; y: number }) => ({ x: pl.wx + p.x, y: pl.wy + p.y });
+    const village = { x: Math.max(1, gvL.spawn.x - 1), y: gvL.spawn.y }; // the re-enter-hub marker
+    const targets = [w(gvL.mouth), ...gvL.chests.map(w), ...(gvL.lair ? [w(gvL.lair)] : []), w(village)];
+    const k = (x: number, y: number) => x + "," + y;
+    const missed = targets.filter((t) => !seen.has(k(t.x, t.y)));
+    expect(missed).toEqual([]);
   });
 });
 
