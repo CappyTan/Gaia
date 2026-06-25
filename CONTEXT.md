@@ -41,6 +41,18 @@ this over time.
 _POC note:_ the playable build currently uses `atk/armor/mag/spd` (+`hp/mp`), not the canonical
 **STR/AGI/DEF/SPD/MGC** set — to be formalized/reconciled when stats are built out.
 
+**Scaling Tier** (canon):
+How well an Attunement converts a given primary stat into **ability power**, best→worst: **S, A, B,
+C, D** (S best; D minimal, ~5%). Each Attunement's **S** is its own stat; the rest follow the affinity
+ring — walk it in the **beats** direction (you → prey → … → predator) assigning S→A→B→C→D, so **A =
+your prey's stat, D = your predator's stat**. A low tier governs *ability scaling only* — the stat's
+universal substats still help everyone. Full table + coefficients: [`docs/design/stat-system.md`](docs/design/stat-system.md).
+
+**Fating / Fated** (canon — process named; mechanics WIP):
+The **"Corrupted Attunement"** process applied to an item, named after *fate*: to **Fate** an item is
+to corrupt/blend its Attunement and/or unlock **tier-breaking** stat scaling (raising a stat's
+Scaling Tier for the wearer). A processed item is **Fated**. See [`docs/design/stat-system.md`](docs/design/stat-system.md) §7.
+
 **The Five / the Pantheon** (canon):
 The "gods" of Gaia ARE the five Attunements personified — **Sol, Nox, Anima, Quanta, Umbraxis** —
 each the **leader/embodiment** of their Power and the head of its own **civilization and order**. The

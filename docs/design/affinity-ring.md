@@ -56,9 +56,10 @@ that drove most wipes) via `balance-sim.ts`.
    Troll = NOX); it just isn't a region-wide theme outside the scars.
 2. **Rotating raid/endgame bosses** by attunement → players rotate rosters (Raid Boss UMBRAXIS ⇒
    QUANTA shines; next week NOX ⇒ SOL shines). The answer to "why collect 45 classes if I need 5."
-3. **Corrupted Attunements** — a unit that counts as 50% one power + 50% another (e.g. Corrupted
+3. **Corrupted Attunements** — a unit/item that counts as 50% one power + 50% another (e.g. Corrupted
    SOL = 50% SOL / 50% UMBRAXIS), so matchup certainty breaks down. Needs the affinity fn to accept
-   blended attunements (today it's single-attunement per unit). Endgame spice.
+   blended attunements (today it's single-attunement per unit). Endgame spice. **On items this is now
+   canonized as "Fating"** (a *Fated* item) — see [`stat-system.md`](stat-system.md) §7.
 4. **PvP drafting** — the ring creates natural counter-draft once PvP exists.
 
 ## Open
