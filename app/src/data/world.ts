@@ -1249,11 +1249,23 @@ export interface Barrier {
   crossing: Point[];
 }
 
-// THE GREENVALE↔SILVERWOOD GORGE (D2 — TRUE LOCK-BEFORE-KEY, re-sealed 2026-06-23). A sunless
-// water/gorge chasm in the OPEN CONTINENT between Aurelion's WEST cluster (Greenvale + the Duskmarsh +
-// Dawnfall + Storm Coast) and its EAST cluster (Silverwood + Goldmeadow + Riverhearth + …). It touches
-// NEITHER any zone polygon NOR any authored core (verified 0 overlaps in the seal test below) and so
-// severs no existing in-core route — that clearance is the invariant the comment + tests guard.
+// THE GREENVALE↔SILVERWOOD GORGE (ADR 0011 — TRUE LOCK-BEFORE-KEY, re-sealed 2026-06-23; WEST ARM added
+// 2026-06-25 for the redesigned early-game flow). A sunless water/gorge chasm in the OPEN CONTINENT
+// between Aurelion's WEST cluster (Greenvale + the Duskmarsh + Dawnfall + Storm Coast) and its EAST
+// cluster (Silverwood + Goldmeadow + Riverhearth + …). The main ocean-to-ocean band touches NEITHER any
+// zone polygon NOR any authored core (the inter-cluster-gap clearance). The ONE deliberate exception is
+// the WEST CHASM ARM (below), which reaches into Greenvale's eastern POLYGON edge (NOT its authored
+// core) on purpose — so the "can't go east" beat lands inside the zone. The arm is disjoint from every
+// authored core and from the Duskmarsh; only Greenvale's polygon edge is touched, by design.
+//
+// THE REDESIGNED EARLY-GAME FLOW (player-confirmed, ADR 0011): the player is told to go EAST to
+// Silverwood, but the gorge bars it; the OPEN route is SOUTH to the Duskmarsh, where the raft is now
+// found (the Drowned Vault); they return and raft EAST to Silverwood. So the gorge must (1) reach WEST
+// as a chasm arm into Greenvale's eastern edge — the "I want east but can't" dead-end lands inside the
+// zone, with the Elder-Oak visible across it; (2) keep the coast-to-coast SEAL so Silverwood (and the
+// whole east half) stays unreachable without the raft; while (3) leaving the SOUTH route to the
+// Duskmarsh OPEN (the Duskmarsh sits south, WEST of the gorge — the player must reach it to find the
+// raft). All three are BFS-proven in traversal.test.ts.
 //
 // WHY THE RE-SEAL (the [Blocking] bug the level-design-reviewer BFS-found). The PRIOR band was a short
 // two-rect wall spanning only y40→110 across x∈[208,240]. It plugged the player's SPAWN-ROW lane, but
@@ -1274,21 +1286,24 @@ export interface Barrier {
 // + cores (the invariant). The result (BFS-proven in traversal.test.ts): with the cap UNOWNED there is
 // NO walkable path from a Greenvale-side tile to ANY Silverwood-zone tile EXCEPT across a crossing tile;
 // with the cap OWNED the crossing opens and Silverwood (and the rest of the east cluster) is reachable.
-//   The Bandit-Warren mouth (the raft "key") sits well WEST inside Greenvale's core, reachable WITHOUT
-// touching the chasm: the player meets the wall on the obvious east route, can't cross, sees the
-// Elder-Oak across it, turns back, and the Warren becomes the legible answer. Lock-before-key.
+//   THE RAFT IS NOW FOUND SOUTH, IN THE DUSKMARSH (ADR 0011 redesign — the Drowned Vault, not the Bandit
+// Warren). The Duskmarsh sits SOUTH of Greenvale and WEST of the gorge, so the SOUTH route to it stays
+// OPEN pre-raft: the player meets the chasm arm on the obvious east route, can't cross, sees the
+// Elder-Oak across it, turns back, and heads SOUTH to the marsh — where the raft waits. Then they return
+// and raft EAST. Lock (east) → key (south, the marsh) → unlock (raft east to Silverwood). The Bandit
+// Warren remains Greenvale's own mini/boss dungeon (the Kingpin) but is no longer the raft source.
 //   The Elder-Oak (Silverwood crown, world ≈ (280,46)) stands EAST of the band, ACROSS the chasm from
 // the Greenvale side — visible but unreachable ("see it now, reach it later"); it is OUTSIDE the band.
 //
 // TRADE-OFF FLAGGED FOR DARA (the geometry forces it). The inter-cluster gap NEVER pinches shut between
 // the north and south coasts — so the ONLY seal that gates Silverwood pre-raft is a full corridor wall,
 // which ALSO gates the rest of the EAST cluster (Goldmeadow, Riverhearth, Frostpeak, Whisper Hills,
-// Sunbridge) behind the raft. That matches the arc order (Greenvale → Silverwood → …east), and the WEST
-// cluster (Greenvale, the Duskmarsh, Dawnfall, Storm Coast) stays freely roamable pre-raft. But it does
-// mean the raft is the single key to the entire eastern half of Aurelion. If you'd rather the gorge gate
-// ONLY Silverwood (and leave Goldmeadow et al. reachable by a southern land route pre-raft), that needs
-// a SECOND geographic feature (a southern pass/bridge or a moved zone) — flag it and the cartographer
-// will re-trace. (No clean localized seal exists with the current polygon layout.)
+// Sunbridge) behind the raft. That matches the arc order, and the WEST cluster (Greenvale, the Duskmarsh,
+// Dawnfall, Storm Coast) stays freely roamable pre-raft — crucially INCLUDING the Duskmarsh, so the
+// raft (now found there) is itself reachable pre-raft. The raft is the single key to the entire eastern
+// half of Aurelion. If you'd rather the gorge gate ONLY Silverwood (leaving Goldmeadow et al. reachable
+// by a southern land route pre-raft), that needs a SECOND geographic feature — flag it and the
+// cartographer will re-trace. (No clean localized seal exists with the current polygon layout.)
 export const BARRIERS: Barrier[] = [
   {
     id: "greenvale-gorge",
@@ -1307,6 +1322,17 @@ export const BARRIERS: Barrier[] = [
       { x0: 196, y0: 42,  x1: 244, y1: 50 },   // narrowing toward the crossing waist
       { x0: 203, y0: 50,  x1: 243, y1: 60 },   // upper waist (clear of gv poly E, sw poly W)
       { x0: 206, y0: 60,  x1: 244, y1: 78 },   // CROSSING WAIST — the raft put-in→take-out at y72
+      // THE WEST CHASM ARM (ADR 0011 lock-before-key reshape, 2026-06-25). A dead-end ravine FINGER that
+      // reaches WEST out of the main band INTO Greenvale's eastern edge (the polygon stretches to x~205 at
+      // these latitudes; the authored core ends at world x190, so this arm sits just east of the core in
+      // the zone's open eastern play-space, y66–86). It makes the "I want to go EAST to Silverwood but the
+      // gorge bars the way" beat land INSIDE Greenvale: roaming east off the staging-green lookout the
+      // player dead-ends at the chasm rim with the Elder-Oak visible across it. It is an ARM, NOT a wall
+      // through the interior — all Greenvale core content (spawn world (129,74), Warren mouth (162,82),
+      // chests, Hogger's lair, the hub, all at world x≤166) stays WEST of the arm (x≥192) and freely
+      // reachable; verified by the no-soft-lock BFS. The arm's east edge (x206) coincides with the main
+      // band's west edge over y66–86 so there is NO diagonal lane between arm and band (8-way contiguous).
+      { x0: 192, y0: 66,  x1: 206, y1: 86 },   // WEST CHASM ARM — dead-ends Greenvale's east approach
       { x0: 206, y0: 78,  x1: 248, y1: 92 },   // lower waist
       { x0: 202, y0: 92,  x1: 246, y1: 110 },  // descending past Silverwood's south throat lip
       { x0: 191, y0: 110, x1: 246, y1: 122 },  // throat gap (no zones; Goldmeadow begins ~y122)
@@ -1361,6 +1387,25 @@ export const BARRIERS: Barrier[] = [
 //      zones.ts: spawn (2,3) NW crown → mouth (36,20) SE foot) carries them to the Elder-Treant gate.
 //      The level-designer lays this as `path` tiles bending S; the cartographer owns only the endpoints
 //      + the bend intent above. Reciprocal direction for a player walking back is NW (mouth → take-out).
+//
+// ── EDGE SPEC — THE WEST CHASM-ARM DEAD-END + THE SOUTH ROUTE (ADR 0011 reshape, for the level-designer) ──
+// (1) THE CHASM-ARM RIM LOOKOUT. The new west chasm arm is the band rect [192,86)×… i.e. world
+//     x192–205, y66–85 (it reaches into Greenvale's eastern polygon edge, just EAST of the authored core
+//     which ends at world x190). Greenvale's EAST main-flow already runs to the east staging-green lookout
+//     (zones.ts greenvale fieldPath ending at local (39,10) → world (166,72)). Continue that road EAST a
+//     few open-continent tiles to the chasm RIM at ~world (191,72) and place a "Silverwood lies east — but
+//     the Sunless Gorge bars the way" LOOKOUT/SIGNPOST there (a `signpost`/`landmark` POI on the last
+//     walkable tile, world ≈ (190,72), with the Elder-Oak silhouette visible across the chasm to the NE).
+//     This is the dead-end where the eastward intent is denied — INSIDE Greenvale, not out in the wilds.
+//     The arm is a FINGER, not a wall: nothing west of x192 is gated, so the zone is never cut in half.
+// (2) THE SOUTH ROUTE TO THE DUSKMARSH (the open "other way"). The Duskmarsh polygon's north lip is at
+//     world ≈ (150,124)–(188,120); Greenvale's polygon drops to its SE around world (180,108)–(150,110).
+//     The open route SOUTH leaves Greenvale's southern edge near world (165,108) and crosses ~10 tiles of
+//     open continent into the Duskmarsh's Causeways (dm-causeways) — NO barrier band lies between them
+//     (the band's throat at these latitudes sits EAST, x191–246). The level-designer should make this
+//     south continent-crossing read as the inviting open road once the east is denied (a bend-south trail
+//     from Greenvale's south meadow toward the marsh head). The raft is found beyond, in the Duskmarsh's
+//     Drowned-Vault (dm-vault-approach mouth).
 
 /** The barrier covering a world tile on a map (first match; bands don't overlap), or undefined. */
 export function barrierAt(map: string, wx: number, wy: number): Barrier | undefined {
@@ -1384,6 +1429,10 @@ export function isBarrierCrossing(bar: Barrier, wx: number, wy: number): boolean
 export function barrierBlocks(map: string, wx: number, wy: number, ownedCaps: Set<string>): boolean {
   const bar = barrierAt(map, wx, wy);
   if (!bar) return false;
-  if (ownedCaps.has(bar.cap)) return false;       // unlocked → the band no longer blocks
-  return !isBarrierCrossing(bar, wx, wy);          // locked → blocked unless it's a crossing tile
+  if (ownedCaps.has(bar.cap)) return false;       // unlocked → the whole band opens (the crossing is the route)
+  return true;                                     // locked → the WHOLE band blocks, crossing tiles INCLUDED:
+  // the raft is required to use the crossing. (Was `!isBarrierCrossing` — which left the crossing tiles
+  // walkable while locked; harmless when the crossing was a sparse non-contiguous set, but once the seal
+  // made it a CONTIGUOUS line at y=72 it became a free walk-across-without-the-raft. The `crossing` list
+  // now only drives RENDERING — where to draw the raft causeway once owned — not locked passability.)
 }

@@ -524,12 +524,13 @@ export const Battle = {
       wasZoneBoss = this.enemies.some((e) => e.boss),
       wasFinal = this.finalBoss;
     if (wasMini) { Game.miniBossDefeated = true; Field.onMiniDefeated(); } // open the mouth/gate (model-aware)
-    // TRAVERSAL UNLOCK (Silverwood Overhaul, D2): clearing the Bandit Warren (the Kingpin, Greenvale's
-    // zone boss) AWARDS the raft as a held quest item — and owning the raft confers the "gorge" capability
-    // (Game.acquireItem → applyItemCaps), so the Sunless Gorge between Greenvale and Silverwood opens (its
-    // crossing becomes passable). Gated on the SOURCE zone (greenvale) so only this boss grants it; later
-    // barriers add their own item + grant point. Returns the def the first time → announced in the spoils.
-    const gotItem = wasZoneBoss && Field.zone().id === "greenvale" ? Game.acquireItem("raft") : null;
+    // TRAVERSAL UNLOCK (lock-before-key redesign): the raft is found in the DROWNED VAULT — clearing the
+    // DUSKMARSH zone boss AWARDS it as a held quest item, and owning the raft confers the "gorge" capability
+    // (Game.acquireItem → applyItemCaps), opening the Sunless Gorge so you can finally cross EAST to
+    // Silverwood. The flow: blocked east by the gorge → go SOUTH to the Duskmarsh → raft → cross east. The
+    // Bandit Warren (Greenvale) is now a pure beginner dungeon with NO key item. Gated on the SOURCE zone
+    // (duskmarsh); later barriers add their own item + grant point. Returns the def the first time → spoils.
+    const gotItem = wasZoneBoss && Field.zone().id === "duskmarsh" ? Game.acquireItem("raft") : null;
     Game.continueAfterBattle = wasZoneBoss
       ? wasFinal
         ? () => Game.victory()

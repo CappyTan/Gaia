@@ -271,12 +271,13 @@ export const ENCOUNTERS: EncounterBand[] = [
 // LOCK-BEFORE-KEY RELOCATION (ADR 0011 D2-revised, level-designer 2026-06-23). The Warren MOUTH no
 // longer sits on the direct spawn→east path (old local (40,12) → world (167,74), met BEFORE the gorge
 // at world x208 — key before lock). The obvious eastward route now funnels to a GORGE RIM lookout at
-// the grid's east edge (the put-in signpost row y10 → the player walks off the core east and meets the
-// impassable chasm at world x208, the Elder-Oak looming across it). The Warren is discovered as "the
-// OTHER WAY" — a SOUTH branch off the staging green down to a Warren-approach hollow (mouth local
-// (35,20) → world (162,82), SOUTH of the spawn latitude). Beat: push east → hit gorge (stuck) → see the
-// Oak across it → turn back, take the south branch → clear the Warren → raft → return → cross. The boss
-// tile/gateWallX stay legacy (the dungeon is its own grid); only the OVERWORLD mouth + routing move.
+// the grid's east edge: the player walks off the core east and dead-ends at the impassable gorge CHASM
+// ARM (world x192, reaching into Greenvale's edge), the Elder-Oak of Silverwood looming across it. The
+// Bandit Warren is now a KEYLESS beginner trial (loot only, no raft) on a SOUTH branch off the staging
+// green (mouth local (35,20) → world (162,82)). The raft is found further SOUTH, in the Duskmarsh's
+// Drowned Vault (battle.ts grants the "gorge" cap on that boss). Beat: pushed east → hit the chasm
+// (stuck), Oak across it → the open way is SOUTH → through the Duskmarsh, clear the Drowned Vault → raft
+// → return → cross east to Silverwood. The boss tile/gateWallX stay legacy (the dungeon is its own grid).
 const GREENVALE_LAYOUT: ZoneLayout = {
   w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 20 }, gateWallX: 40, boss: { x: 60, y: 11 },
   // The OVERWORLD MOUTH is now DECOUPLED from the legacy combined-grid gate (ADR 0008 new model): the

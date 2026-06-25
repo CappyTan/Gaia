@@ -111,15 +111,15 @@ const HEARTHFORD: Settlement = {
       lines: [
         "Well met, traveler. You've a young road in your eyes — not yet worn the way mine is.",
         "I've watched over Hearthford forty winters, and never seen the fields so quiet. Bandits work the north end now, bold as crows on a scarecrow.",
-        "Go north into Greenvale when you're ready — but mind the old warren they've made their nest. Brave folk have gone in. Fewer come out.",
-        "Your road runs east, in the end — to Silverwood, the ancient wood beyond the fields. But the Sunless Gorge cuts the way, a wound no boot can cross. One crossing remains: the Bandit Warren keeps a raft on the dark water, and the Kingpin keeps the Warren. Break him, and the east opens.",
+        "Go north into Greenvale when you're ready — the old Bandit Warren they've nested in will cut your teeth. Brave folk have gone in for the cleaning out of it; fewer come out. But it's a trial, no more — the prize there is only what the Kingpin hoards.",
+        "Your road runs east, in the end — to Silverwood, the ancient wood beyond the fields. But the Sunless Gorge cuts the way, a wound no boot can cross. The one crossing is a raft, and no bandit holds it: it lies sunk to the SOUTH, in the drowned ruins under the Duskmarsh — the Drowned Vault. Raise it, and the east opens.",
       ] },
     { id: "guard", name: "Watchman Bram", spr: "💂", x: 11, y: 2,
       lines: [
         "Hold up. North gate? On your own head, then — Greenvale's no orchard stroll anymore.",
         "Slimes and kobolds in the long grass, that's the least of it. The bandits' Brigadier holds the choke into the warren, and he doesn't bluff.",
         "Sleep at the inn first. I've seen too many march out proud and come back on a board. Don't make me carry you.",
-        "Don't waste a thought on the east road — it's shut. Stays shut till the Bandit Warren's broken and the Kingpin with it. Until then, the Sunless Gorge keeps you this side of it.",
+        "Don't waste a thought on the east road — the Sunless Gorge keeps it shut, and no boot crosses that wound. The open way runs SOUTH, down through the marsh. Not a kinder road, mind. Just the one that's there.",
       ] },
     { id: "child", name: "Little Pip", spr: "🧒", x: 6, y: 6,
       lines: [
@@ -206,6 +206,7 @@ const MIREGARD: Settlement = {
       lines: [
         "Hauled up my nets last week. What was in them weren't fish. Cut the line and let it sink. Some catches you leave to the water.",
         "Good steel's down there, rusting in the dark — sunken stones south of the causeway, the marsh swallowed whole. A bold soul comes back rich off it. Bolder one don't come back. I fish where it's shallow.",
+        "You're chasing the raft, then. Aye — it's down in the Drowned Vault, below the mire, where the old ruins sit under black water. It's the one way over the Sunless Gorge and on east to Silverwood. Raise it from the deep, and the crossing's yours. If the deep lets you.",
       ] },
   ],
 };

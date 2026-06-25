@@ -1798,29 +1798,35 @@ export const Field = {
     }
   },
 
-  // GORGE-RIM PROPS (ADR 0011 D4 fix, level-designer 2026-06-23). The Sunless-Gorge put-in signpost is an
-  // OPEN-CONTINENT prop, NOT a core-bound POI: Greenvale's authored grid ends ~world x190, but the chasm's
-  // west face / put-in is at world ~(206,72), so a grid-bound sign read "the road ends at a sheer chasm"
-  // ~16–40 tiles short. This renders it (and an optional take-out marker) at the REAL rim — purely visual,
-  // never touching passability (the gorge band's walls + the crossing route are owned by world.ts/
-  // barrierBlocks, unchanged). Coords are DERIVED from the barrier's crossing so they track world.ts:
-  //   • PUT-IN SIGN  — one tile WEST of the crossing's min-x (the last walkable Greenvale-side rim tile,
-  //     where the funnelled east road meets the impassable chasm; Elder-Oak visible across it).
-  //   • TAKE-OUT MARK — one tile EAST of the crossing's max-x (Silverwood-shore landfall), so the far rim reads.
-  // Drawn only while the gorge is LOCKED (the put-in beat is "see it now, reach it later"); once crossed the
-  // crossing/causeway tiles carry the read. Returns true if it drew a captioned prop at (wx,wy).
+  // GORGE-RIM PROPS (ADR 0011 lock-before-key, level-designer; west-arm re-placement 2026-06-25). The
+  // "Silverwood lies east, the chasm bars the way" cue is an OPEN-CONTINENT prop, NOT a core-bound POI:
+  // Greenvale's authored grid ends ~world x190, and the WEST CHASM ARM (band rect {x0:192,y0:66,x1:206,
+  // y1:86}) now fingers into Greenvale's eastern play-space, so the locked player walking east DEAD-ENDS
+  // at the arm's west face (first chasm tile x192 → last walkable tile x191) on the spawn row y72, long
+  // before the old crossing-extent put-in at ~(205,72) — which is itself INSIDE the arm now and never
+  // seen. So while LOCKED the lookout/signpost must sit at the ARM'S WEST RIM, the spot the player
+  // actually stops; the Elder-Oak (≈280,46) reads across the chasm to the NE. Once UNLOCKED the arm/band
+  // open and the crossing-causeway at y72 carries the read, so the put-in marker reverts to the crossing
+  // extents. Purely visual — never touches passability (world.ts/barrierBlocks own the walls + route).
+  // Coords are DERIVED from the barrier data (band rects + crossing) so they track world.ts, no magic
+  // numbers. Returns true if it drew a captioned prop at (wx,wy).
   drawGorgeRimProps(c: CanvasRenderingContext2D, wx: number, wy: number, sx: number, sy: number, t: number): boolean {
     if (this.ownedCaps.has("gorge")) return false;            // unlocked → the crossing/causeway reads instead
-    // A rim tile is OPEN CONTINENT just outside the chasm band; probe the adjacent E/W tile for the gorge
-    // barrier so we can derive its crossing extents (cheap; the band is small + this is off the hot path).
-    const gorge = [barrierAt(OVERWORLD_ID, wx + 1, wy), barrierAt(OVERWORLD_ID, wx - 1, wy)]
+    // A rim tile is OPEN CONTINENT just outside the chasm band; probe the adjacent tiles for the gorge
+    // barrier so we can derive its band/crossing extents (cheap; the band is small + this is off the hot path).
+    const gorge = [barrierAt(OVERWORLD_ID, wx + 1, wy), barrierAt(OVERWORLD_ID, wx - 1, wy),
+                   barrierAt(OVERWORLD_ID, wx, wy + 1), barrierAt(OVERWORLD_ID, wx, wy - 1)]
       .find((b) => b?.cap === "gorge");
     if (!gorge) return false;
     const xs = gorge.crossing.map((p) => p.x), ys = gorge.crossing.map((p) => p.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs), cy = ys[0];
+    const cy = ys[0], maxX = Math.max(...xs);
+    // WEST RIM of the chasm at the crossing latitude cy: the westmost band rect that spans cy is the arm
+    // finger reaching into Greenvale; its west face (rect.x0) is the first chasm tile, so the last walkable
+    // Greenvale-side tile is rect.x0 - 1 — exactly where the east approach dead-ends. Derived, not hardcoded.
+    const armWestFace = Math.min(...gorge.band.filter((r) => cy >= r.y0 && cy < r.y1).map((r) => r.x0));
     let label = "";
-    if (wy === cy && wx === minX - 1) label = "The Sunless Gorge ⟶";   // Greenvale-side put-in rim (last walkable tile)
-    else if (wy === cy && wx === maxX + 1) label = "Silverwood Shore"; // far rim take-out (landfall)
+    if (wy === cy && wx === armWestFace - 1) label = "Silverwood — the Sunless Gorge bars the way ⟶"; // arm's west rim (dead-end)
+    else if (wy === cy && wx === maxX + 1) label = "Silverwood Shore"; // far rim take-out (landfall) — reads across
     if (!label) return false;
     // signpost glyph (reuse the POI signpost emoji until art lands) + a gold caption — on-brand gold-on-dark.
     c.font = `${t * 0.7}px serif`; c.fillText("🪧", sx + t / 2, sy + t / 2);
