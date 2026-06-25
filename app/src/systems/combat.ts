@@ -3,7 +3,7 @@ import type { Rng } from "../core/rng";
 import { ri, pick } from "../core/rng";
 import { affinity } from "./affinity";
 import { mnaBonus } from "./progression";
-import { ENEMIES, depthHpScale, depthAtkScale } from "../data/enemies";
+import { ENEMIES, depthHpScale, depthAtkScale, ENEMY_HP_EASE, ENEMY_ATK_EASE } from "../data/enemies";
 import { ELITE_AFFIXES } from "../data/items";
 
 // PURE damage math — no DOM, no side effects. Used by the battle controller AND the balance
@@ -95,9 +95,9 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
   // difficulty (Dara): −35% then a further −50% → ~0.325× of base. Bosses/mini/rares keep full HP;
   // elites/champions scale off the reduced base.
   const stdHp = (d.boss || d.miniboss || d.rare) ? 1 : 0.325;
-  const hp = Math.round(d.hp * depthHpScale(depth) * champHp * stdHp);
-  const atk = Math.round(d.atk * depthAtkScale(depth) * champAtk);
-  const mag = Math.round((d.mag || 0) * depthAtkScale(depth) * champAtk);
+  const hp = Math.round(d.hp * depthHpScale(depth) * champHp * stdHp * ENEMY_HP_EASE);
+  const atk = Math.round(d.atk * depthAtkScale(depth) * champAtk * ENEMY_ATK_EASE);
+  const mag = Math.round((d.mag || 0) * depthAtkScale(depth) * champAtk * ENEMY_ATK_EASE);
   const e: Enemy = {
     key, name: d.name, spr: d.spr, att: d.att, lvl: d.lvl, side: "enemy", // champion marker is a render concern
     maxhp: hp, hp, atk, spd: d.spd, armor: d.armor + (champion ? 2 : 0), mag,

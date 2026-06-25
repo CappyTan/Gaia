@@ -62,12 +62,15 @@ describe("loot generation", () => {
   });
   it("every armor-family slot makes a valid, defensive piece", () => {
     for (const slot of ARMOR_SLOTS) {
-      const it = makeItem(null, slot, 3, null, 10, "NOX");
-      expect(it.slot).toBe(slot);
-      expect(it.att).toBe("NOX"); // armor carries an attunement (flavor/art)
-      // each armor piece contributes at least one of HP / armor / atk / spd / mp
-      const total = (it.implicit.hp || 0) + (it.implicit.armor || 0) + (it.implicit.atk || 0) + (it.implicit.spd || 0) + (it.implicit.mp || 0);
-      expect(total).toBeGreaterThan(0);
+      for (let i = 0; i < 24; i++) { // covers both branches of the 50/50 attuned-vs-neutral roll
+        const it = makeItem(null, slot, 3, null, 10, "NOX");
+        expect(it.slot).toBe(slot);
+        // armor is attuned IFF it rolled MNA; neutral armor carries no attunement designation (Dara)
+        if (it.mna) expect(it.att).toBe("NOX"); else expect(it.att).toBeUndefined();
+        // each armor piece contributes at least one of HP / armor / atk / spd
+        const total = (it.implicit.hp || 0) + (it.implicit.armor || 0) + (it.implicit.atk || 0) + (it.implicit.spd || 0);
+        expect(total).toBeGreaterThan(0);
+      }
     }
   });
   it("rarity band climbs with level (STEEP early curve) and is monotonic", () => {
@@ -197,7 +200,7 @@ describe("MNA gating & scaling", () => {
     const before = unlockedSkills(m).length;
     m.equip.weapon = makeItem(m.cls, "weapon", 5, m.cls, 12); // artifact, high ilvl
     recalc([m]);
-    expect(m.mna.SOL).toBeGreaterThan(60);
+    expect(m.mna.SOL).toBeGreaterThan(10); // gear MNA is toned down (Stat System balance), but still opens abilities
     expect(unlockedSkills(m).length).toBeGreaterThan(before);
   });
   it("Archon (100 MNA) is required for the ultimate", () => {
@@ -216,7 +219,7 @@ describe("MNA gating & scaling", () => {
     recalc(party);
     const m = party[0];
     expect(m.mnaPoints).toBe(0);
-    grantXp(party, xpForLevel(1) * 4); // a few levels
+    grantXp(party, xpForLevel(1) * 4, () => 0); // a few levels; rng()=0 forces the 50/50 MNA win each level
     expect(m.mnaPoints).toBeGreaterThan(0);
     const pts = m.mnaPoints;
     m.mnaAlloc.SOL += pts; m.mnaPoints = 0; // allocate all into SOL (what UI.allocMna does)

@@ -223,3 +223,7 @@ export const HP_DEPTH = 1.35;
 export const ATK_DEPTH = 0.55;
 export const depthHpScale = (d: number): number => 1 + clamp(d, 0, 1) * HP_DEPTH;
 export const depthAtkScale = (d: number): number => 1 + clamp(d, 0, 1) * ATK_DEPTH;
+// Global enemy ease (Stat System V3 rebalance): toning gear MNA down lowered party ability power
+// (MNA gates unlocks + scaling), so enemies are eased to keep the difficulty curve. Tuned via the sim.
+export const ENEMY_HP_EASE = 0.86;
+export const ENEMY_ATK_EASE = 0.86;

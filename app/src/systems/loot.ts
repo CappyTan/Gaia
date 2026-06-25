@@ -33,6 +33,13 @@ const ilvlMult = (ilvl: number): number => 1 + Math.max(0, ilvl) * 0.07;
 // These feed the wearer's ability scaling (systems/stats abp) and the character-sheet primaries.
 const primVal = (r: number, ilvl: number): number => Math.round(1.5 + r * 1.2 + Math.max(0, ilvl) * 0.15);
 const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "MGC", armor: "DEF", gloves: "STR", boots: "SPD" };
+// Intrinsic gear MNA (Stat System balance) — toned WAY down (Dara): early pieces give +1–2, not +30.
+// Weapons ALWAYS carry at least +1 in their Attunement (it sets the class); armor only SOMETIMES does.
+// No flat base (that was what made early drops absurd, e.g. +33): MNA grows from rarity × ilvl, so the
+// first commons give +1–2 while a deep legendary/artifact still gives a meaningful chunk (unlocks + Archon).
+const weaponMna = (r: number, ilvl: number): number => { const i = Math.max(0, ilvl); return Math.max(1, Math.round(r * i * 0.6 + i * 0.6 + r)); };
+const armorMna = (r: number, ilvl: number): number => { const i = Math.max(0, ilvl); return Math.max(1, Math.round(r * i * 0.35 + i * 0.35 + r * 0.5)); };
+const ARMOR_MNA_CHANCE = 0.5; // half of armor drops are attuned (carry MNA); the rest are neutral (no attunement)
 function rollPrim(slot: Slot, att: Attunement, r: number, ilvl: number): Partial<Prims> {
   const stat: PrimaryStat = slot === "weapon" ? GOVERNING_STAT[att] : slot === "trinket" ? "AGI" : ARMOR_SLOT_PRIM[slot] ?? "STR";
   return { [stat]: primVal(r, ilvl) };
@@ -54,6 +61,10 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   let name: string;
   const implicit: Implicit = {};
   let mna: Item["mna"];
+  // The Attunement actually STAMPED on the item. Weapons always keep it (it sets the class). Armor keeps
+  // it only if the piece rolled MNA; otherwise the armor is NEUTRAL (no attunement designation). Trinkets
+  // are always neutral.
+  let itemAtt: Attunement | undefined = att;
   if (slot === "weapon") {
     const wc = weaponClass || "Dual Swords";
     // SOL's four art-charted archetypes use Dara's named loot charts; every other
@@ -62,17 +73,23 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
       ? ITEM_NAMES[wc][r]
       : `${ATT_ADJ[att]?.[r] ?? att} ${ARCH_NOUN[wc] ?? wc}`;
     implicit.atk = Math.round((5 + r * 5) * k); // base atk ladder by rung, scaled by ilvl
-    // A weapon carries intrinsic MNA in its own Attunement — the main MNA source, and what
-    // sets the wielder's class.
-    mna = { [att]: Math.round(14 + ilvl * 2.7 + r * 9) };
+    // A weapon carries intrinsic MNA in its own Attunement — always ≥1, and what sets the wielder's class.
+    mna = { [att]: weaponMna(r, ilvl) };
   } else if (isArmorSlot(slot)) {
-    // Armor-family pieces (helmet/chest/gloves/boots) carry an attunement for flavor only (it
-    // doesn't set class — weapons do): it picks the matching per-attunement art + a themed name,
-    // e.g. "Wildgrown Cuirass", "Rimewrought Greaves". Each slot has its own stat budget.
-    name = `${ATT_ADJ[att]?.[r] ?? ""} ${(ARMOR_SLOT_NOUNS[slot] ?? ARMOR_SLOT_NOUNS.armor)[r]}`.trim();
+    const noun = (ARMOR_SLOT_NOUNS[slot] ?? ARMOR_SLOT_NOUNS.armor)[r];
     Object.assign(implicit, ARMOR_STATS[slot](r, k, ilvl));
+    if (Math.random() < ARMOR_MNA_CHANCE) {
+      // ATTUNED armor: small MNA in its Attunement + a themed name ("Wildgrown Cuirass", "Rimewrought Greaves").
+      mna = { [att]: armorMna(r, ilvl) };
+      name = `${ATT_ADJ[att]?.[r] ?? ""} ${noun}`.trim();
+    } else {
+      // NEUTRAL armor: no MNA, so no attunement designation (Dara) — a plain, unthemed name.
+      itemAtt = undefined;
+      name = noun;
+    }
   } else {
     name = TRINKET_NAMES[r]; // attunement-neutral
+    itemAtt = undefined;
     implicit.mag = Math.round((3 + r * 3) * k);
     implicit.hp = Math.round((4 + r * 3) * k);
   }
@@ -86,8 +103,9 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   }
   // every piece carries a V3 primary attribute by slot identity (weapon → governing stat, etc.)
   const prim = rollPrim(slot, att, r, ilvl);
-  // weapons + armor carry an attunement (weapon sets class/MNA; armor is art/name flavor); trinkets don't
-  return { slot, cls: weaponClass || cls || "", att: slot === "trinket" ? undefined : att, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, prim, affixes };
+  // att is stamped only where it means something: weapons (always) + attuned armor (rolled MNA). Neutral
+  // armor and trinkets carry no attunement designation.
+  return { slot, cls: weaponClass || cls || "", att: itemAtt, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, prim, affixes };
 }
 
 // crude power score for comparing/sorting items
