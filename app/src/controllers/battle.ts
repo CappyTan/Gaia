@@ -562,8 +562,9 @@ export const Battle = {
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
       leveled.forEach((l) => {
-        // the 50/50 MNA thrill — call out a win (and the rare +3 jackpot), or note an unlucky level
-        const mna = l.mnaGain ? `<span class="r-legendary">+${l.mnaGain} MNA${l.mnaGain >= 3 ? " ⭐ JACKPOT!" : " ⭐"}</span>` : `<span style="opacity:.6">no MNA — unlucky</span>`;
+        // the MNA roll — usually +1, the super-rare +2 is a jackpot, 0 is an unlucky whiff
+        const mna = (l.mnaGain ?? 0) >= 2 ? `<span class="r-legendary">+${l.mnaGain} MNA ⭐ JACKPOT!</span>`
+          : l.mnaGain === 1 ? `+1 MNA` : `<span style="opacity:.6">no MNA — unlucky</span>`;
         h += `<div class="small" style="margin-top:3px">${l.name} → Lv ${l.level}${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`;
         h += `<div class="small" style="opacity:.9;margin-left:10px">+${l.hp ?? 0} HP · +${l.atk ?? 0} ATK · +${l.arm ?? 0} ARM · ${mna}</div>`;
       });
