@@ -80,6 +80,11 @@ Aurelion TBD.*
 > otherworldly nightmares." **The five scars are the only Attunement-themed regions in the world** —
 > one per Attunement — a natural endgame structure.
 
+> **Canon (the gods = the Five):** the "gods" who clashed here are the **Pantheon** — Sol, Nox, Anima,
+> Quanta, Umbraxis, the leaders/embodiments of the five Attunements (see
+> [`pantheon.md`](pantheon.md)). Read literally, **each scar is the wound left by that Attunement's
+> god** — which is exactly why the scars are the only Attunement-themed regions.
+
 | # | Region | Epithet | **Attunement (map-explicit)** |
 |---|---|---|---|
 | 21 | **Sol Scar** | The Radiant Expanse | **SOL** — "scorched by the fury of Sol's light; blazing storms, star-winds." |
@@ -122,6 +127,10 @@ civilization. **"This world was not just a kingdom. It was the foundation of a g
 **Lore frame (map):** *"They built bodies, then minds. They built machines, then worlds. They
 built… successors. The AI was to be the final key — a mind to guide Gaia into a new age of creation.
 But the gods came first."*
+
+> **Canon tie-in:** "the gods" are the **Five** ([`pantheon.md`](pantheon.md)) — and this Forgotten
+> Civilization is (proposed) the single origin civilization they **fragmented** out of, before they
+> rose as the Pantheon and pre-empted the machine successors. *Dara to confirm the exact link.*
 
 ### The major complexes
 | Complex | Position | What it is |
