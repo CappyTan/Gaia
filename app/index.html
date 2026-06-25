@@ -348,9 +348,10 @@
      anchored bottom-centre at the feet (the rotating flat disc reuses .cast-circle). Behind the sprite,
      semi-transparent; gently pulses (no rotation — it's a vertical effect). */
   .heal-col{position:absolute; pointer-events:none; transform:translate(-50%,-100%);}
-  .heal-col-img{display:block; width:100%; height:auto; transform-origin:bottom center; mix-blend-mode:screen;
+  .heal-col-img{display:block; width:100%; height:auto; transform-origin:bottom center;
     animation:healpulse 1.4s ease-in-out infinite; will-change:opacity,filter;}
-  @keyframes healpulse{0%,100%{opacity:.82; filter:brightness(.95);}50%{opacity:1; filter:brightness(1.25);}}
+  @keyframes healpulse{0%,100%{opacity:.85; filter:brightness(1) drop-shadow(0 0 5px rgba(255,255,255,.25));}
+    50%{opacity:1; filter:brightness(1.3) drop-shadow(0 0 10px rgba(255,255,255,.4));}}
   /* fullscreen cutscene (ui/cutscene): a black wash fades the app out, the video plays at full
      resolution (letterboxed via object-fit:contain), then both fade back out. Above everything. */
   .cutscene-scrim{position:fixed; inset:0; background:#000; z-index:10000; opacity:0;
