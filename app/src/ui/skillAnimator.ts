@@ -323,10 +323,11 @@ export function playSlash(stage: HTMLElement, targetEl: Element, att: string, op
 // `onDone` (the caller applies the ability), then fades out. Centred under the feet, scaled to the
 // sprite, and inserted BEHIND the combatant zones so the hero stands on top of it. It does not move.
 // If the art is missing it just runs onDone immediately so the ability still resolves.
-const CAST_FADE_MS = 160;
+const CAST_FADE_MS = 160;      // quick fade-in
 const CAST_HOLD_MS = 1500;     // ~1.5s cast, then apply + fade out
-const CAST_OUT_MS = 260;
+const CAST_OUT_MS = 450;       // smooth fade-out (longer than the fade-in)
 const CAST_W = 1.7;            // circle width vs. the caster sprite's larger dimension
+const CAST_FLATTEN = 0.6;      // extra ground flatten on top of the art's own squash (lower = flatter)
 
 /** Play a casting circle under `casterEl` (positioned within `field`); calls `onDone` at cast end. */
 export function playCast(field: HTMLElement, casterEl: Element, att: string, onDone: () => void): void {
@@ -342,12 +343,13 @@ export function playCast(field: HTMLElement, casterEl: Element, att: string, onD
   wrap.style.opacity = "0"; wrap.style.transition = `opacity ${CAST_FADE_MS}ms ease`;
   const img = document.createElement("img"); img.className = "cast-circle-img"; img.decoding = "sync";
   // Per-asset squash so the spin stays in the ground plane: un-squash the ellipse to a circle, rotate,
-  // re-squash (see .cast-circle-img keyframes). k = width/height = how much to stretch height back up.
+  // re-squash flatter (see .cast-circle-img keyframes). k = width/height stretches height to a circle;
+  // re-squashing by CAST_FLATTEN/k lays it flatter on the ground than the art's own perspective.
   img.onload = () => {
     if (!img.naturalHeight) return;
     const k = img.naturalWidth / img.naturalHeight;
     img.style.setProperty("--unsq", String(k));
-    img.style.setProperty("--sq", String(1 / k));
+    img.style.setProperty("--sq", String(CAST_FLATTEN / k));
   };
   img.src = url;
   wrap.appendChild(img);
@@ -356,7 +358,8 @@ export function playCast(field: HTMLElement, casterEl: Element, att: string, onD
 
   window.setTimeout(() => {
     onDone();                                          // cast complete → apply the ability
+    wrap.style.transition = `opacity ${CAST_OUT_MS}ms ease`; // smooth fade-out (not an abrupt cut)
     wrap.style.opacity = "0";
-    window.setTimeout(() => wrap.remove(), CAST_OUT_MS + 40);
+    window.setTimeout(() => wrap.remove(), CAST_OUT_MS + 60);
   }, CAST_HOLD_MS);
 }
