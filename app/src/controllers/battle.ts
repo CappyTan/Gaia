@@ -550,7 +550,8 @@ export const Battle = {
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
   },
   showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {
-    let h = `<h2 class="title-gold">Victory</h2><p class="small">+${xp} XP · +◈ ${gold} Aether</p>`;
+    let h = `<h2 class="title-gold">Victory</h2>
+      <div class="spoils-head"><span class="spoil-pill"><b>+${xp}</b> XP</span><span class="spoil-pill aether"><b>+◈ ${gold}</b> Aether</span></div>`;
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
     if (gotItem) h += `<div class="card" style="background:#161226;border-color:var(--gold);text-align:left">
