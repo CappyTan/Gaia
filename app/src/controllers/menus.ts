@@ -8,6 +8,7 @@ import { SKILLS } from "../data/skills";
 import { rarityIx } from "../data/rarity";
 import { className } from "../data/classes";
 import { ATT } from "../data/attunements";
+import { PRIMARY_STATS, STAT_TIERS } from "../data/statScaling";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
 import { itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
@@ -156,6 +157,9 @@ export const UI = {
       <div class="small" style="margin-top:6px;line-height:1.7">HP <b>${m.maxhp}</b><br>MP <b>${m.maxmp}</b><br>ATK <b>${m.atk}</b><br>MAG <b>${m.mag}</b><br>SPD <b>${m.spd}</b><br>ARM <b>${m.armor}</b><br>Crit <b>${m.critPct}%</b>${m.leech ? `<br>Leech <b>${m.leech}%</b>` : ""}</div>
       <div class="psec">+MNA</div>
       <div class="small">${ATTUNEMENTS.filter((a) => m.mna[a] > 0).map((a) => `<span style="color:${ATT[a].color}">${a} ${m.mna[a]}</span>`).join(" · ") || "—"}</div>
+      <div class="psec">Mana Scaling · <span style="color:${ATT[m.att].color}">${m.att}</span></div>
+      <div class="small" style="opacity:.55;margin-bottom:3px">How well this hero's abilities scale from each stat (S best → D minimal).</div>
+      <div class="statier">${PRIMARY_STATS.map((s) => { const t = STAT_TIERS[m.att][s]; return `<span class="st-row"><span class="st-name">${s}</span><span class="st-tier st-${t}">${t}</span></span>`; }).join("")}</div>
     </div>`;
     Overlay.show(`<h2 class="title-gold">Equipment</h2>
       <div class="row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start">${tabs}</div>
