@@ -7,6 +7,7 @@ export interface ChangeEntry {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  { v: "v0.146", t: "Reworked the Greenvale→Silverwood journey so it finally reads as a real lock-before-key. The road EAST to Silverwood is now barred by an arm of the Sunless Gorge that reaches right into Greenvale — you can see Silverwood's shore across the chasm but cannot cross it, and (the bug is fixed) you can no longer simply walk over the gorge without the raft. The Bandit Warren is now a keyless beginner dungeon — it no longer hands you the raft. Instead the raft is recovered far to the SOUTH, in the Duskmarsh's Drowned Vault: clear that zone's boss and the raft is yours, which opens the gorge crossing east. Hearthford and Miregard townsfolk now point you along this route, and the gorge lookout reads 'Silverwood — the Sunless Gorge bars the way' until you hold the raft." },
   { v: "v0.145", t: "Healing column now fades in and out more naturally — a gentler ease-in and a softer fade-out, so it no longer pops on or cuts off." },
   { v: "v0.144", t: "Healing effect: removed the rotating circle at the target's feet for now — the heal is just the vertical column of rising energy." },
   { v: "v0.143", t: "Tuned the healing effect so it actually reads: the ground rune is larger and clearly sits under the recipient, and the rising energy column now towers over them and is bright enough to see against the battlefield (it was washing out and looked tiny)." },
