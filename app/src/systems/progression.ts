@@ -1,7 +1,8 @@
-import type { Attunement, Member, MemberDef, Skill } from "../types";
-import { zeroMna, EQUIP_SLOTS } from "../types";
+import type { Attunement, Member, MemberDef, Prims, Skill } from "../types";
+import { zeroMna, zeroPrims, PRIM_KEYS, EQUIP_SLOTS } from "../types";
 import { SKILLS } from "../data/skills";
 import { kitFor } from "../data/classes";
+import { abpFromGear } from "./stats";
 
 // Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
 // Attunement until the manual allocator ships — see mna-progression.md).
@@ -53,6 +54,10 @@ export function recalc(party: Member[]): void {
     const add: Record<string, number> = { atkPct: 0, critPct: 0, spd: 0, hp: 0, solPct: 0, armor: 0, leech: 0, mp: 0 };
     const mna = zeroMna();
     (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
+    // V3 primaries — innate (display) derived from this hero's core profile, then GEAR adds on top.
+    // Gear primaries are what drive ability scaling (abp); innate is context for the character sheet.
+    const innate: Prims = { STR: Math.round(s.atk), AGI: Math.round(s.spd), MGC: Math.round(s.mag), SPD: Math.round(s.spd), DEF: Math.round(s.armor) };
+    const gearPrim = zeroPrims();
     for (const slot of EQUIP_SLOTS) {
       const it = m.equip[slot];
       if (!it) continue;
@@ -63,14 +68,17 @@ export function recalc(party: Member[]): void {
       s.mag += it.implicit.mag || 0;
       s.spd += it.implicit.spd || 0;
       for (const a of it.affixes) add[a.stat] = (add[a.stat] || 0) + a.value;
+      if (it.prim) PRIM_KEYS.forEach((p) => (gearPrim[p] += it.prim![p] || 0));
       if (it.mna) (Object.keys(it.mna) as Attunement[]).forEach((a) => (mna[a] += it.mna![a] || 0));
     }
     s.atk = Math.round(s.atk * (1 + add.atkPct / 100));
     s.hp += add.hp;
     s.mp += add.mp;
-    s.spd += add.spd;
+    s.spd += add.spd + Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
     s.armor += add.armor;
     m.mna = mna;
+    m.prim = { STR: innate.STR + gearPrim.STR, AGI: innate.AGI + gearPrim.AGI, MGC: innate.MGC + gearPrim.MGC, SPD: innate.SPD + gearPrim.SPD, DEF: innate.DEF + gearPrim.DEF };
+    m.abp = abpFromGear(m.att, gearPrim);
     m.maxhp = s.hp;
     m.maxmp = s.mp;
     m.atk = s.atk;

@@ -90,12 +90,14 @@ export function itemHtml(it: Item, actionBtn?: string): string {
   const imp = Object.entries(it.implicit).map(([k, v]) => `+${v} ${k}`).join("  ");
   // weapon MNA grant — the main thing that unlocks/scales abilities (and sets the class)
   const mna = it.mna ? Object.entries(it.mna).filter(([, v]) => v).map(([a, v]) => `+${v} ${a} MNA`).join("  ") : "";
+  // V3 primary attributes carried by the piece (STR/AGI/MGC/SPD/DEF) — feed the wearer's ability scaling
+  const prim = it.prim ? Object.entries(it.prim).filter(([, v]) => v).map(([p, v]) => `+${v} ${p}`).join("  ") : "";
   const ico = itemIcon(it);
   return `<div class="item ${bc}" style="display:flex; gap:10px; align-items:flex-start">
     ${ico}
     <div style="flex:1; min-width:0">
       <div class="iname ${rc}">${it.name} <span class="meta">[${cap(it.rarity)} ${it.slot}${it.slot === "weapon" ? ` · ${it.att} ${it.cls}` : isArmorSlot(it.slot) && it.att ? ` · ${it.att}` : ""}${it.ilvl ? ` · i${it.ilvl}` : ""}]</span></div>
-      <div class="meta">${imp}</div>${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${aff}${actionBtn || ""}
+      <div class="meta">${imp}</div>${prim ? `<div class="affix" style="color:#e6c06a">◇ ${prim}</div>` : ""}${mna ? `<div class="affix" style="color:var(--atb)">◆ ${mna}</div>` : ""}${aff}${actionBtn || ""}
     </div></div>`;
 }
 

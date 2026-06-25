@@ -448,6 +448,12 @@
   .st-name{font-size:11px; letter-spacing:.5px; color:var(--dim);}
   .st-tier{font-size:12px; font-weight:bold; min-width:13px; text-align:center;}
   .st-S{color:#f4b942;} .st-A{color:#7ad06b;} .st-B{color:#4ea3ff;} .st-C{color:#9aa6b2;} .st-D{color:#c8635e;}
+  /* V3 status panel: primary grid (two columns) + secondary substat list, with equip-preview deltas */
+  .st-val{font-size:12px; font-weight:bold; margin-left:auto; color:var(--ink);}
+  .statlist{display:flex; flex-direction:column; gap:4px; margin:4px 0;}
+  .statlist .st-row{justify-content:space-between;}
+  .eq-cols{display:flex; gap:6px; align-items:flex-start;}
+  .eq-cols .statlist{flex:1 1 0; min-width:0;}
   /* Abilities + Formation rows */
   .pm-ab{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; padding:4px 2px; border-bottom:1px solid #ffffff10;}
   .pm-ab.locked{opacity:.6;}

@@ -63,6 +63,12 @@ export interface Affix {
 
 export type Implicit = Partial<Record<"atk" | "hp" | "armor" | "mp" | "mag" | "spd", number>>;
 
+/** The five V3 primary attributes (Stat System V3). Keyed the same as data/statScaling. */
+export type PrimaryStat = "STR" | "AGI" | "MGC" | "SPD" | "DEF";
+export type Prims = Record<PrimaryStat, number>;
+export const PRIM_KEYS: PrimaryStat[] = ["STR", "AGI", "MGC", "SPD", "DEF"];
+export const zeroPrims = (): Prims => ({ STR: 0, AGI: 0, MGC: 0, SPD: 0, DEF: 0 });
+
 export interface Item {
   slot: Slot;
   cls: string;
@@ -75,6 +81,8 @@ export interface Item {
   implicit: Implicit;
   /** Gear MNA grants by Attunement (weapons carry intrinsic MNA in their Attunement). */
   mna?: Partial<MnaPools>;
+  /** V3 primary-attribute grants (STR/AGI/MGC/SPD/DEF) carried by the piece — every drop carries some. */
+  prim?: Partial<Prims>;
   affixes: Affix[];
 }
 
@@ -179,6 +187,11 @@ export interface Unit {
   maxmp?: number;
   /** Effective MNA pools (members; enemies leave undefined). Drives output scaling in combat. */
   mna?: MnaPools;
+  /** V3 effective primary attributes (innate + gear) — members only; enemies leave undefined. Display. */
+  prim?: Prims;
+  /** V3 ability-power amplifier from GEAR primaries (e.g. 0.12 = +12% ability damage). Zero with no gear,
+   *  so a fresh hero is combat-neutral; gear primaries are the new damage axis. Members only. */
+  abp?: number;
   guarding?: boolean;
   acting?: boolean;
   _hurt?: boolean;
