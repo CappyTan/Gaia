@@ -345,18 +345,23 @@ export const Game = {
   // is unchanged). Gated on the SOURCE zone id so only Greenvale is affected.
   afterZoneBoss(): void {
     if (Field.isLastZone()) { this.victory(); return; }
-    if (Field.zone().id === "greenvale") {
-      // Roam-first: mark the Warren cleared, climb out to the seamless surface (raft in hand), and let the
-      // player navigate to the now-open gorge. Position-derived state carries the zone over when they cross.
+    // ROAM-FIRST early arc (lock-before-key redesign). The Bandit Warren (Greenvale) is a beginner dungeon
+    // with NO key — clearing it sends you EAST toward Silverwood, but the Sunless Gorge bars the way. The
+    // raft is found SOUTH, in the Duskmarsh's Drowned Vault (battle.ts grants the "gorge" cap there); clearing
+    // THAT opens the gorge so you can cross east. Both bosses drop you back onto the seamless surface to
+    // navigate yourself (no hub-chain teleport). Copy is DRAFT — flagged for the narrative pass / Dara.
+    const zid = Field.zone().id;
+    if (zid === "greenvale" || zid === "duskmarsh") {
       this.bossDefeated = true;
-      // DELIBERATE roam-first reset: drop the in-town/merchant flags directly (no hub chain to enter here —
-      // unlike enterNextHubChain, which routes through a settlement). Keep in sync with that path's bookkeeping
-      // if its flag handling changes.
-      this._inTown = false; this._inMerchant = false;
-      Field.ascend();                       // back onto the big-map overworld at the Warren mouth (out of the dungeon)
+      this._inTown = false; this._inMerchant = false; // roam-first: drop town/merchant flags (no hub chain here)
+      Field.ascend();                                 // back onto the big-map overworld at the dungeon mouth
       this.saveNow();
-      Overlay.show(`<h2 class="title-gold">The Warren falls</h2>
-        <p class="small">The Kingpin is dead, and among his hoard — a raft and bridging-kit. The Sunless Gorge to the east is yours to cross now. Strike out for the ancient wood of Silverwood.</p>
+      const title = zid === "duskmarsh" ? "The Vault yields the raft" : "The Warren falls";
+      const body = zid === "duskmarsh"
+        ? "Among the Drowned Vault's hoard — a lashed raft and bridging-kit. The Sunless Gorge is yours to cross now: strike EAST, over the chasm, for the ancient wood of Silverwood."
+        : "The Kingpin is dead and the Warren is cleared. The road EAST to Silverwood is barred by the Sunless Gorge — no boot may cross it. They say a raft lies in the drowned ruins to the SOUTH.";
+      Overlay.show(`<h2 class="title-gold">${title}</h2>
+        <p class="small">${body}</p>
         <div class="row"><button class="btn gold" onclick="Overlay.hide()">Roam on</button></div>`);
       return;
     }
