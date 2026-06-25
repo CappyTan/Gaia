@@ -561,8 +561,13 @@ export const Battle = {
       <div class="small" style="opacity:.7;margin-top:4px">Kept in your Party → Items.</div></div>`;
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
-      leveled.forEach((l) => { h += `<div class="small">${l.name} → Lv ${l.level} · +1 MNA point${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`; });
-      h += `<div class="small" style="opacity:.8">Spend MNA points in the Party screen.</div>`;
+      leveled.forEach((l) => {
+        // the 50/50 MNA thrill — call out a win (and the rare +3 jackpot), or note an unlucky level
+        const mna = l.mnaGain ? `<span class="r-legendary">+${l.mnaGain} MNA${l.mnaGain >= 3 ? " ⭐ JACKPOT!" : " ⭐"}</span>` : `<span style="opacity:.6">no MNA — unlucky</span>`;
+        h += `<div class="small" style="margin-top:3px">${l.name} → Lv ${l.level}${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`;
+        h += `<div class="small" style="opacity:.9;margin-left:10px">+${l.hp ?? 0} HP · +${l.atk ?? 0} ATK · +${l.arm ?? 0} ARM · ${mna}</div>`;
+      });
+      h += `<div class="small" style="opacity:.8;margin-top:4px">Spend MNA points in the Party screen.</div>`;
       h += "</div>";
     }
     if (drops.length) {

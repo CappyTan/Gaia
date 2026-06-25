@@ -175,7 +175,10 @@ export const UI = {
     const left = st.slot == null ? this.eqGearList(m) : this.eqSlotList(m, st.slot, st.pick);
     const preview = st.pick >= 0 && Game.inventory[st.pick] ? this._equipPreview(m, Game.inventory[st.pick]) : null;
     Overlay.show(`<h2 class="title-gold">Status &amp; Equipment</h2>
-      <div class="row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start">${tabs}</div>
+      <div class="row" style="gap:6px;justify-content:space-between;align-items:flex-start">
+        <div class="row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start;flex:1;min-width:0">${tabs}</div>
+        <button class="btn gold" style="padding:6px 12px;font-size:12px;flex:0 0 auto" onclick="UI.openInventory()">Bag ▸</button>
+      </div>
       <div class="pm-eq">
         <div class="pm-eq-gear scroll">${left}</div>
         ${this.eqTotalsHtml(m, preview)}
@@ -192,10 +195,12 @@ export const UI = {
   },
   // LEFT (slot mode) — the bag items for one slot; tap to preview (deltas show on the right).
   eqSlotList(m: Member, slot: Slot, pick: number): string {
-    const usable = Game.inventory.filter((it) => it.slot === slot && (slot !== "weapon" || it.cls === m.cls));
+    // ANY weapon is equippable — a weapon of another Archetype/Attunement reclasses the hero (confirmed
+    // before it's applied). So the list isn't filtered to the current class.
+    const usable = Game.inventory.filter((it) => it.slot === slot);
     let h = `<div class="row" style="justify-content:space-between;align-items:center"><b class="title-gold">Choose ${cap(slot)}</b><button class="btn" style="padding:4px 10px;font-size:12px" onclick="UI.eqCloseSlot()">◂ Gear</button></div>`;
-    h += `<div class="small" style="margin:2px 0 6px;opacity:.8">Equipped: ${m.equip[slot] ? `<span class="r-${m.equip[slot]!.rarity}">${m.equip[slot]!.name}</span>` : "none"} — tap an item to preview, then Equip.</div>`;
-    if (!usable.length) return h + `<p class="small">No ${slot === "weapon" ? m.cls + " " : ""}${slot}s in your bag.</p>`;
+    h += `<div class="small" style="margin:2px 0 6px;opacity:.8">Equipped: ${m.equip[slot] ? `<span class="r-${m.equip[slot]!.rarity}">${m.equip[slot]!.name}</span>` : "none"} — tap an item to preview, then Equip.${slot === "weapon" ? " A different weapon type changes this hero's class." : ""}</div>`;
+    if (!usable.length) return h + `<p class="small">No ${slot}s in your bag.</p>`;
     usable.sort((a, b) => itemScore(b) - itemScore(a)).forEach((it) => {
       const idx = Game.inventory.indexOf(it);
       const sel = idx === pick;
