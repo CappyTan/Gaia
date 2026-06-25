@@ -49,7 +49,6 @@ export const AFFIXES: AffixDef[] = [
   { key: "sol", label: (n) => `+${n}% Power dmg`, roll: (r) => ri(6 + r * 2, 12 + r * 4), stat: "solPct" },
   { key: "armor", label: (n) => `+${n} Armor`, roll: (r) => ri(1, 2 + r), stat: "armor" },
   { key: "leech", label: (n) => `${n}% Lifesteal`, roll: (r) => ri(3 + r, 6 + r * 2), stat: "leech" },
-  { key: "mp", label: (n) => `+${n} MP`, roll: (r) => ri(4 + r * 2, 8 + r * 3), stat: "mp" },
 ];
 
 // Elite-only enemy affixes (mirror the loot engine). Applied to a live enemy on spawn.

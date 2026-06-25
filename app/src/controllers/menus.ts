@@ -409,7 +409,7 @@ export const UI = {
       ].filter(Boolean).join(" · ");
       const deltas = [
         stat("HP", m.maxhp, c.maxhp), stat("ATK", m.atk, c.atk), stat("MAG", m.mag, c.mag),
-        stat("DEF", m.armor, c.armor), stat("SPD", m.spd, c.spd), stat("MP", m.maxmp, c.maxmp),
+        stat("DEF", m.armor, c.armor), stat("SPD", m.spd, c.spd),
         stat("Crit", m.critPct, c.critPct),
         ...ATTUNEMENTS.map((a) => stat(`${a} MNA`, m.mna[a], c.mna[a])),
       ].filter(Boolean).join(" · ");

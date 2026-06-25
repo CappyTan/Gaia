@@ -42,7 +42,7 @@ function rollPrim(slot: Slot, att: Attunement, r: number, ilvl: number): Partial
 // boots lean speed, helmet leans focus). `r` = rarity index, `k` = ilvl magnitude multiplier.
 const ARMOR_STATS: Record<string, (r: number, k: number, ilvl: number) => Implicit> = {
   armor:  (r, k, ilvl) => ({ hp: Math.round((9 + r * 9) * k), armor: (1 + r) + Math.floor(ilvl / 4) }),
-  helmet: (r, k, ilvl) => ({ hp: Math.round((5 + r * 5) * k), armor: Math.ceil((1 + r) / 2) + Math.floor(ilvl / 7), mp: Math.round((2 + r * 2) * k) }),
+  helmet: (r, k, ilvl) => ({ hp: Math.round((6 + r * 6) * k), armor: Math.ceil((1 + r) / 2) + Math.floor(ilvl / 7) }),
   gloves: (r, k, ilvl) => ({ atk: Math.round((2 + r * 2) * k), armor: Math.ceil((1 + r) / 2) + Math.floor(ilvl / 8) }),
   boots:  (r, k, ilvl) => ({ hp: Math.round((4 + r * 3) * k), spd: 1 + Math.floor(r / 2), armor: Math.ceil(r / 2) + Math.floor(ilvl / 8) }),
 };
@@ -73,8 +73,8 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     Object.assign(implicit, ARMOR_STATS[slot](r, k, ilvl));
   } else {
     name = TRINKET_NAMES[r]; // attunement-neutral
-    implicit.mp = Math.round((4 + r * 5) * k);
-    implicit.mag = Math.round((2 + r * 2) * k);
+    implicit.mag = Math.round((3 + r * 3) * k);
+    implicit.hp = Math.round((4 + r * 3) * k);
   }
   // roll affixes
   const pool = [...AFFIXES];
