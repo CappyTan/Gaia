@@ -31,6 +31,16 @@ mechanic**:
 - **UMBRAXIS** — Gravity · Spacetime · Singularities · Cosmic Structure — mana scales Defense
 _Avoid_: element, school. Note the mechanic is per-attunement, NOT a damage rock-paper-scissors.
 
+**The Five / the Pantheon** (canon):
+The "gods" of Gaia ARE the five Attunements personified — **Sol, Nox, Anima, Quanta, Umbraxis** —
+each the **leader/embodiment** of their Power and the head of its own **civilization and order**. The
+Five all sprang from **one origin civilization** that **fragmented** into the five Powers. What kind
+of life-forms they are is canonically **unknown** (energy made matter? pure energy? physical?). They
+are the beings behind the lore's "the gods clashed" (the Sundering scars) and "but the gods came
+first" (the underworld). Pantheon-scale — *above* Legendary Figures. Full record:
+[`docs/design/pantheon.md`](docs/design/pantheon.md).
+_Avoid_: treating "god" as a separate species from the Attunements — the gods *are* the Five.
+
 **Weapon Archetype**:
 One of the nine that defines how a character fights: Sword & Shield, Dual Swords, Two-Handed
 Sword, Hammer, Dual Daggers, Dual Pistols, Rifle, Staff, Spellblade.
