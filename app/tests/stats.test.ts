@@ -34,17 +34,29 @@ describe("abpFromGear", () => {
 describe("substats (§3 conversions)", () => {
   const find = (prim: Parameters<typeof substats>[0], key: string) => substats(prim).find((s) => s.key === key)!;
 
-  it("AGI drives crit/accuracy/evasion at the canon per-10 rates", () => {
+  it("lists exactly the 20 secondary stats in Dara's canonical order", () => {
+    const labels = substats(zeroPrims()).map((s) => s.label);
+    expect(labels).toEqual([
+      "Attack", "Armor Penetration", "Armor Break", "Life Steal",            // STR
+      "Crit Chance", "Evasion", "Accuracy", "Combo Chance",                  // AGI
+      "Ability Power", "Healing Power", "Buff Potency", "Debuff Potency",     // MGC
+      "Attack Bar Gain", "Initiative", "Cooldown Recovery", "Counter Chance", // SPD
+      "Armor", "Damage Reduction", "Barrier Power", "Block Chance",           // DEF
+    ]);
+  });
+
+  it("AGI drives crit/accuracy/evasion/combo from the AGI primary", () => {
     const prim = { ...zeroPrims(), AGI: 100 };
-    expect(find(prim, "Crt").value).toBeCloseTo(1.0, 5); // +0.10%/10 → 100 AGI = +1.0%
-    expect(find(prim, "Acc").value).toBeCloseTo(2.0, 5); // +0.20%/10
-    expect(find(prim, "Eva").value).toBeCloseTo(1.0, 5);
+    expect(find(prim, "Crt").value).toBeCloseTo(10.0, 5); // 0.1/pt
+    expect(find(prim, "Acc").value).toBeCloseTo(10.0, 5);
+    expect(find(prim, "Eva").value).toBeCloseTo(5.0, 5);
+    expect(find(prim, "Cmb").value).toBeCloseTo(5.0, 5);
   });
 
   it("folds in flat base crit/leech sources", () => {
     const prim = { ...zeroPrims(), AGI: 100, STR: 100 };
-    expect(find(prim, "Crt") && substats(prim, { crit: 5 }).find((s) => s.key === "Crt")!.value).toBeCloseTo(6.0, 5);
-    expect(substats(prim, { leech: 3 }).find((s) => s.key === "Lif")!.value).toBeCloseTo(3.5, 5); // 3 + 100*0.005
+    expect(substats(prim, { crit: 5 }).find((s) => s.key === "Crt")!.value).toBeCloseTo(15.0, 5); // 5 + 100*0.1
+    expect(substats(prim, { leech: 3 }).find((s) => s.key === "Lif")!.value).toBeCloseTo(8.0, 5); // 3 + 100*0.05
   });
 
   it("SPD initiative is a flat +1 per 10", () => {
