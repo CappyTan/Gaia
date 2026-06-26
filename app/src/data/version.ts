@@ -2,4 +2,4 @@
 // Bump on any player-visible change (see CLAUDE.md conventions).
 export const GAME_VERSION = "v0.154";
 
-// deploy re-trigger nudge #18 (GitHub Actions trigger outage) — no behavior change.
+// deploy re-trigger nudge #19 (GitHub Actions trigger outage) — no behavior change.
