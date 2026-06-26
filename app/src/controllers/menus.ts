@@ -129,7 +129,7 @@ export const UI = {
     if (!m || !s || s.type !== "heal" || !m.alive) return;
     if (m.mna[s.att] < s.mnaReq || m.mp < s.mp) return;
     m.mp -= s.mp;
-    const amt = Math.round((m.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(m.mna.ANIMA ?? 0)));
+    const amt = Math.round((m.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(m.mna.ANIMA ?? 0)) * (1 + (m.sub?.Hld ?? 0) / 100));
     Game.party.forEach((t) => { if (t.alive) t.hp = Math.min(t.maxhp, t.hp + amt); }); // mends the LIVING party
     recalc(Game.party); Game.saveNow();
     this.partyAbilities();
@@ -226,8 +226,8 @@ export const UI = {
       const col2 = PRIMARY_STATS.map((s) => row(s, p[s], pp?.[s])).join("");
       body = `<div class="eq-cols"><div class="statlist">${col1}</div><div class="statlist">${col2}</div></div>`;
     } else {
-      const cur = substats(m.prim!, { crit: m.critPct, leech: m.leech });
-      const nxt = preview ? substats(preview.prim!, { crit: preview.critPct, leech: preview.leech }) : null;
+      const cur = substats(m.sub!, { crit: m.critPct, leech: m.leech });
+      const nxt = preview ? substats(preview.sub!, { crit: preview.critPct, leech: preview.leech }) : null;
       body = `<div class="statlist">${cur.map((s, i) => row(s.label, s.value, nxt ? nxt[i].value : undefined, s.unit)).join("")}</div>`;
     }
     let action = "";

@@ -293,7 +293,8 @@ export const Battle = {
     this.markActing(actor);
 
     if (s && s.type === "heal") {
-      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0))); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
+      const hld = 1 + (actor.sub?.Hld ?? 0) / 100; // V3 Healing Done amplifies all healing the caster does
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
     } else if (s && s.type === "buff") {
       const applied: string[] = [];
       if (s.buff?.def) applied.push("Guard");

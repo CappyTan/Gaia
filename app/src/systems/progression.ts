@@ -1,8 +1,9 @@
-import type { Attunement, Member, MemberDef, Prims, Skill } from "../types";
-import { zeroMna, zeroPrims, PRIM_KEYS, EQUIP_SLOTS } from "../types";
+import type { Attunement, Member, MemberDef, Prims, SubKey, Skill } from "../types";
+import { zeroMna, zeroPrims, zeroSubs, PRIM_KEYS, EQUIP_SLOTS } from "../types";
 import type { Rng } from "../core/rng";
 import { SKILLS } from "../data/skills";
 import { kitFor } from "../data/classes";
+import { SUB_BY_KEY } from "../data/substats";
 import { abpFromGear } from "./stats";
 
 // Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
@@ -52,13 +53,13 @@ export function recalc(party: Member[]): void {
       armor: Math.round(m.base.armor + g.armor * lv),
       mag: Math.round(m.base.mag + g.mag * lv),
     };
-    const add: Record<string, number> = { atkPct: 0, critPct: 0, spd: 0, hp: 0, solPct: 0, armor: 0, leech: 0, mp: 0 };
     const mna = zeroMna();
     (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
     // V3 primaries — innate (display) derived from this hero's core profile, then GEAR adds on top.
     // Gear primaries are what drive ability scaling (abp); innate is context for the character sheet.
     const innate: Prims = { STR: Math.round(s.atk), AGI: Math.round(s.spd), MGC: Math.round(s.mag), SPD: Math.round(s.spd), DEF: Math.round(s.armor) };
     const gearPrim = zeroPrims();
+    const sub = zeroSubs(); // the 20 V3 secondary stats, summed from gear affixes
     for (const slot of EQUIP_SLOTS) {
       const it = m.equip[slot];
       if (!it) continue;
@@ -68,18 +69,16 @@ export function recalc(party: Member[]): void {
       s.mp += it.implicit.mp || 0;
       s.mag += it.implicit.mag || 0;
       s.spd += it.implicit.spd || 0;
-      for (const a of it.affixes) add[a.stat] = (add[a.stat] || 0) + a.value;
+      for (const a of it.affixes) if (SUB_BY_KEY[a.stat as SubKey]) sub[a.stat as SubKey] += a.value;
       if (it.prim) PRIM_KEYS.forEach((p) => (gearPrim[p] += it.prim![p] || 0));
       if (it.mna) (Object.keys(it.mna) as Attunement[]).forEach((a) => (mna[a] += it.mna![a] || 0));
     }
-    s.atk = Math.round(s.atk * (1 + add.atkPct / 100));
-    s.hp += add.hp;
-    s.mp += add.mp;
-    s.spd += add.spd + Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
-    s.armor += add.armor;
+    s.spd += Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
     m.mna = mna;
     m.prim = { STR: innate.STR + gearPrim.STR, AGI: innate.AGI + gearPrim.AGI, MGC: innate.MGC + gearPrim.MGC, SPD: innate.SPD + gearPrim.SPD, DEF: innate.DEF + gearPrim.DEF };
-    m.abp = abpFromGear(m.att, gearPrim);
+    m.sub = sub;
+    // GEAR primaries (ability scaling) + the Ability Power affix both feed the ability-power amplifier.
+    m.abp = abpFromGear(m.att, gearPrim) + sub.Abp / 100;
     m.maxhp = s.hp;
     m.maxmp = s.mp;
     m.atk = s.atk;
@@ -87,9 +86,9 @@ export function recalc(party: Member[]): void {
     m.spd = Math.max(1, Math.round(s.spd * (1 + mnaBonus(mna.QUANTA))));
     m.armor = s.armor;
     m.mag = s.mag;
-    m.critPct = 5 + (add.critPct || 0);
-    m.solPct = add.solPct || 0;
-    m.leech = add.leech || 0;
+    m.critPct = 5 + sub.Crt;   // 5% base + the Crit Chance affix
+    m.solPct = 0;
+    m.leech = sub.Lfs;         // Life Steal affix
     if (!m._init) {
       m.hp = m.maxhp;
       m.mp = m.maxmp;

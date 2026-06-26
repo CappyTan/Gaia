@@ -6,9 +6,10 @@
 //   2) substats — the universal §3 attribute→substat conversions (the same for every class), used to
 //      surface the secondary-stat sheet on the character screen.
 
-import type { Attunement, PrimaryStat, Prims } from "../types";
+import type { Attunement, PrimaryStat, Prims, Subs } from "../types";
 import { PRIM_KEYS } from "../types";
 import { scalingCoef } from "../data/statScaling";
+import { SUBSTATS } from "../data/substats";
 
 /** Ability-power per (1 primary point × tier coefficient). Tuned via the balance sim so a fully-geared
  *  party lands the design targets while an ungeared one is unchanged. */
@@ -30,42 +31,17 @@ export interface Substat {
 }
 
 /**
- * The 20 V3 secondary stats — exactly four per primary attribute, in Dara's canonical order
- * (STR · AGI · MGC · SPD · DEF). Each is derived from its governing primary at a flat per-point
- * rate (display-only for now; the deeper combat mechanics come online in later passes). `base` folds
- * in sources already tracked live on the unit (innate crit, gear lifesteal). The Secondary-Stats
- * sheet lists these in this exact order.
+ * The 20 V3 secondary stats for display, in Dara's canonical order (4 per primary, defs in
+ * data/substats). Values come from a hero's gear (the `sub` totals); Crit/Life Steal fold in the
+ * live combat values already tracked on the unit (base crit, lifesteal). All are percentages.
  */
-export function substats(prim: Prims, base: { crit?: number; leech?: number } = {}): Substat[] {
-  const { STR, AGI, MGC, SPD, DEF } = prim;
-  const r1 = (n: number) => Math.round(n * 10) / 10; // one decimal for the % stats
-  return [
-    // STR
-    { key: "Atk", label: "Attack", value: Math.round(STR * 0.1), unit: "" },
-    { key: "Arp", label: "Armor Penetration", value: r1(STR * 0.05), unit: "%" },
-    { key: "Brk", label: "Armor Break", value: r1(STR * 0.05), unit: "%" },
-    { key: "Lif", label: "Life Steal", value: r1((base.leech || 0) + STR * 0.05), unit: "%" },
-    // AGI
-    { key: "Crt", label: "Crit Chance", value: r1((base.crit || 0) + AGI * 0.1), unit: "%" },
-    { key: "Eva", label: "Evasion", value: r1(AGI * 0.05), unit: "%" },
-    { key: "Acc", label: "Accuracy", value: r1(AGI * 0.1), unit: "%" },
-    { key: "Cmb", label: "Combo Chance", value: r1(AGI * 0.05), unit: "%" },
-    // MGC
-    { key: "Abp", label: "Ability Power", value: r1(MGC * 0.1), unit: "%" },
-    { key: "Hld", label: "Healing Power", value: r1(MGC * 0.1), unit: "%" },
-    { key: "Buf", label: "Buff Potency", value: r1(MGC * 0.05), unit: "%" },
-    { key: "Deb", label: "Debuff Potency", value: r1(MGC * 0.05), unit: "%" },
-    // SPD
-    { key: "Abg", label: "Attack Bar Gain", value: r1(SPD * 0.1), unit: "%" },
-    { key: "Ini", label: "Initiative", value: Math.round(SPD * 0.1), unit: "" },
-    { key: "Cdr", label: "Cooldown Recovery", value: r1(SPD * 0.05), unit: "%" },
-    { key: "Ctr", label: "Counter Chance", value: r1(SPD * 0.05), unit: "%" },
-    // DEF
-    { key: "Arm", label: "Armor", value: Math.round(DEF * 0.1), unit: "" },
-    { key: "Dmr", label: "Damage Reduction", value: r1(DEF * 0.05), unit: "%" },
-    { key: "Bar", label: "Barrier Power", value: r1(DEF * 0.1), unit: "%" },
-    { key: "Blk", label: "Block Chance", value: r1(DEF * 0.05), unit: "%" },
-  ];
+export function substats(sub: Subs, base: { crit?: number; leech?: number } = {}): Substat[] {
+  return SUBSTATS.map((d) => ({
+    key: d.key,
+    label: d.label,
+    value: d.key === "Crt" ? (base.crit ?? sub.Crt) : d.key === "Lfs" ? (base.leech ?? sub.Lfs) : sub[d.key],
+    unit: "%" as const,
+  }));
 }
 
 export type { PrimaryStat };
