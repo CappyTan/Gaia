@@ -29,30 +29,42 @@ export interface Substat {
   unit: "" | "%";
 }
 
-/** §3 universal attribute→substat conversions (per-10 rates), flat for every class. `base` lets the
- *  caller fold in flat sources already tracked on the unit (innate crit, gear lifesteal affix). */
+/**
+ * The 20 V3 secondary stats — exactly four per primary attribute, in Dara's canonical order
+ * (STR · AGI · MGC · SPD · DEF). Each is derived from its governing primary at a flat per-point
+ * rate (display-only for now; the deeper combat mechanics come online in later passes). `base` folds
+ * in sources already tracked live on the unit (innate crit, gear lifesteal). The Secondary-Stats
+ * sheet lists these in this exact order.
+ */
 export function substats(prim: Prims, base: { crit?: number; leech?: number } = {}): Substat[] {
   const { STR, AGI, MGC, SPD, DEF } = prim;
   const r1 = (n: number) => Math.round(n * 10) / 10; // one decimal for the % stats
   return [
-    // Offensive
-    { key: "Crt", label: "Crit Chance", value: r1((base.crit || 0) + AGI * 0.01), unit: "%" },
-    { key: "Arp", label: "Armor Pen", value: r1(STR * 0.01), unit: "%" },
-    { key: "Lif", label: "Lifesteal", value: r1((base.leech || 0) + STR * 0.005), unit: "%" },
-    // Precision / flow
-    { key: "Acc", label: "Accuracy", value: r1(AGI * 0.02), unit: "%" },
-    { key: "Eva", label: "Evasion", value: r1(AGI * 0.01), unit: "%" },
-    // Turn economy
-    { key: "Abg", label: "Attack-Bar Gain", value: r1(SPD * 0.02), unit: "%" },
-    { key: "Cdr", label: "Cooldown Recovery", value: r1(SPD * 0.01), unit: "%" },
+    // STR
+    { key: "Atk", label: "Attack", value: Math.round(STR * 0.1), unit: "" },
+    { key: "Arp", label: "Armor Penetration", value: r1(STR * 0.05), unit: "%" },
+    { key: "Brk", label: "Armor Break", value: r1(STR * 0.05), unit: "%" },
+    { key: "Lif", label: "Life Steal", value: r1((base.leech || 0) + STR * 0.05), unit: "%" },
+    // AGI
+    { key: "Crt", label: "Crit Chance", value: r1((base.crit || 0) + AGI * 0.1), unit: "%" },
+    { key: "Eva", label: "Evasion", value: r1(AGI * 0.05), unit: "%" },
+    { key: "Acc", label: "Accuracy", value: r1(AGI * 0.1), unit: "%" },
+    { key: "Cmb", label: "Combo Chance", value: r1(AGI * 0.05), unit: "%" },
+    // MGC
+    { key: "Abp", label: "Ability Power", value: r1(MGC * 0.1), unit: "%" },
+    { key: "Hld", label: "Healing Power", value: r1(MGC * 0.1), unit: "%" },
+    { key: "Buf", label: "Buff Potency", value: r1(MGC * 0.05), unit: "%" },
+    { key: "Deb", label: "Debuff Potency", value: r1(MGC * 0.05), unit: "%" },
+    // SPD
+    { key: "Abg", label: "Attack Bar Gain", value: r1(SPD * 0.1), unit: "%" },
     { key: "Ini", label: "Initiative", value: Math.round(SPD * 0.1), unit: "" },
-    // Healing & status / power
-    { key: "Abp", label: "Ability Power", value: r1(MGC * 0.02), unit: "%" },
-    { key: "Hld", label: "Healing Done", value: r1(MGC * 0.02), unit: "%" },
-    { key: "Deb", label: "Debuff Potency", value: r1(MGC * 0.01), unit: "%" },
-    // Defensive
-    { key: "Dmr", label: "Damage Reduction", value: r1(DEF * 0.01), unit: "%" },
-    { key: "Bar", label: "Barrier Power", value: r1(DEF * 0.02), unit: "%" },
+    { key: "Cdr", label: "Cooldown Recovery", value: r1(SPD * 0.05), unit: "%" },
+    { key: "Ctr", label: "Counter Chance", value: r1(SPD * 0.05), unit: "%" },
+    // DEF
+    { key: "Arm", label: "Armor", value: Math.round(DEF * 0.1), unit: "" },
+    { key: "Dmr", label: "Damage Reduction", value: r1(DEF * 0.05), unit: "%" },
+    { key: "Bar", label: "Barrier Power", value: r1(DEF * 0.1), unit: "%" },
+    { key: "Blk", label: "Block Chance", value: r1(DEF * 0.05), unit: "%" },
   ];
 }
 
