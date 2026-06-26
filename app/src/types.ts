@@ -69,6 +69,22 @@ export type Prims = Record<PrimaryStat, number>;
 export const PRIM_KEYS: PrimaryStat[] = ["STR", "AGI", "MGC", "SPD", "DEF"];
 export const zeroPrims = (): Prims => ({ STR: 0, AGI: 0, MGC: 0, SPD: 0, DEF: 0 });
 
+/** The 20 V3 secondary stats (4 per primary). These are the rollable affix pool AND the substat sheet
+ *  (canonical defs/labels/order in data/substats). All values are percentages. */
+export type SubKey =
+  | "Arp" | "Pry" | "Exe" | "Lfs"   // STR
+  | "Crt" | "Eva" | "Acc" | "Cch"   // AGI
+  | "Abp" | "Hld" | "Buf" | "Vei"   // MGC
+  | "Abg" | "Cdr" | "Acr" | "Chc"   // SPD
+  | "Drd" | "Grv" | "Res" | "Crs";  // DEF
+export type Subs = Record<SubKey, number>;
+export const SUB_KEYS: SubKey[] = [
+  "Arp", "Pry", "Exe", "Lfs", "Crt", "Eva", "Acc", "Cch", "Abp", "Hld",
+  "Buf", "Vei", "Abg", "Cdr", "Acr", "Chc", "Drd", "Grv", "Res", "Crs",
+];
+export const zeroSubs = (): Subs =>
+  SUB_KEYS.reduce((o, k) => { o[k] = 0; return o; }, {} as Subs);
+
 export interface Item {
   slot: Slot;
   cls: string;
@@ -189,8 +205,11 @@ export interface Unit {
   mna?: MnaPools;
   /** V3 effective primary attributes (innate + gear) — members only; enemies leave undefined. Display. */
   prim?: Prims;
-  /** V3 ability-power amplifier from GEAR primaries (e.g. 0.12 = +12% ability damage). Zero with no gear,
-   *  so a fresh hero is combat-neutral; gear primaries are the new damage axis. Members only. */
+  /** V3 secondary stats from gear affixes (the 20). Members only; enemies leave undefined. Combat reads
+   *  the wired ones (Arp/Exe/Crs/Pry/Vei/Eva/Drd/…); the rest are display until the skill-tree pass. */
+  sub?: Subs;
+  /** V3 ability-power amplifier from GEAR primaries + Ability Power affix (e.g. 0.12 = +12% ability
+   *  damage). Zero with no gear, so a fresh hero is combat-neutral. Members only. */
   abp?: number;
   guarding?: boolean;
   acting?: boolean;

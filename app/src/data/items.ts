@@ -1,6 +1,3 @@
-import type { AffixDef } from "../types";
-import { ri } from "../core/rng";
-
 // SOL named-item drop tables (from Dara's four loot charts). index 0..5 = common..artifact.
 // One representative name per rung per weapon archetype.
 export const ITEM_NAMES: Record<string, string[]> = {
@@ -40,16 +37,9 @@ export const ATT_ADJ: Partial<Record<Attunement, string[]>> = {
   UMBRAXIS: ["Dim", "Shadowed", "Umbral", "Void-Touched", "Gravebound", "Event-Horizon"],
 };
 
-// Affix pool: rolled onto items.
-export const AFFIXES: AffixDef[] = [
-  { key: "atk", label: (n) => `+${n}% ATK`, roll: (r) => ri(6 + r * 2, 12 + r * 4), stat: "atkPct" },
-  { key: "crit", label: (n) => `+${n}% Crit`, roll: (r) => ri(4 + r, 8 + r * 2), stat: "critPct" },
-  { key: "spd", label: (n) => `+${n} SPD`, roll: (r) => ri(1, 2 + r), stat: "spd" },
-  { key: "hp", label: (n) => `+${n} HP`, roll: (r) => ri(8 + r * 4, 16 + r * 8), stat: "hp" },
-  { key: "sol", label: (n) => `+${n}% Power dmg`, roll: (r) => ri(6 + r * 2, 12 + r * 4), stat: "solPct" },
-  { key: "armor", label: (n) => `+${n} Armor`, roll: (r) => ri(1, 2 + r), stat: "armor" },
-  { key: "leech", label: (n) => `${n}% Lifesteal`, roll: (r) => ri(3 + r, 6 + r * 2), stat: "leech" },
-];
+// Affix pool — the V3 secondary stats (the 20). Defined canonically in data/substats; re-exported here
+// since loot.ts and the rest of the engine import the pool from data/items.
+export { AFFIXES } from "./substats";
 
 // Elite-only enemy affixes (mirror the loot engine). Applied to a live enemy on spawn.
 import type { Enemy } from "../types";
