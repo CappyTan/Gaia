@@ -209,6 +209,16 @@ turn, or a resolved **Doom**).
 > and doesn't betray "no DoT" because nothing ticks. **Dev-approved; awaits Dara** (nudges the
 > `none` signature). See ledger #13.
 
+> **⚑ Avoidance model (dev-approved) — "untargetable" is just high dodge %.** QUANTA avoidance is a
+> **single tunable axis: dodge %**. There is **no separate untargetable/immune state** — "can't be
+> hit / collapse to a miss / phase out" is an ability raising dodge toward an effective **~100%**
+> (tunable per ability). One number, precise balance control. See ledger #14.
+
+> **⚑ Naming flag — QUANTA accuracy/crit debuff "Jinx".** The status is keyworded **Jinx**, but that's
+> luck/superstition flavor; the dev prefers a physics register, so class specs read it as **decohere**
+> (loss of coherence → degraded accuracy/crit). Reconcile the keyword with Dara (keep `jinx` for
+> engine compat, or rename to `decohere`). See ledger #15.
+
 ---
 
 ## Approval Ledger — what needs Dara's blessing
@@ -230,3 +240,5 @@ Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara 
 | 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted & dev-approved; awaits Dara |
 | 12 | **QUANTA suite** (tempo+probability; gamble↔guarantee; Superposition→Collapse; gambles economy) | proposed | Drafted & dev-approved; awaits Dara |
 | 13 | **QUANTA "Doom"** — delayed *determined* hit as QUANTA's DoT-that-isn't (canon sig = none) | proposed | **Dev-approved; awaits Dara** (nudges the `none` signature) |
+| 14 | **Avoidance = dodge %** — no separate untargetable/immune state; "can't be hit" = ability pushes dodge to ~100% (tunable) | proposed | Dev-approved; mechanical rule for QUANTA avoidance. Awaits Dara |
+| 15 | **QUANTA "Jinx" → physics name** (e.g. `decohere`) | open | Dev prefers physics over luck flavor; reconcile keyword with Dara |
