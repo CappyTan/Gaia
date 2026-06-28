@@ -80,10 +80,13 @@ data  ←  systems  ←  controllers  →  ui      (+ core, services · boot = m
   engine/a state library is **[Blocking]** against ADR 0005 (must stay statically hostable + iOS-Safari
   safe). A heavyweight abstraction where a function + a data table would do is over-engineering.
 - **Reuse the small shared helpers** rather than re-implementing: `rnd`/`ri`/`pick`/`clamp`/`cap`
-  (`core/rng`), `$`/`el` and DOM helpers (`core/dom`), the typed event bus (`core/events`), the asset
-  resolver (`core/assets`). A fourth hand-rolled clamp or `querySelector` wrapper is duplication.
+  (`core/rng`), `$`/`el` and DOM helpers (`core/dom`), the asset resolver (`core/assets`). A fourth
+  hand-rolled clamp or `querySelector` wrapper is duplication. (The typed event bus `core/events` is
+  *available but not yet adopted* — controllers still couple via direct calls; reach for it only when a
+  seam genuinely fans out to several listeners, not to emit to nobody.)
 - **The abstraction matches the seam.** Good seams here are real: `DB` (data access), `Rng` (injection),
-  the event bus (decoupling controllers), `types.ts` (shared shapes). A new abstraction should sit on a
+  `types.ts` (shared shapes). The event bus (`core/events`) is a *would-be* decoupling seam — built but
+  currently unused; treat it as available infrastructure, not the established way controllers talk. A new abstraction should sit on a
   seam that actually varies — not wrap a single call site "for later." Equally, a 600-line controller
   doing five jobs *under*-abstracts; a tiny one-call wrapper *over*-abstracts. Flag both.
 - **Gradeable:** any new dependency/framework? Re-implemented helper that already exists? Is each new
@@ -111,9 +114,11 @@ data  ←  systems  ←  controllers  →  ui      (+ core, services · boot = m
 - **One module, one job.** A file's exports should hang together (high cohesion). A controller that has
   become a junk drawer — battle flow + loot rolling + persistence — should shed the non-flow parts to
   `systems/`. Name the split.
-- **Couple through seams, not internals.** Controllers talk via the event bus / public `DB` API /
-  `systems` functions — not by importing each other's internals or sharing mutable module-level state.
-  Reaching into another module's privates is a **[Should-fix]**.
+- **Couple through seams, not internals.** Controllers should talk via public `DB` API / `systems`
+  functions (and, where it earns its keep, the `core/events` bus) — not by importing each other's
+  internals or sharing mutable module-level state. Reaching into another module's privates is a
+  **[Should-fix]**. (Today controllers do couple via direct public-object calls; the bus is available
+  for the next genuine fan-out seam but isn't yet the norm.)
 - **No new entries on the transitional `window` bridge.** The `onclick="Game.start()"` inline-handler
   bridge (`main.ts` → `globals.d.ts`) is *accepted debt to pay down*, not a pattern to extend. Adding a
   new global to wire UI is a finding; prefer a delegated listener / event-bus path.

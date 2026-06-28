@@ -17,7 +17,7 @@ import { playSkillAnim, playSlash, playCast, playHeal } from "../ui/skillAnimato
 import { SKILL_ANIM, BASIC_ATTACK_ANIM, type SkillAnim } from "../data/skillAnimations";
 import { ULTIMATES, type Ultimate } from "../data/ultimates";
 import { playCutscene } from "../ui/cutscene";
-import { assetUrl } from "../core/assets";
+import { assetUrl, preloadVideoUrl, videoUrlSync } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
 import { Telemetry } from "../telemetry/telemetry";
@@ -173,6 +173,7 @@ export const Battle = {
   setCmdWide(on: boolean): void { $("#cmdPanel")?.classList.toggle("cmd-wide", on); },
   // Ultimate submenu: a single big button for the class's signature super.
   showUltimate(m: Member, ult: Ultimate): void {
+    if (ult.cutscene) void preloadVideoUrl(ult.cutscene); // warm the lazy video URL before the player fires
     this.setCmdWide(true);
     const list = $("#cmdList")!; list.innerHTML = "";
     const back = el("button", "cmd", "◂ Back"); back.onclick = () => { this.setCmdWide(false); this.showCommands(m); }; list.appendChild(back);
@@ -214,8 +215,12 @@ export const Battle = {
       recalc(Game.party); this.renderAll();
       setTimeout(() => this.afterAction(m), 500);
     };
-    const url = ult.cutscene ? assetUrl(ult.cutscene) : null;
-    if (url) playCutscene(url, apply); else apply();
+    if (!ult.cutscene) { apply(); return; }
+    // Prefer the URL warmed in showUltimate so play() stays in the click gesture (unmuted audio);
+    // if it isn't cached yet, resolve the lazy video chunk first (cutscene falls back to muted).
+    const url = videoUrlSync(ult.cutscene);
+    if (url) playCutscene(url, apply);
+    else preloadVideoUrl(ult.cutscene).then((u) => (u ? playCutscene(u, apply) : apply()));
   },
   useSkill(m: Member, s: Skill): void {
     if (s.target === "self") { this.resolve(m, [m], { skill: s }); return; }

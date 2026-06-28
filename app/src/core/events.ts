@@ -1,5 +1,8 @@
-// Tiny typed event bus. Decouples systems/controllers from one another and from the UI:
-// emitters don't know who listens. Add event names + payloads to GameEvents as the world grows.
+// Tiny typed event bus — AVAILABLE, NOT YET ADOPTED. Intended as a decoupling seam so emitters
+// (controllers/systems) don't know who listens; today controllers still couple via direct public-
+// object calls (Game/Field/Battle/Screens), and this bus has no live consumers. Reach for it when a
+// seam genuinely fans out to several independent listeners; add event names + payloads to GameEvents
+// then. Until something subscribes, prefer the existing direct call rather than emitting to nobody.
 
 import type { Item, Member } from "../types";
 
