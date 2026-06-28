@@ -88,7 +88,9 @@ silence · the fixed point.
 **Showcase — the phase-transition chain (crystalline cold):** **Chill → Frozen → Shatter.** Stack
 chill until the target freezes into a crystalline state; a frozen target is brittle; the next big
 STR hit shatters it for burst. The NOX combat fantasy in one line — and a perfect Hammer payoff.
-**Absolute Zero** is the natural capstone/ultimate name (the floor of the chain).
+*Absolute zero* (the floor of the chain) is the natural capstone *concept* — though per the
+globally-unique-name rule (class model invariant #8) each class needs its own ability name for it
+(Rimewalker already took "Absolute Zero"; the Hammer's is "Entombment").
 
 ### SOL (Spread) — *increase entropy: spread, accelerate, detonate*
 

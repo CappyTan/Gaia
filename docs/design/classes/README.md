@@ -161,6 +161,9 @@ onto the existing `Skill` interface (`type`, `target`, `status`, `desc`) for eve
 6. Economy holds: **specials generate-only**, **sig/ult cost-only**, **auto = small trickle**, all
    **own-attunement**.
 7. Every entry carries a **provenance** flag; `from-brief` content is preserved verbatim.
+8. **Ability names are globally unique** — no two abilities share a name, **within the kit and
+   across every other class spec**. (Reuse of a flavor *concept* is fine; reuse of an exact ability
+   *name* is not. Check new names against the existing `docs/design/classes/*.md` before finalizing.)
 
 ## Deferred (parked) — not needed to author specs
 
