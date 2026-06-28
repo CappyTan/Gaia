@@ -1,7 +1,8 @@
 import type { Affix, Attunement, Implicit, Item, PrimaryStat, Prims, Slot } from "../types";
 import type { Enemy } from "../types";
 import { ATTUNEMENTS, isArmorSlot } from "../types";
-import { ri, pick, clamp } from "../core/rng";
+import type { Rng } from "../core/rng";
+import { riR, pickR, clamp } from "../core/rng";
 import { GOVERNING_STAT } from "../data/statScaling";
 import { RARITY } from "../data/rarity";
 import { LOOT_BANDS, SPIKE_STEP, DROP_MODS, DROP_SLOTS, type RarityMod } from "../data/loot";
@@ -14,11 +15,11 @@ const ART_ARCHETYPES = Object.keys(ITEM_NAMES);
 
 /** Pick a drop attunement: usually matches the party (so loot is equippable), sometimes a
  *  wildcard for cross-attunement reclassing finds. */
-function rollAtt(pref?: Attunement): Attunement {
-  return pref && Math.random() < 0.55 ? pref : pick(ATTUNEMENTS); // mostly useful, plenty of variety
+function rollAtt(rng: Rng, pref?: Attunement): Attunement {
+  return pref && rng() < 0.55 ? pref : pickR(rng, ATTUNEMENTS); // mostly useful, plenty of variety
 }
-function rollWeaponClass(pref?: string): string {
-  return pref && Math.random() < 0.5 ? pref : pick(ART_ARCHETYPES);
+function rollWeaponClass(rng: Rng, pref?: string): string {
+  return pref && rng() < 0.5 ? pref : pickR(rng, ART_ARCHETYPES);
 }
 
 // Item-level scaling: base stats grow with ilvl (enemy level / zone depth), so gear found
@@ -54,7 +55,7 @@ const ARMOR_STATS: Record<string, (r: number, k: number, ilvl: number) => Implic
   boots:  (r, k, ilvl) => ({ hp: Math.round((4 + r * 3) * k), spd: 1 + Math.floor(r / 2), armor: Math.ceil(r / 2) + Math.floor(ilvl / 8) }),
 };
 
-export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weaponClass?: string | null, ilvl = 0, att: Attunement = "SOL"): Item {
+export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weaponClass?: string | null, ilvl = 0, att: Attunement = "SOL", rng: Rng = Math.random): Item {
   const R = RARITY[rarityIx];
   const r = rarityIx;
   const k = ilvlMult(ilvl);
@@ -78,7 +79,7 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   } else if (isArmorSlot(slot)) {
     const noun = (ARMOR_SLOT_NOUNS[slot] ?? ARMOR_SLOT_NOUNS.armor)[r];
     Object.assign(implicit, ARMOR_STATS[slot](r, k, ilvl));
-    if (Math.random() < ARMOR_MNA_CHANCE) {
+    if (rng() < ARMOR_MNA_CHANCE) {
       // ATTUNED armor: small MNA in its Attunement + a themed name ("Wildgrown Cuirass", "Rimewrought Greaves").
       mna = { [att]: armorMna(r, ilvl) };
       name = `${ATT_ADJ[att]?.[r] ?? ""} ${noun}`.trim();
@@ -97,7 +98,7 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   const pool = [...AFFIXES];
   const affixes: Affix[] = [];
   for (let i = 0; i < R.affixes; i++) {
-    const a = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    const a = pool.splice(Math.floor(rng() * pool.length), 1)[0];
     if (!a) break;
     affixes.push({ key: a.key, stat: a.stat, value: a.roll(r), label: a.label });
   }
@@ -143,9 +144,9 @@ function applyMod(b: { floor: number; ceil: number }, m: RarityMod): { floor: nu
 
 // Weighted roll within [floor,ceil]: starts at floor, each rung up needs another SPIKE_STEP success —
 // so higher rarities are progressively rarer ("lucky" spikes). P(floor+n) = SPIKE_STEP^n.
-function spikeRarity(floor: number, ceil: number, step = SPIKE_STEP): number {
+function spikeRarity(floor: number, ceil: number, rng: Rng = Math.random, step = SPIKE_STEP): number {
   let r = floor;
-  for (let i = floor; i < ceil; i++) { if (Math.random() < step) r = i + 1; else break; }
+  for (let i = floor; i < ceil; i++) { if (rng() < step) r = i + 1; else break; }
   return clamp(r, 0, 5);
 }
 
@@ -156,31 +157,31 @@ export interface RosterClass { cls: string; att: Attunement; }
 // drops, 75% of the time it rolls an EXACT class a party member already wields (same attunement +
 // archetype) so the player can farm upgrades for their current comp; the other 25% roll wild across
 // all classes (so loot still offers reclass options). Armor/trinket att is cosmetic, biased to roster.
-export function rollDrop(enemy: Enemy, roster?: RosterClass[]): Item {
+export function rollDrop(enemy: Enemy, roster?: RosterClass[], rng: Rng = Math.random): Item {
   const lvl = enemy.lvl || 1;
   let band = rarityBand(lvl);
   if (enemy.elite) band = applyMod(band, DROP_MODS.elite);
   if (enemy.boss) band = applyMod(band, DROP_MODS.boss);
   if (enemy.rare) band = applyMod(band, DROP_MODS.rare); // ultra-rare treasure monster: rare-or-better
-  const r = spikeRarity(band.floor, band.ceil);
-  const slot = pick(DROP_SLOTS);
-  if (slot === "weapon" && roster && roster.length && Math.random() < 0.75) {
-    const m = pick(roster);                                   // matches a party member's exact class
-    return makeItem(null, "weapon", r, m.cls, lvl, m.att);
+  const r = spikeRarity(band.floor, band.ceil, rng);
+  const slot = pickR(rng, DROP_SLOTS);
+  if (slot === "weapon" && roster && roster.length && rng() < 0.75) {
+    const m = pickR(rng, roster);                            // matches a party member's exact class
+    return makeItem(null, "weapon", r, m.cls, lvl, m.att, rng);
   }
-  if (slot === "weapon") return makeItem(null, "weapon", r, pick(ART_ARCHETYPES), lvl, pick(ATTUNEMENTS)); // wild
-  const att = roster && roster.length ? pick(roster).att : pick(ATTUNEMENTS); // armor/trinket: cosmetic att
-  return makeItem(null, slot, r, null, lvl, att);
+  if (slot === "weapon") return makeItem(null, "weapon", r, pickR(rng, ART_ARCHETYPES), lvl, pickR(rng, ATTUNEMENTS), rng); // wild
+  const att = roster && roster.length ? pickR(rng, roster).att : pickR(rng, ATTUNEMENTS); // armor/trinket: cosmetic att
+  return makeItem(null, slot, r, null, lvl, att, rng);
 }
 
 // CHEST / MERCHANT loot: rarity from the find's LEVEL band (same curve as drops) + an optional source
 // bump (e.g. DROP_MODS.chest), scaled to an item level for stat magnitude. No more flat "floor + always
 // spike to artifact" — a Greenvale chest is now common/uncommon with a lucky rare, not a guaranteed rare+.
-export function rollItemAtLevel(lvl: number, prefCls?: string, ilvl = 0, prefAtt?: Attunement, mod?: RarityMod): Item {
+export function rollItemAtLevel(lvl: number, prefCls?: string, ilvl = 0, prefAtt?: Attunement, mod?: RarityMod, rng: Rng = Math.random): Item {
   let band = rarityBand(lvl);
   if (mod) band = applyMod(band, mod);
-  const r = spikeRarity(band.floor, band.ceil);
-  const slot = pick(DROP_SLOTS);
-  const wc = slot === "weapon" ? rollWeaponClass(prefCls) : null;
-  return makeItem(null, slot, r, wc, ilvl, rollAtt(prefAtt));
+  const r = spikeRarity(band.floor, band.ceil, rng);
+  const slot = pickR(rng, DROP_SLOTS);
+  const wc = slot === "weapon" ? rollWeaponClass(rng, prefCls) : null;
+  return makeItem(null, slot, r, wc, ilvl, rollAtt(rng, prefAtt), rng);
 }

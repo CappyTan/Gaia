@@ -1,7 +1,7 @@
 // Headless unit tests for the pure systems (no DOM). These replace the old inline node
 // "logic harness" — run with `npm test`.
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { affinity } from "../src/systems/affinity";
 import { gearScore } from "../src/systems/gearScore";
 import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
@@ -54,16 +54,16 @@ describe("loot generation", () => {
   it("a boss drop is uncommon-or-better — a notch above its level band, NOT a guaranteed epic", () => {
     const boss = makeEnemy("kingpin", 0, true, 0); // an EARLY boss (Greenvale) must not hand out epics
     const floor = rarityBand(boss.lvl).floor;
-    for (let i = 0; i < 80; i++) {
-      const r = rollDrop(boss).rIx;
+    for (let i = 0; i < 80; i++) { // seeded per-iteration: deterministic yet covers many rolls
+      const r = rollDrop(boss, undefined, seeded(i)).rIx;
       expect(r).toBeGreaterThanOrEqual(Math.max(1, floor)); // boss bump: never below uncommon
       expect(r).toBeLessThanOrEqual(5);
     }
   });
   it("every armor-family slot makes a valid, defensive piece", () => {
     for (const slot of ARMOR_SLOTS) {
-      for (let i = 0; i < 24; i++) { // covers both branches of the 50/50 attuned-vs-neutral roll
-        const it = makeItem(null, slot, 3, null, 10, "NOX");
+      for (let i = 0; i < 24; i++) { // seeded; covers both branches of the 50/50 attuned-vs-neutral roll
+        const it = makeItem(null, slot, 3, null, 10, "NOX", seeded(i));
         expect(it.slot).toBe(slot);
         // armor is attuned IFF it rolled MNA; neutral armor carries no attunement designation (Dara)
         if (it.mna) expect(it.att).toBe("NOX"); else expect(it.att).toBeUndefined();
@@ -97,12 +97,11 @@ describe("loot generation", () => {
 
 describe("champion packs", () => {
   it("a champion is a tankier, multi-affix elite with richer rewards", () => {
-    // makeEnemy uses global Math.random for the 22% elite roll; pin it high so the plain `normal`
-    // baseline never randomly rolls Elite (an HP affix would inflate its maxhp and flake this test).
-    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.99);
-    const normal = makeEnemy("gbandit", 0, false, 0, false);
-    const champ = makeEnemy("gbandit", 0, false, 0, true);
-    rnd.mockRestore();
+    // makeEnemy takes an injectable rng for the 22% elite roll; feed a constant-high rng so the plain
+    // `normal` baseline never rolls Elite (an HP affix would inflate its maxhp and flake this test).
+    const noElite: () => number = () => 0.99;
+    const normal = makeEnemy("gbandit", 0, false, 0, false, noElite);
+    const champ = makeEnemy("gbandit", 0, false, 0, true, seeded(4)); // seed whose 3 affix rolls include an HP one (the tanky-leader case)
     expect(champ.champion).toBe(true);
     expect(champ.elite).toBe(true);
     expect(champ.eliteAffixes!.length).toBe(3);
@@ -119,7 +118,7 @@ describe("ultra-rare treasure monsters", () => {
     expect(r.boss).toBe(false);
     expect(r.miniboss).toBe(false);
     expect(r.elite).toBeFalsy(); // rares are their own tier — no random elite roll
-    for (let i = 0; i < 50; i++) expect(rollDrop(r).rIx).toBeGreaterThanOrEqual(2); // rare-or-better (floorMin 2)
+    for (let i = 0; i < 50; i++) expect(rollDrop(r, undefined, seeded(i)).rIx).toBeGreaterThanOrEqual(2); // rare-or-better (floorMin 2), seeded = deterministic
   });
 });
 

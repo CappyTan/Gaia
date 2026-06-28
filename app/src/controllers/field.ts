@@ -2,7 +2,7 @@
 
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
-import { clamp, ri, pick } from "../core/rng";
+import { clamp, ri } from "../core/rng";
 import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
@@ -12,8 +12,9 @@ import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal"
 import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
-import { ENEMIES, RARE_MONSTERS, RARE_ENCOUNTER_CHANCE } from "../data/enemies";
+import { ENEMIES, RARE_MONSTERS } from "../data/enemies";
 import { rollItemAtLevel } from "../systems/loot";
+import { rollEncounter, pickAreaSet } from "../systems/encounter";
 import { applyReprieve } from "../systems/reprieve";
 import { CHEST_LEVEL, DROP_MODS } from "../data/loot";
 import { itemHtml } from "../ui/render";
@@ -1200,8 +1201,7 @@ export const Field = {
   enterBigLair(wx: number, wy: number): void {
     this.cellAt(wx, wy).kind = "grass";
     const a = authoredAt(wx, wy); if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "grass";
-    const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
-    const key = rares.length ? rares[0].key : null;
+    const key = this.eligibleRares()[0] || null;
     this.draw(); this.hint();
     if (!key) return;
     Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
@@ -1223,64 +1223,36 @@ export const Field = {
     Dialogue.open(npc.name, npc.spr, npc.lines, () => { this.draw(); this.hint(); });
     this.draw(); this.hint();
   },
+  // Thin wrapper over systems/encounter.rollEncounter (the pure composition the sim shares): build the
+  // ctx from controller state, then do the DOM/flow (Battle.begin). AREA LEAN (ADR 0009 exemplar): the
+  // current Area's favour table biases WHICH of the depth band's balanced sets we draw — same band,
+  // same pool, only the COMPOSITION shifts.
   rollEncounter(): void {
-    const p = this.progress(), bands = this.zone().bands;
-    let band = bands[0];
-    for (const e of bands) { if (p >= e.at) band = e; }
-    // the dungeon runs ~1-2 levels hotter than the overworld; in a MULTI-FLOOR dungeon the threat also
-    // CLIMBS with depth — each floor below B1 adds a step so the dens run hotter the lower you go.
-    const floorBump = this.inDungeon() ? this.dungeonFloor * 0.12 : 0;
-    const depth = this.inDungeon() ? clamp(p + 0.25 + floorBump, 0, 1) : p;
-    // ULTRA-RARE: a small chance the encounter is instead a lone treasure monster (Metal-Slime /
-    // Warmech tier) — exceptional loot. Eligible by zone; solo fight, no champion.
-    const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
-    if (rares.length && Math.random() < RARE_ENCOUNTER_CHANCE) {
-      Battle.begin([pick(rares).key], this.envFor(p), false, false, depth, -1);
-      return;
-    }
-    // AREA LEAN (ADR 0009 exemplar): in Area-native Greenvale, bias WHICH of this depth band's sets we
-    // draw toward the Area's creature character — WITHOUT changing the band (depth still drives the
-    // curve) or restatting anything. Every candidate set already belongs to this balanced depth band,
-    // so we only shift the COMPOSITION you meet (Commons = slime/kobold; Orchard = kobold/bandit;
-    // Fields = bandit/mage; Grove/Warren-Approach = the heavier mixes). Falls back to a plain pick.
-    const set = this.pickAreaSet(band.sets).slice();
-    // CHAMPION PACK: past the opening, an encounter can be led by a champion (lead = index 0)
-    // with 1-2 extra minions. More common deeper in / in the dungeon.
-    let champIdx = -1;
-    const champChance = (this.inDungeon() ? 0.15 : 0.09) + p * 0.07;
-    // No champion packs in the STARTER zone (Greenvale, index 0): a fresh L1-4 party can't absorb a
-    // multi-affix pack leader on top of the elite rolls (telemetry v0.65 — early elite saturation
-    // wiped the run). Champions enter from the second zone on.
-    if (this.zoneIndex >= 1 && p > 0.12 && Math.random() < champChance) {
-      champIdx = 0;
-      const adds = set.slice(1); // a normal minion (not another champion), the champion is the threat
-      if (set.length < 5) set.push(pick(adds.length ? adds : set));
-    }
-    Battle.begin(set, this.envFor(p), false, false, depth, champIdx);
+    const enc = rollEncounter({
+      bands: this.zone().bands,
+      progress: this.progress(),
+      inDungeon: this.inDungeon(),
+      dungeonFloor: this.dungeonFloor,
+      zoneIndex: this.zoneIndex,
+      rareKeys: this.eligibleRares(),
+      fav: this.currentFavour(),
+    });
+    Battle.begin(enc.keys, this.envFor(this.progress()), false, false, enc.depth, enc.champIdx);
   },
-  // ── ADR 0009 exemplar: AREA-LEANED set choice. Pick a set from the (already depth-balanced) band,
-  // biased toward the Area the player stands in. The lean is a per-Area "which Greenvale creatures fit
-  // here" affinity over the EXISTING bestiary (no new/restatted enemies); we score each candidate set
-  // by how many of its members the Area favours, then weight-pick so a matching set is MORE likely but
-  // every band set stays possible (variety + the difficulty curve are preserved — same band, same pool).
-  pickAreaSet(sets: string[][]): string[] {
+  /** Ultra-rare keys eligible (and present in the bestiary) for the current zone. */
+  eligibleRares(): string[] {
+    return RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]).map((r) => r.key);
+  },
+  /** The favour table (enemyKey → weight) for the Area under the player, or undefined for a plain pick. */
+  currentFavour(): Record<string, number> | undefined {
     const lean = this.currentLean();
-    if (!lean) return pick(sets);
-    const fav = LEAN_FAVOUR[lean];
-    if (!fav) return pick(sets);
-    // weight = 1 baseline + the set's favour score (so a strongly-matching set is a few× likelier).
-    let total = 0;
-    const weights = sets.map((s) => { const w = 1 + s.reduce((n, k) => n + (fav[k] ?? 0), 0); total += w; return w; });
-    let r = Math.random() * total;
-    for (let i = 0; i < sets.length; i++) { r -= weights[i]; if (r <= 0) return sets[i]; }
-    return sets[sets.length - 1];
+    return lean ? LEAN_FAVOUR[lean] : undefined;
   },
   // The hidden rare-monster lair (Greenvale: Hogger). Stepping in starts a solo rare fight; the
   // den is consumed so it's a one-time reward for the explorer (re-cleared each visit to the zone).
   enterLair(x: number, y: number): void {
     this.map[y][x] = "grass";
-    const rares = RARE_MONSTERS.filter((r) => r.zones.includes(this.zoneIndex) && ENEMIES[r.key]);
-    const key = rares.length ? rares[0].key : null; // first eligible rare = the den's named beast
+    const key = this.eligibleRares()[0] || null; // first eligible rare = the den's named beast
     this.draw(); this.hint();
     if (!key) return;
     Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
@@ -1327,7 +1299,7 @@ export const Field = {
       if (this.poisCleared[key]) { Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">Cold ashes and trampled ground — you've already cleared this camp.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Move on</button></div>`); return; }
       this.poisCleared[key] = true; consume(); this.draw(); this.hint();
       this.pendingPack = poi.pack && poi.pack.length ? poi.pack.slice()
-        : this.pickAreaSet(this.zone().bands[Math.min(1, this.zone().bands.length - 1)].sets).slice();
+        : pickAreaSet(this.zone().bands[Math.min(1, this.zone().bands.length - 1)].sets, this.currentFavour()).slice();
       Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">Tents, a smouldering fire, and unfriendly faces — they spot you. Their hoard is yours if you take it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightCamp()">Raid the camp</button></div>`);
       return;
     }

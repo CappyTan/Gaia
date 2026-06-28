@@ -1,6 +1,6 @@
 import type { Attunement, CombatAct, DamageResult, Enemy, StatusMap, Unit } from "../types";
 import type { Rng } from "../core/rng";
-import { ri, pick } from "../core/rng";
+import { riR, pickR } from "../core/rng";
 import { affinity } from "./affinity";
 import { mnaBonus } from "./progression";
 import { ENEMIES, depthHpScale, depthAtkScale, ENEMY_HP_EASE, ENEMY_ATK_EASE } from "../data/enemies";
@@ -92,10 +92,10 @@ export function applyStatus(u: Unit, st: StatusMap): void {
 }
 
 /** Roll N distinct elite affixes onto an enemy (mutates eliteAffixes + applies stat effects). */
-function applyAffixes(e: Enemy, n: number): void {
+function applyAffixes(e: Enemy, n: number, rng: Rng = Math.random): void {
   const used = (e.eliteAffixes = e.eliteAffixes || []);
   for (let i = 0; i < n; i++) {
-    const a = pick(ELITE_AFFIXES.filter((x) => !used.includes(x.key)));
+    const a = pickR(rng, ELITE_AFFIXES.filter((x) => !used.includes(x.key)));
     if (!a) break;
     used.push(a.key);
     a.apply(e);
@@ -108,7 +108,7 @@ function applyAffixes(e: Enemy, n: number): void {
  * to roll Elite (1-2 affixes). Passing `champion` makes a tanky pack leader: much higher HP, more
  * ATK, three affixes, and richer XP/gold (a tier above elite) — see Field champion packs.
  */
-export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false): Enemy {
+export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false, rng: Rng = Math.random): Enemy {
   const d = ENEMIES[key];
   const champHp = champion ? 1.4 : 1;
   const champAtk = champion ? 1.3 : 1;
@@ -129,7 +129,7 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
     alive: true, atb: 0, status: {}, critPct: 5, leech: d.leech || 0, solPct: 0,
   };
   if (e.boss || e.miniboss || e.rare) return e; // rares are their own tier — no random elite roll
-  if (champion) { e.champion = true; e.elite = true; applyAffixes(e, 3); }
-  else if (Math.random() < 0.22) { e.elite = true; applyAffixes(e, ri(1, 2)); } // elite roll
+  if (champion) { e.champion = true; e.elite = true; applyAffixes(e, 3, rng); }
+  else if (rng() < 0.22) { e.elite = true; applyAffixes(e, riR(rng, 1, 2), rng); } // elite roll
   return e;
 }
