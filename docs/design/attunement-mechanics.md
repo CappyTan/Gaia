@@ -1,11 +1,11 @@
-# Attunement Mechanics Framework — PROPOSAL (pending Dara's blessing)
+# Attunement Mechanics Framework — RATIFIED CANON
 
-> **Status: DRAFT PROPOSAL — NOT yet canon.** This is a working design framework for a *larger
-> suite of combat mechanics* grounded in Gaia's five core physics concepts, so class design has a
-> shared vocabulary to draw on. **Attunement identity, mechanics, and lore are Dara's lane**
-> (per `CLAUDE.md`): everything here is drafted by an agent + the dev and **awaits Dara's
-> ratification**. Nothing here is written into `CONTEXT.md` (the ratified glossary) until he
-> blesses it. Track open approvals in the **Approval Ledger** at the bottom.
+> **Status: RATIFIED CANON (Dara, 2026-06-28).** This is the canonical framework for Gaia's
+> combat mechanics, grounded in the five core physics concepts, that class design draws on. Every
+> item in the Approval Ledger below is **ratified**; the ratified terms are now folded into
+> `CONTEXT.md` (the glossary) and the [Class System Model](classes/README.md). Engine *wiring* of
+> these mechanics remains downstream implementation work (per CLAUDE.md — design canon, not yet
+> engine-wired).
 >
 > Origin: a `grill-with-docs` session (2026-06-28) while building the NOX × Hammer class, which
 > surfaced that the one-status-per-attunement model is thin and that NOX's "Decay" reads as
@@ -28,7 +28,7 @@ axis, the Five are five answers to entropy — and the affinity ring emerges fro
 **Why the ring falls out of this:** "Entropy beats Order" → SOL beats NOX. NOX's stasis halts the
 change life requires → NOX beats ANIMA. Etc. (See `affinity-ring.md` for the ratified ring.)
 
-### Two reframes this implies (both need Dara)
+### Two reframes this implies (ratified)
 
 - **ANIMA: from "biology" to a peer principle.** Reframed as *adaptive negentropy / emergence* —
   order maintained through **change** (vs NOX's order through **stasis**). Same enemy (entropy),
@@ -67,7 +67,7 @@ attunement can dip into, themed to its own principle.
 
 ## Per-attunement mechanic suites
 
-> *To be fleshed out in the ongoing grill — each attunement gets its family across the five layers.*
+> Each attunement's family across the five layers. All five are ratified.
 
 ### NOX (Freeze) — *force the target/battlefield toward a fixed, still, ordered state*
 
@@ -146,13 +146,11 @@ a contagion that detonates and reseeds onto new targets).
 **The three economy archetypes** now line up across the spine:
 **NOX banks** (static, preserved) · **SOL runs hot** (decays, use-or-lose) · **ANIMA compounds** (grows).
 
-> **⚑ STAT-SYSTEM FLAG — ANIMA's primary stat: MGC → VIT.** Today's ratified set is STR/AGI/DEF/SPD/**MGC**,
-> with ANIMA → MGC (a clean 1:1 of five stats ↔ five attunements). **Decision (dev-confirmed framing):
-> *rename* the MGC slot → VIT (Vitality)** — the set becomes STR/AGI/DEF/SPD/**VIT**, still five
-> stats, still 1:1, with "Vitality" fitting Life far better than "Magic". *Not* a 6th stat (which
-> would orphan MGC). This ripples beyond mechanics into the stat system — touches `CONTEXT.md`
-> (Attunement governing stats), the build-class model's "Primary ← Attunement" table, and
-> `stat-system.md` (Scaling Tiers). Still requires **Dara's** ratification. See ledger #10.
+> **⚑ STAT-SYSTEM — ANIMA's primary stat: MGC → VIT (RATIFIED).** The former **MGC ("Magic")** slot
+> is renamed to **VIT (Vitality)** — the canonical set is now **STR/AGI/DEF/SPD/VIT**, still five
+> stats, still 1:1 with the five attunements. VIT keeps the slot's substat role (ability power /
+> healing / debuff potency) and is also the **Staff** archetype's secondary. Folded into `CONTEXT.md`,
+> the [Class System Model](classes/README.md), and [`stat-system.md`](stat-system.md). See ledger #10.
 
 ### UMBRAXIS (Pull) — *reverse entropy via gravity: clump, compress, distort position & structure*
 
@@ -191,7 +189,7 @@ entanglement · uncertainty · paradox · stochastic · the dice · Schrödinger
 
 | Layer | Mechanics |
 |---|---|
-| **Status** | **Observed** (enemy randomness collapsed — its next dodge fails / next action known & pre-empted) · **Jinx** (enemy crit → 0, fumble chance up) · **Superposed** (a coin-flip status, resolves good-or-bad at a threshold) · **Doom** *(see open decision)* |
+| **Status** | **Observed** (enemy randomness collapsed — its next dodge fails / next action known & pre-empted) · **Decohere** (degrade enemy accuracy/crit — the physics-named *Jinx*) · **Superposed** (a coin-flip status, resolves good-or-bad at a threshold) · **Doom** (a delayed, *determined* hit) |
 | **Action-economy** | QUANTA's home (scales SPD): **turn-priority/haste** · **chance of extra turns** · **rewind** (undo/replay an action) · **foresight/pre-empt** (act before the enemy) · **time-skip** an enemy's turn |
 | **Stat/damage** | **Crit/dodge swings** (canon signature — buff own, debuff enemy's) · **guaranteed crit / guaranteed dodge** (collapse a probability to 1) · **variance up** (gamble: bigger min-max spread) |
 | **Meta** | **Observe/Collapse** (signature: force a probabilistic event to a chosen outcome — turn a 50% into 100% or 0%) · **Reroll** (re-roll a hit/miss/crit) |
@@ -203,42 +201,42 @@ turn, or a resolved **Doom**).
 
 **The four economy archetypes** (complete): **NOX banks · SOL runs hot · ANIMA compounds · QUANTA gambles.**
 
-> **⚑ NOX-of-canon flag — QUANTA's "DoT" = Doom (dev-approved).** Canon signature is **`none`
-> (no DoT)**. Decision: add **Doom** — *not* a tick but a **delayed, *determined* hit** (a timer that
-> resolves into damage; "the outcome is already written"). On-theme for collapse/observation/time,
-> and doesn't betray "no DoT" because nothing ticks. **Dev-approved; awaits Dara** (nudges the
-> `none` signature). See ledger #13.
+> **⚑ QUANTA's "DoT" = Doom (RATIFIED).** The `none`-signature canon gains **Doom** — *not* a tick
+> but a **delayed, *determined* hit** (a timer that resolves into damage; "the outcome is already
+> written"). On-theme for collapse/observation/time, and honors "no DoT" because nothing ticks.
+> See ledger #13.
 
-> **⚑ Avoidance model (dev-approved) — "untargetable" is just high dodge %.** QUANTA avoidance is a
+> **⚑ Avoidance model (RATIFIED) — "untargetable" is just high dodge %.** QUANTA avoidance is a
 > **single tunable axis: dodge %**. There is **no separate untargetable/immune state** — "can't be
 > hit / collapse to a miss / phase out" is an ability raising dodge toward an effective **~100%**
 > (tunable per ability). One number, precise balance control. See ledger #14.
 
-> **⚑ Naming flag — QUANTA accuracy/crit debuff "Jinx".** The status is keyworded **Jinx**, but that's
-> luck/superstition flavor; the dev prefers a physics register, so class specs read it as **decohere**
-> (loss of coherence → degraded accuracy/crit). Reconcile the keyword with Dara (keep `jinx` for
-> engine compat, or rename to `decohere`). See ledger #15.
+> **⚑ QUANTA accuracy/crit debuff = "Decohere" (RATIFIED).** The physics register wins over luck
+> flavor: the status is **Decohere** (loss of coherence → degraded accuracy/crit), not "Jinx".
+> Engine-keyword reconciliation (keep `jinx` internally, or rename to `decohere`) is downstream
+> wiring. See ledger #15.
 
 ---
 
-## Approval Ledger — what needs Dara's blessing
+## Approval Ledger — RATIFIED by Dara (2026-06-28)
 
-Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara · **open** = undecided.
+Legend: **ratified** = blessed by Dara, now canon. (All items below are ratified; engine *wiring* of
+these mechanics is separate downstream work.)
 
 | # | Item | Status | Notes |
 |---|---|---|---|
-| 1 | One unifying principle per attunement (facets are flavor) | proposed | Implied by canon; making it explicit |
-| 2 | "Five stances on entropy" as the framework spine + per-attunement verb | proposed | Spread/Freeze/Grow/Pull/Collapse |
-| 3 | **ANIMA reframe** → adaptive negentropy/emergence (evolution/adaptation/replication) | proposed | Biggest identity shift; Dara's call |
-| 4 | **NOX signature DoT = "Stasis"** (cold cessation, not rot) | proposed | Concept renamed Decay→Stasis; engine keyword `decay` stays for compat |
-| 5 | Full-spectrum mechanic layers (status/action-economy/stat/meta/economy) | proposed | Framework scope |
-| 6 | Cross-cutting families: conservation/transfer, resonance/interference, phase-transition | proposed | Dev loves these; Dara to bless |
-| 7 | **NOX suite** (control + preservation/tank; Chill→Frozen→Shatter; lexicon: crystalline/lattice/absolute zero) | proposed | Drafted & dev-approved; awaits Dara |
-| 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | proposed | Drafted & dev-approved; awaits Dara |
-| 9 | **ANIMA suite** (ramp/sustain/adapt; Infestation; Evolution; Seed→Bloom→Overgrowth; compounds) | proposed | Drafted & dev-approved; awaits Dara |
-| 10 | **STAT SYSTEM: rename MGC slot → VIT** (ANIMA primary) | proposed | **Framing dev-confirmed: rename, keep 5 stats 1:1.** Cross-cuts CONTEXT.md + stat-system.md. Awaits Dara |
-| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted & dev-approved; awaits Dara |
-| 12 | **QUANTA suite** (tempo+probability; gamble↔guarantee; Superposition→Collapse; gambles economy) | proposed | Drafted & dev-approved; awaits Dara |
-| 13 | **QUANTA "Doom"** — delayed *determined* hit as QUANTA's DoT-that-isn't (canon sig = none) | proposed | **Dev-approved; awaits Dara** (nudges the `none` signature) |
-| 14 | **Avoidance = dodge %** — no separate untargetable/immune state; "can't be hit" = ability pushes dodge to ~100% (tunable) | proposed | Dev-approved; mechanical rule for QUANTA avoidance. Awaits Dara |
-| 15 | **QUANTA "Jinx" → physics name** (e.g. `decohere`) | open | Dev prefers physics over luck flavor; reconcile keyword with Dara |
+| 1 | One unifying principle per attunement (facets are flavor) | **ratified** | Folded into CONTEXT.md (Attunement stances) |
+| 2 | "Five stances on entropy" as the framework spine + per-attunement verb | **ratified** | Spread/Freeze/Grow/Pull/Collapse |
+| 3 | **ANIMA reframe** → adaptive negentropy/emergence (evolution/adaptation/replication) | **ratified** | |
+| 4 | **NOX signature DoT = "Stasis"** (cold cessation, not rot) | **ratified** | Concept = Stasis; engine keyword `decay` stays for compat |
+| 5 | Full-spectrum mechanic layers (status/action-economy/stat/meta/economy) | **ratified** | Framework scope |
+| 6 | Cross-cutting families: conservation/transfer, resonance/interference, phase-transition | **ratified** | |
+| 7 | **NOX suite** (control + preservation/tank; Chill→Frozen→Shatter; lexicon: crystalline/lattice/absolute zero) | **ratified** | |
+| 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | **ratified** | |
+| 9 | **ANIMA suite** (ramp/sustain/adapt; Infestation; Evolution; Seed→Bloom→Overgrowth; compounds) | **ratified** | |
+| 10 | **STAT SYSTEM: rename MGC slot → VIT** (ANIMA primary; also Staff secondary) | **ratified** | Folded into CONTEXT.md + Class Model + stat-system.md |
+| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | **ratified** | |
+| 12 | **QUANTA suite** (tempo+probability; gamble↔guarantee; Superposition→Collapse; gambles economy) | **ratified** | |
+| 13 | **QUANTA "Doom"** — delayed *determined* hit as QUANTA's DoT-that-isn't (canon sig = none) | **ratified** | Honors "no DoT" (nothing ticks) |
+| 14 | **Avoidance = dodge %** — no separate untargetable/immune state; "can't be hit" = dodge to ~100% (tunable) | **ratified** | Mechanical rule for QUANTA avoidance |
+| 15 | **QUANTA accuracy/crit debuff = "Decohere"** (physics name over luck "Jinx") | **ratified** | Engine-keyword reconcile is downstream wiring |

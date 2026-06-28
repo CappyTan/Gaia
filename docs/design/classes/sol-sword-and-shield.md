@@ -2,9 +2,8 @@
 
 > **Status:** greenfield design spec, authored by the `build-class` skill against the
 > [Class System Model](./README.md). Lanes locked in the
-> [Sword & Shield family note](./sword-and-shield-family.md); every ability is `proposed` and awaits
-> review. Numberless by design. Mechanics vocabulary (Burn/Blind/Block-stacking) draws on the
-> [Attunement Mechanics Framework](../attunement-mechanics.md) — dev-approved, pending Dara.
+> [Sword & Shield family note](./sword-and-shield-family.md); every ability is `proposed` — ratified canon (Dara, 2026-06-28). Numberless by design. Mechanics vocabulary (Burn/Blind/Block-stacking) draws on the
+> [Attunement Mechanics Framework](../attunement-mechanics.md) — ratified canon (Dara, 2026-06-28).
 
 ## Identity (derived + DNA)
 

@@ -4,7 +4,7 @@
 > [Class System Model](./README.md). Lanes locked in the
 > [Sword & Shield family note](./sword-and-shield-family.md); every ability is `proposed`. Numberless.
 > Mechanics vocabulary (Chill/Freeze/Shatter/Stasis/stillness armor + shadow Blind) draws on the
-> [Attunement Mechanics Framework](../attunement-mechanics.md) — dev-approved, pending Dara.
+> [Attunement Mechanics Framework](../attunement-mechanics.md) — ratified canon (Dara, 2026-06-28).
 > Leans **shadow/penumbra** (NOX's dark facet) to stay distinct from the frost-forward Rimewalker
 > (Dual Swords) and Equilibrium Ascendant (Hammer).
 

@@ -1,11 +1,9 @@
-# Sword & Shield — the class family (5 stances on harm) — PROPOSAL (pending Dara)
+# Sword & Shield — the class family (5 stances on harm) — RATIFIED CANON
 
-> **Status: DRAFT PROPOSAL — NOT yet canon.** A family-design note for the five Sword & Shield
-> classes (one per Attunement), shaped in a dev + agent design session. **Class identity is Dara's
-> lane** (per `CLAUDE.md`) — this awaits his ratification. Its job: give the eventual `build-class`
-> runs for the remaining S&S classes a shared frame to honor, so the five feel like deliberate
-> variations rather than five copies. Draws on the
-> [Attunement Mechanics Framework](../attunement-mechanics.md) (also pending Dara).
+> **Status: RATIFIED CANON (Dara, 2026-06-28).** The family design for the five Sword & Shield
+> classes (one per Attunement). All five specs are written and blessed; this note is the shared frame
+> they honor — five deliberate variations, not five copies. Draws on the ratified
+> [Attunement Mechanics Framework](../attunement-mechanics.md).
 
 ## The organizing principle
 
@@ -62,8 +60,8 @@ reconcile with the NOX suite + the Equilibrium Ascendant's shared NOX vocabulary
 The DEF+DEF immovable wall: **raw damage reduction + absorb**, **gravity** to pull aggro and lock foes
 in place, **drain** to self-sustain. The purest tank of the five; detail with the (pending) UMBRAXIS suite.
 
-## Open flags (for Dara / later)
-- **SOL lane C** = Riposte (block→counter) chosen over a Radiance/AoE-control alternative — confirm.
-- **Summon persistence** (ANIMA): **per-battle** (dev-decided) — summoned creatures are conjured within a fight and reset between battles; no out-of-combat menagerie to manage.
-- **"Block" vs "Dodge"** are deliberately distinct mechanics (SOL reduces/negates a portion & stacks; QUANTA avoids entirely). Confirm both belong in the engine's defensive model.
-- **Entangle/Root** (ANIMA Thornwild) shares a mechanic shape with UMBRAXIS's gravity **Anchored** — same effect, different flavor (vines vs gravity). Fine, but note for the status vocabulary.
+## Ratified decisions & notes
+- **SOL lane C = Riposte** (block→counter), ratified over the Radiance/AoE-control alternative.
+- **Summon persistence (ANIMA): per-battle** — summoned creatures are conjured within a fight and reset between battles; no out-of-combat menagerie to manage.
+- **"Block" vs "Dodge" are distinct defensive mechanics** (ratified): SOL *reduces/negates a portion & stacks*; QUANTA *avoids entirely* (dodge %). Both belong in the engine's defensive model.
+- **Entangle/Root** (ANIMA Thornwild) shares a mechanic shape with UMBRAXIS's gravity **Anchored** — same effect, different flavor (vines vs gravity); a single underlying "rooted" status can serve both.

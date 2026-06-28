@@ -2,12 +2,12 @@
 
 > **Status:** greenfield design spec, authored by the `build-class` skill against the
 > [Class System Model](./README.md). Every entry is `proposed` (the designer supplied the class
-> identity + the anti-entropy framing; abilities are skill-drafted) and awaits review. Numberless by
+> identity + the anti-entropy framing; abilities are skill-drafted) — ratified canon (Dara, 2026-06-28). Numberless by
 > design; magnitudes are a later balance pass.
 >
 > **Mechanics vocabulary** (Stasis · Chill → Frozen → Shatter · lattice ward · dispel-lock · the
 > "banks" economy) is drawn from the [Attunement Mechanics Framework](../attunement-mechanics.md),
-> which is **dev-approved but pending Dara's ratification**. If that framework shifts, reconcile this
+> which is **ratified canon (Dara, 2026-06-28)**. If that framework shifts, reconcile this
 > kit toward it. In particular, **Stasis** is the design name for NOX's signature DoT (engine keyword
 > `decay`).
 

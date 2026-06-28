@@ -2,12 +2,11 @@
 
 > **Status:** greenfield design spec, authored by the `build-class` skill against the
 > [Class System Model](./README.md). Every entry is `proposed` (the designer supplied the class
-> identity + the all-defensive "evasion tank" framing; abilities are skill-drafted) and awaits
-> review. Numberless by design; magnitudes are a later balance pass.
+> identity + the all-defensive "evasion tank" framing; abilities are skill-drafted) — ratified canon (Dara, 2026-06-28). Numberless by design; magnitudes are a later balance pass.
 >
 > **Mechanics vocabulary** (probability swings · gamble↔guarantee · Doom · Observe/Collapse · the
 > "gambles" economy) is drawn from the [Attunement Mechanics Framework](../attunement-mechanics.md),
-> which is **dev-approved but pending Dara's ratification**. Names are flavored to QUANTA's
+> which is **ratified canon (Dara, 2026-06-28)**. Names are flavored to QUANTA's
 > physics / probabilistic / stochastic / quantum-mechanics register (not casino gambling). The
 > framework's QUANTA accuracy/crit debuff status is keyworded **Jinx**; in this kit it reads as
 > **decohere** — see the open flag in the framework ledger.

@@ -80,7 +80,7 @@ mono-lane.**
 |---|---|
 | SOL | AGI |
 | NOX | STR |
-| ANIMA | MGC |
+| ANIMA | VIT |
 | QUANTA | SPD |
 | UMBRAXIS | DEF |
 
@@ -94,10 +94,10 @@ mono-lane.**
 | Dual Daggers | SPD |
 | Dual Pistols | AGI |
 | Rifle | SPD |
-| Staff | MGC |
+| Staff | VIT |
 | Spellblade | AGI *(tentative)* |
 
-Both are **primary attributes** (STR / AGI / MGC / SPD / DEF) — a class scales on **two** of them
+Both are **primary attributes** (STR / AGI / VIT / SPD / DEF) — a class scales on **two** of them
 (primary from attunement, secondary from archetype). Some combos **collide** (e.g. SOL Dual Swords =
 AGI + AGI, NOX Two-Handed = STR + STR) → a hyper-focused class; that's fine. *How* scaling works is
 deferred to a balance pass.

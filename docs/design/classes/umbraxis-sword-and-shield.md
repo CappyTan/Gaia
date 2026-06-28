@@ -4,7 +4,7 @@
 > [Class System Model](./README.md). Lanes locked in the
 > [Sword & Shield family note](./sword-and-shield-family.md); every ability is `proposed`. Numberless.
 > Mechanics vocabulary (Drain/Crush/Anchored + raw damage reduction) draws on the
-> [Attunement Mechanics Framework](../attunement-mechanics.md) — dev-approved, pending Dara.
+> [Attunement Mechanics Framework](../attunement-mechanics.md) — ratified canon (Dara, 2026-06-28).
 
 ## Identity (derived + DNA)
 

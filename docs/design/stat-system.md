@@ -21,7 +21,7 @@ The foundation; they determine ability scaling. Replaces the POC's loose `atk/ma
 |---|---|---|---|
 | **Strength** | STR | raw power · force · brutality | **NOX** |
 | **Agility** | AGI | precision · dexterity · technique | **SOL** |
-| **Magic** | MGC | mastery · control · enhancement (replaces the POC's `MAG`) | **ANIMA** |
+| **Vitality** | VIT | life · growth · ability potency (ratified rename of the former **Magic / MGC** slot; replaces the POC's `MAG`) | **ANIMA** |
 | **Speed** | SPD | momentum · tempo · turn economy | **QUANTA** |
 | **Defense** | DEF | protection · endurance · stability | **UMBRAXIS** |
 
@@ -48,20 +48,20 @@ who beats you (predator) — assigning **S → A → B → C → D**. So:
 - **S** = your own stat · **A** = your prey's stat · **D** = your predator's stat · **B/C** = the two
   neutrals in ring order.
 
-Ring (beats): `SOL → NOX → ANIMA → QUANTA → UMBRAXIS → SOL`. Stats: SOL=AGI, NOX=STR, ANIMA=MGC,
+Ring (beats): `SOL → NOX → ANIMA → QUANTA → UMBRAXIS → SOL`. Stats: SOL=AGI, NOX=STR, ANIMA=VIT,
 QUANTA=SPD, UMBRAXIS=DEF.
 
 ### The master table
 
-| Attunement (S-stat) | STR | AGI | DEF | SPD | MGC |
+| Attunement (S-stat) | STR | AGI | DEF | SPD | VIT |
 |---|---|---|---|---|---|
 | **SOL** (AGI) | A | **S** | D | C | B |
 | **NOX** (STR) | **S** | D | C | B | A |
-| **ANIMA** (MGC) | D | C | B | A | **S** |
+| **ANIMA** (VIT) | D | C | B | A | **S** |
 | **QUANTA** (SPD) | C | B | A | **S** | D |
 | **UMBRAXIS** (DEF) | B | A | **S** | D | C |
 
-*(Worked example — UMBRAXIS: DEF=S, then beats SOL→AGI=A, Nox→STR=B, Anima→MGC=C, weak-to Quanta→
+*(Worked example — UMBRAXIS: DEF=S, then beats SOL→AGI=A, Nox→STR=B, Anima→VIT=C, weak-to Quanta→
 SPD=D. Matches Dara's example exactly.)* The table is a balanced **circulant**: read any column (one
 stat) and it is also S/A/B/C/D exactly once across the five — every stat is somebody's best and
 somebody's worst.
@@ -86,11 +86,11 @@ to ability output only). Biased toward each attribute's fantasy (Dara's final ve
 |---|---|
 | **STR** | **+1 Atk**, **+0.10% Arp** (armor pen), **+0.05% Lif** (lifesteal) |
 | **AGI** | **+0.10% Crt** (crit chance), **+0.20% Acc** (accuracy), **+0.10% Eva** (evasion) |
-| **MGC** | **+0.20% Abp** (ability power), **+0.20% Hld** (healing done), **+0.10% Deb** (debuff potency) |
+| **VIT** | **+0.20% Abp** (ability power), **+0.20% Hld** (healing done), **+0.10% Deb** (debuff potency) |
 | **SPD** | **+0.20% Abg** (attack-bar gain), **+1 Ini** (initiative), **+0.10% Cdr** (cooldown recovery) |
 | **DEF** | **+1 Arm**, **+0.10% Dmr** (damage reduction), **+0.20% Bar** (barrier power) |
 
-**Summary:** STR → raw offense & armor pen · AGI → accuracy, crits, evasion, counters · MGC →
+**Summary:** STR → raw offense & armor pen · AGI → accuracy, crits, evasion, counters · VIT →
 healing, barriers, buff/debuff strength · SPD → attack-bar, cooldowns, turn economy · DEF → damage
 reduction, shielding, resistance.
 
@@ -147,7 +147,7 @@ These give the "the higher the number, the stronger the character" read Dara wan
 
 A class's **primary** scaling is its Attunement stat (§2). Its **weapon archetype** adds a
 **secondary** stat it scales well from — reinforcing the weapon fantasy without the old "warriors=STR,
-mages=MGC" lock. (So every ANIMA class still wants MGC first, but a Sword & Shield ANIMA also leans
+casters=VIT" lock. (So every ANIMA class still wants VIT first, but a Sword & Shield ANIMA also leans
 DEF.)
 
 | Archetype | Primary | Secondary | Fantasy |
@@ -159,8 +159,8 @@ DEF.)
 | Dual Daggers | Attunement stat | **SPD** | Ambushes & rapid turns |
 | Dual Pistols | Attunement stat | **AGI** | Precision & multi-shot |
 | Rifle | Attunement stat | **SPD** | Long-range control / attack-bar manipulation |
-| Staff | Attunement stat | **MGC** | Stronger spells, buffs, healing |
-| Spellblade | Attunement stat | **Balanced** (AGI/MGC, or class-specific) | Hybrid playstyle |
+| Staff | Attunement stat | **VIT** | Stronger spells, buffs, healing |
+| Spellblade | Attunement stat | **Balanced** (AGI/VIT, or class-specific) | Hybrid playstyle |
 
 *(recommended) Combine in the ability-scaling formula: primary stat at its §2 tier coefficient, plus
 the archetype's secondary stat at a fixed bump — e.g. treat the secondary as at least **A-tier (0.70)**
@@ -226,7 +226,7 @@ The previously-flagged **Corrupted Attunement** concept (`affinity-ring.md`) is 
 
 Large change — recommend phasing rather than one drop:
 1. **Data model:** add the 5 primaries + substat fields to `types.ts` / member & item data; map POC
-   `mag→MGC`, keep `atk`/`arm`; seed STR/AGI/DEF/SPD on members & gear.
+   `mag→VIT`, keep `atk`/`arm`; seed STR/AGI/DEF/SPD on members & gear.
 2. **Scaling tables:** encode the §2 tier matrix + coefficients in `data/` (pure), used by
    `systems/combat` so the sim/tests exercise it.
 3. **Conversions + ratings:** implement §3 conversions and §5 ratings in a pure `systems/stats`
