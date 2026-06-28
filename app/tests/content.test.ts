@@ -4,6 +4,9 @@
 import { describe, it, expect } from "vitest";
 import { DB } from "../src/data/db";
 import { validateContent } from "../src/data/validate";
+import { RARE_MONSTERS } from "../src/data/enemies";
+import { ENEMIES } from "../src/data/enemies";
+import { BARRIERS, MAPS } from "../src/data/world";
 import { ARCHETYPE_KEYS } from "../src/data/party";
 import { ATTUNEMENTS } from "../src/types";
 import { ZONES, GREENVALE_AREAS, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type GreenvaleAreaId } from "../src/data/zones";
@@ -123,6 +126,47 @@ function reachable(map: string[][], start: Pt): boolean[][] {
 describe("content integrity (validateContent)", () => {
   it("reports no problems — all content is internally consistent", () => {
     expect(validateContent()).toEqual([]);
+  });
+});
+
+// The cross-ref guards added for the RARE_MONSTERS / BARRIERS "must-point-at" relationships (db.ts +
+// field.ts consume r.key/r.zones; the renderer/traversal consume a barrier's map/band/crossing). Prove
+// each guard FIRES on a deliberately-broken row so a future typo can't silently drop a rare/barrier.
+describe("RARE_MONSTERS cross-ref is real (every key + zone resolves)", () => {
+  it("every rare points at a real enemy and an in-range zone index", () => {
+    for (const r of RARE_MONSTERS) {
+      expect(ENEMIES[r.key], `rare ${r.key} is an enemy`).toBeTruthy();
+      for (const zi of r.zones) { expect(zi).toBeGreaterThanOrEqual(0); expect(zi).toBeLessThan(DB.zones.count()); }
+    }
+  });
+  it("validateContent flags a rare with a bogus key + an out-of-range zone", () => {
+    RARE_MONSTERS.push({ key: "no-such-beast", zones: [9999] });
+    try {
+      const issues = validateContent();
+      expect(issues.some((s) => s.includes("no-such-beast") && s.includes("not an enemy"))).toBe(true);
+      expect(issues.some((s) => s.includes("no-such-beast") && s.includes("out of range"))).toBe(true);
+    } finally { RARE_MONSTERS.pop(); }
+    expect(validateContent()).toEqual([]); // restored
+  });
+});
+
+describe("traversal BARRIERS cross-ref is real (map + band + crossing)", () => {
+  it("every barrier points at a known map and declares a band + a crossing", () => {
+    const mapIds = new Set(MAPS.map((m) => m.id));
+    for (const bar of BARRIERS) {
+      expect(mapIds.has(bar.map), `barrier ${bar.id} map`).toBe(true);
+      expect(bar.band.length).toBeGreaterThan(0);
+      expect(bar.crossing.length).toBeGreaterThan(0);
+    }
+  });
+  it("validateContent flags a barrier on an unknown map", () => {
+    const bar = BARRIERS[0];
+    const realMap = bar.map;
+    bar.map = "no-such-map";
+    try {
+      expect(validateContent().some((s) => s.includes(bar.id) && s.includes("not a known map"))).toBe(true);
+    } finally { bar.map = realMap; }
+    expect(validateContent()).toEqual([]); // restored
   });
 });
 

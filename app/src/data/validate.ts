@@ -6,9 +6,10 @@
 
 import { DB } from "./db";
 import { SKILLS } from "./skills";
-import { ENEMIES } from "./enemies";
+import { ENEMIES, RARE_MONSTERS } from "./enemies";
 import { ZONES } from "./zones";
 import { RARITY } from "./rarity";
+import { BARRIERS, MAPS } from "./world";
 import { ATTUNEMENTS } from "../types";
 import { ARCHETYPE_KEYS } from "./party";
 import { kitFor } from "./classes";
@@ -46,6 +47,22 @@ export function validateContent(): string[] {
     if (e.art && !ENEMIES[e.art]) issues.push(`enemy ${e.key}: art ref "${e.art}" is not an enemy key`);
     if (e.hp <= 0 || e.atk < 0) issues.push(`enemy ${e.key}: nonsensical hp/atk (${e.hp}/${e.atk})`);
     if (!ATTUNEMENTS.includes(e.att)) issues.push(`enemy ${e.key}: bad attunement "${e.att}"`);
+  });
+
+  // ultra-rare treasure monsters: each key is a real enemy and each zone index is in range (db.ts +
+  // field.ts consume r.key / r.zones — a typo'd key or stray index would silently drop the rare).
+  RARE_MONSTERS.forEach((r) => {
+    if (!ENEMIES[r.key]) issues.push(`rare monster "${r.key}": not an enemy key`);
+    r.zones.forEach((zi) => { if (zi < 0 || zi >= ZONES.length) issues.push(`rare monster "${r.key}": zone index ${zi} out of range (0..${ZONES.length - 1})`); });
+  });
+
+  // traversal barriers (ADR 0011): each points at a real map, and declares a band + a crossing (a
+  // band with no crossing would be an uncrossable wall; the cap is type-checked by Capability).
+  const mapIds = new Set(MAPS.map((m) => m.id));
+  BARRIERS.forEach((bar) => {
+    if (!mapIds.has(bar.map)) issues.push(`barrier "${bar.id}": map "${bar.map}" is not a known map`);
+    if (!bar.band.length) issues.push(`barrier "${bar.id}": empty band`);
+    if (!bar.crossing.length) issues.push(`barrier "${bar.id}": no crossing tiles (uncrossable)`);
   });
 
   // rarity ladder is the expected 6 rungs with non-decreasing affix counts

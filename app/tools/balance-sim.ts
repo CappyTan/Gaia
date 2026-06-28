@@ -12,7 +12,7 @@
 //   - skilled wipe rate low (~5-10%); reckless will read higher (worst-case headroom)
 
 import type { Enemy, Item, Member, Skill } from "../src/types";
-import { ri, pick, clamp } from "../src/core/rng";
+import { ri, pick, clamp, seeded } from "../src/core/rng";
 import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ENEMIES } from "../src/data/enemies";
@@ -20,9 +20,16 @@ import { ZONES } from "../src/data/zones";
 import { makeMember, recalc, grantXp, skillUnlocked } from "../src/systems/progression";
 import { makeItem, rollDrop, itemScore } from "../src/systems/loot";
 import { makeEnemy, combatDamage } from "../src/systems/combat";
+import { rollEncounter } from "../src/systems/encounter";
 
 // Field-layout constants the sim traverses (mirror controllers/field.ts).
 const BX = 58, GX = 30, ENC_MIN = 3, ENC_MAX = 6;
+
+// SEEDED rng for the loot/enemy/encounter rolls so the pure pipeline is reproducible (regression-
+// pinnable). Seed from argv[4] (`npm run sim 200 skilled 123`) or default. The combat/persona RNG
+// in the fight loop still uses Math.random (it models live play); this only pins the CONTENT rolls.
+const SEED = parseInt(process.argv[4] || "1", 10);
+const rng = seeded(SEED);
 
 // PLAYER PERSONA — how well the simulated player drives the party. The default models a
 // competent player (you, per telemetry: focus-fire threats, keep HP topped, open with buffs) so
@@ -42,7 +49,7 @@ const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, ilvl: 0,
 
 function freshParty(): Member[] {
   const p = PARTY_DEFS.map(makeMember);
-  p.forEach((m) => (m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls)));
+  p.forEach((m) => (m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, "SOL", rng)));
   recalc(p);
   return p;
 }
@@ -80,7 +87,7 @@ function reachable(e: Enemy, foes: Member[]): Member[] {
 }
 
 function simFight(party: Member[], keys: string[], depth: number, champIdx = -1): FightResult {
-  const enemies = keys.map((k, i) => makeEnemy(k, i, false, depth || 0, i === champIdx));
+  const enemies = keys.map((k, i) => makeEnemy(k, i, false, depth || 0, i === champIdx, rng));
   party.forEach((m) => { m.atb = ri(0, 30); m.status = {}; m.guarding = false; });
   enemies.forEach((e) => (e.atb = ri(0, 20)));
   const living = (): (Member | Enemy)[] => [...party.filter((m) => m.alive), ...enemies.filter((e) => e.alive)];
@@ -167,7 +174,7 @@ function gearUp(party: Member[], enemies: Enemy[]): void {
   const drops: Item[] = [];
   enemies.forEach((e) => {
     const ch = e.boss || e.miniboss ? 1 : e.elite ? 1 : 0.4;
-    const drop = () => rollDrop(e, party.map((p) => ({ cls: p.cls, att: p.att })));
+    const drop = () => rollDrop(e, party.map((p) => ({ cls: p.cls, att: p.att })), rng);
     if (Math.random() < ch) drops.push(drop());
     if (e.champion) drops.push(drop());
     if (e.miniboss) drops.push(drop());
@@ -214,18 +221,11 @@ function simRun() {
         toEnc = ri(ENC_MIN, ENC_MAX);
         const p = prog();
         const inDungeon = px > GX; // past the gate = the zone's dungeon
-        let band = Z.bands[0];
-        for (const b of Z.bands) if (p >= b.at) band = b;
-        const depth = inDungeon ? clamp(p + 0.25, 0, 1) : p;
-        // champion pack roll (mirror controllers/field.ts): lead becomes a champion + 1-2 adds
-        const set = pick(band.sets).slice();
-        let champIdx = -1;
-        if (p > 0.12 && Math.random() < (inDungeon ? 0.15 : 0.09) + p * 0.07) {
-          champIdx = 0;
-          const adds = set.slice(1); // mirror field.ts: a normal minion, not another champion
-          if (set.length < 5) set.push(pick(adds.length ? adds : set));
-        }
-        if (!fight(set, "rand", depth, champIdx)) break;
+        // Share the SHIPPING encounter composition (systems/encounter) instead of a hand-mirrored copy
+        // so the two can't drift. The sim has no Area lean and doesn't model the rare substitution, so
+        // fav/rareKeys are empty; dungeonFloor 0 (single-floor model here). Seeded rng = reproducible.
+        const enc = rollEncounter({ bands: Z.bands, progress: p, inDungeon, dungeonFloor: 0, zoneIndex: zi, rareKeys: [], fav: undefined }, rng);
+        if (!fight(enc.keys, "rand", enc.depth, enc.champIdx)) break;
       }
     }
     // MULTI-FLOOR (ADR 0008 Stage 3): a multi-floor dungeon adds an IN-DUNGEON mini-boss (the gating
