@@ -2,7 +2,7 @@
 
 > **Status:** greenfield design spec, authored by the `build-class` skill against the
 > [Class System Model](./README.md). **Pilot / worked example** — every entry is `proposed`
-> (no brief supplied) and awaits the designer's review. Numberless by design; magnitudes are a
+> (no brief supplied) — ratified canon (Dara, 2026-06-28). Numberless by design; magnitudes are a
 > later balance pass.
 
 ## Identity (derived + DNA)

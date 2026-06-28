@@ -80,7 +80,7 @@ mono-lane.**
 |---|---|
 | SOL | AGI |
 | NOX | STR |
-| ANIMA | MGC |
+| ANIMA | VIT |
 | QUANTA | SPD |
 | UMBRAXIS | DEF |
 
@@ -94,10 +94,10 @@ mono-lane.**
 | Dual Daggers | SPD |
 | Dual Pistols | AGI |
 | Rifle | SPD |
-| Staff | MGC |
+| Staff | VIT |
 | Spellblade | AGI *(tentative)* |
 
-Both are **primary attributes** (STR / AGI / MGC / SPD / DEF) — a class scales on **two** of them
+Both are **primary attributes** (STR / AGI / VIT / SPD / DEF) — a class scales on **two** of them
 (primary from attunement, secondary from archetype). Some combos **collide** (e.g. SOL Dual Swords =
 AGI + AGI, NOX Two-Handed = STR + STR) → a hyper-focused class; that's fine. *How* scaling works is
 deferred to a balance pass.
@@ -161,6 +161,9 @@ onto the existing `Skill` interface (`type`, `target`, `status`, `desc`) for eve
 6. Economy holds: **specials generate-only**, **sig/ult cost-only**, **auto = small trickle**, all
    **own-attunement**.
 7. Every entry carries a **provenance** flag; `from-brief` content is preserved verbatim.
+8. **Ability names are globally unique** — no two abilities share a name, **within the kit and
+   across every other class spec**. (Reuse of a flavor *concept* is fine; reuse of an exact ability
+   *name* is not. Check new names against the existing `docs/design/classes/*.md` before finalizing.)
 
 ## Deferred (parked) — not needed to author specs
 

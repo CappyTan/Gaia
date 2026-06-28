@@ -83,6 +83,9 @@ Self-check the hard invariants and report each ✓/✗. **Do not finalize on any
 5. Derived fields correct (primary ← attunement, secondary ← archetype, threshold ← milestone).
 6. Economy: specials generate-only, sig/ult cost-only, auto = minor trickle, all own-attunement.
 7. Every entry has a provenance flag; `from-brief` content preserved verbatim.
+8. **Ability names are globally unique** — no two entries share a name within this kit, **and** none
+   collides with an ability name in any existing `docs/design/classes/*.md`. Grep the other specs
+   before finalizing; rename collisions (reusing a flavor *concept* is fine, an exact *name* is not).
 
 ## Output format
 

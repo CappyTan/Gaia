@@ -26,12 +26,13 @@ One of the five "Powers" a Class draws from, each with a **domain** and a **gove
 single primary stat its class abilities **scale from**. Per Dara, **all** of a class's outputs
 (damage, healing, speed, defense, etc.) scale off that one stat, so **every class can perform in
 every aspect of the game**; the attunement just sets which stat makes its abilities scale *best*. The
-five main stats are **STR, AGI, DEF, SPD, MGC**:
-- **SOL** — Expansion · Light · Fire · Entropy — abilities scale from **AGI**
-- **NOX** — Preservation · Cold · Darkness · Order · Anti-Entropy — abilities scale from **STR**
-- **ANIMA** — Life · Purpose · Evolution · Vitality — abilities scale from **MGC**
-- **QUANTA** — Probability · Time · Observation · Possibility — abilities scale from **SPD**
-- **UMBRAXIS** — Gravity · Spacetime · Singularities · Cosmic Structure — abilities scale from **DEF**
+five main stats are **STR, AGI, DEF, SPD, VIT**. Each Attunement is one **stance on entropy** (its
+combat *verb*), ratified alongside the mechanics framework ([`docs/design/attunement-mechanics.md`](docs/design/attunement-mechanics.md)):
+- **SOL** — Expansion · Light · Fire · Entropy — *(stance: **Spread**)* — abilities scale from **AGI**
+- **NOX** — Preservation · Cold · Darkness · Order · Anti-Entropy — *(stance: **Freeze**)* — abilities scale from **STR**
+- **ANIMA** — Life · Purpose · Evolution · Vitality — *(stance: **Grow** — adaptive negentropy)* — abilities scale from **VIT**
+- **QUANTA** — Probability · Time · Observation · Possibility — *(stance: **Collapse**)* — abilities scale from **SPD**
+- **UMBRAXIS** — Gravity · Spacetime · Singularities · Cosmic Structure — *(stance: **Pull**)* — abilities scale from **DEF**
 _Avoid_: element, school. Note attunement is per-class flavor + a scaling stat, NOT a damage
 rock-paper-scissors (the ±15% affinity ring is a separate layer).
 _Relationship to REQUIEM:_ the governing **stat** above (Dara's ruling) is what abilities scale
@@ -39,7 +40,10 @@ _Relationship to REQUIEM:_ the governing **stat** above (Dara's ruling) is what 
 [`docs/design/requiem/`](docs/design/requiem/README.md)) is a separate amplifier, reconciled toward
 this over time.
 _POC note:_ the playable build currently uses `atk/armor/mag/spd` (+`hp/mp`), not the canonical
-**STR/AGI/DEF/SPD/MGC** set — to be formalized/reconciled when stats are built out.
+**STR/AGI/DEF/SPD/VIT** set — to be formalized/reconciled when stats are built out.
+_VIT (canon):_ **VIT (Vitality)** is the ratified rename of the former **MGC ("Magic")** slot —
+ANIMA's governing stat, fitting the Life/negentropy stance; it keeps that slot's substat role
+(ability power / healing / debuff potency) and is also the **Staff** archetype's secondary.
 
 **Scaling Tier** (canon):
 How well an Attunement converts a given primary stat into **ability power**, best→worst: **S, A, B,
@@ -124,9 +128,13 @@ first entry (The Last Lagrangian) in [`docs/design/legendary-figures.md`](docs/d
 _Not yet in the POC._
 
 **Signature effect**:
-The status/effect flavor tied to each Attunement (e.g. SOL = Burn/Blind). Distinct from
-the affinity ring; the ring governs damage multipliers, the signature effect is what an
-attunement's skills tend to *inflict*.
+The status/effect flavor tied to each Attunement. Distinct from the affinity ring; the ring governs
+damage multipliers, the signature effect is what an attunement's skills tend to *inflict*. Ratified
+set (see [`docs/design/attunement-mechanics.md`](docs/design/attunement-mechanics.md)): **SOL = Burn**
+(+ Blind/Spread) · **NOX = Stasis** (cold *cessation* — winding toward absolute zero, **not** rot;
+engine keyword stays `decay`) · **ANIMA = Infestation** (living contagion) + **Evolution** · **QUANTA
+= probability swings + Doom** (a *delayed, determined* hit — not a DoT) · **UMBRAXIS = Drain**.
+_Avoid_: calling NOX's signature "Decay"/"rot" in design prose — it is **Stasis**.
 
 **Objective**:
 The player's current "where to go next" — the single active goal the world's *environmental*
