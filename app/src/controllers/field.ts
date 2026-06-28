@@ -1,14 +1,20 @@
-// Tile field map: grid, camera, movement, random encounters, chokepoint mini-boss + zone boss.
+// Tile field map ORCHESTRATOR: camera, movement, navigation/encounter flow, big-map chunk streaming,
+// and the per-frame draw LOOP — wiring the pure pieces to the DOM/run state. The map GEOMETRY is
+// `systems/mapgen` (pure, RNG-injected); the canvas DRAW primitives are `ui/fieldRender` (pure, ctx+data
+// in); the encounter composition is `systems/encounter`. See ADR 0012 for the god-module split.
 
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type Zone, type ZoneLayout, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
 } from "../data/world";
 import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
+import { genCombined, genOverworld, genDungeon, FIELD_WALLS, type GenResult, type ClearedState } from "../systems/mapgen";
+import * as FR from "../ui/fieldRender";
+import { POI_KINDS } from "../ui/fieldRender";
 import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
@@ -67,14 +73,11 @@ const OPTIONAL_ZONES = new Set(["stormcoast", "riverhearth", "dawnfall", "whispe
 // mode test, which is what makes the Sunless-Grove mouth open on the big map (live bug 6).
 const NEW_MODEL_ZONES = new Set(["greenvale", "silverwood"]);
 
-// Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock reasons over
-// these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
-// VARIED TERRAIN (2026-06-21): `cliff` (rocky mountain wall) + `river` (watercourse) also hard-block;
-// the `bridge`/`ford` crossings + the POI kinds are WALKABLE (deliberately absent here).
-const FIELD_WALLS = new Set(["tree", "water", "cliff", "river"]);
+// FIELD_WALLS (the overworld/dungeon WALL kinds — tree/water/cliff/river — impassable + a flood barrier)
+// is imported from systems/mapgen, the one source of truth shared with the pure generators.
 
-// POI tile kinds (the INHABITED-world layer) — walkable special tiles with a `move()` interaction.
-const POI_KINDS = new Set(["shrine", "camp", "landmark", "signpost"]);
+// POI_KINDS (the INHABITED-world walkable tile kinds — shrine/camp/landmark/signpost) is imported
+// from ui/fieldRender, the one source of truth shared with the draw primitives.
 
 // ── Seamless big-map (ADR 0009 / Stage 2B) realization constants ──────────────────────────────
 // 32×32 world-tile chunks keyed `(wx>>5,wy>>5)`. Realized once, cached, evicted >3 Chebyshev away.
@@ -279,11 +282,6 @@ export const Field = {
     if (!key) return undefined;
     return this.tiles[`mob:${ENEMIES[key]?.art || key}`];
   },
-  // Draw a guardian/creature sprite bottom-anchored on a tile, preserving its (tall) aspect.
-  drawMob(c: CanvasRenderingContext2D, img: HTMLImageElement, sx: number, sy: number, t: number): void {
-    const h = t * 1.5, w = h * (img.width / img.height);
-    c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.98 - h, w, h);
-  },
 
   zone() { return ZONES[this.zoneIndex]; },
   isLastZone(): boolean { return this.zoneIndex >= ZONES.length - 1; },
@@ -462,113 +460,51 @@ export const Field = {
   // LEGACY combined grid: overworld WEST of a synthesized chokepoint wall at gateWallX + the rebased
   // dungeon EAST of it (a single grid, the gate the only gap). Byte-identical to the pre-Stage-2
   // map. Used by Silverwood/Duskmarsh until they migrate to genOverworld/genDungeon (Chunk B).
+  // Build a ClearedState for `systems/mapgen` from the run's persisted per-context sets. `zoneId` keys
+  // the POI/chest cleared-state; `ctx` ("ow" overworld | a floor index) scopes a chest key; the
+  // mini/floor-mini flags drive the mouth/gate tiles. The controller owns these sets (persisted in the
+  // save); mapgen stays pure by consuming the predicates, not the controller `this`.
+  clearedFor(zoneId: string, ctx: "ow" | number, opts: { miniCleared?: boolean; floorMiniBeaten?: boolean } = {}): ClearedState {
+    return {
+      poiSpent: (poi) => !!this.poisCleared[this.poiKey(zoneId, poi.x, poi.y)],
+      chestOpened: (c) => !!this.openedChests[this.chestKey(zoneId, ctx, c.x, c.y)],
+      miniCleared: !!opts.miniCleared,
+      floorMiniBeaten: !!opts.floorMiniBeaten,
+      restSpent: (p) => !!this.poisCleared[this.poiKey(zoneId + ":d" + this.dungeonFloor, p.x, p.y)],
+    };
+  },
+  // Assign a mapgen GenResult onto the controller's run state (grid + spawn/anchors). Behaviour-preserving:
+  // mirrors what the inline generators set on `this` before the extraction (skill §1/§2 — pure gen, DOM wire).
+  applyGen(r: GenResult): void {
+    this.map = r.map; this.W = r.W; this.H = r.H;
+    this.px = r.spawn.x; this.py = r.spawn.y;
+    this.gate = r.gate; this.boss = r.boss;
+    if (r.mouth) this.mouth = r.mouth;
+    this.chests = r.chests; this.lairAt = r.lairAt; this.pois = r.pois;
+  },
+
+  // LEGACY combined grid (Silverwood/Duskmarsh): thin wrapper over the pure `genCombined` — build the
+  // cleared-state, generate, wire the result onto the controller. The dungeon's combined boss is in the
+  // EAST half; POIs/chests key off the zone id (overworld "ow" context).
   genCombined(): void {
     this.townMode = false; this.mode = "overworld";
-    const L = this.zone().layout;
-    const D = this.zone().dungeon.layout; // decoupled dungeon grid (ADR 0008 Stage 2)
-    const dx0 = L.gateWallX;               // re-add the rebase so D's local x maps back to world x
-    const offPt = (q: Pt): Pt => ({ x: q.x + dx0, y: q.y });          // dungeon-local → combined-grid x
-    const offR = (r: { x: number; y: number; w: number; h: number }) => ({ ...r, x: r.x + dx0 });
-    const offP = (p: Pt[]) => p.map(offPt);
-    this.W = L.w; this.H = L.h;
-    this.gate = { ...L.gate }; this.boss = offPt(D.boss);
-    this.chests = [...L.chests.map((c) => ({ ...c })), ...D.chests.map(offPt)];
-    this.lairAt = L.lair ? { ...L.lair } : null;
-    this.px = L.spawn.x; this.py = L.spawn.y;
-
-    // 1. fill everything with tree (overworld = forest wall, dungeon = rock wall via the draw map)
-    this.map = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => "tree"));
-    const inB = (x: number, y: number) => x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1;
-    const carve = (x: number, y: number, kind: string) => { if (inB(x, y)) this.map[y][x] = kind; };
-
-    // 2. carve walkable rects (clearings/rooms): overworld field rects + the rebased dungeon rooms.
-    const carveRect = (r: { x: number; y: number; w: number; h: number }) => {
-      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, "grass");
-    };
-    L.fieldRects.forEach(carveRect); L.dunRects.forEach(carveRect); D.rooms.map(offR).forEach(carveRect);
-
-    // 3. carve paths (L-shaped segments between consecutive points), drawn as the intended route
-    const carvePath = (p: Pt[]) => { for (let i = 1; i < p.length; i++) this.carveSeg(p[i - 1], p[i]); };
-    L.fieldPaths.forEach(carvePath); L.dunPaths.forEach(carvePath); D.paths.map(offP).forEach(carvePath);
-
-    // 4. the CHOKEPOINT: a full-height tree wall at gateWallX with one gap = the mini-boss gate.
-    const gx = L.gateWallX;
-    for (let y = 1; y < this.H - 1; y++) this.map[y][gx] = "tree";
-    // a one-tile path stub on each side so the gate connects field ↔ dungeon
-    carve(gx - 1, L.gate.y, "path"); carve(gx + 1, L.gate.y, "path");
-    this.map[L.gate.y][gx] = "miniboss";
-
-    this.scatterAndWater(L);
-
-    // 6. chests + lair, each with a cleared 3×3 halo so they're reachable
-    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, "chest"); });
-    if (this.lairAt) { this.halo(this.lairAt); carve(this.lairAt.x, this.lairAt.y, "lair"); }
-    this.stampPois(L); // POIs (the INHABITED world)
-    carve(this.boss.x, this.boss.y, "boss");
-    carve(L.spawn.x, L.spawn.y, "path");
-
-    // 7. ANTI-SOFT-LOCK: flood-fill from spawn (gate walkable) and repair any walled-off feature —
-    //    boss, chests, lair, AND every walkable crossing/POI (so river/cliff terrain can't strand them).
-    const targets = [this.boss, ...this.chests]; if (this.lairAt) targets.push(this.lairAt);
-    if (L.bridges) targets.push(...L.bridges);
-    if (L.fords) targets.push(...L.fords);
-    targets.push(...this.pois.map((p) => ({ x: p.x, y: p.y })));
-    this.ensureReachable(L.spawn, targets);
+    const z = this.zone();
+    this.applyGen(genCombined(z.layout, z.dungeon.layout, this.clearedFor(z.id, "ow")));
   },
 
   // ── ADR 0008 Stage 2 (step 3): the OVERWORLD-only grid (no dungeon, no gate wall) — the seamless
-  // region. The dungeon mouth is a POI tile: "miniboss" while the mini guards it, "mouth" once the
-  // mini is beaten (stepping onto it then descends, via move()). Greenvale only for now.
+  // region. Thin wrapper over the pure `genOverworld`; the mouth tile reads "mouth"/"miniboss" off the
+  // zone's per-zone mouth-cleared flag. Greenvale only for now.
   genOverworld(regionId: string): void {
     this.townMode = false;
     const z = ZONES.find((zz) => zz.id === regionId) ?? this.zone();
-    const L = z.layout;
-    this.W = L.w; this.H = L.h;
-    this.gate = { ...L.mouth }; this.mouth = { ...L.mouth };
-    this.boss = { ...L.mouth }; // no overworld boss tile; placeholder so progress()/draw stay safe
-    this.chests = L.chests.map((c) => ({ ...c }));
-    this.lairAt = L.lair ? { ...L.lair } : null;
-    this.px = L.spawn.x; this.py = L.spawn.y;
-
-    this.map = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => "tree"));
-    const inB = (x: number, y: number) => x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1;
-    const carve = (x: number, y: number, kind: string) => { if (inB(x, y)) this.map[y][x] = kind; };
-    const carveRect = (r: { x: number; y: number; w: number; h: number }) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, "grass"); };
-    L.fieldRects.forEach(carveRect);
-    const carvePath = (p: Pt[]) => { for (let i = 1; i < p.length; i++) this.carveSeg(p[i - 1], p[i]); };
-    L.fieldPaths.forEach(carvePath);
-
-    this.scatterAndWater(L);
-
-    // ALREADY-LOOTED chests revert to plain path (mirrors stampPois' spent-POI handling) so a Continue
-    // can't re-spawn a looted chest; a still-sealed chest carves as "chest". An opened chest is just
-    // walkable floor, so it's also dropped from the anti-soft-lock targets (it can never strand anything).
-    const owOpened = (c: Pt) => !!this.openedChests[this.chestKey(z.id, "ow", c.x, c.y)];
-    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, owOpened(c) ? "path" : "chest"); });
-    if (this.lairAt) { this.halo(this.lairAt); carve(this.lairAt.x, this.lairAt.y, "lair"); }
-    this.stampPois(L); // POIs (the INHABITED world)
-    // The mouth POI: guarded by the mini until it's beaten, then enterable.
-    this.halo(this.mouth);
-    this.map[this.mouth.y][this.mouth.x] = this.miniClearedFor(z.id) ? "mouth" : "miniboss";
-    carve(L.spawn.x, L.spawn.y, "path");
-    // Re-enterable hub marker (any zone with a hub), one tile in from spawn (mirrors buildAuthoredGrid).
-    const village = this.zone().hub ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
-    if (village) { this.halo(village); carve(village.x, village.y, "village"); }
-
-    // ANTI-SOFT-LOCK: the mouth + every UNOPENED overworld chest/lair/crossing/POI + the hub marker reachable from spawn.
-    const targets = [this.mouth, ...this.chests.filter((c) => !owOpened(c))]; if (this.lairAt) targets.push(this.lairAt); if (village) targets.push(village);
-    if (L.bridges) targets.push(...L.bridges);
-    if (L.fords) targets.push(...L.fords);
-    targets.push(...this.pois.map((p) => ({ x: p.x, y: p.y })));
-    this.ensureReachable(L.spawn, targets);
+    this.applyGen(genOverworld(z, this.clearedFor(z.id, "ow", { miniCleared: this.miniClearedFor(z.id) })));
   },
 
-  // ── ADR 0008 Stage 2/3 (step 3): build ONE FLOOR of the zone's DUNGEON as its own grid. The player
-  // lands at `entry` (the mouth's inside on B1, the up-stair on deeper floors). Sets mode="dungeon".
-  // MULTI-FLOOR: an intermediate floor carries a `stairsDown` tile (drawn "stairsdown") gated by the
-  // floor's `miniboss` lieutenant where one stands; the LAST floor carries the zone `boss` finale. The
-  // up-stair (`entry`/`gate`) is drawn "stairsup" so the player reads the way back. Greenvale (zone 0)
-  // is the first multi-floor zone; the 9 single-floor dungeons run a 1-element stack (floor 0) unchanged.
+  // ── ADR 0008 Stage 2/3 (step 3): build ONE FLOOR of the zone's DUNGEON as its own grid. Thin wrapper
+  // over the pure `genDungeon` — pick the floor, build the floor-scoped cleared-state, generate, wire on.
+  // Sets mode="dungeon". MULTI-FLOOR: an intermediate floor carries a `stairsDown` (gated by its
+  // `miniboss`); the LAST floor carries the zone `boss`. Single-floor dungeons run a 1-element stack.
   genDungeon(zoneIndex: number, floorIdx = 0): void {
     this.townMode = false;
     this.mode = "dungeon";
@@ -576,114 +512,9 @@ export const Field = {
     this.dungeonFloor = clamp(floorIdx, 0, floors.length - 1);
     const last = this.dungeonFloor >= floors.length - 1;
     const D = floors[this.dungeonFloor];
-    this.W = D.w; this.H = D.h;
-    this.gate = { ...D.gate };           // the door/up-stair back out / up a floor
-    this.boss = { ...D.boss };           // only meaningful on the LAST floor
-    this.chests = D.chests.map((c) => ({ ...c }));
-    this.lairAt = null;                  // no rare lairs in the dungeon
-    this.px = D.entry.x; this.py = D.entry.y;
-
-    this.map = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => "tree"));
-    const inB = (x: number, y: number) => x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1;
-    const carve = (x: number, y: number, kind: string) => { if (inB(x, y)) this.map[y][x] = kind; };
-    const carveRect = (r: { x: number; y: number; w: number; h: number }) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, "grass"); };
-    D.rooms.forEach(carveRect);
-    const carvePath = (p: Pt[]) => { for (let i = 1; i < p.length; i++) this.carveSeg(p[i - 1], p[i]); };
-    D.paths.forEach(carvePath);
-
-    // cosmetic scatter (drawn as rock in the dungeon tileset)
-    const dens = D.scatter ?? 0.06;
-    for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++)
-      if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
-
-    // ALREADY-LOOTED chests on THIS floor revert to plain path (mirrors stampPois' spent-POI handling) so
-    // a Continue can't re-spawn a looted chest; a still-sealed chest carves as "chest". An opened chest is
-    // just walkable floor, so it's also dropped from the anti-soft-lock targets (it can never strand anything).
     const dunZid = ZONES[zoneIndex]?.id ?? this.zone().id;
-    const dunOpened = (c: Pt) => !!this.openedChests[this.chestKey(dunZid, this.dungeonFloor, c.x, c.y)];
-    this.chests.forEach((c) => { this.halo(c); carve(c.x, c.y, dunOpened(c) ? "path" : "chest"); });
-    // Anti-soft-lock targets: UNOPENED chests + the floor's egress (boss on the last floor, stairs-down otherwise).
-    const targets: Pt[] = [...this.chests.filter((c) => !dunOpened(c))];
-    if (last) { carve(this.boss.x, this.boss.y, "boss"); targets.push(this.boss); }
-    else if (D.stairsDown) {
-      this.halo(D.stairsDown);
-      carve(D.stairsDown.x, D.stairsDown.y, "stairsdown");
-      targets.push(D.stairsDown);
-    }
-    // IN-DUNGEON mini-boss gate (the lieutenant): while it stands, its tile reads as the guardian
-    // ("miniboss") and the player can't pass to the stairs; beaten, it reverts to floor. Always a flood
-    // target so the gated stairs/chests behind it stay reachable (the repair routes THROUGH the gate tile).
-    if (D.miniboss) {
-      this.halo(D.miniboss);
-      const beaten = !!this.dungeonMiniCleared[this.dungeonFloor];
-      carve(D.miniboss.x, D.miniboss.y, beaten ? "path" : "miniboss");
-      // TRUE GATE PINCH (anti-bypass): the lieutenant gates a HORIZONTAL (east-west) passage, but its
-      // own 3×3 halo (above) opens the 8 neighbours — leaving a walkable RING that lets the player slip
-      // AROUND the fight via the tiles directly above/below it. Re-wall those perpendicular flanks so the
-      // ONLY way through the gate is the lieutenant tile itself. Authors keep the gated rooms ≥2 cols
-      // past the gate so no OTHER halo re-opens these flanks; the flood-repair still routes THROUGH the
-      // (walkable) gate tile, so a beaten lieutenant can never strand the player.
-      carve(D.miniboss.x, D.miniboss.y - 1, "tree");
-      carve(D.miniboss.x, D.miniboss.y + 1, "tree");
-      targets.push(D.miniboss);
-    }
-    // REST NODES (skill §1 breather valley): a walkable campfire that heals once, then spends (reverts
-    // to floor — keyed per-floor in poisCleared, mirroring an overworld shrine). Halo'd + a flood target
-    // so it's always reachable and never blocks a route. A spent rest reverts to plain floor.
-    const restSpent = (p: Pt) => !!this.poisCleared[this.poiKey(dunZid + ":d" + this.dungeonFloor, p.x, p.y)];
-    if (D.rests) for (const r of D.rests) { this.halo(r); carve(r.x, r.y, restSpent(r) ? "path" : "rest"); targets.push(r); }
-    // COLLAPSE DROPS (skill §4 gimmick / §2 shortcut): a one-way `rubble` tile that drops to its paired
-    // landing. Both the drop tile AND its landing are carved walkable + flood targets, so the gimmick can
-    // never strand the player (the floor stays fully traversable WITHOUT ever using a drop).
-    if (D.drops) for (const dp of D.drops) { this.halo(dp); carve(dp.x, dp.y, "rubble"); this.halo(dp.to); carve(dp.to.x, dp.to.y, "path"); targets.push(dp, dp.to); }
-    // The up-stair / way back is "stairsup" on EVERY floor — "up = out" everywhere. On a deeper floor it
-    // climbs to the previous floor; on floor 0 it IS the mouth-back door (stepping on it → ascend() → the
-    // overworld mouth), so the player always has a walk-out trigger after climbing B2→B1 (QA fix).
-    carve(D.entry.x, D.entry.y, "stairsup");
-
-    this.ensureReachable(D.entry, targets);
-  },
-
-  // Shared carve helpers (used by genCombined / genOverworld / genDungeon).
-  carveSeg(a: Pt, b: Pt): void {
-    let cx = a.x, cy = a.y; const c = (x: number, y: number) => { if (x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1) this.map[y][x] = "path"; };
-    c(cx, cy);
-    while (cx !== b.x) { cx += Math.sign(b.x - cx); c(cx, cy); }
-    while (cy !== b.y) { cy += Math.sign(b.y - cy); c(cx, cy); }
-  },
-  halo(p: Pt): void { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (xx > 0 && yy > 0 && xx < this.W - 1 && yy < this.H - 1 && this.map[yy][xx] === "tree") this.map[yy][xx] = "grass"; } },
-  // scatter (decoration) + marsh water pools + VARIED TERRAIN (rivers/cliffs/bridges/fords) — shared by
-  // genCombined/genOverworld (the dungeon does its own scatter and has no water/terrain). Never
-  // overwrites the mouth/miniboss tile. Mirrors data/world.buildAuthoredGrid so the discrete + big-map
-  // paths realize the SAME geography.
-  scatterAndWater(L: ZoneLayout): void {
-    const inB = (x: number, y: number) => x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1;
-    const stamp = (rs: { x: number; y: number; w: number; h: number }[] | undefined, kind: string) => {
-      if (!rs) return;
-      for (const r of rs) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++)
-        if (inB(x, y) && this.map[y][x] !== "miniboss") this.map[y][x] = kind;
-    };
-    const dens = L.scatter ?? 0.06;
-    for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++)
-      if (this.map[y][x] === "grass" && Math.random() < dens) this.map[y][x] = Math.random() < 0.6 ? "bush" : "rock";
-    stamp(L.water, "water");
-    stamp(L.rivers, "river");
-    stamp(L.cliffs, "cliff");
-    // walkable crossings stamp LAST (over river/water) — a bridge/ford reads on top of the watercourse.
-    if (L.bridges) for (const b of L.bridges) if (inB(b.x, b.y)) this.map[b.y][b.x] = "bridge";
-    if (L.fords) for (const f of L.fords) if (inB(f.x, f.y)) this.map[f.y][f.x] = "ford";
-  },
-  // Stamp the zone's POIs (the INHABITED world) onto the carved grid: each on a cleared halo, as its
-  // own walkable kind — unless already spent (a used shrine / cleared camp reverts to plain ground so
-  // it can't be re-triggered). Shared by genCombined/genOverworld.
-  stampPois(L: ZoneLayout): void {
-    this.pois = (L.pois ?? []).map((p) => ({ ...p }));
-    const zid = this.zone().id;
-    for (const p of this.pois) {
-      this.halo(p);
-      const spent = this.poisCleared[this.poiKey(zid, p.x, p.y)];
-      this.map[p.y][p.x] = spent ? "path" : p.kind;
-    }
+    const cleared = this.clearedFor(dunZid, this.dungeonFloor, { floorMiniBeaten: !!this.dungeonMiniCleared[this.dungeonFloor] });
+    this.applyGen(genDungeon(D, last, cleared));
   },
   // A per-ZONE POI key ("<zoneId>:<x>,<y>") so the persisted cleared-state can't collide across zones
   // (every zone reuses small x,y coords). Used by stampPois / runPoi and the big-map realize-apply.
@@ -698,38 +529,6 @@ export const Field = {
     return zoneId + ":" + (ctx === "ow" ? "ow" : "d" + ctx) + ":" + x + "," + y;
   },
 
-  // bush/rock are decoration (walkable); tree and water are walls; the gate/mouth is walkable.
-  flood(start: Pt): boolean[][] {
-    const seen = Array.from({ length: this.H }, () => Array.from({ length: this.W }, () => false));
-    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < this.W && y < this.H && !FIELD_WALLS.has(this.map[y][x]);
-    const q: Pt[] = [start]; if (open(start.x, start.y)) seen[start.y][start.x] = true; else return seen;
-    while (q.length) {
-      const { x, y } = q.shift()!;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx, ny = y + dy;
-        if (open(nx, ny) && !seen[ny][nx]) { seen[ny][nx] = true; q.push({ x: nx, y: ny }); }
-      }
-    }
-    return seen;
-  },
-  // Verify (and, if needed, repair) reachability of every target from `spawn` — punch a straight
-  // L-corridor through walls to any feature that ended up walled off, then re-flood.
-  ensureReachable(spawn: Pt, targets: Pt[]): void {
-    let seen = this.flood(spawn);
-    for (const t of targets) {
-      if (seen[t.y]?.[t.x]) continue;
-      let best: Pt | null = null, bd = Infinity;
-      for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++)
-        if (seen[y][x]) { const d = Math.abs(x - t.x) + Math.abs(y - t.y); if (d < bd) { bd = d; best = { x, y }; } }
-      if (best) {
-        let cx = best.x, cy = best.y;
-        const step = (x: number, y: number) => { if (x > 0 && y > 0 && x < this.W - 1 && y < this.H - 1 && FIELD_WALLS.has(this.map[y][x])) this.map[y][x] = "path"; };
-        while (cx !== t.x) { cx += Math.sign(t.x - cx); step(cx, cy); }
-        while (cy !== t.y) { cy += Math.sign(t.y - cy); step(cx, cy); }
-        seen = this.flood(spawn);
-      }
-    }
-  },
   // ── TOWN ── Enter a walkable settlement by id (ADR 0006). Called via Game.openTown(id).
   // Service buildings are walk-in POIs; NPCs are walked up to and talked to; the gate leaves.
   // Stock is rolled by the caller (Game.openTown).
@@ -1570,205 +1369,21 @@ export const Field = {
       } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#3a5a2a"; c.fillText("🌳", sx + t / 2, sy + t / 2); }
     }
   },
-  // ── BIG-MAP biome → ground/object dressing (ADR 0009 / Stage 2B) ─────────────────────────────
-  // A zone-AGNOSTIC dressing table keyed by a cell's cached BIOME (Area→identity.biome), replacing the
-  // discrete path's Greenvale-special-cased switch. For a realized cell kind it returns the ground
-  // sprite key (+a *-ground2 alternate by the cached variant) and, for tree/bush/rock, the object skin.
-  // Falls back to the base shire skin for an unknown biome. Pure mapping — no regionAt on the frame path.
-  bigGround(biome: string, kind: string, variant: number): { ground: string; flat: string } {
-    const T = this.tiles;
-    const isObj = kind === "chest" || kind === "miniboss" || kind === "boss" || kind === "lair" || kind === "mouth" || kind === "village" || POI_KINDS.has(kind);
-    const alt = (base: string) => (variant && T[base + "2"] ? base + "2" : base);
-    // VARIED TERRAIN (2026-06-21): the new geography kinds render the same in any biome (placeholder
-    // in-palette fills until art lands). cliff = grey rock, river = blue water, bridge = plank-brown,
-    // ford = pale shallow crossing. POI tiles sit on the biome's ground (their object draws on top).
-    if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
-    if (kind === "cliff") return { ground: "cliff", flat: "#2b2f37" }; // a cliff is a WALL — DARK so it recedes (was #3f4450, which read as the palest = most "walkable"-looking tile, exactly backwards)
-    if (kind === "gorge") return { ground: "gorge", flat: "#0f1622" }; // the locked traversal barrier — a DARK sunless chasm so it reads as impassable (raft it once the "gorge" cap is earned)
-    if (kind === "crossing") return { ground: "crossing", flat: "#7a6242" }; // the UNLOCKED raft/plank causeway over the gorge (plank-brown, like a bridge — "the way across")
-    if (kind === "bridge") return { ground: "bridge", flat: "#7a6242" };
-    if (kind === "ford") return { ground: "ford", flat: "#86b0c4" };
-    // [base-ground, ground2-capable?, path key, scatter-bush key, scatter-rock key, flat-fill]
-    if (biome === "forest") {
-      const gm: Record<string, string> = { grass: "grove-ground", grass2: "grove-ground2", path: "grove-path", bush: "fern", rock: "mushroom", tree: "grove-ground", water: "water" };
-      const g = isObj ? "grove-ground" : (gm[kind] || "grove-ground");
-      // D6 GREENVALE FOREST floor: a deep-BUT-LIT green (was near-black #36522c → read impassable). The grove
-      // floor is walkable "ground" so it's lit + warm-leaning; the trail a hair warmer/paler still; tree-WALLS
-      // + water stay DARK (they're overdrawn by the raised-sprite / recessed-water grammar below anyway). The
-      // bush/rock cells are walkable scatter-on-floor, so they share the lit grove-floor hue, not a wall hue.
-      const f: Record<string, string> = { path: "#7d7748", grass: "#4f7038", grass2: "#547640", bush: "#4f7038", rock: "#4f7038", tree: "#13230d", water: "#1c3236" };
-      return { ground: g === "grove-ground" ? alt("grove-ground") : g, flat: f[kind] ?? "#4f7038" };
-    }
-    if (biome === "mire" || biome === "water") {
-      const gm: Record<string, string> = { grass: "mire-ground", grass2: "mire-ground2", path: "mire-path", bush: "reed", rock: "bog", tree: "mire-ground", water: "water" };
-      const g = isObj ? "mire-ground" : (gm[kind] || "mire-ground");
-      // Placeholder flats (no marsh art yet) tuned for LEGIBILITY: the boardwalk causeway (path) is a PALE
-      // raised plank — the brightest LAND tile, clearly the road — open ground a mid olive, while tree-WALLS
-      // + standing water go DARK. Fixes the inversion Dara hit: walkable path & tree-walls were BOTH the
-      // same dark #3a4030 (vanished into the bog), and the palest tile was the impassable cliff.
-      const f: Record<string, string> = { path: "#8a7c52", grass: "#46583a", grass2: "#4b5d3d", bush: "#3f5236", rock: "#445036", tree: "#19231a", water: "#222e38" };
-      return { ground: g === "mire-ground" ? alt("mire-ground") : g, flat: f[kind] ?? "#46583a" };
-    }
-    if (biome === "ruin") {
-      const gm: Record<string, string> = { grass: "ruin-flag", grass2: "ruin-flag2", path: "ruin-walk", bush: "ruin-flag", rock: "ruin-flag", tree: "ruin-flag", water: "ruin-pit" };
-      const g = isObj ? "ruin-flag" : (gm[kind] || "ruin-flag");
-      const f: Record<string, string> = { path: "#8a7c52", grass: "#5a5448", grass2: "#5f5950", bush: "#4a4640", rock: "#444038", tree: "#1a1814", water: "#26221c" };
-      return { ground: g === "ruin-flag" ? alt("ruin-flag") : g, flat: f[kind] ?? "#5a5448" };
-    }
-    if (biome === "orchard") {
-      const gm: Record<string, string> = { grass: "orchard-ground", grass2: "orchard-ground2", path: "path", tree: "orchard-ground" };
-      const g = isObj ? "orchard-ground" : (gm[kind] || "orchard-ground");
-      // D6 GREENVALE ORCHARD/MEADOW: warm yellow-green SHIRE floor (orchard rows / tended meadow) — lit + warm
-      // so it's plainly walkable, distinct from the deeper-but-lit forest green. Tree-walls overdraw via D4.
-      return { ground: g === "orchard-ground" ? alt("orchard-ground") : g, flat: kind === "tree" ? "#3a5220" : "#6f8e34" };
-    }
-    if (biome === "meadow" || biome === "creek") {
-      const gm: Record<string, string> = { grass: "meadow-ground", grass2: "meadow-ground2", path: "path", bush: "wheat", tree: "meadow-ground" };
-      const g = isObj ? "meadow-ground" : (gm[kind] || "meadow-ground");
-      // a creek (Goldmeadow's bank) reads a hair cooler/greyer than open wheat.
-      return { ground: g === "meadow-ground" ? alt("meadow-ground") : g, flat: biome === "creek" ? "#5f7a4a" : "#7a8a36" };
-    }
-    // AURELION-COMPLETE biome fills (no bespoke art yet — distinct in-palette flat fills give wayfinding).
-    // COLD highlands (Frostpeak): snow/ice/stone → pale cold blue-greys, water stays the cold pool blue.
-    if (biome === "snow" || biome === "ice" || biome === "stone") {
-      const gm: Record<string, string> = { grass: "snow-ground", grass2: "snow-ground2", path: "snow-path", bush: "snow-ground", rock: "snow-ground", tree: "snow-ground", water: "snow-frozen" };
-      const g = isObj ? "snow-ground" : (gm[kind] || "snow-ground");
-      const flat = kind === "water" ? "#5a7896" : biome === "snow" ? "#cfe0ec" : biome === "ice" ? "#aebfd0" : "#6a7080";
-      return { ground: g === "snow-ground" ? alt("snow-ground") : g, flat };
-    }
-    // COAST / shore (Storm Coast, Sunbridge): sand + teal sea — beaches sandy, water teal, rock dark grey.
-    if (biome === "coast" || biome === "beach" || biome === "harbor" || biome === "rock") {
-      const gm: Record<string, string> = { grass: "coast-sand", grass2: "coast-sand2", path: "coast-dock", bush: "coast-sand", rock: "coast-sand", tree: "coast-sand", water: "coast-sea" };
-      const g = isObj ? "coast-sand" : (gm[kind] || "coast-sand");
-      const flat = kind === "water" ? "#2f5b7a" : biome === "rock" ? "#5a6068" : "#cdb98a";
-      return { ground: g === "coast-sand" ? alt("coast-sand") : g, flat };
-    }
-    // RIVER trade-roads (Riverhearth): sand banks + teal river; road/town are stone tan.
-    if (biome === "riverside" || biome === "road" || biome === "town") {
-      const flat = kind === "water" ? "#2f5b7a" : biome === "riverside" ? "#cdb98a" : "#8a7a54";
-      const g = isObj ? "grass" : kind;
-      return { ground: g === "grass" ? alt("grass") : g, flat };
-    }
-    // SAGE hills / highland (Whisper Hills, Dawnfall highland): muted sage green.
-    if (biome === "hills" || biome === "highland") {
-      const g = isObj ? "grass" : kind;
-      return { ground: g === "grass" ? alt("grass") : g, flat: "#6f8a5a" };
-    }
-    // plains / unknown = base shire grass + road + hedge-tree. D6 GREENVALE SHIRE: a warm yellow-green
-    // open floor (lit + walkable); tree-walls go dark (overdrawn by the raised-sprite grammar via D4).
-    const g = isObj ? "grass" : kind;
-    return { ground: g === "grass" ? alt("grass") : g, flat: kind === "tree" ? "#2c4418" : "#5a8a36" };
-  },
+  // ── biome→ground dressing + the passability-grammar / setpiece DRAW PRIMITIVES now live in
+  // ui/fieldRender (pure, ctx+data in, pixels out); the draw loops below call FR.* with the controller
+  // state threaded in. Kept here: poiNameAt (resolves a POI name by coord) + drawGorgeRimProps (reads
+  // ownedCaps / barrier data — stateful, stays in the controller).
 
-  // ── D1 PASSABILITY-GRAMMAR primitives (the at-a-glance "blocked" tells) ──────────────────────────────
-  // RAISED + CAST-SHADOW = blocked; FLAT + LIT = walkable. These layer on TOP of whatever floor/sprite/emoji
-  // was drawn (real art or placeholder), so the read is consistent everywhere. FIXED TOP-LEFT light → the
-  // soft cast shadow always falls bottom-RIGHT onto the floor below. Cheap: one ellipse fill, no allocation.
-
-  // D4 SOLID raised object (tree/rock/cliff/decorative bush): a soft drop-shadow on the floor at the tile's
-  // foot, offset bottom-right (the cast of a top-left light). Call BEFORE the object sprite so the sprite
-  // sits on its own shadow. Mirrors the player foot-shadow primitive (drawBig ~:1940).
-  castShadow(c: CanvasRenderingContext2D, sx: number, sy: number, t: number, rx = 0.34, strength = 0.34): void {
-    c.save();
-    c.beginPath();
-    c.ellipse(sx + t * 0.56, sy + t * 0.84, t * rx, t * rx * 0.42, 0, 0, Math.PI * 2);
-    c.fillStyle = `rgba(0,0,0,${strength})`; c.fill();
-    c.restore();
-  },
-
-  // D4 CLIFF as a RAISED FACE (not a flat dark fill): a LIT cap edge along the top-left (catching the
-  // light) over a shadowed foot + a short cast shadow onto the tile below — so a cliff reads as a wall you
-  // skirt, the same "stands up off the floor" language as a tree, without bespoke art.
-  drawCliffFace(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
-    c.save();
-    // lit cap (top-left, the light-facing edge)
-    c.fillStyle = "rgba(120,128,140,.85)"; c.fillRect(sx, sy, t, Math.max(2, t * 0.22));
-    c.fillStyle = "rgba(160,168,180,.7)"; c.fillRect(sx, sy, Math.max(2, t * 0.18), t * 0.5); // left-face highlight
-    // shadowed foot (bottom band reads as the recessed base of the face)
-    c.fillStyle = "rgba(0,0,0,.4)"; c.fillRect(sx, sy + t * 0.78, t, t * 0.22);
-    c.restore();
-    this.castShadow(c, sx, sy, t, 0.32, 0.3); // short cast onto the floor below
-  },
-
-  // D5 RECESSED WATER/RIVER (the inverse of a raised object): a COOL reflective surface set BELOW the floor
-  // plane, with a lit shoreline LIP on the LAND side casting a short shadow DOWN into the water (the bank
-  // reads as a drop-off), plus a faint specular ripple for life. Shares the gorge's rim-lip grammar so chasm
-  // + water read alike. Probes orthogonal neighbours via `wet(dx,dy)` to find the land-side faces.
-  drawRecessedWater(c: CanvasRenderingContext2D, wx: number, wy: number, sx: number, sy: number, t: number): void {
-    const wet = (gx: number, gy: number) => { const k = this.cellAt(gx, gy).kind; return k === "water" || k === "river"; };
-    c.save();
-    // deepen + cool the surface so it sits below the floor plane (over the flat/sprite already laid)
-    c.fillStyle = "rgba(10,28,46,.32)"; c.fillRect(sx, sy, t, t);
-    // faint specular ripple highlight (life on the surface)
-    const n = ((wx * 0x9e3779b1) ^ (wy * 0x85ebca77)) >>> 0;
-    c.fillStyle = "rgba(150,200,230,.16)";
-    c.fillRect(sx + t * (0.2 + (n % 3) * 0.18), sy + t * (0.3 + ((n >> 3) % 3) * 0.16), t * 0.26, Math.max(1, t * 0.06));
-    // lit shoreline LIP + shadow drop on each LAND-side edge (the bank as a drop-off)
-    const lip = Math.max(2, t * 0.16);
-    const edge = (land: boolean, lx: number, ly: number, lw: number, lh: number, shx: number, shy: number, shw: number, shh: number) => {
-      if (!land) return;
-      c.fillStyle = "rgba(196,178,128,.7)"; c.fillRect(lx, ly, lw, lh);            // lit sandy/earth lip on the land tile edge
-      c.fillStyle = "rgba(0,0,0,.34)"; c.fillRect(shx, shy, shw, shh);            // short shadow cast DOWN into the water
-    };
-    edge(!wet(wx, wy - 1), sx, sy, t, lip, sx, sy + lip, t, lip * 0.7);            // north bank
-    edge(!wet(wx - 1, wy), sx, sy, lip, t, sx + lip, sy, lip * 0.7, t);           // west bank
-    edge(!wet(wx, wy + 1), sx, sy + t - lip, t, lip, sx, sy + t - lip * 1.7, t, lip * 0.7); // south bank (lip at base)
-    edge(!wet(wx + 1, wy), sx + t - lip, sy, lip, t, sx + t - lip * 1.7, sy, lip * 0.7, t); // east bank
-    c.restore();
-  },
-
-  // The dungeon/cave MOUTH gets a gold caption (like town POIs) so the east-spine POI reads as a named
-  // destination, not a bare door. Spine dungeons read `↦ <name>`; OPTIONAL side zones read
-  // `<name> (optional)`. Name comes from the zone the player currently stands in (this.zone()).
-  // A dungeon entrance is ONE tile in a wide-open zone — easy to walk right past (Dara couldn't find the
-  // Drowned Vault). So make it SHINE: a gold halo + ring around the tile + a dark-pill label you can read
-  // from across the map. `guarded` (an unbeaten mini-boss gate) reads "⚔ fight to enter"; open reads "▶".
-  drawMouthLabel(c: CanvasRenderingContext2D, sx: number, sy: number, t: number, guarded = false): void {
-    const z = this.zone();
-    const optional = OPTIONAL_ZONES.has(z.id);
-    const cx = sx + t / 2, cy = sy + t / 2;
-    c.save();
-    const halo = c.createRadialGradient(cx, cy, t * 0.1, cx, cy, t * 1.15);
-    halo.addColorStop(0, "rgba(244,210,122,.5)"); halo.addColorStop(0.55, "rgba(244,185,66,.22)"); halo.addColorStop(1, "rgba(244,185,66,0)");
-    c.fillStyle = halo; c.beginPath(); c.arc(cx, cy, t * 1.15, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = "rgba(244,210,122,.95)"; c.lineWidth = Math.max(2, t * 0.07);
-    c.beginPath(); c.arc(cx, cy, t * 0.45, 0, Math.PI * 2); c.stroke();
-    const txt = `${guarded ? "⚔ " : "▶ "}${z.dungeon.name}${optional ? " (optional)" : ""}`;
-    c.textAlign = "center"; c.textBaseline = "middle";
-    c.font = `bold ${Math.max(10, t * 0.3)}px system-ui`;
-    const ly = sy + t * 1.2, tw = c.measureText(txt).width, ph = Math.max(14, t * 0.42);
-    c.fillStyle = "rgba(8,8,16,.85)"; c.fillRect(cx - tw / 2 - 6, ly - ph / 2, tw + 12, ph);
-    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.9)"; c.fillStyle = "rgba(244,210,122,.98)";
-    c.strokeText(txt, cx, ly); c.fillText(txt, cx, ly);
-    c.restore();
-  },
-
-  // POI / encampment tile (the INHABITED world): a kind emoji (placeholder until art lands) + a gold
-  // caption with the POI's name — mirrors the town-POI + mouth caption pattern. The name is resolved by
-  // coord (discrete: this.pois; big-map: the authored layout via authoredAt). ART FLAG: shrine/camp/
-  // landmark/signpost sprites are placeholders (emoji) — see the hand-back.
-  poiEmoji(kind: string): string {
-    return kind === "shrine" ? "⛩️" : kind === "camp" ? "⛺" : kind === "signpost" ? "🪧" : "🗿";
-  },
+  // The POI name at a tile (discrete: this.pois; big-map: the authored layout via authoredAt) — fed to
+  // FR.drawPoiCell. Stays in the controller (it reads this.pois / world authored data).
   poiNameAt(wx: number, wy: number, big: boolean): string {
     if (big) { const a = authoredAt(wx, wy); if (a) { const z = ZONES.find((zz) => zz.id === a.zoneId); const p = z?.layout.pois?.find((q) => q.x === a.lx && q.y === a.ly); if (p) return p.name; } }
     return this.poiAt(wx, wy)?.name ?? "";
   },
-  drawPoiCell(c: CanvasRenderingContext2D, T: Record<string, HTMLImageElement>, kind: string, wx: number, wy: number, sx: number, sy: number, t: number, big = true): void {
-    const img = T[kind]; // placeholder sprite slot (none yet → emoji)
-    if (img) { const h = t * 1.4, w = h * (img.width / img.height); c.drawImage(img, sx + t / 2 - w / 2, sy + t * 0.95 - h, w, h); }
-    else { c.font = `${t * 0.7}px serif`; c.fillText(this.poiEmoji(kind), sx + t / 2, sy + t / 2); }
-    const name = this.poiNameAt(wx, wy, big);
-    if (name) {
-      c.save();
-      c.textAlign = "center"; c.textBaseline = "middle";
-      c.font = `bold ${Math.max(9, t * 0.24)}px system-ui`;
-      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
-      const ly = sy + t * 1.02;
-      c.strokeText(name, sx + t / 2, ly); c.fillText(name, sx + t / 2, ly);
-      c.restore();
-    }
-  },
+  // `wet` neighbour-probe for FR.drawRecessedWater on the BIG MAP (reads the chunk cache).
+  bigWet(gx: number, gy: number): boolean { const k = this.cellAt(gx, gy).kind; return k === "water" || k === "river"; },
+  // The OPTIONAL flag for a zone's mouth label (spine vs side zone) — fed to FR.drawMouthLabel.
+  mouthOptional(zoneId: string): boolean { return OPTIONAL_ZONES.has(zoneId); },
 
   // GORGE-RIM PROPS (ADR 0011 lock-before-key, level-designer; west-arm re-placement 2026-06-25). The
   // "Silverwood lies east, the chasm bars the way" cue is an OPEN-CONTINENT prop, NOT a core-bound POI:
@@ -1812,66 +1427,8 @@ export const Field = {
     return true;
   },
 
-  // MULTI-FLOOR stairs (placeholder until art-integrator slices warren/grove/vault-stairsdown/up): draw
-  // the sprite if present, else a clear ⬇/⬆ glyph + a small gold caption so the descent/climb reads.
-  // `up` = an up-stair (climb / out); else a down-stair (descend). ART FLAG — see the hand-back.
-  drawStairs(c: CanvasRenderingContext2D, obj: (img: HTMLImageElement | undefined, emoji: string, sc?: number) => void, img: HTMLImageElement | undefined, up: boolean, sx: number, sy: number, t: number): void {
-    obj(img, up ? "⬆️" : "⬇️", 0.9);
-    c.save();
-    c.textAlign = "center"; c.textBaseline = "middle";
-    c.font = `bold ${Math.max(8, t * 0.22)}px system-ui`;
-    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
-    const txt = up ? "Up" : "Down", ly = sy + t * 1.0;
-    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
-    c.restore();
-  },
-
-  // DUNGEON TREASURE glint: a soft warm glow so a chest reads on the dim floor. The chest tile is now
-  // real painted art, so this is JUST a subtle highlight — no 💰 glyph / "loot" caption (that was a
-  // placeholder crutch from when warren-chest was a blank tile and "nothing read as loot").
-  drawTreasureMark(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
-    c.save();
-    const cx = sx + t / 2, cy = sy + t * 0.5;
-    const g = c.createRadialGradient(cx, cy, t * 0.06, cx, cy, t * 0.55);
-    g.addColorStop(0, "rgba(244,210,122,.30)"); g.addColorStop(1, "rgba(244,210,122,0)");
-    c.fillStyle = g; c.fillRect(sx - t * 0.1, sy - t * 0.1, t * 1.2, t * 1.2);
-    c.restore();
-  },
-
-  // The DUNGEON BOSS FINALE marker (Dara QA 2026-06-21 — the Kingpin was unfindable because the boss
-  // tile rendered as the cave-ENTRANCE sprite, reading like a doorway). Draw a DISTINCT, unmistakable
-  // throne/boss glyph (the zone boss's own emoji, 👑 the Kingpin) on a gold glow + a bold gold "BOSS"
-  // caption beneath (mirrors the mouth/village caption pattern), so the player instantly reads the
-  // finale on the warren floor. Once cleared it flips to a planted flag. ART FLAG: a bespoke
-  // throne/boss-lair sprite per dungeon set would replace the emoji — see the hand-back.
-  drawDungeonBoss(c: CanvasRenderingContext2D, sx: number, sy: number, t: number): void {
-    c.save();
-    c.textAlign = "center"; c.textBaseline = "middle";
-    // a warm glow disc so the throne pops off the dim warren floor
-    if (!Game.bossDefeated) {
-      c.beginPath(); c.arc(sx + t / 2, sy + t / 2, t * 0.46, 0, Math.PI * 2);
-      c.fillStyle = "rgba(244,210,122,.18)"; c.fill();
-      c.lineWidth = Math.max(2, t * 0.05); c.strokeStyle = "rgba(244,210,122,.6)"; c.stroke();
-    }
-    // the painted throne/lair setpiece (bottom-anchored, larger than a tile); dimmed once cleared.
-    // Falls back to the 👑/🏴 glyph until the sprite loads.
-    const throne = this.tiles["boss-throne"];
-    if (throne) {
-      if (Game.bossDefeated) c.globalAlpha = 0.5;
-      const h = t * 1.9, w = h * (throne.width / throne.height);
-      c.drawImage(throne, sx + t / 2 - w / 2, sy + t - h, w, h);
-      c.globalAlpha = 1;
-      if (Game.bossDefeated) { c.font = `${t * 0.5}px serif`; c.fillText("🏴", sx + t / 2, sy + t * 0.12); }
-    } else {
-      c.font = `${t * 0.8}px serif`;
-      c.fillText(Game.bossDefeated ? "🏴" : "👑", sx + t / 2, sy + t * 0.46);
-    }
-    const txt = Game.bossDefeated ? "CLEARED" : "BOSS", ly = sy + t * 1.04;
-    c.font = `bold ${Math.max(9, t * 0.27)}px system-ui`;
-    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = Game.bossDefeated ? "rgba(170,170,170,.9)" : "rgba(244,210,122,.98)";
-    c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
-    c.restore();
-  },
+  // drawStairs / drawTreasureMark / drawDungeonBoss are now pure FR.* primitives (ui/fieldRender); the
+  // boss marker is called with the throne sprite + Game.bossDefeated threaded in from the controller.
 
   // BIG-MAP draw: iterate the WORLD-TILE viewport from the chunk cache (never calling regionAt).
   // Camera centers on the player's world tile and is clamped to the world extent (placement keeps
@@ -1890,7 +1447,7 @@ export const Field = {
       if (cell.kind === "uncharted") { c.fillStyle = "#10180e"; c.fillRect(sx, sy, t, t); continue; } // soft edge
       // seam dither: a hair of the cell is rendered in the neighbouring Area's biome (the cached choice).
       const biome = cell.dither ?? cell.biome;
-      const { ground, flat } = this.bigGround(biome, cell.kind, cell.variant);
+      const { ground, flat } = FR.bigGround(T, biome, cell.kind, cell.variant);
       const gimg = T[ground];
       if (gimg) c.drawImage(gimg, sx, sy, t + 1, t + 1);
       else {
@@ -1917,7 +1474,7 @@ export const Field = {
       // bottom-anchored so it overhangs the tile below and stands UP off the floor (the player's own
       // tall-sprite + foot-shadow language, :2010+). Works for real sprites AND the emoji fallback.
       const tall = (img: HTMLImageElement | undefined, emoji: string, sc = 1.45, shadow = 0.34) => {
-        this.castShadow(c, sx, sy, t, 0.34, shadow);
+        FR.castShadow(c, sx, sy, t, 0.34, shadow);
         if (img) {
           const h = t * sc, w = h * (img.width / img.height), ay = sy + t * 0.86 - h;
           c.drawImage(img, sx + t / 2 - w / 2, ay, w, h);
@@ -1929,7 +1486,7 @@ export const Field = {
       const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
       if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
       else if (cell.kind === "lair") obj(T.lair, "🕳️", 0.85);
-      else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); this.drawMouthLabel(c, sx, sy, t); }
+      else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); FR.drawMouthLabel(c, sx, sy, t, this.zone().dungeon.name, this.mouthOptional(this.zone().id)); }
       else if (cell.kind === "village") {
         obj(T["town-inn"], "🏘️", 0.95);
         const zid = authoredAt(wx, wy)?.zoneId, hub = zid ? ZONES.find((z) => z.id === zid)?.hub : undefined;
@@ -1941,12 +1498,12 @@ export const Field = {
       else if (cell.kind === "miniboss") {
         const zid = authoredAt(wx, wy)?.zoneId, z = zid ? ZONES.find((zz) => zz.id === zid) : undefined;
         const g = this.mob((z ?? this.zone()).mini);
-        if (g) this.drawMob(c, g, sx, sy, t); else obj(undefined, "🪖", 0.85);
-        this.drawMouthLabel(c, sx, sy, t, true);
+        if (g) FR.drawMob(c, g, sx, sy, t); else obj(undefined, "🪖", 0.85);
+        FR.drawMouthLabel(c, sx, sy, t, this.zone().dungeon.name, this.mouthOptional(this.zone().id), true);
       }
-      else if (POI_KINDS.has(cell.kind)) this.drawPoiCell(c, T, cell.kind, wx, wy, sx, sy, t); // captioned landmark
-      else if (cell.kind === "cliff") { if (T.cliff) this.castShadow(c, sx, sy, t, 0.34, 0.32); else this.drawCliffFace(c, sx, sy, t); } // D4 RAISED face
-      else if (cell.kind === "river") this.drawRecessedWater(c, wx, wy, sx, sy, t); // D5 RECESSED watercourse (over flat OR sprite)
+      else if (POI_KINDS.has(cell.kind)) FR.drawPoiCell(c, T, cell.kind, this.poiNameAt(wx, wy, true), sx, sy, t); // captioned landmark
+      else if (cell.kind === "cliff") { if (T.cliff) FR.castShadow(c, sx, sy, t, 0.34, 0.32); else FR.drawCliffFace(c, sx, sy, t); } // D4 RAISED face
+      else if (cell.kind === "river") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy)); // D5 RECESSED watercourse (over flat OR sprite)
       else if (cell.kind === "gorge" && !T.gorge) {
         // D3 LEGIBLE GORGE (placeholder until art-integrator slices a ravine sprite — flagged in the
         // hand-back). The flat already laid the DARK chasm floor (#0f1622); add a lighter ROCKY RIM on the
@@ -1982,11 +1539,11 @@ export const Field = {
         else if (biome === "coast" || biome === "beach" || biome === "harbor") tall(T["coast-rock"], "🌴");
         else tall(gimg, "🌲");
       }
-      else if (cell.kind === "water") this.drawRecessedWater(c, wx, wy, sx, sy, t); // D5 (over flat OR sprite)
+      else if (cell.kind === "water") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy)); // D5 (over flat OR sprite)
       else if (cell.kind === "bush") {
         // D4 DECORATIVE scatter (walkable floor): a SMALL soft shadow so the prop sits on the ground — NOT
         // the full wall cast (a bush/fern is a low prop you walk past, not a wall to skirt).
-        this.castShadow(c, sx, sy, t, 0.22, 0.2);
+        FR.castShadow(c, sx, sy, t, 0.22, 0.2);
         if (biome === "forest") obj(T.fern, "🌿", 0.85);
         else if (biome === "meadow" || biome === "creek") obj(T.wheat, "🌾", 0.85);
         else if (biome === "snow" || biome === "ice") obj(T["snow-cairn"], "❄️", 0.9);
@@ -1996,7 +1553,7 @@ export const Field = {
         else if (!gimg) c.fillText("🌿", sx + t / 2, sy + t / 2);
       }
       else if (cell.kind === "rock") {
-        this.castShadow(c, sx, sy, t, 0.24, 0.22); // small scatter shadow (walkable floor prop)
+        FR.castShadow(c, sx, sy, t, 0.24, 0.22); // small scatter shadow (walkable floor prop)
         if (biome === "forest") obj(T.mushroom, "🍄", 0.8);
         else if (biome === "snow" || biome === "ice" || biome === "stone") obj(T["snow-rock"], "🪨", 0.9);
         else if (biome === "ruin") obj(T["ruin-rubble"], "🪨", 0.95);
@@ -2131,7 +1688,7 @@ export const Field = {
           if (img) c.drawImage(img, sx + t * (1 - sc) / 2, sy + t * (1 - sc) / 2, t * sc, t * sc);
           else c.fillText(emoji, sx + t / 2, sy + t / 2);
         };
-        if (cell === "chest") { if (inDun) this.drawTreasureMark(c, sx, sy, t); obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); } // glint behind, chest sprite on top
+        if (cell === "chest") { if (inDun) FR.drawTreasureMark(c, sx, sy, t); obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); } // glint behind, chest sprite on top
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
         else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town
@@ -2141,16 +1698,16 @@ export const Field = {
           c.strokeText(nm, sx + t / 2, sy + t * 1.02); c.fillStyle = "rgba(244,210,122,.96)"; c.fillText(nm, sx + t / 2, sy + t * 1.02);
           c.font = `${t * 0.82}px serif`;
         }
-        else if (cell === "stairsdown") this.drawStairs(c, obj, T[`${dset}-stairsdown`], false, sx, sy, t); // descend a floor (placeholder — see asset-gaps.md)
-        else if (cell === "stairsup") this.drawStairs(c, obj, T[`${dset}-stairsup`], true, sx, sy, t);      // climb a floor / out
+        else if (cell === "stairsdown") FR.drawStairs(c, obj, T[`${dset}-stairsdown`], false, sx, sy, t); // descend a floor (placeholder — see asset-gaps.md)
+        else if (cell === "stairsup") FR.drawStairs(c, obj, T[`${dset}-stairsup`], true, sx, sy, t);      // climb a floor / out
         else if (cell === "miniboss") { // floor lieutenant / mouth guard — its actual enemy sprite
           const g = this.mob(inDun ? this.zone().dungeon?.floorMini : this.zone().mini);
-          if (g) this.drawMob(c, g, sx, sy, t); else c.fillText("🪖", sx + t / 2, sy + t / 2);
+          if (g) FR.drawMob(c, g, sx, sy, t); else c.fillText("🪖", sx + t / 2, sy + t / 2);
         }
-        else if (cell === "boss") { if (inDun) this.drawDungeonBoss(c, sx, sy, t); else obj(undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95); }
+        else if (cell === "boss") { if (inDun) FR.drawDungeonBoss(c, this.tiles["boss-throne"], Game.bossDefeated, sx, sy, t); else obj(undefined, Game.bossDefeated ? "🏴" : "⛺", 0.95); }
         else if (cell === "rest") obj(T[`${dset}-rest`], "🔥", 0.8);   // dungeon breather campfire (placeholder emoji — sprite flagged for art-integrator)
         else if (cell === "rubble") obj(T[`${dset}-rubble`], "🕳️", 0.85); // the Warren collapse drop (placeholder emoji — sprite flagged for art-integrator)
-        else if (POI_KINDS.has(cell)) this.drawPoiCell(c, T, cell, mx, my, sx, sy, t, false); // captioned landmark/camp/shrine/sign
+        else if (POI_KINDS.has(cell)) FR.drawPoiCell(c, T, cell, this.poiNameAt(mx, my, false), sx, sy, t); // captioned landmark/camp/shrine/sign
         else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
         else if (cell === "river" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
         else if (cell === "tree") {
