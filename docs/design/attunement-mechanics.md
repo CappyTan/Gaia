@@ -90,7 +90,35 @@ chill until the target freezes into a crystalline state; a frozen target is brit
 STR hit shatters it for burst. The NOX combat fantasy in one line — and a perfect Hammer payoff.
 **Absolute Zero** is the natural capstone/ultimate name (the floor of the chain).
 
-- **SOL (Spread)** — _TBD_
+### SOL (Spread) — *increase entropy: spread, accelerate, detonate*
+
+**Identity:** the **escalation + acceleration** attunement — wins by spreading (AoE, propagation),
+speeding up, and detonating. The deliberate inverse of NOX: **pure offense, no defensive line.**
+
+**Flavor lexicon:** solar flare · corona · wildfire · supernova · conflagration · radiance · bloom.
+
+| Layer | Mechanics |
+|---|---|
+| **Status** | **Burn** (signature DoT — combustion/energy bleeding off) · **Blind** (light → miss chance) · **Scorched** (vulnerability: armor melted, takes more dmg) · **Overheat** (stacking heat → phase transition) |
+| **Action-economy** | **Haste** (self/ally ATB speed-up) · **extra action / double-tap** · the anti-NOX: SOL *pushes* the attack-bar forward where NOX drags it back |
+| **Stat/damage** | **Sunder/Melt** (reduce enemy armor) · **Scorched** vulnerability (amplify dmg taken) · **escalating** damage that ramps over time/stacks (entropy rising) |
+| **Meta** | **Spread** (SOL's signature meta — DoTs/debuffs *propagate to adjacent enemies*; fire jumps) · **burn off** order (strip a NOX-style lock/buff) |
+| **Economy** | SOL **battery**, chaos twist: SOL resource **runs hot** — generates fast but **bleeds away if hoarded** (use-it-or-lose-it) |
+
+**Showcase phase-transition (mirror of Chill→Frozen→Shatter):** **Overheat → Ignite → Detonate** —
+stack heat, ignite into Burn, then detonate the Burn for an AoE that *spreads* to neighbors.
+
+**The SOL ↔ NOX mirror** (the framework proving itself):
+
+| Axis | NOX (Freeze) | SOL (Spread) |
+|---|---|---|
+| Tempo | drag / push-back / stun | haste / extra action |
+| DoT | **Stasis** (wind down) | **Burn** (combust) |
+| Burst | **Shatter** (frozen → burst) | **Detonate** (heat → AoE) |
+| Reach | single-target lockdown | **spreads** to neighbors |
+| Defense | stillness armor (endure) | — (pure offense) |
+| Economy | **banks** well | **runs hot** (use or lose) |
+
 - **ANIMA (Grow)** — _TBD_
 - **UMBRAXIS (Pull)** — _TBD_
 - **QUANTA (Collapse)** — _TBD_
@@ -110,4 +138,5 @@ Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara 
 | 5 | Full-spectrum mechanic layers (status/action-economy/stat/meta/economy) | proposed | Framework scope |
 | 6 | Cross-cutting families: conservation/transfer, resonance/interference, phase-transition | proposed | Dev loves these; Dara to bless |
 | 7 | **NOX suite** (control + preservation/tank; Chill→Frozen→Shatter; lexicon: crystalline/lattice/absolute zero) | proposed | Drafted & dev-approved; awaits Dara |
-| 8 | SOL / ANIMA / UMBRAXIS / QUANTA suites | open | Being drafted in the grill |
+| 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | proposed | Drafted & dev-approved; awaits Dara |
+| 9 | ANIMA / UMBRAXIS / QUANTA suites | open | Being drafted in the grill |
