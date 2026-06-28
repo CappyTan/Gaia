@@ -145,12 +145,12 @@ a contagion that detonates and reseeds onto new targets).
 **NOX banks** (static, preserved) · **SOL runs hot** (decays, use-or-lose) · **ANIMA compounds** (grows).
 
 > **⚑ STAT-SYSTEM FLAG — ANIMA's primary stat: MGC → VIT.** Today's ratified set is STR/AGI/DEF/SPD/**MGC**,
-> with ANIMA → MGC (a clean 1:1 of five stats ↔ five attunements). Proposal: ANIMA's primary becomes
-> **VIT (Vitality)** to match the life/negentropy reframe. **Recommended framing: a *rename* of the
-> MGC slot → VIT** (stays five stats, 1:1; "Vitality" fits Life better than "Magic"), *not* a 6th
-> stat (which would orphan MGC). This ripples beyond mechanics into the stat system — touches
-> `CONTEXT.md` (Attunement governing stats), the build-class model's "Primary ← Attunement" table,
-> and `stat-system.md` (Scaling Tiers). Squarely Dara's call. See ledger #10.
+> with ANIMA → MGC (a clean 1:1 of five stats ↔ five attunements). **Decision (dev-confirmed framing):
+> *rename* the MGC slot → VIT (Vitality)** — the set becomes STR/AGI/DEF/SPD/**VIT**, still five
+> stats, still 1:1, with "Vitality" fitting Life far better than "Magic". *Not* a 6th stat (which
+> would orphan MGC). This ripples beyond mechanics into the stat system — touches `CONTEXT.md`
+> (Attunement governing stats), the build-class model's "Primary ← Attunement" table, and
+> `stat-system.md` (Scaling Tiers). Still requires **Dara's** ratification. See ledger #10.
 
 ### UMBRAXIS (Pull) — *reverse entropy via gravity: clump, compress, distort position & structure*
 
@@ -177,7 +177,34 @@ void · collapse · accretion · lagrange *("The Lagrangian" / "Lagrange Nodes" 
 **The control-axis quartet** (what each non-life attunement controls): **NOX = tempo (stop)** ·
 **SOL = tempo (accelerate)** · **UMBRAXIS = position (space)** · **QUANTA = outcome (probability)**.
 
-- **QUANTA (Collapse)** — _TBD_
+### QUANTA (Collapse) — *resolve entropy as information: observe, gamble, force the outcome*
+
+**Identity:** the **tempo + probability** controller — manipulates turn-order *and* forces/gambles
+outcomes. The high-variance "swing" attunement (mana scales SPD/turn-priority — canon). Its
+signature axis, owned by no one else: **gamble ↔ guarantee** — make outcomes wildly swingy (bet for
+a huge payoff) or *collapse them to certainty* (a guaranteed crit/dodge).
+
+**Primary stat: SPD** · **Flavor lexicon:** superposition · wavefunction · observer · collapse ·
+entanglement · uncertainty · paradox · stochastic · the dice · Schrödinger.
+
+| Layer | Mechanics |
+|---|---|
+| **Status** | **Observed** (enemy randomness collapsed — its next dodge fails / next action known & pre-empted) · **Jinx** (enemy crit → 0, fumble chance up) · **Superposed** (a coin-flip status, resolves good-or-bad at a threshold) · **Doom** *(see open decision)* |
+| **Action-economy** | QUANTA's home (scales SPD): **turn-priority/haste** · **chance of extra turns** · **rewind** (undo/replay an action) · **foresight/pre-empt** (act before the enemy) · **time-skip** an enemy's turn |
+| **Stat/damage** | **Crit/dodge swings** (canon signature — buff own, debuff enemy's) · **guaranteed crit / guaranteed dodge** (collapse a probability to 1) · **variance up** (gamble: bigger min-max spread) |
+| **Meta** | **Observe/Collapse** (signature: force a probabilistic event to a chosen outcome — turn a 50% into 100% or 0%) · **Reroll** (re-roll a hit/miss/crit) |
+| **Economy** | QUANTA resource **fluctuates** — generates in random bursts, and you can **gamble the pool** on an outcome. The 4th economy archetype |
+
+**Showcase (the signature):** **Superposition → Collapse** — build "observation," hold a target in
+multiple potential outcomes, then *collapse* it to force certainty (guaranteed crit, skipped enemy
+turn, or a resolved **Doom**).
+
+**The four economy archetypes** (complete): **NOX banks · SOL runs hot · ANIMA compounds · QUANTA gambles.**
+
+> **⚑ OPEN DECISION — QUANTA's "DoT":** canon signature is **`none` (no DoT)**. Proposal: add **Doom**
+> — *not* a tick but a **delayed, *determined* hit** (a timer that resolves into damage; "the outcome
+> is already written"). On-theme for collapse/observation/time, and doesn't betray "no DoT" because
+> nothing ticks. **Pending dev + Dara.** See ledger #13.
 
 ---
 
@@ -196,6 +223,7 @@ Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara 
 | 7 | **NOX suite** (control + preservation/tank; Chill→Frozen→Shatter; lexicon: crystalline/lattice/absolute zero) | proposed | Drafted & dev-approved; awaits Dara |
 | 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | proposed | Drafted & dev-approved; awaits Dara |
 | 9 | **ANIMA suite** (ramp/sustain/adapt; Infestation; Evolution; Seed→Bloom→Overgrowth; compounds) | proposed | Drafted & dev-approved; awaits Dara |
-| 10 | **STAT SYSTEM: ANIMA primary MGC → VIT** | proposed | Rec = *rename* MGC slot → VIT (keep 5 stats, 1:1), not a 6th stat. Cross-cuts CONTEXT.md + stat-system.md. Confirm framing |
-| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted & dev-approved; awaits Dara |
-| 12 | QUANTA suite | open | Being drafted in the grill |
+| 10 | **STAT SYSTEM: rename MGC slot → VIT** (ANIMA primary) | proposed | **Framing dev-confirmed: rename, keep 5 stats 1:1.** Cross-cuts CONTEXT.md + stat-system.md. Awaits Dara |
+| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted; **awaits dev sign-off** + Dara |
+| 12 | **QUANTA suite** (tempo+probability; gamble↔guarantee; Superposition→Collapse; gambles economy) | proposed | Drafted & dev-approved (gamble mechanic); awaits Dara |
+| 13 | **QUANTA "Doom"** — delayed *determined* hit as QUANTA's DoT-that-isn't (canon sig = none) | open | Pending dev + Dara |
