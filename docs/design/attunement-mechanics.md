@@ -119,7 +119,39 @@ stack heat, ignite into Burn, then detonate the Burn for an AoE that *spreads* t
 | Defense | stillness armor (endure) | — (pure offense) |
 | Economy | **banks** well | **runs hot** (use or lose) |
 
-- **ANIMA (Grow)** — _TBD_
+### ANIMA (Grow) — *reverse entropy via life: adaptive negentropy, order through change*
+
+**Identity:** the **ramp + sustain + adaptation** attunement — weak early, snowballs late;
+out-sustains and out-adapts everything. *This is why NOX beats it:* stasis halts the change life
+needs to ramp. ANIMA's mechanics aren't "heal + poison" — they're **things that change form / grow
+over time.**
+
+**Primary stat: VIT** (see flag below) · **Flavor lexicon:** bloom · spore · verdant · symbiote ·
+genesis · mutation · chrysalis · hive · overgrowth.
+
+| Layer | Mechanics |
+|---|---|
+| **Status** | **Infestation** (signature DoT — reframed Poison: a *living contagion* that multiplies/stacks and **spreads on the host's death**) · **Regen** (HoT, the mirror of the DoT) · **Bloom** (a buff that *grows* each turn) |
+| **Action-economy** | **Evolution** — ANIMA's signature-unique: abilities/statuses that **change into a stronger form** at a use/turn threshold (metamorphosis). Not faster turns — *better* turns over time |
+| **Stat/damage** | **Adaptation** (after taking a damage type, grow resistance to it — the immune system learning) · **escalating** self-buffs that compound each turn |
+| **Meta** | **Metabolize / consume** (devour a corpse, debuff, or buff to *grow* — heal/empower from it) · **Symbiosis** (graft a growing buff onto an ally; link two allies to share vitality) · **revive / regrowth** |
+| **Economy** | ANIMA resource **compounds** — the more you hold, the faster it grows (living interest / passive regen). The third economy archetype |
+
+**Showcase threshold (metamorphosis = the phase-transition family):** **Seed → Bloom → Overgrowth**
+— a stack grows each turn and at the threshold *blooms* into a big payoff (heal burst, a summon, or
+a contagion that detonates and reseeds onto new targets).
+
+**The three economy archetypes** now line up across the spine:
+**NOX banks** (static, preserved) · **SOL runs hot** (decays, use-or-lose) · **ANIMA compounds** (grows).
+
+> **⚑ STAT-SYSTEM FLAG — ANIMA's primary stat: MGC → VIT.** Today's ratified set is STR/AGI/DEF/SPD/**MGC**,
+> with ANIMA → MGC (a clean 1:1 of five stats ↔ five attunements). Proposal: ANIMA's primary becomes
+> **VIT (Vitality)** to match the life/negentropy reframe. **Recommended framing: a *rename* of the
+> MGC slot → VIT** (stays five stats, 1:1; "Vitality" fits Life better than "Magic"), *not* a 6th
+> stat (which would orphan MGC). This ripples beyond mechanics into the stat system — touches
+> `CONTEXT.md` (Attunement governing stats), the build-class model's "Primary ← Attunement" table,
+> and `stat-system.md` (Scaling Tiers). Squarely Dara's call. See ledger #10.
+
 - **UMBRAXIS (Pull)** — _TBD_
 - **QUANTA (Collapse)** — _TBD_
 
@@ -139,4 +171,6 @@ Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara 
 | 6 | Cross-cutting families: conservation/transfer, resonance/interference, phase-transition | proposed | Dev loves these; Dara to bless |
 | 7 | **NOX suite** (control + preservation/tank; Chill→Frozen→Shatter; lexicon: crystalline/lattice/absolute zero) | proposed | Drafted & dev-approved; awaits Dara |
 | 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | proposed | Drafted & dev-approved; awaits Dara |
-| 9 | ANIMA / UMBRAXIS / QUANTA suites | open | Being drafted in the grill |
+| 9 | **ANIMA suite** (ramp/sustain/adapt; Infestation; Evolution; Seed→Bloom→Overgrowth; compounds) | proposed | Drafted & dev-approved; awaits Dara |
+| 10 | **STAT SYSTEM: ANIMA primary MGC → VIT** | proposed | Rec = *rename* MGC slot → VIT (keep 5 stats, 1:1), not a 6th stat. Cross-cuts CONTEXT.md + stat-system.md. Confirm framing |
+| 11 | UMBRAXIS / QUANTA suites | open | Being drafted in the grill |
