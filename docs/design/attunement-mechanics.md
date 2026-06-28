@@ -201,10 +201,11 @@ turn, or a resolved **Doom**).
 
 **The four economy archetypes** (complete): **NOX banks · SOL runs hot · ANIMA compounds · QUANTA gambles.**
 
-> **⚑ OPEN DECISION — QUANTA's "DoT":** canon signature is **`none` (no DoT)**. Proposal: add **Doom**
-> — *not* a tick but a **delayed, *determined* hit** (a timer that resolves into damage; "the outcome
-> is already written"). On-theme for collapse/observation/time, and doesn't betray "no DoT" because
-> nothing ticks. **Pending dev + Dara.** See ledger #13.
+> **⚑ NOX-of-canon flag — QUANTA's "DoT" = Doom (dev-approved).** Canon signature is **`none`
+> (no DoT)**. Decision: add **Doom** — *not* a tick but a **delayed, *determined* hit** (a timer that
+> resolves into damage; "the outcome is already written"). On-theme for collapse/observation/time,
+> and doesn't betray "no DoT" because nothing ticks. **Dev-approved; awaits Dara** (nudges the
+> `none` signature). See ledger #13.
 
 ---
 
@@ -224,6 +225,6 @@ Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara 
 | 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | proposed | Drafted & dev-approved; awaits Dara |
 | 9 | **ANIMA suite** (ramp/sustain/adapt; Infestation; Evolution; Seed→Bloom→Overgrowth; compounds) | proposed | Drafted & dev-approved; awaits Dara |
 | 10 | **STAT SYSTEM: rename MGC slot → VIT** (ANIMA primary) | proposed | **Framing dev-confirmed: rename, keep 5 stats 1:1.** Cross-cuts CONTEXT.md + stat-system.md. Awaits Dara |
-| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted; **awaits dev sign-off** + Dara |
-| 12 | **QUANTA suite** (tempo+probability; gamble↔guarantee; Superposition→Collapse; gambles economy) | proposed | Drafted & dev-approved (gamble mechanic); awaits Dara |
-| 13 | **QUANTA "Doom"** — delayed *determined* hit as QUANTA's DoT-that-isn't (canon sig = none) | open | Pending dev + Dara |
+| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted & dev-approved; awaits Dara |
+| 12 | **QUANTA suite** (tempo+probability; gamble↔guarantee; Superposition→Collapse; gambles economy) | proposed | Drafted & dev-approved; awaits Dara |
+| 13 | **QUANTA "Doom"** — delayed *determined* hit as QUANTA's DoT-that-isn't (canon sig = none) | proposed | **Dev-approved; awaits Dara** (nudges the `none` signature) |
