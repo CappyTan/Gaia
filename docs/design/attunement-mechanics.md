@@ -152,7 +152,31 @@ a contagion that detonates and reseeds onto new targets).
 > `CONTEXT.md` (Attunement governing stats), the build-class model's "Primary ← Attunement" table,
 > and `stat-system.md` (Scaling Tiers). Squarely Dara's call. See ledger #10.
 
-- **UMBRAXIS (Pull)** — _TBD_
+### UMBRAXIS (Pull) — *reverse entropy via gravity: clump, compress, distort position & structure*
+
+**Identity:** the **position-control + drain/bulwark** attunement — wins by *moving bodies in space*,
+compressing them together, and bending position/time near mass. Distinct from NOX control: NOX
+**freezes tempo**, UMBRAXIS **moves things in space**. The true tank (DEF), and owner of the
+**conservation/transfer** goldmine as its native economy.
+
+**Primary stat: DEF** · **Flavor lexicon:** singularity · event horizon · tidal · gravity well ·
+void · collapse · accretion · lagrange *("The Lagrangian" / "Lagrange Nodes" already UMBRAXIS canon)*.
+
+| Layer | Mechanics |
+|---|---|
+| **Status** | **Drain** (signature DoT — life/energy pulled *out* and transferred to the caster; conservation: your loss is their gain) · **Crush** (gravity pressure — escalating dmg the longer it's held) · **Anchored** (rooted/pinned by gravity) |
+| **Action-economy** | **Singularity pull** (drag enemies *together* into a cluster — positional AoE setup) · **time-dilation** (slow near a mass — positional, only inside the well) · **event-horizon** (target can't flee / swap rows) |
+| **Stat/damage** | **Mass armor** (DEF → damage reduction; the true tank) · **compression vulnerability** (a crushed target takes more) · **damage-reflect** (gravity bends incoming force back) |
+| **Meta** | **Drain/steal** a buff or resource off the enemy (conservation — take what's theirs) · **redistribute** (move HP/threat around the field) · **redirect** incoming hits to the well |
+| **Economy** | UMBRAXIS resource is fed by **what it takes** — drains/steals *convert* into the pool. The **conservation economy**: it doesn't generate from nothing, it *transfers* |
+
+**Showcase (the gravity setpiece):** **Singularity** — pull all enemies into one cluster, time-dilate
+(slow) them inside it, then **collapse** for a massive AoE crush. The positional mirror of SOL's
+*spread*: SOL pushes things *apart*, UMBRAXIS pulls them *together*.
+
+**The control-axis quartet** (what each non-life attunement controls): **NOX = tempo (stop)** ·
+**SOL = tempo (accelerate)** · **UMBRAXIS = position (space)** · **QUANTA = outcome (probability)**.
+
 - **QUANTA (Collapse)** — _TBD_
 
 ---
@@ -173,4 +197,5 @@ Legend: **canon** = already ratified · **proposed** = drafted here, needs Dara 
 | 8 | **SOL suite** (offense/AoE/tempo-up, no defense; Overheat→Ignite→Detonate; SOL↔NOX mirror) | proposed | Drafted & dev-approved; awaits Dara |
 | 9 | **ANIMA suite** (ramp/sustain/adapt; Infestation; Evolution; Seed→Bloom→Overgrowth; compounds) | proposed | Drafted & dev-approved; awaits Dara |
 | 10 | **STAT SYSTEM: ANIMA primary MGC → VIT** | proposed | Rec = *rename* MGC slot → VIT (keep 5 stats, 1:1), not a 6th stat. Cross-cuts CONTEXT.md + stat-system.md. Confirm framing |
-| 11 | UMBRAXIS / QUANTA suites | open | Being drafted in the grill |
+| 11 | **UMBRAXIS suite** (position-control + drain-tank; Singularity setpiece; conservation economy) | proposed | Drafted & dev-approved; awaits Dara |
+| 12 | QUANTA suite | open | Being drafted in the grill |
