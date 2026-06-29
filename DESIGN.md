@@ -108,6 +108,13 @@ affixes. Built fresh as a self-contained HTML file that runs in a browser and on
 - The affinity-ring ordering and the per-attunement signature effects (lore-driven).
 - Whether the named-item lists from the charts are final SOL drop tables.
 - Art-style sign-off on any generated tiles/sprites/backgrounds (his lane).
+- **Bestiary level-seeding model (rebuild needed).** Today each bestiary entry carries a single
+  fixed nominal level (`d.lvl`), and the only runtime knob is `depth` (a clamped 0–1 within-zone
+  intensity scalar, +35% HP / +55% ATK at most). There is no "fight this enemy at level N" path.
+  The one-level-per-monster-type approach won't scale long-term — we want a monster *type* to span
+  a level range (banded/scaled levels), so the same archetype can appear as an early or a late
+  threat. Flagged while wiring the dev test harness, which can only climb by drawing different
+  real bestiary entries until this is reworked.
 
 ## Items recommended (not yet grilled)
 - Skills: ~4 ATB skills per class, themed to weapon + SOL.
