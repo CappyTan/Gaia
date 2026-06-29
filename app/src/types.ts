@@ -161,6 +161,12 @@ export interface MemberDef {
   skills: string[];
 }
 
+/** Enemy combat role — sets the V3 primary SHAPE + HP/ATK multipliers (systems/enemyStats), so a
+ *  level-N enemy's stats are DERIVED, not hand-authored (ADR 0018 — the bestiary level-seeding rebuild). */
+export type EnemyRole =
+  | "skirmisher" | "bruiser" | "harrier" | "caster" | "wall" | "brute"
+  | "miniboss" | "boss" | "rare";
+
 export interface EnemyDef {
   name: string;
   spr: string;
