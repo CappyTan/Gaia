@@ -78,6 +78,16 @@ a unique **Resource**, with an ability kit (Passive / Basic ×2-3 / Signature ×
 Ultimate). Example: the Umbraxis Dual-Daggers class **The Lagrangian** (resource: Lagrange
 Nodes). Full roster in [`docs/design/requiem/REQUIEM-classes.md`](docs/design/requiem/REQUIEM-classes.md).
 
+**Caster** (canon):
+Not a stat and not a separate kind of power — a **delivery style**, defined by **Weapon Archetype**.
+The **Staff** (and hybrid **Spellblade**) classes *project / externalize* their Attunement at range
+(fields, bolts, channeled effects) rather than channeling it through a struck weapon. A caster's
+"spell power" is simply its **Attunement governing stat** (a SOL Staff scales off AGI, an ANIMA Staff
+off VIT) — there is **no "Magic" stat**, because every Attunement already *is* a form of channeled
+power. The five stances on entropy define *what* a caster's projected power does (a SOL caster spreads
+fire, a NOX caster freezes at range, …).
+_Avoid_: treating "caster" as needing an Intelligence/Magic stat — in Gaia, magic is not a separate axis.
+
 **Resource** (per Class):
 The class-specific meter its abilities build/spend (e.g. Radiance, Solar Charge, Core Heat,
 Entropy Debt, Lagrange Nodes). Distinct from MNA (attunement mana) and RES/MP costs.
