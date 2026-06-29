@@ -44,6 +44,10 @@ _POC note:_ the playable build currently uses `atk/armor/mag/spd` (+`hp/mp`), no
 _VIT (canon):_ **VIT (Vitality)** is the ratified rename of the former **MGC ("Magic")** slot —
 ANIMA's governing stat, fitting the Life/negentropy stance; it keeps that slot's substat role
 (ability power / healing / debuff potency) and is also the **Staff** archetype's secondary.
+Framed physically, **VIT is free energy / negentropic reserve — the universal *fuel* every Attunement
+burns to do work against entropy.** That is *why* it amplifies ability output for all classes: VIT is
+**universally applicable like the other four primaries** (not a "caster stat"). ANIMA scaling off VIT
+is the deepest case of this — life *is* negentropy.
 
 **Scaling Tier** (canon):
 How well an Attunement converts a given primary stat into **ability power**, best→worst: **S, A, B,
@@ -77,6 +81,16 @@ A specific **Attunement × Weapon Archetype** combination — 45 total. Each has
 a unique **Resource**, with an ability kit (Passive / Basic ×2-3 / Signature ×1-2 /
 Ultimate). Example: the Umbraxis Dual-Daggers class **The Lagrangian** (resource: Lagrange
 Nodes). Full roster in [`docs/design/requiem/REQUIEM-classes.md`](docs/design/requiem/REQUIEM-classes.md).
+
+**Caster** (canon):
+Not a stat and not a separate kind of power — a **delivery style**, defined by **Weapon Archetype**.
+The **Staff** (and hybrid **Spellblade**) classes *project / externalize* their Attunement at range
+(fields, bolts, channeled effects) rather than channeling it through a struck weapon. A caster's
+"spell power" is simply its **Attunement governing stat** (a SOL Staff scales off AGI, an ANIMA Staff
+off VIT) — there is **no "Magic" stat**, because every Attunement already *is* a form of channeled
+power. The five stances on entropy define *what* a caster's projected power does (a SOL caster spreads
+fire, a NOX caster freezes at range, …).
+_Avoid_: treating "caster" as needing an Intelligence/Magic stat — in Gaia, magic is not a separate axis.
 
 **Resource** (per Class):
 The class-specific meter its abilities build/spend (e.g. Radiance, Solar Charge, Core Heat,

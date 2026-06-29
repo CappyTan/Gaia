@@ -28,6 +28,13 @@ The foundation; they determine ability scaling. Replaces the POC's loose `atk/ma
 Every class wants every stat (each grants universal value — §3); your Attunement just decides which
 stat it converts into **ability power** best (§2).
 
+> **On VIT and "casters" (ratified).** There is **no "Magic" stat** — every Attunement *is* a form of
+> channeled power, so a **caster** is a *delivery style* (the **Staff**/**Spellblade** archetypes that
+> project their Attunement at range), and its spell power is its **own attunement stat** (§2), not a
+> magic stat. **VIT (Vitality)** = **free energy / negentropic reserve**, the universal *fuel* every
+> attunement burns to do work against entropy; that is why its substats (ability power / healing /
+> debuff) help everyone. VIT is universally applicable like the other four primaries — not a caster-only stat.
+
 ---
 
 ## 2 · Ability scaling — the S/A/B/C/D tier system (canon)

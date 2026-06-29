@@ -17,3 +17,4 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0010](0010-tailored-dungeon-reprieves.md) | Tailored dungeon reprieves — partial, themed rest nodes (no full-heal); caves get none |
 | [0011](0011-environmental-wayfinding-derived-objectives.md) | Environmental wayfinding — derived Objectives + persisted known-regions fog-of-war |
 | [0012](0012-field-godmodule-split.md) | Split the field.ts god-module → ui/fieldRender (draw) + systems/mapgen (pure, RNG-injected) |
+| [0013](0013-no-magic-stat-casters-are-archetype.md) | No "Magic" stat — casters are archetype-defined (Staff/Spellblade); VIT is the universal channeling fuel |
