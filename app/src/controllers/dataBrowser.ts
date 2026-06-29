@@ -10,6 +10,7 @@ import { GAME_VERSION } from "../data/version";
 import { validateContent } from "../data/validate";
 import { getOverrides, setOverride, clearOverrides, overrideCount } from "../data/overrides";
 import { Overlay } from "../ui/overlay";
+import { enemyBlock } from "../systems/enemyStats";
 
 type Tab = "bestiary" | "skills" | "classes" | "zones";
 
@@ -27,9 +28,12 @@ function bestiary(): string {
   const rows = DB.enemies.all().sort((a, b) => a.lvl - b.lvl).map((e) => {
     const flags = [e.boss && "boss", e.miniboss && "mini", e.rare && "rare", e.art && `art:${e.art}`].filter(Boolean).join(" ");
     const zones = DB.enemies.zonesOf(e.key).map((zi) => DB.zones.get(zi)?.name || `z${zi}`).join(", ") || "—";
-    return `<tr><td>${e.name}</td><td>${att(e.att)}</td><td>${e.lvl}</td><td>${num("enemy", e.key, "hp", e.hp)}</td><td>${num("enemy", e.key, "atk", e.atk)}</td><td>${num("enemy", e.key, "spd", e.spd)}</td><td>${num("enemy", e.key, "armor", e.armor)}</td><td>${num("enemy", e.key, "mag", e.mag || 0)}</td><td>${num("enemy", e.key, "xp", e.xp)}</td><td>${e.gold[0]}–${e.gold[1]}</td><td class="small">${flags || ""}</td><td class="small">${zones}</td></tr>`;
+    // V3 (ADR 0018): combat stats are DERIVED from (role, lvl, lean) — shown read-only here at the
+    // enemy's base level. The authored knobs are lvl + role + xp (xp stays the live-editable dial).
+    const b = enemyBlock(e.att, e.role, e.lvl, e.lean);
+    return `<tr><td>${e.name}</td><td>${att(e.att)}</td><td>${e.lvl}</td><td class="small">${e.role}</td><td>${b.maxhp}</td><td>${b.atk}</td><td>${b.spd}</td><td>${b.armor}</td><td>${b.mag}</td><td>${num("enemy", e.key, "xp", e.xp)}</td><td>${e.gold[0]}–${e.gold[1]}</td><td class="small">${flags || ""}</td><td class="small">${zones}</td></tr>`;
   }).join("");
-  return `<table class="dt"><thead><tr><th>Name</th><th>Att</th><th>Lv</th><th>HP</th><th>ATK</th><th>SPD</th><th>ARM</th><th>MAG</th><th>XP</th><th>Gold</th><th>Flags</th><th>Zones</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="dt"><thead><tr><th>Name</th><th>Att</th><th>Lv</th><th>Role</th><th>HP</th><th>ATK</th><th>SPD</th><th>ARM</th><th>MAG</th><th>XP</th><th>Gold</th><th>Flags</th><th>Zones</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function skills(): string {

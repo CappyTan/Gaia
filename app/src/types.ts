@@ -172,11 +172,13 @@ export interface EnemyDef {
   spr: string;
   att: Attunement;
   lvl: number;
-  hp: number;
-  atk: number;
-  spd: number;
-  armor: number;
-  mag: number;
+  /** V3 (ADR 0018): combat stats DERIVE from role + lvl (+ lean) via systems/enemyStats — not authored. */
+  role: EnemyRole;
+  /** Optional per-enemy primary re-weighting (multiplies a role weight) — for outliers: armored
+   *  "metal" jackpots (DEF huge, VIT near 0), sponges, fast variants. */
+  lean?: Partial<Prims>;
+  /** Optional explicit basic-attack damage type (ADR 0014); defaults to matter. */
+  dmgType?: DmgType;
   xp: number;
   gold: [number, number];
   ai: string;
@@ -225,6 +227,9 @@ export interface Unit {
   /** V3 ability-power amplifier from GEAR primaries + Ability Power affix (e.g. 0.12 = +12% ability
    *  damage). Zero with no gear, so a fresh hero is combat-neutral. Members only. */
   abp?: number;
+  /** Damage type of this unit's BASIC attack (ADR 0014). Enemies set it (default matter); members
+   *  leave it unset — combat derives per-skill. */
+  dmgType?: DmgType;
   guarding?: boolean;
   acting?: boolean;
   _hurt?: boolean;

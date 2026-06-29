@@ -11,9 +11,13 @@ import { abpFromGear, substatBaseline } from "./stats";
 // ── Level→primary budget: total primary POINTS an enemy spends across its five stats at a level,
 //    distributed by its role's weights (+ optional per-enemy lean). The single "how strong at level N"
 //    curve — the level-seeding knob. Placeholder magnitudes; balance-sim owns the final values.
-export const PRIM_BASE = 10; // points at level 1
-export const PRIM_PER_LVL = 5; // added per level above 1
-export const primBudget = (lvl: number): number => PRIM_BASE + PRIM_PER_LVL * Math.max(0, lvl - 1);
+export const PRIM_BASE = 22; // primary points at level 1
+export const PRIM_GROWTH = 1.145; // EXPONENTIAL per-level growth — enemy power compounds to match the
+// party's gear+level curve (the old hand-tuned HP ran ~14–17%/level: slime 72 → leviathan 26000).
+export const primBudget = (lvl: number): number => Math.round(PRIM_BASE * Math.pow(PRIM_GROWTH, Math.max(0, lvl - 1)));
+// Depth (0–1, how far into a zone) lifts the EFFECTIVE level by up to this many levels — the V3
+// replacement for the old HP/ATK depth-scale knobs (makeEnemy: effLvl = lvl + DEPTH_LEVELS·depth).
+export const DEPTH_LEVELS = 3;
 
 // ── Per-role primary SHAPE (relative weights, normalized to the budget). Sets what a role *is*:
 //    skirmishers fast/light (AGI/SPD), walls slow tanks (DEF/VIT), casters run on VIT (the universal
@@ -44,10 +48,10 @@ export const ROLE_ATK_MULT: Record<EnemyRole, number> = {
 };
 
 // ── Derived-stat coefficients (primary point → combat stat). Placeholders; tuned in balance-sim.
-const HP_BASE = 16, HP_PER_VIT = 6;
-const ATK_BASE = 4, ATK_PER_STR = 1.1;
-const MAG_BASE = 3, MAG_PER_VIT = 0.9;
-const ARMOR_PER_DEF = 0.6;
+const HP_BASE = 14, HP_PER_VIT = 9;
+const ATK_BASE = 3, ATK_PER_STR = 1.3;
+const MAG_BASE = 3, MAG_PER_VIT = 1.1;
+const ARMOR_PER_DEF = 0.5;
 const SPD_BASE = 4, SPD_PER = 0.7;
 
 /** A level-N enemy's V3 primaries: spend the level's budget across the role's weighted shape, scaled
@@ -71,15 +75,15 @@ export interface EnemyStats {
 
 /** Derive an enemy's full combat block from its V3 primaries (+ attunement, for the ability-power
  *  amplifier). Substats come from the SAME dual-source baseline members use — the enemy's primaries
- *  play the role a hero's gear does. Casters convert VIT→mag (ADR 0013 — VIT is the fuel, no magic
- *  stat); everyone else mag 0. Pure. */
+ *  play the role a hero's gear does. VIT→mag for every enemy (only cast skills like hex consume it;
+ *  ADR 0013 — VIT is the fuel, no magic stat). Pure. */
 export function enemyDerived(att: Attunement, role: EnemyRole, prim: Prims): EnemyStats {
   const sub = zeroSubs();
   substatBaseline(prim, sub);
   const abp = abpFromGear(att, prim);
   const maxhp = Math.round((HP_BASE + prim.VIT * HP_PER_VIT) * ROLE_HP_MULT[role]);
   const atk = Math.round((ATK_BASE + prim.STR * ATK_PER_STR) * ROLE_ATK_MULT[role]);
-  const mag = role === "caster" ? Math.round(MAG_BASE + prim.VIT * MAG_PER_VIT) : 0;
+  const mag = Math.round(MAG_BASE + prim.VIT * MAG_PER_VIT); // VIT→mag for all; only cast skills (hex) use it
   const armor = Math.round(prim.DEF * ARMOR_PER_DEF);
   const spd = Math.max(1, Math.round(SPD_BASE + prim.SPD * SPD_PER));
   const critPct = 5 + sub.Crt;

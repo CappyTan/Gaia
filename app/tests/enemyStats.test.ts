@@ -38,9 +38,8 @@ describe("enemyStats — level → primaries (ADR 0018 enemy V3)", () => {
 });
 
 describe("enemyStats — derived combat block", () => {
-  it("casters convert VIT → mag; non-casters have mag 0 (ADR 0013)", () => {
-    expect(enemyBlock("SOL", "caster", 10).mag).toBeGreaterThan(0);
-    expect(enemyBlock("SOL", "bruiser", 10).mag).toBe(0);
+  it("mag derives from VIT — a caster out-mags a skirmisher of the same level (ADR 0013)", () => {
+    expect(enemyBlock("SOL", "caster", 10).mag).toBeGreaterThan(enemyBlock("SOL", "skirmisher", 10).mag);
   });
 
   it("a wall out-armors and out-HPs a skirmisher of the same level", () => {
