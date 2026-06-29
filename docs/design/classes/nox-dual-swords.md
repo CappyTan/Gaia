@@ -1,149 +1,185 @@
 # Rimewalker — NOX × Dual Swords
 
-> **Status:** greenfield design spec, authored by the `build-class` skill against the
-> [Class System Model](./README.md). **Pilot / worked example** — every entry is `proposed`
-> (no brief supplied) — ratified canon (Dara, 2026-06-28). Numberless by design; magnitudes are a
-> later balance pass.
+> **Status: Frame RATIFIED (Dara, 2026-06-29); abilities proposed.** Greenfield design spec authored
+> by the `build-class` skill against the [Class System Model](./README.md). The class fantasy, lanes,
+> seat (STR+AGI frost control/preservation duelist), and duelist DNA are **`from-brief`** — the
+> ratified row + sketch in the [Dual Swords family note](./dual-swords-family.md); the kit's
+> individual abilities are `proposed`. **Supersedes the pre-framework Rimewalker** (which used
+> "Decay" and predated the Chill→Frozen→Shatter chain — fully re-spec'd and reconciled here).
+> Numberless by design; magnitudes are a later balance pass. Mechanics vocabulary
+> (Stasis · Chill → Frozen → Shatter · Brittle · attack-bar drag/push-back · time-lock ·
+> stillness / lattice ward · the "banks" economy) draws on the ratified
+> [Attunement Mechanics Framework](../attunement-mechanics.md) (NOX suite). **Stasis** is the design
+> name for NOX's signature DoT — cold cessation, vitality winding toward absolute zero, *not* rot
+> (engine keyword `decay`).
 
 ## Identity (derived + DNA)
 
 - **Class:** Rimewalker · **Attunement × Archetype:** NOX × Dual Swords
-- **Primary stat:** STR (← NOX) · **Secondary stat:** AGI (← Dual Swords) — a STR/AGI hybrid duelist
-- **Resource:** NOX (generates & spends the party's shared NOX pool)
-- **Attunement signature:** **Decay** (cold/dark/order)
+- **Primary stat:** STR (← NOX) · **Secondary stat:** AGI (← Dual Swords) — a STR/AGI **crit-duelist
+  whose crits Shatter**
+- **Resource:** NOX (party-shared; **banks** — slow to spend, doesn't bleed away between turns)
+- **Attunement signature:** **Stasis** (DoT) · NOX suite: **Chill** (attack-bar drag), **Frozen**
+  (can't act), **Brittle** (bonus burst damage taken), **Shatter** (Frozen → burst, esp. STR),
+  **time-lock** (freeze a duration so it stops ticking), **stillness / lattice ward** (damage
+  reduction — preservation), the **Chill → Frozen → Shatter** phase chain. NOX is **control +
+  preservation: win by making them stop, then Shatter.**
 
-**Fantasy.** A frost-bound dual-blade duelist who fights at the threshold of stillness — opening
-foes with creeping Decay, dancing through their guard on a hair-trigger of crit and evasion, and
-freezing the battlefield to feed the party's cold. Every cut is patient; nothing is wasted.
+**Fantasy.** *(from-brief)* A frost **control/preservation duelist** — a bladesman who wins the
+exchange not by out-cutting the foe but by **stilling it, then Shattering it.** Twin blades chain in
+patient, crystalline bladework: one blade always kept back as a **frost parry** to turn aside a blow
+and answer with cold, while creeping **Stasis** and **Chill** drag the target toward stillness. As
+the cold deepens the target **Freezes** solid — and a Rimewalker's crits land on glass: a clean
+critical hit on a Frozen, Brittle foe **Shatters** it. Where the NOX dagger (Velestra) is the mobile
+twin-strike applicator-executioner who floods Stasis and races the ATB bar, the Rimewalker **stands
+and duels** (sturdier, AGI-finesse): finesse and preservation, not flood-application — still the
+target, then break it with a crit.
 
-### Lanes
+### The shared duelist DNA *(from-brief — how this is a dual-sword)*
+
+1. **Crit (AGI-keyed) is the win condition.** The Rimewalker wins by landing clean, *critical* cuts —
+   precision, not volume. And its crits are the Shatter trigger: a crit on a Frozen/Brittle foe
+   detonates the cold.
+2. **Riposte / Parry — the *frost* parry.** Two blades = offense *and* defense in one; the off-blade
+   is kept back to **counter** an incoming blow with cold. The dual-sword's survival tool; the
+   counter doesn't just answer the hit, it **Chills** the attacker — preservation through control.
+3. **Flow / stance.** Sustained bladework chains that build momentum across the *exchange*, not a
+   single burst — patient cuts that compound Stasis and Chill (winding the target down).
+4. **Opening → Finisher reuses NOX's own phase chain.** No new combo resource: the Opening **is**
+   **Chill → Frozen → Shatter** — cuts and parries deepen Chill until the target Freezes; the
+   finisher is a crit that Shatters the frozen glass.
+
+### Lanes *(from-brief)*
 
 | Lane | Identity | Keys off | Team role | Best when |
 |---|---|---|---|---|
-| **A · Rimebleed** | Decay/DoT attrition; consume stacks for payoffs | **STR**, Execute, Decay-duration | sustained single-target / boss damage | vs tanky/boss HP pools |
-| **B · Glasscutter** | crit-burst, mobility, execute, evasion | **AGI**, Crit, Evasion | solo carry / spike | vs squishy packs; gear-rich crit build |
-| **C · Hoarwarden** | frost-control + **NOX resource battery** | control (Chill/Gravity), economy | enabler / disruptor | NOX-stacked party (feeds the pool) or balanced party needing control |
+| **A · Rimebleed** | **Stasis-attrition**: stack **Stasis** (DoT) and **Chill**-drag through patient cuts; the grind that winds a target down | **STR**, Stasis stacks/duration, tempo-drag | sustained single-target / boss DPS | vs tanky/boss HP pools; STR- & duration-stacked gear |
+| **B · Glasscutter** | **crit + Frozen → Shatter**: clean crits that Shatter a Frozen/Brittle target — the showcase NOX payoff; execute | **AGI**, Crit, Frozen/Brittle setup, Execute | single-target burst / executioner | vs targets you can lock; crit-rich gear; spike a priority kill |
+| **C · Hoarwarden** | **frost-control + NOX battery**: Chill/Freeze control, **time-lock**, a **stillness/lattice ward**, and banks the shared NOX pool — the preservation/control enabler | control/tempo, NOX economy, mitigation | disruptor / enabler / battery | NOX-stacked party (feeds the pool) or a fragile party needing control & a ward |
 
-**Build axes:** attrition ↔ burst (A↔B) · self-carry ↔ team-support (B↔C) · single-target ↔
-control/AoE (A,B ↔ C).
+**Build axes:** attrition ↔ crit-burst (A↔B) · self-carry ↔ team-control/battery (B↔C) ·
+single-target damage ↔ control/preservation (A,B ↔ C).
+
+**Cross-lane synergy:** **C Chills and Freezes the target → B crits it to Shatter → A grinds whatever
+survives with Stasis — while C banks the NOX that fuels all of it.**
 
 ---
 
 ## Auto-attack *(unlaned)*
 
-- **Frost Cut** · phys · enemy · *two quick cold cuts* · gen **minor NOX** · cd **none** *(spammable)*
+- **Frostglide Cut** · phys · enemy · *two flowing crystalline cuts (two crit rolls); the second leaves a wisp of Chill* · gen **minor NOX** · cd **none** *(spammable)* · `proposed`
 
 ---
 
 ## Special skills — 10 milestones × 2 *(generate resource; never cost)*
 
 **@ MNA 5** *(A/B)*
-- **A · Frost Rot** · phys · enemy · *strike; applies Decay* · gen **moderate NOX** · cd **short**
-- **B · Quickstep Slash** · phys · enemy · *strike; gain brief Evasion* · gen **moderate NOX** · cd **short**
+- **A · Rimecut** · phys · enemy · *a patient cut that applies light Stasis (the Opening of the grind)* · gen **moderate NOX** · cd **short** · `proposed`
+- **B · Glasswork Riposte** · phys · enemy · *a crit-leaning strike; sets up the next crit and lightly Chills* · gen **moderate NOX** · cd **short** · `proposed`
 
 **@ MNA 15** *(B/C)*
-- **B · Rime Edge** · phys · enemy · *heavy single strike; sets up a crit* · gen **major NOX** · cd **medium**
-- **C · Frostlace Web** · util · allEnemies · *light cold hit; Chill (slows attack-bar gain)* · gen **moderate NOX** · cd **medium**
+- **B · Hairline Cut** · phys · enemy · *a precise strike; bonus crit chance vs Chilled/Frozen foes* · gen **moderate NOX** · cd **short** · `proposed`
+- **C · Frostlace** · util · allEnemies · *a thrown cold lace: Chill all foes and drag their attack-bars* · gen **moderate NOX** · cd **medium** · `proposed`
 
 **@ MNA 25** *(A/C)*
-- **A · Hemorrhage** · phys · enemy · *strike; extends existing Decay's duration* · gen **moderate NOX** · cd **short**
-- **C · Glacial Tithe** · buff · self · *the party's next NOX ability costs less* · gen **major NOX** *(battery)* · cd **medium**
+- **A · Winterbleed** · phys · enemy · *a cut that extends and deepens the target's existing Stasis* · gen **moderate NOX** · cd **short** · `proposed`
+- **C · Hoarfrost Tithe** · buff · self · *the party's next NOX ability costs less; bank NOX* · gen **major NOX** *(battery)* · cd **medium** · `proposed`
 
 **@ MNA 35** *(A/B)*
-- **A · Wither Cut** · phys · enemy · *two cuts, each applying light Decay* · gen **moderate NOX** · cd **short**
-- **B · Mirror Step** · phys · enemy · *dash strike; high crit vs targets above 50% HP* · gen **moderate NOX** · cd **medium**
+- **A · Slowblade** · phys · enemy · *two patient cuts, each applying light Stasis and a touch of Chill* · gen **moderate NOX** · cd **short** · `proposed`
+- **B · Brittle Opening** · phys · enemy · *a measured strike; if the target is Chilled it becomes Brittle (takes bonus burst)* · gen **moderate NOX** · cd **medium** · `proposed`
 
 **@ MNA 45** *(B/C)*
-- **B · Killing Frost** · phys · enemy · *strike; bonus damage vs Chilled/slowed foes* · gen **major NOX** · cd **medium**
-- **C · Numbing Field** · util · allEnemies · *apply Chill (reduced SPD) to all foes* · gen **moderate NOX** · cd **medium**
+- **B · Crystal Riposte** · phys · enemy · *a counter-cut; a guaranteed crit if it lands on a Frozen target (a Shatter trigger)* · gen **major NOX** · cd **medium** · `proposed`
+- **C · Chillbind** · util · enemy · *deepen Chill on the target and push its attack-bar back* · gen **moderate NOX** · cd **medium** · `proposed`
 
 **@ MNA 55** *(A/C)*
-- **A · Creeping Gangrene** · mag · enemy · *Decay that spreads to a nearby foe if the target dies* · gen **moderate NOX** · cd **medium**
-- **C · Cryo Conduit** · buff · allAllies · *party's next NOX ability is discounted* · gen **major NOX** *(battery)* · cd **long**
+- **A · Coldsink Riposte** · phys · enemy · *a counter-cut scaling with the target's current Stasis stacks; leaves lesser Stasis behind* · gen **moderate NOX** · cd **medium** · `proposed`
+- **C · Lattice Hold** · util · enemy · *time-lock the target: its current debuffs (Stasis/Chill) stop ticking down (preservation)* · gen **major NOX** *(battery)* · cd **medium** · `proposed`
 
 **@ MNA 65** *(A/B)*
-- **A · Frostbite Flurry** · phys · enemy · *four cuts; the last applies Decay* · gen **moderate NOX** · cd **medium**
-- **B · Bloodless Edge** · phys · enemy · *crit-leaning strike; refunds attack-bar on a crit* · gen **moderate NOX** · cd **short**
+- **A · Creeping Verglas** · phys · enemy · *a four-cut flurry; the last cut deepens Stasis and Chill* · gen **moderate NOX** · cd **medium** · `proposed`
+- **B · Shiverstep** · phys · enemy · *a dash-strike behind the foe; a guaranteed crit when flanking a Chilled target* · gen **major NOX** · cd **medium** · `proposed`
 
 **@ MNA 75** *(B/C)*
-- **B · Phantom Cross** · phys · enemy · *teleport behind; guaranteed crit when flanking* · gen **major NOX** · cd **medium**
-- **C · Iceroot Snare** · util · enemy · *root; chance to push the target's attack-bar back (Gravity)* · gen **moderate NOX** · cd **medium**
+- **B · Glassfall** · phys · enemy · *a heavy crit-cut; if the target is Frozen, it Shatters for bonus and leaves lesser Chill* · gen **major NOX** · cd **medium** · `proposed`
+- **C · Wintergrasp** · util · enemy · *seize and root the target (Anchored) and drag its attack-bar hard* · gen **moderate NOX** · cd **medium** · `proposed`
 
 **@ MNA 85** *(A/C)*
-- **A · Necrosis** · mag · enemy · *consume Decay stacks for a burst; leaves lesser Decay behind* · gen **moderate NOX** · cd **medium**
-- **C · Glacier's Gift** · buff · allAllies · *brief party damage reduction; generates party NOX* · gen **major NOX** *(battery)* · cd **long**
+- **A · Stasis Lace** · mag · enemy · *consume some Stasis for a cold burst; reseeds lesser Stasis on a nearby foe if the target is already afflicted* · gen **moderate NOX** · cd **medium** · `proposed`
+- **C · Frostward Dance** · buff · self · *a cold guard-stance: a brief stillness ward (damage reduction) while your specials keep flowing* · gen **major NOX** · cd **medium** · `proposed`
 
 **@ MNA 95** *(A/B)*
-- **A · Final Rot** · phys · enemy · *heavy strike; applies max-duration Decay* · gen **major NOX** · cd **medium**
-- **B · Zero-Sum Cut** · phys · enemy · *crit finisher; bonus damage vs low-HP foes* · gen **major NOX** · cd **medium**
+- **A · Permafrost Carve** · phys · enemy · *a heavy patient cut; applies max-duration Stasis* · gen **major NOX** · cd **medium** · `proposed`
+- **B · Zero-Kelvin Cut** · phys · enemy · *a crit finisher; massively bonus vs Frozen/Brittle/low-HP foes* · gen **major NOX** · cd **medium** · `proposed`
 
 ---
 
 ## Signature abilities — 9 milestones × 2 *(cost resource; never generate)*
 
 **@ MNA 10** *(A/B)*
-- **A · Hoarfrost Verdict** · phys · enemy · *heavy hit; consumes the target's Decay for bonus damage* · cost **med NOX** · cd **medium**
-- **B · Thirteenth Step** · phys · enemy · *teleport-strike, high crit; refunds part of the attack-bar* · cost **med NOX** · cd **medium**
+- **A · Crystalline Verdict** · phys · enemy · *a deep cut; consumes the target's Stasis for bonus damage* · cost **med NOX** · cd **medium** · `proposed`
+- **B · Frost Mirror** · buff · self · *a frost-parry stance: dodge the next hit, then answer with a guaranteed crit and Chill the attacker* · cost **med NOX** · cd **medium** · `proposed`
 
 **@ MNA 20** *(B/C)*
-- **B · Flashfreeze Riposte** · buff · self · *counter stance: dodge the next hit and answer with a crit* · cost **med NOX** · cd **medium**
-- **C · Permafrost Anchor** · util · allEnemies · *AoE Chill + slow; briefly draws threat off allies* · cost **low NOX** · cd **medium**
+- **B · Frostbound Riposte** · phys · enemy · *Freeze a Chilled target, then strike it for a Shatter burst* · cost **med NOX** · cd **medium** · `proposed`
+- **C · Frostquiet** · util · allEnemies · *AoE Chill + attack-bar drag; the line goes still* · cost **low NOX** · cd **medium** · `proposed`
 
 **@ MNA 30** *(A/C)*
-- **A · Plague of Winter** · mag · allEnemies · *spread Decay to every foe* · cost **med NOX** · cd **long**
-- **C · Coldforge** · buff · allAllies · *party NOX generation increased for several turns (battery)* · cost **low NOX** · cd **long**
+- **A · Hush Frost** · mag · allEnemies · *spread Stasis to every foe* · cost **med NOX** · cd **long** · `proposed`
+- **C · Frostbank** · buff · allAllies · *increase party NOX generation for several turns (battery)* · cost **low NOX** · cd **long** · `proposed`
 
 **@ MNA 40** *(A/B)*
-- **A · Exsanguinate** · phys · enemy · *strike scaling with the target's current Decay stacks* · cost **med NOX** · cd **medium**
-- **B · Cull** · phys · enemy · *execute; massive vs targets under an HP threshold* · cost **med NOX** · cd **medium**
+- **A · Winterglass** · phys · enemy · *a strike scaling with the target's current Stasis stacks* · cost **med NOX** · cd **medium** · `proposed`
+- **B · Glass Verdict** · phys · enemy · *an execute; massive vs a Frozen or Brittle target (the Shatter payoff)* · cost **med NOX** · cd **medium** · `proposed`
 
 **@ MNA 50** *(B/C)*
-- **B · Whirling Rime** · phys · allEnemies · *spinning crit burst across all foes* · cost **high NOX** · cd **medium**
-- **C · Absolute Stillness** · util · allEnemies · *freeze (stun) one or more foes* · cost **high NOX** · cd **long**
+- **B · Shatterglass** · phys · enemy · *a multi-cut crit flurry on one target; every crit against a Frozen/Brittle foe Shatters for bonus* · cost **high NOX** · cd **medium** · `proposed`
+- **C · Stillness Lace** · util · allEnemies · *encase the front line in ice — Freeze one or more foes (can't act); they Shatter for bonus if struck* · cost **high NOX** · cd **long** · `proposed`
 
 **@ MNA 60** *(A/C)*
-- **A · Rotting Embrace** · mag · enemy · *heavy Decay; reduces the target's incoming healing* · cost **med NOX** · cd **medium**
-- **C · Resonant Cold** · buff · allAllies · *refund part of the party's NOX pool (battery)* · cost **low NOX** · cd **long**
+- **A · Frozen Heart** · mag · enemy · *heavy Stasis; reduces the target's incoming healing* · cost **med NOX** · cd **medium** · `proposed`
+- **C · Cold Lattice** · buff · allAllies · *refund a chunk of the party's banked NOX pool (battery)* · cost **low NOX** · cd **long** · `proposed`
 
 **@ MNA 70** *(A/B)*
-- **A · Black Frost** · mag · enemy · *Decay detonation; damage scales with stacks consumed* · cost **high NOX** · cd **medium**
-- **B · Ghostblade Dance** · phys · enemy · *multi-hit crit chain; each crit extends the combo* · cost **high NOX** · cd **medium**
+- **A · Glacial Parry** · mag · enemy · *detonate the target's accumulated Stasis for a burst scaling with stacks consumed* · cost **high NOX** · cd **medium** · `proposed`
+- **B · Glass Cadence** · phys · enemy · *a chain of crit-cuts; each crit on a Frozen/Brittle foe extends the chain* · cost **high NOX** · cd **medium** · `proposed`
 
 **@ MNA 80** *(B/C)*
-- **B · Deathless Tempo** · buff · self · *crits grant a chance at an extra action for several turns* · cost **high NOX** · cd **long**
-- **C · Winter's Dominion** · util · allEnemies · *AoE slow + Gravity (push all attack-bars back)* · cost **high NOX** · cd **long**
+- **B · Frozen Tempo** · buff · self · *a crit-flow stance: crits grant a chance at an extra action for several turns* · cost **high NOX** · cd **long** · `proposed`
+- **C · Frozen Lattice** · util · allEnemies · *a frozen lattice clamps the field: Brittle + attack-bar drag on all foes, and their current debuffs are time-locked* · cost **med NOX** · cd **long** · `proposed`
 
 **@ MNA 90** *(A/C)*
-- **A · Terminal Decay** · mag · enemy · *apply deep, un-cleansable Decay* · cost **high NOX** · cd **long**
-- **C · Glacial Aegis** · buff · allAllies · *party damage reduction; generates a large party NOX surge* · cost **med NOX** · cd **long**
+- **A · Final Stillness** · mag · enemy · *apply deep, un-cleansable Stasis* · cost **high NOX** · cd **long** · `proposed`
+- **C · Frostquiet Ward** · buff · allAllies · *a stillness ward over the party (damage reduction) + a burst of banked party NOX* · cost **med NOX** · cd **long** · `proposed`
 
 ---
 
 ## Ultimates — @ MNA 100, **pick 2 of 4** *(all cost **high NOX**, cd **long**)*
 
-- **A · The Long Winter** *(Rimebleed)* · allEnemies · *spread max-duration Decay to all foes; its ticks are doubled*
-- **B · Execution: Zero Kelvin** *(Glasscutter)* · enemy · *massive single-target execute scaling with missing HP; guaranteed crit*
-- **C · Absolute Zero** *(Hoarwarden)* · allEnemies · *freeze all foes (stun) + deep Chill; refund a burst of party NOX*
-- **Whiteout** *(neutral/fusion)* · allEnemies · *AoE crit-cold detonation with light Decay*
+- **A · The Quiet Cold** *(Rimebleed)* · enemy · *bury the target under max-duration Stasis whose ticks are doubled, and drag its attack-bar to a crawl — the grind made absolute* · `proposed`
+- **B · Glassfall Verdict** *(Glasscutter)* · enemy · *plunge the target to absolute zero — a guaranteed Freeze + max Brittle, then a single colossal guaranteed-crit Shatter scaling with missing HP* · `proposed`
+- **C · The Stilling** *(Hoarwarden)* · all · *the field crystallizes — Freeze and Brittle every foe and time-lock their actions, while a stillness ward and a NOX surge wash over the party (a team-wide Shatter window)* · `proposed`
+- **Rimewalker's Cadence** *(neutral/fusion)* · allEnemies · *a flowing frost-blade dance: Chill and Freeze the whole line, then a crit-chain that Shatters across every Frozen foe and leaves deep Stasis behind* · `proposed`
 
 ---
 
 ## Passives — 3 sets of 3, **pick 1 each** @ MNA 30 / 60 / 90 *(one per lane)*
 
 **Set @ MNA 30**
-- **A · Permafrost** · *your Decay lasts +1 turn*
-- **B · Bladedancer** · *after a crit, gain Evasion*
-- **C · Cold Conduction** · *your specials generate extra NOX*
+- **A · Hoarfrost Cadence** · *your Stasis stacks higher and lasts longer* · `proposed`
+- **B · Glasshand** · *after a crit, gain bonus crit chance against Frozen/Brittle foes* · `proposed`
+- **C · Cold Tithe** · *your specials generate extra NOX, and it banks (doesn't bleed)* · `proposed`
 
 **Set @ MNA 60**
-- **A · Festering** · *foes afflicted by your Decay take increased damage from you*
-- **B · Killer's Instinct** · *your crit chance rises against foes below 50% HP*
-- **C · Frostfeed** · *when an ally spends NOX, you generate a little NOX*
+- **A · Wintergrind** · *foes afflicted by your Stasis take increased damage from you* · `proposed`
+- **B · Killing Glass** · *your crit damage rises against Frozen/Brittle and low-HP foes* · `proposed`
+- **C · Frostkeeper** · *your Chill / Freeze / time-lock effects last longer* · `proposed`
 
 **Set @ MNA 90**
-- **A · Entropy's Hand** · *your Decay can stack higher*
-- **B · Coup de Grâce** · *your finishers deal more to low-HP foes*
-- **C · Deepfreeze** · *your Chills/slows also reduce enemy attack-bar gain*
+- **A · Verglas Veins** · *your max-stack Stasis becomes un-cleansable* · `proposed`
+- **B · Shatterglass Edge** · *when one of your crits Shatters a Frozen/Brittle target, refund part of your attack-bar* · `proposed`
+- **C · Stillward Discipline** · *while your stillness/lattice ward holds, the party's time-locked durations don't tick down* · `proposed`
 
 ---
 
@@ -156,5 +192,6 @@ control/AoE (A,B ↔ C).
 | No lane appears in every milestone (specials A7/B7/C6 of 10; signatures A6/B6/C6 of 9) | ✓ |
 | Every special/signature/passive option lane-tagged; ultimates = 3 laned + 1 neutral | ✓ |
 | Derived: primary STR ← NOX · secondary AGI ← Dual Swords · threshold = milestone | ✓ |
-| Economy: specials generate-only · sig/ult cost-only · auto = minor trickle · all NOX | ✓ |
-| Every entry has a provenance flag (all `proposed` here) | ✓ |
+| Economy: specials generate-only · sig/ult cost-only · auto = minor trickle · all NOX (banks) | ✓ |
+| Provenance flag on every entry (fantasy/lanes/DNA `from-brief`; abilities `proposed`) | ✓ |
+| Ability names globally unique within kit + across all `docs/design/classes/*.md` (invariant #8) | ✓ |

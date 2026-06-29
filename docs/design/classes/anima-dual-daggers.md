@@ -23,9 +23,13 @@
 QUANTA and SOL daggers are glass cannons that kill before they're killed, the Symbiote Hunter
 **outlasts**. It coats twin blades in a contagion that breeds inside the wound, drinks vitality back
 with every cut, and only grows stronger as the fight drags on. The fastest **applicator** in the
-game — twin-strike means two infections per swing — fused to a **VIT + Regen + lifesteal** sustain
-engine that lets 40 HP hold the front line. It does not summon; the only living thing it commands is
-the strain in its own veins and the one breeding in the enemy.
+game — twin-strike means two infections per swing — fused to a **VIT + self-Regen + lifesteal**
+sustain engine that lets 40 HP hold the front line. It does not summon, and it does **not** heal the
+party — ANIMA's party-healing belongs to the Genesis Sage (Staff) and the Lifekeeper (Hammer). The
+Hunter helps the team a different way: it **brands a quarry** so the whole party's hits seed and
+amplify *its* contagion, Exposes that foe to extra punishment, and turns each kill into a fresh
+outbreak. The only living thing it commands is the strain in its own veins and the one breeding in
+the enemy.
 
 **Rogue DNA — themed to ANIMA.** (1) **Twin-strike**: the auto and many specials hit *twice* → two
 Infestation applications, the game's fastest contagion seeding. (2) **Opening → Finisher**: cheap
@@ -33,7 +37,7 @@ fast specials build the Opening, a signature spends it — but the Hunter does *
 resource; it accelerates ANIMA's own phase-transition chain **Seed → Bloom → Overgrowth** (e.g.
 blooming stacked Infestation into a burst that *reseeds* onto new hosts). (3) **Tempo lean** — dips
 ANIMA's Evolution layer (better turns over time) on its SPD secondary. (4) **Fragility answer** —
-not more armor, but **VIT + Regen + lifesteal**: it heals through the knife-edge.
+not more armor, but **VIT + self-Regen + lifesteal**: it heals *itself* through the knife-edge.
 
 ### Lanes *(from-brief — dev-approved)*
 
@@ -41,12 +45,13 @@ not more armor, but **VIT + Regen + lifesteal**: it heals through the knife-edge
 |---|---|---|---|---|
 | **A · Contagion** | Infestation-flood — stack the living poison (spreads on host death) with every fast hit; the best applicator in the game | **SPD**, Infestation stacks, DoT-duration | DoT engine / attrition damage | vs tanky/multi-foe HP pools; packs to chain-spread through |
 | **B · Parasite** | symbiotic self-sustain — lifesteal + Regen on hit, Metabolize the target's debuffs/corpses to heal & grow | **VIT**, lifesteal, sustain | self-sustaining front-line skirmisher | no dedicated healer; long attrition; solo-pressure |
-| **C · Hunter's Bond** | Evolution / support — a hunter's-mark that **grows** (Seed→Bloom→Overgrowth), shares symbiotic Regen with allies, exposes the marked target | **VIT**, mark-growth, party-buff | support / team enabler | party with focus-fire DPS; comps that want shared Regen |
+| **C · Hunter's Bond** | Evolution / contagion-support — a hunter's-mark that **grows** (Seed→Bloom→Overgrowth): the party's hits on the marked foe apply *your* Infestation and Expose it, and on its death the contagion erupts and reseeds onto nearby foes | **VIT**, mark-growth, contagion-spread | support / team enabler (via contagion + damage, never healing) | party with focus-fire DPS; packs to chain an outbreak through |
 
-**Build axes:** attrition-DoT ↔ self-sustain (A↔B) · self-feeding ↔ team-feeding (B↔C) ·
-single-target/spread damage ↔ growing-mark support (A,B ↔ C). Each lane leans on **Evolution** — the
-contagion, the parasite's vigor, and the mark all *grow over time*, so the Hunter is weak early and
-overwhelming late.
+**Build axes:** attrition-DoT ↔ self-sustain (A↔B) · self-feeding ↔ quarry-branding (B↔C) ·
+single-target/spread damage ↔ growing-mark contagion-support (A,B ↔ C). Each lane leans on
+**Evolution** — the contagion, the parasite's vigor, and the mark all *grow over time*, so the
+Hunter is weak early and overwhelming late. Sustain is **self-only** throughout; lane C supports the
+party through contagion and Expose, not healing.
 
 ---
 
@@ -68,7 +73,7 @@ overwhelming late.
 
 **@ MNA 25** *(A/C)*
 - **A · Pestilence Coat** · buff · self · *coat your blades — your next several hits each seed Infestation* · gen **major ANIMA** · cd **medium** · `proposed`
-- **C · Grafted Vigor** · buff · ally · *graft a strand of your symbiote onto an ally: a Regen that grows each turn (Bloom)* · gen **moderate ANIMA** · cd **medium** · `proposed`
+- **C · Spore Brand** · util · enemy · *plant a hunter's-mark (Seed): while it lives, the party's hits on the marked foe each seed a stack of your Infestation* · gen **moderate ANIMA** · cd **medium** · `proposed`
 
 **@ MNA 35** *(A/B)*
 - **A · Wilting Edge** · phys · enemy · *two cuts; extends the duration of the target's existing Infestation* · gen **moderate ANIMA** · cd **short** · `proposed`
@@ -80,7 +85,7 @@ overwhelming late.
 
 **@ MNA 55** *(A/C)*
 - **A · Festerstrike** · phys · enemy · *a cut that makes the target's Infestation tick harder this turn* · gen **moderate ANIMA** · cd **short** · `proposed`
-- **C · Symbiont Graft** · buff · ally · *link your vitality to an ally: a share of the damage they take is healed back over time* · gen **major ANIMA** · cd **medium** · `proposed`
+- **C · Predator's Mark** · util · enemy · *brand the foe as your quarry: it is Exposed (the party damages it harder) and every party hit deepens its Infestation* · gen **major ANIMA** · cd **medium** · `proposed`
 
 **@ MNA 65** *(A/B)*
 - **A · Reaping Spores** · phys · enemy · *strike; if the target dies soon after, its Infestation spreads to a nearby foe* · gen **moderate ANIMA** · cd **medium** · `proposed`
@@ -112,7 +117,7 @@ overwhelming late.
 
 **@ MNA 30** *(A/C)*
 - **A · Pandemic** · mag · allEnemies · *seed Infestation on every foe at once* · cost **med ANIMA** · cd **long** · `proposed`
-- **C · Hostbloom** · buff · allAllies · *the symbiote blooms across the party: a growing Regen that strengthens each turn* · cost **low ANIMA** · cd **long** · `proposed`
+- **C · Bloomspread Mark** · util · enemy · *the mark Blooms: the party's hits on the marked foe now stack your Infestation faster and Expose it further each turn* · cost **low ANIMA** · cd **long** · `proposed`
 
 **@ MNA 40** *(A/B)*
 - **A · Cull the Weak** · phys · enemy · *a strike that scales with the target's current Infestation stacks* · cost **med ANIMA** · cd **medium** · `proposed`
@@ -120,23 +125,23 @@ overwhelming late.
 
 **@ MNA 50** *(B/C)*
 - **B · Vile Multiplication** · buff · self · *your lifesteal and Regen multiply for several turns — sustain ramps each turn it holds* · cost **high ANIMA** · cd **medium** · `proposed`
-- **C · Symbiotic Surge** · buff · allAllies · *graft a strand of symbiote onto each ally: the party shares your Regen for several turns* · cost **high ANIMA** · cd **long** · `proposed`
+- **C · Open Wound** · util · enemy · *split the quarry wide: for several turns the party crits and damages the marked foe harder, and each hit it takes drives your Infestation deeper* · cost **high ANIMA** · cd **long** · `proposed`
 
 **@ MNA 60** *(A/C)*
 - **A · Necrotic Bloom** · mag · enemy · *bloom the target's stacked Infestation into a burst; lesser Infestation reseeds afterward* · cost **med ANIMA** · cd **medium** · `proposed`
-- **C · Reaping Bond** · util · enemy · *Evolve the mark to Overgrowth: when the marked foe falls, the party gains a burst of Regen* · cost **med ANIMA** · cd **medium** · `proposed`
+- **C · Reaping Bond** · util · enemy · *Evolve the mark to Overgrowth: when the marked foe falls, its Infestation erupts and reseeds onto every nearby foe* · cost **med ANIMA** · cd **medium** · `proposed`
 
 **@ MNA 70** *(A/B)*
 - **A · Endemic** · mag · allEnemies · *Infestation on every foe Evolves a stage — it ticks harder and spreads on each death* · cost **high ANIMA** · cd **long** · `proposed`
 - **B · Eternal Appetite** · buff · self · *for the duration, kills and heavy hits refund health and ANIMA; the effect ramps* · cost **high ANIMA** · cd **long** · `proposed`
 
 **@ MNA 80** *(B/C)*
-- **B · Devour the Affliction** · heal · allAllies · *Metabolize every debuff off the party, healing for each one consumed* · cost **high ANIMA** · cd **long** · `proposed`
-- **C · Hivebrood** · buff · allAllies · *bind the party to one symbiotic organism: shared growing Regen + a cleanse* · cost **high ANIMA** · cd **long** · `proposed`
+- **B · Purge the Strain** · buff · self · *Metabolize every debuff off yourself, healing for each one consumed and swelling the symbiote (Bloom)* · cost **high ANIMA** · cd **long** · `proposed`
+- **C · Brood Mark** · util · enemy · *make the quarry a contagion hub: the party's hits on it now spread your Infestation outward to every foe near it* · cost **high ANIMA** · cd **long** · `proposed`
 
 **@ MNA 90** *(A/C)*
 - **A · Living Plague** · mag · allEnemies · *apply a deep, un-cleansable Infestation that keeps multiplying* · cost **high ANIMA** · cd **long** · `proposed`
-- **C · Apex Predator's Bond** · buff · allAllies · *the mark reaches its apex: the marked foe is fully Exposed and the party's Regen surges greatly* · cost **high ANIMA** · cd **long** · `proposed`
+- **C · Apex Quarry** · util · enemy · *the mark reaches its apex (Overgrowth): the marked foe is fully Exposed, the party's hits flood it with Infestation, and its death erupts across the enemy line* · cost **high ANIMA** · cd **long** · `proposed`
 
 ---
 
@@ -144,8 +149,8 @@ overwhelming late.
 
 - **A · Patient Zero** *(Contagion)* · allEnemies · *flood every foe with max-duration Evolved Infestation; each death spreads it onward — an unstoppable epidemic across the enemy line* · `proposed`
 - **B · Undying Host** *(Parasite)* · self · *for the duration, every hit massively lifesteals, you cannot be reduced below 1 HP, and the symbiote keeps you regenerating — you simply outlast the fight* · `proposed`
-- **C · The Pack Hunts** *(Hunter's Bond)* · allAllies · *mark the deadliest foe and bind the whole party to it — everyone shares overwhelming Regen and pours amplified damage into the marked quarry* · `proposed`
-- **The Swarm Consumes** *(neutral/fusion)* · allEnemies · *the contagion blooms and detonates across all foes at once — a burst of Infestation that reseeds, while you drink the carnage to heal the party* · `proposed`
+- **C · The Pack Hunts** *(Hunter's Bond)* · enemy · *brand the deadliest foe as the apex quarry and bind the whole party to the hunt — every party hit on it floods it with Evolved Infestation and Exposes it to overwhelming damage, and when it falls the outbreak erupts across the enemy line* · `proposed`
+- **The Swarm Consumes** *(neutral/fusion)* · allEnemies · *the contagion blooms and detonates across all foes at once — a burst of Infestation that reseeds onto every survivor, while you alone drink the carnage to heal and refill ANIMA* · `proposed`
 
 ---
 
@@ -159,7 +164,7 @@ overwhelming late.
 **Set @ MNA 60**
 - **A · Plaguebearer** · *foes Infested by you take increased damage from the party* · `proposed`
 - **B · Outlast** · *while you have Regen, you take reduced damage* · `proposed`
-- **C · Bonded Hunter** · *allies sharing your symbiotic Regen also heal a little when they strike the marked foe* · `proposed`
+- **C · Mark of the Pack** · *when any ally strikes the marked foe, it also applies a stack of your Infestation* · `proposed`
 
 **Set @ MNA 90**
 - **A · Endless Appetite** · *your Infestation always spreads on the host's death, even when reduced* · `proposed`
