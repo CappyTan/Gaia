@@ -6,10 +6,11 @@
 and the [Class System Model](../design/classes/README.md) (Model B — MNA as the skill gate). Glossary:
 **Gate MNA**, **slot-locked affix**, **special affix** in [`CONTEXT.md`](../../CONTEXT.md).
 
-> **Design canon, mostly not yet engine-wired.** Records the ratified itemization design from a grill
-> audit. First slice wired: the **weapon +MNA roll** (per-rarity ranges, §1 → `WEAPON_MNA_ROLL` in
-> `data/loot.ts`). The rest (`systems/loot.ts`, `data/rarity.ts`, `data/items.ts`) is a downstream
-> ticket; magnitudes/weights are a later balance pass.
+> **Design canon, partly engine-wired.** Records the ratified itemization design from a grill audit.
+> Wired: the **§1 gear-MNA model** — per-rarity weapon + armor/trinket MNA ranges and the attune chance
+> (`WEAPON_MNA_ROLL` / `ARMOR_MNA_ROLL` / `ARMOR_MNA_CHANCE` in `data/loot.ts`). The rest (rarity
+> count/quality split, random per-slot primary, slot-locked affix pool, special-affix layer; touching
+> `data/rarity.ts`, `data/items.ts`) is a downstream ticket; magnitudes/weights are a later balance pass.
 
 ## Decisions
 
@@ -17,26 +18,31 @@ and the [Class System Model](../design/classes/README.md) (Model B — MNA as th
 
 - **6 equip slots:** weapon · helmet · chest · gloves · boots · trinket. The **weapon** is the
   keystone — it sets the class (Attunement × Archetype) and is the main offense.
-- **The MNA skill-gate is split across weapon AND armor** (not weapon-only), so a single weapon swap
-  doesn't swing the entire kit.
+- **The MNA skill-gate is split across weapon AND the other slots** (not weapon-only), so a single
+  weapon swap doesn't swing the entire kit.
   - **Weapons always carry +MNA** — the MNA it rolls *is* the weapon's mana attunement (sets the class).
-    **Starting tuning points** — the MNA roll is owned by **rarity** (no ilvl term), rolled **uniformly**
-    (each value in the range equally weighted). *Engine-wired:* `WEAPON_MNA_ROLL` in `data/loot.ts`.
+  - **Starting tuning points** — gear MNA is owned by **rarity** (no ilvl term), rolled **uniformly**
+    (each value in the range equally weighted). The kit is balanced so a **fully-attuned set weighs ~what
+    the weapon alone used to**: the weapon range is **halved**, and each of the **five non-weapon slots**
+    (helmet · chest · gloves · boots · **trinket**) carries **~10% of the *original* weapon range**, so
+    `½·weapon + 5×10% ≈ original`. *Engine-wired:* `WEAPON_MNA_ROLL` / `ARMOR_MNA_ROLL` in `data/loot.ts`.
 
-    | Rarity | Color | Weapon +MNA roll |
-    |---|---|---|
-    | Common | White | 0–10 |
-    | Uncommon | Green | 5–20 |
-    | Rare | Blue | 10–30 |
-    | Epic | Purple | 15–40 |
-    | Legendary | Orange | 20–45 |
-    | Artifact | Red | 25–50 |
+    | Rarity | Color | Weapon +MNA (½) | Per non-weapon slot (~10%) |
+    |---|---|---|---|
+    | Common | White | 0–5 | 0–1 |
+    | Uncommon | Green | 3–10 | 1–2 |
+    | Rare | Blue | 5–15 | 1–3 |
+    | Epic | Purple | 8–20 | 2–4 |
+    | Legendary | Orange | 10–23 | 2–5 |
+    | Artifact | Red | 13–25 | 3–5 |
 
-    (Ranges overlap by design — a lucky low-rarity roll can match an unlucky high-rarity one, but the
-    floors/ceilings climb with rarity. First-pass numbers; revisit in the balance-sim pass.)
-  - **Armor carries +MNA rarely** (~**12–15%**, down from 50%), in a **small** amount, in a
-    **random/roster-biased attunement** (only sometimes matches the wearer's class; a "wrong-color"
-    roll is reclass insurance, not a contribution to the wearer's current gate).
+    Rules: derived bounds **round UP (ceil)** to the next whole MNA; an attuned **non-weapon** piece
+    **never rolls 0** (floored to 1). Ranges overlap by design (a lucky low-rarity roll can match an
+    unlucky high-rarity one). First-pass numbers; revisit in the balance-sim pass.
+  - **Non-weapon gear (armor + trinket) carries +MNA rarely** — **`ARMOR_MNA_CHANCE` = 0.13** (in the
+    ~12–15% band, down from 50%), in a **small** amount (table above), in a **random/roster-biased
+    attunement** (only sometimes matches the wearer's class; a "wrong-color" roll is reclass insurance,
+    not a contribution to the current gate). The rest of the time the piece is **neutral** (no MNA).
 - **MNA acquisition is deliberately throttled.** Reaching **100 (Archon + top skills/ultimates)** must
   be an achievement. Skills currently unlock every **+5 MNA** (threshold may rise later). **Leveling
   as an MNA source is a known over-supply problem — flagged, deferred.**

@@ -12,7 +12,7 @@ import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
-import { WEAPON_MNA_ROLL } from "../src/data/loot";
+import { WEAPON_MNA_ROLL, ARMOR_MNA_ROLL } from "../src/data/loot";
 import { kitFor, KITS_GENERIC } from "../src/data/classes";
 import { buildDef, ARCHETYPE_KEYS } from "../src/data/party";
 import { zeroMna, ARMOR_SLOTS } from "../src/types";
@@ -104,6 +104,19 @@ describe("loot generation", () => {
         expect(lowIlvl.mna!.SOL!).toBeGreaterThanOrEqual(lo);
         expect(lowIlvl.mna!.SOL!).toBeLessThanOrEqual(hi);
         expect(highIlvl.mna!.SOL!).toBe(lowIlvl.mna!.SOL!); // ilvl does not move weapon MNA
+      }
+    }
+  });
+  it("non-weapon MNA (armor + trinket), when present, rolls in range and is floored to ≥1 (ADR 0015)", () => {
+    // Only ~ARMOR_MNA_CHANCE of these pieces are attuned; when one is, its MNA lands in ARMOR_MNA_ROLL
+    // for the rarity, never below 1. Seeded across many draws so some come back attuned.
+    for (const slot of ["helmet", "armor", "gloves", "boots", "trinket"] as const) {
+      for (let r = 0; r < ARMOR_MNA_ROLL.length; r++) {
+        const [, hi] = ARMOR_MNA_ROLL[r];
+        for (let s = 0; s < 80; s++) {
+          const v = makeItem(null, slot, r, null, 20, "SOL", seeded(s)).mna?.SOL;
+          if (v != null) { expect(v).toBeGreaterThanOrEqual(1); expect(v).toBeLessThanOrEqual(hi); }
+        }
       }
     }
   });
