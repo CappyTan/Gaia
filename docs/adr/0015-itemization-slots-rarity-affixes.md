@@ -6,8 +6,9 @@
 and the [Class System Model](../design/classes/README.md) (Model B — MNA as the skill gate). Glossary:
 **Gate MNA**, **slot-locked affix**, **special affix** in [`CONTEXT.md`](../../CONTEXT.md).
 
-> **Design canon, not yet engine-wired.** Records the ratified itemization design from a grill audit.
-> Implementation (`systems/loot.ts`, `data/loot.ts`, `data/rarity.ts`, `data/items.ts`) is a downstream
+> **Design canon, mostly not yet engine-wired.** Records the ratified itemization design from a grill
+> audit. First slice wired: the **weapon +MNA roll** (per-rarity ranges, §1 → `WEAPON_MNA_ROLL` in
+> `data/loot.ts`). The rest (`systems/loot.ts`, `data/rarity.ts`, `data/items.ts`) is a downstream
 > ticket; magnitudes/weights are a later balance pass.
 
 ## Decisions
@@ -19,6 +20,20 @@ and the [Class System Model](../design/classes/README.md) (Model B — MNA as th
 - **The MNA skill-gate is split across weapon AND armor** (not weapon-only), so a single weapon swap
   doesn't swing the entire kit.
   - **Weapons always carry +MNA** — the MNA it rolls *is* the weapon's mana attunement (sets the class).
+    **Starting tuning points** — the MNA roll is owned by **rarity** (no ilvl term), rolled **uniformly**
+    (each value in the range equally weighted). *Engine-wired:* `WEAPON_MNA_ROLL` in `data/loot.ts`.
+
+    | Rarity | Color | Weapon +MNA roll |
+    |---|---|---|
+    | Common | White | 0–10 |
+    | Uncommon | Green | 5–20 |
+    | Rare | Blue | 10–30 |
+    | Epic | Purple | 15–40 |
+    | Legendary | Orange | 20–45 |
+    | Artifact | Red | 25–50 |
+
+    (Ranges overlap by design — a lucky low-rarity roll can match an unlucky high-rarity one, but the
+    floors/ceilings climb with rarity. First-pass numbers; revisit in the balance-sim pass.)
   - **Armor carries +MNA rarely** (~**12–15%**, down from 50%), in a **small** amount, in a
     **random/roster-biased attunement** (only sometimes matches the wearer's class; a "wrong-color"
     roll is reclass insurance, not a contribution to the wearer's current gate).

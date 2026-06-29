@@ -12,6 +12,7 @@ import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
+import { WEAPON_MNA_ROLL } from "../src/data/loot";
 import { kitFor, KITS_GENERIC } from "../src/data/classes";
 import { buildDef, ARCHETYPE_KEYS } from "../src/data/party";
 import { zeroMna, ARMOR_SLOTS } from "../src/types";
@@ -86,12 +87,25 @@ describe("loot generation", () => {
     }
   });
   it("ilvl keeps loot exciting: a high-ilvl rare out-bases a low-ilvl legendary", () => {
-    // base magnitude scales with ilvl, so a deep rare beats a shallow legendary on raw stats +
-    // MNA (rarity still wins on affix COUNT — the trade-off that makes every drop worth a look).
+    // base magnitude scales with ilvl, so a deep rare beats a shallow legendary on raw base stats
+    // (rarity still wins on affix COUNT + MNA — the trade-off that makes every drop worth a look).
     const goodRare = makeItem(null, "weapon", 2, "Staff", 30, "SOL"); // rarity 2, deep ilvl
     const lowLegendary = makeItem(null, "weapon", 4, "Staff", 2, "SOL"); // rarity 4, shallow ilvl
     expect(goodRare.implicit.atk!).toBeGreaterThan(lowLegendary.implicit.atk!);
-    expect(goodRare.mna!.SOL!).toBeGreaterThan(lowLegendary.mna!.SOL!);
+  });
+  it("weapon MNA rolls within its per-rarity range, independent of ilvl (ADR 0015)", () => {
+    // Weapon MNA is owned by RARITY, not ilvl: every roll lands in WEAPON_MNA_ROLL[rarity], and a
+    // shallow piece can roll the same MNA as a deep one of the same rarity. Seeded for determinism.
+    for (let r = 0; r < WEAPON_MNA_ROLL.length; r++) {
+      const [lo, hi] = WEAPON_MNA_ROLL[r];
+      for (let s = 0; s < 50; s++) {
+        const lowIlvl = makeItem(null, "weapon", r, "Staff", 1, "SOL", seeded(s));
+        const highIlvl = makeItem(null, "weapon", r, "Staff", 40, "SOL", seeded(s));
+        expect(lowIlvl.mna!.SOL!).toBeGreaterThanOrEqual(lo);
+        expect(lowIlvl.mna!.SOL!).toBeLessThanOrEqual(hi);
+        expect(highIlvl.mna!.SOL!).toBe(lowIlvl.mna!.SOL!); // ilvl does not move weapon MNA
+      }
+    }
   });
 });
 

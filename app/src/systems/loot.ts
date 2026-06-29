@@ -5,7 +5,7 @@ import type { Rng } from "../core/rng";
 import { riR, pickR, clamp } from "../core/rng";
 import { GOVERNING_STAT } from "../data/statScaling";
 import { RARITY } from "../data/rarity";
-import { LOOT_BANDS, SPIKE_STEP, DROP_MODS, DROP_SLOTS, type RarityMod } from "../data/loot";
+import { LOOT_BANDS, SPIKE_STEP, DROP_MODS, DROP_SLOTS, WEAPON_MNA_ROLL, type RarityMod } from "../data/loot";
 import { ITEM_NAMES, ARMOR_SLOT_NOUNS, TRINKET_NAMES, AFFIXES, ARCH_NOUN, ATT_ADJ } from "../data/items";
 
 // Weapon archetypes that have sliced icon art (one per SOL loot chart). Random drops draw from
@@ -34,11 +34,11 @@ const ilvlMult = (ilvl: number): number => 1 + Math.max(0, ilvl) * 0.07;
 // These feed the wearer's ability scaling (systems/stats abp) and the character-sheet primaries.
 const primVal = (r: number, ilvl: number): number => Math.round(1.5 + r * 1.2 + Math.max(0, ilvl) * 0.15);
 const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "VIT", armor: "DEF", gloves: "STR", boots: "SPD" };
-// Intrinsic gear MNA (Stat System balance) — toned WAY down (Dara): early pieces give +1–2, not +30.
-// Weapons ALWAYS carry at least +1 in their Attunement (it sets the class); armor only SOMETIMES does.
-// No flat base (that was what made early drops absurd, e.g. +33): MNA grows from rarity × ilvl, so the
-// first commons give +1–2 while a deep legendary/artifact still gives a meaningful chunk (unlocks + Archon).
-const weaponMna = (r: number, ilvl: number): number => { const i = Math.max(0, ilvl); return Math.max(1, Math.round(r * i * 0.6 + i * 0.6 + r)); };
+// Intrinsic gear MNA. WEAPON MNA now rolls from a per-rarity range (ADR 0015 — rarity owns the roll,
+// each value equally weighted; see WEAPON_MNA_ROLL in data/loot.ts). It's the weapon's Attunement and
+// sets the class. ARMOR MNA is still the toned-down rarity×ilvl formula (a later ADR-0015 pass moves
+// armor to the ~12–15% rare-attuned model).
+const weaponMna = (r: number, rng: Rng): number => { const [lo, hi] = WEAPON_MNA_ROLL[r]; return riR(rng, lo, hi); };
 const armorMna = (r: number, ilvl: number): number => { const i = Math.max(0, ilvl); return Math.max(1, Math.round(r * i * 0.35 + i * 0.35 + r * 0.5)); };
 const ARMOR_MNA_CHANCE = 0.5; // half of armor drops are attuned (carry MNA); the rest are neutral (no attunement)
 function rollPrim(slot: Slot, att: Attunement, r: number, ilvl: number): Partial<Prims> {
@@ -75,7 +75,7 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
       : `${ATT_ADJ[att]?.[r] ?? att} ${ARCH_NOUN[wc] ?? wc}`;
     implicit.atk = Math.round((5 + r * 5) * k); // base atk ladder by rung, scaled by ilvl
     // A weapon carries intrinsic MNA in its own Attunement — always ≥1, and what sets the wielder's class.
-    mna = { [att]: weaponMna(r, ilvl) };
+    mna = { [att]: weaponMna(r, rng) };
   } else if (isArmorSlot(slot)) {
     const noun = (ARMOR_SLOT_NOUNS[slot] ?? ARMOR_SLOT_NOUNS.armor)[r];
     Object.assign(implicit, ARMOR_STATS[slot](r, k, ilvl));

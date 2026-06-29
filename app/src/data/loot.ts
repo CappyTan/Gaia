@@ -41,6 +41,19 @@ export const DROP_MODS: Record<string, RarityMod> = {
 // Slot weighting for drops/loot: weapon ×2, each armor-family slot + trinket once.
 export const DROP_SLOTS: Slot[] = ["weapon", "weapon", "helmet", "armor", "gloves", "boots", "trinket"];
 
+// WEAPON MNA ROLL by rarity (ADR 0015 — weapons always carry +MNA; it sets the class). Indexed by
+// rarity 0..5 (common→artifact / White→Red): the inclusive [min,max] MNA the weapon rolls in its own
+// Attunement, EACH VALUE EQUALLY WEIGHTED (uniform). Rarity owns this roll — no ilvl term (ADR 0015's
+// rarity-owns-affixes/quality split). Starting tuning points (Dara); magnitudes are a later balance pass.
+export const WEAPON_MNA_ROLL: ReadonlyArray<readonly [number, number]> = [
+  [0, 10],  // common    · White
+  [5, 20],  // uncommon  · Green
+  [10, 30], // rare      · Blue
+  [15, 40], // epic      · Purple
+  [20, 45], // legendary · Orange
+  [25, 50], // artifact  · Red
+];
+
 // The rarity LEVEL for non-combat loot (chests scale with zone depth + how deep into the zone you are;
 // the merchant stocks slightly ahead of the current zone). Kept here so the WHOLE curve — combat and
 // non-combat — tunes from one file. (ilvl, the stat MAGNITUDE, is separate and lives at the call site.)
