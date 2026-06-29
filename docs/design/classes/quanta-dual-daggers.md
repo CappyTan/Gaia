@@ -178,7 +178,7 @@ dodge-survival (A,B ↔ C) · certainty-on-my-hit ↔ certainty-on-their-miss (A
 **@ MNA 90** *(A/C)*
 - **A · Singular Outcome** · phys · enemy · *collapse the largest Superposition you can hold into one
   catastrophic guaranteed crit* · cost **high QUANTA** · cd **long** · *proposed*
-- **C · Sentence of Doom** · allEnemies · *mag* · *stamp **Doom** on the whole enemy line and resolve
+- **C · Sentence of Doom** · mag · allEnemies · *stamp **Doom** on the whole enemy line and resolve
   it together for a determined wave* · cost **high QUANTA** · cd **long** · *proposed*
 
 ---
