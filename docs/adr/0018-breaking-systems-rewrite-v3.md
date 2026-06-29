@@ -32,7 +32,11 @@ the old game entirely** in the process.
 4. **Breakage is accepted, but contained on a long-lived branch.** The rewrite develops on a long-lived
    integration branch; **`main` stays live as v0.116** (a working reference/fallback) until the new world
    is coherent and playable, then flips over in one deliberate merge. We do **not** take the live site
-   dark for the duration.
+   dark for the duration. **Each system is its own sub-branch PR'd *into* the integration branch**
+   (`v3/stats` → `v3/itemization` / `v3/status` → `v3/resource-economy` → `v3/classes` → `v3/content`),
+   so every layer is independently reviewable (code-reviewer / architecture-reviewer) with its own
+   sim/test pass on the new model — keeping diffs reviewable even though the integration branch isn't
+   shippable until the final flip.
 5. **Save compatibility is dropped.** A stat/item/skill reshape this deep cannot honor ADR 0007
    version-tolerant resume; existing runs become unloadable. Acceptable for a POC whose only players are
    the team. The new world ships a fresh save version.
