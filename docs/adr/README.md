@@ -21,3 +21,4 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0014](0014-secondary-stats-matter-energy-final-20.md) | Secondary stats — Matter/Energy damage typing, the final 20 (zero dead), dual-source (primary baseline + gear) |
 | [0015](0015-itemization-slots-rarity-affixes.md) | Itemization — slot roles & split MNA-gate, rarity (count+quality) vs ilvl (base), slot-locked affixes + special/unique layer |
 | [0016](0016-buff-debuff-system.md) | Buff/Debuff system — unified status model (catalog + instances), distinct signature DoTs, 5-layer × 6-bucket catalog, stacking/phase-transition + lifecycle rules |
+| [0017](0017-dev-test-harness-borrows-runstate.md) | Dev test harness ("Test Loop") reuses the live run-state behind a `testMode` flag (suppresses save + game-over); built on shipping systems |
