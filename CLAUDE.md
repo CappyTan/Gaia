@@ -10,7 +10,7 @@ random affixes.
 
 A collaboration: **Dara Saadat** owns the world, lore, classes, and art. This repo brings the
 gameplay mechanics. It began as a single-zone POC and is now a substantial vertical slice
-(`v0.116`): one full continent — **Aurelion** — built and playable as a seamless overworld.
+(`v0.157`): one full continent — **Aurelion** — built and playable as a seamless overworld.
 
 The game is a **TypeScript + Vite** app (ADR 0005). Source lives in `app/src/`, split into clean
 layers; it builds to a static bundle hosted on **GitHub Pages**. No runtime framework — vanilla
@@ -175,7 +175,7 @@ finicky parts don't surface:
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.116)
+## Current state (v0.157)
 
 **One full continent — Aurelion, the Heartland — is built and playable** as a single **seamless
 overworld** (ADR 0008/0009): one continuous ~960×640-tile coordinate space you roam with **no
@@ -216,9 +216,16 @@ dungeon, biome, enemy, NPC, the hero walk cycle, all six equip slots across five
 rarities, and crit-hit VFX. Gold-on-dark emoji / flat-fill placeholders now remain **only for the
 unbuilt backlog continents**; every gap is logged in `docs/design/asset-gaps.md`.
 
-**In flight:** the Greenvale→Silverwood **wayfinding / quest-flow streamline** (ADR 0011) —
-environmental guidance via *derived* **Objectives**, a persisted **known-regions** fog-of-war on a
-zoomed-out map, and a more legible gorge/raft "lock-before-key" beat.
+**In flight — the V3 systems rewrite** (ADRs 0014–0020): a coordinated *breaking* upgrade developed
+on a long-lived branch (`main` stays live until one deliberate flip; ADR 0018). **Already shipped
+(this is why the POC framing above is partly historical):** the **Stat System V3** — five primaries
+(STR/AGI/VIT/SPD/DEF), the final-20 Matter/Energy secondary stats, dual-source substats, and typed
+combat (`systems/stats`, `systems/combat`). **Designed but not yet engine-wired:** itemization (ADR
+0015), the unified buff/debuff catalog (ADR 0016), the **resource economy** — five party-shared
+per-Attunement pools (ADR 0019), and the **52-slot class wiring** (ADR 0020, vertical-slice-first).
+**Next in this branch:** the **enemy V3 cutover** — full-V3 level-scaled enemies (folding in the
+bestiary level-seeding rebuild). A dev **Test Loop** harness (ADR 0017) is planned on top once the
+systems land. (Earlier in flight: the Greenvale→Silverwood wayfinding streamline, ADR 0011.)
 
 ## History
 
