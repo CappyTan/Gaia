@@ -13,6 +13,52 @@ export type RarityKey =
 /** A status/buff timer keyed by effect name (burn, poison, decay, regen, stun, blind, atkup, wardArmor). */
 export type StatusMap = Record<string, number>;
 
+// ── Status-effect catalog (ADR 0016) — the unified buff/debuff model that supersedes the loose
+//    StatusMap + rigid Skill.buff: every effect is a DEFINITION (data/status.ts), applied to a unit as
+//    a structured INSTANCE. Engine wiring (combat/battle/save/UI) migrates onto this incrementally;
+//    StatusMap stays until that pass lands.
+/** The 5 ratified mechanic layers (attunement-mechanics.md). */
+export type StatusLayer = "status" | "action" | "stat" | "meta" | "economy";
+export type StatusKind = "buff" | "debuff";
+/** 6 buckets: class-agnostic Neutral + the 5 attunement suites. */
+export type StatusBucket = "neutral" | Attunement;
+export type StackRule = "refresh" | "stack-intensity" | "stack-duration" | "unique";
+/** How an effect lands: `on-hit` chip (auto with the hit) or `resistible` (Accuracy ↔ Resistance). */
+export type StatusApply = "on-hit" | "resistible";
+
+/** A buff/debuff DEFINITION in the catalog (data/status.ts). Magnitudes are a balance pass. */
+export interface StatusDef {
+  id: string;
+  name: string;
+  kind: StatusKind;
+  layer: StatusLayer;
+  bucket: StatusBucket;
+  /** Default duration in the bearer's turns. */
+  turns: number;
+  /** Per-stack effect magnitude — units are effect-specific (% for stat mods, dmg/tick for DoTs, …). */
+  magnitude?: number;
+  /** Max stacks for `stack-intensity` (default 1). */
+  maxStacks?: number;
+  stacking: StackRule;
+  apply: StatusApply;
+  cleansable?: boolean;   // removed by Cleanse (debuffs)
+  dispellable?: boolean;  // removed by buff-strip / dispel (buffs)
+  timeLockable?: boolean; // NOX preserve / dispel-lock target
+  needsSource?: boolean;  // ticked effect that references its caster (Drain → caster)
+  /** Phase-transition: at max stacks, auto-promotes to this def id (Chill→Frozen…). */
+  promotesTo?: string;
+  desc: string;
+}
+
+/** A live buff/debuff INSTANCE carried on a unit. */
+export interface StatusInstance {
+  defId: string;
+  turns: number;
+  stacks: number;
+  magnitude: number;
+  source?: string; // attacker/caster id, for needsSource effects
+}
+
 /**
  * DUNGEON REPRIEVE (ADR 0010) — a dungeon rest node's TAILORED relief. Deliberately NOT a full heal:
  * each kind relieves ONE axis, partially, so a deep dungeon stays punishing (a full HP+MP refill every
