@@ -238,5 +238,3 @@ and squeezes the single Shatter-shot that ends it.**
 | Ability names globally unique within kit + across all `docs/design/classes/*.md` (invariant #8 — grepped) | ✓ |
 | Same-archetype distinctness (#9) — distinct seat from all 4 Rifle siblings *and* vs Cryovex | ✓ |
 | Same-attunement concept budget (#10) — single-shot NOX execute only; no saturated-role pile-on | ✓ |
-</content>
-</invoke>
