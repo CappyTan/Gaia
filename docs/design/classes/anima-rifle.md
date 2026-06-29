@@ -194,7 +194,7 @@ line.**
 
 **Set @ MNA 90**
 - **A · Perfected Splice** · *your aimed strain can Evolve one stage further than its apex* · `proposed`
-- **B · Endless Outbreak** · *your carrier's Infestation always spreads on the host's death, even when reduced* · `proposed`
+- **B · Engineered Outbreak** · *your carrier's Infestation always spreads on the host's death, even when reduced* · `proposed`
 - **C · Lasting Acclimation** · *your grown resistances and self-Regen no longer decay while you hold the angle* · `proposed`
 
 ---

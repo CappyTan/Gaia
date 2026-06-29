@@ -82,7 +82,7 @@ loaded gravity at once.**
 ## Special skills — 10 milestones × 2 *(generate resource; never cost)*
 
 **@ MNA 5** *(A/B)*
-- **A · Sighting Shot** · phys · enemy · *a quick aimed round that pierces a step down the line and lightly Anchors what it hits* · gen **moderate UMBRAXIS** · cd **short** · `proposed`
+- **A · Sighting Lance** · phys · enemy · *a quick aimed round that pierces a step down the line and lightly Anchors what it hits* · gen **moderate UMBRAXIS** · cd **short** · `proposed`
 - **B · Mark Decay** · util · enemy · *tag a target with a gravity mark and seed a sliver of Crush — pressure that ramps the longer it's held* · gen **moderate UMBRAXIS** · cd **short** · `proposed`
 
 **@ MNA 15** *(B/C)*
@@ -131,7 +131,7 @@ loaded gravity at once.**
 
 **@ MNA 20** *(B/C)*
 - **B · Bleed at Range** · mag · enemy · *open a draining wound on the mark from afar — Drain that ramps each turn the foe stays tagged, healing you and banking UMBRAXIS* · cost **med UMBRAXIS** · cd **medium** · `proposed`
-- **C · Standoff** · util · enemy · *fold space between you and a closing foe: deep Anchor + event-horizon so it cannot reach the angle* · cost **med UMBRAXIS** · cd **medium** · `proposed`
+- **C · Hold the Distance** · util · enemy · *fold space between you and a closing foe: deep Anchor + event-horizon so it cannot reach the angle* · cost **med UMBRAXIS** · cd **medium** · `proposed`
 
 **@ MNA 30** *(A/C)*
 - **A · Lance the Mark** · phys · enemy · *collapse the marked foe's loaded Crush in one piercing shot: burst scaling with the gravity pressure built* · cost **med UMBRAXIS** · cd **medium** · `proposed`

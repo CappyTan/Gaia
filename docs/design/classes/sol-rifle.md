@@ -125,7 +125,7 @@ beat, Sunmark paints the kill, Photon Lance takes the shot.
 
 **@ MNA 20** *(B/C)*
 - **B · Detonate Mark** · mag · enemy · *blow the mark: detonate all the **Burn** stacked on a marked foe, the blast **Spreading** to neighbors* · cost **med SOL** · cd **medium** · `proposed`
-- **C · Mark Detonation** · util · allEnemies · *a suppressive volley of light across the line: deep **Blind** so the field whiffs its next actions* · cost **low SOL** · cd **medium** · `proposed`
+- **C · Glare Volley** · util · allEnemies · *a suppressive volley of light across the line: deep **Blind** so the field whiffs its next actions* · cost **low SOL** · cd **medium** · `proposed`
 
 **@ MNA 30** *(A/C)*
 - **A · Daylance Pierce** · phys · enemy · *a deep charged beam that pierces the entire enemy column, scaling with the lead target's **Overheat*** · cost **med SOL** · cd **medium** · `proposed`

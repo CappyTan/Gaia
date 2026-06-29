@@ -310,7 +310,7 @@ maximal round into the marked, Doomed foe.**
 |---|---|
 | 1 auto + 20 specials + 18 signatures + 4 ultimates + 9 passives = **52** | ✓ |
 | Every special/signature milestone has 2 options on the correct MNA thresholds (5…95 / 10…90) | ✓ |
-| No lane appears in every milestone (specials A6/B6/C8 of 10; signatures A6/B6/C6 of 9; rotation A/B→B/C→A/C) | ✓ |
+| No lane appears in every milestone (specials A7/B7/C6 of 10; signatures A6/B6/C6 of 9; rotation A/B→B/C→A/C) | ✓ |
 | Every special/signature/passive option lane-tagged; ultimates = 3 laned + 1 neutral | ✓ |
 | Derived: primary SPD ← QUANTA · secondary SPD ← Rifle · threshold = milestone | ✓ |
 | Economy: specials generate-only · sig/ult cost-only · auto = minor trickle · all QUANTA (fluctuates) | ✓ |
