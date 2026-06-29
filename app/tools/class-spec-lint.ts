@@ -54,7 +54,16 @@ function parseSpec(spec: string, text: string): Parsed {
   let section: Section = null;
   let ms = 0;
 
-  for (const line of text.split("\n")) {
+  // Fold soft-wrapped continuation lines (leading whitespace) back into their list item, so an
+  // entry's full text — incl. a gen/cost annotation that wrapped to the next line — is on one line.
+  const folded: string[] = [];
+  for (const ln of text.split("\n")) {
+    if (/^\s+\S/.test(ln) && folded.length && folded[folded.length - 1].trimStart().startsWith("-")) {
+      folded[folded.length - 1] += " " + ln.trim();
+    } else folded.push(ln);
+  }
+
+  for (const line of folded) {
     const h = /^##\s+(.+)/.exec(line);
     if (h) {
       const t = h[1].toLowerCase();
