@@ -41,6 +41,41 @@ export const DROP_MODS: Record<string, RarityMod> = {
 // Slot weighting for drops/loot: weapon ×2, each armor-family slot + trinket once.
 export const DROP_SLOTS: Slot[] = ["weapon", "weapon", "helmet", "armor", "gloves", "boots", "trinket"];
 
+// GEAR MNA ROLL by rarity (ADR 0015 — gear carries +MNA; on a weapon it sets the class). Indexed by
+// rarity 0..5 (common→artifact / White→Red): the inclusive [min,max] MNA the piece rolls in its
+// Attunement, EACH VALUE EQUALLY WEIGHTED (uniform). Rarity owns the roll — no ilvl term.
+//
+// The two tables are balanced so a fully-attuned KIT weighs ~what the weapon ALONE used to: the weapon
+// range is HALVED, and each non-weapon slot carries ~10% of the *original* weapon range, so the slots
+// sum back toward the old weapon-only total. Armor also rolls MNA rarely (ARMOR_MNA_CHANCE) and in a
+// random/roster-biased attunement, so in practice the weapon still dominates the gate. Starting tuning
+// points (Dara); magnitudes/weights are a later balance pass.
+export const WEAPON_MNA_ROLL: ReadonlyArray<readonly [number, number]> = [
+  [0, 5],   // common    · White   (was 0–10)
+  [3, 10],  // uncommon  · Green   (was 5–20)
+  [5, 15],  // rare      · Blue    (was 10–30)
+  [8, 20],  // epic      · Purple  (was 15–40)
+  [10, 23], // legendary · Orange  (was 20–45)
+  [13, 25], // artifact  · Red     (was 25–50)
+];
+// ~10% of the ORIGINAL weapon range — a small, occasional top-up per NON-WEAPON slot (helmet/chest/
+// gloves/boots AND the trinket). Five such slots × 10% + the halved weapon = the old weapon-alone total
+// when fully attuned. Only ~ARMOR_MNA_CHANCE of these drops roll it at all (the rest are neutral).
+// Bounds are CEIL'd (any decimal rounds UP to the next whole MNA), and an attuned piece never rolls 0 —
+// a roll that would be 0 is floored to 1 at roll time (see armorMna in systems/loot.ts).
+export const ARMOR_MNA_ROLL: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],   // common    · White   (floored to 1 when attuned)
+  [1, 2],   // uncommon  · Green
+  [1, 3],   // rare      · Blue
+  [2, 4],   // epic      · Purple
+  [2, 5],   // legendary · Orange
+  [3, 5],   // artifact  · Red
+];
+// Fraction of ARMOR drops that roll any +MNA (ADR 0015 — down from 0.5). The rest are NEUTRAL (no
+// attunement). When a piece does roll, its attunement is random/roster-biased (only sometimes the
+// wearer's), so a "wrong-color" roll is reclass insurance, not a contribution to the current gate.
+export const ARMOR_MNA_CHANCE = 0.13;
+
 // The rarity LEVEL for non-combat loot (chests scale with zone depth + how deep into the zone you are;
 // the merchant stocks slightly ahead of the current zone). Kept here so the WHOLE curve — combat and
 // non-combat — tunes from one file. (ilvl, the stat MAGNITUDE, is separate and lives at the call site.)
