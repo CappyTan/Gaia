@@ -22,3 +22,4 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0015](0015-itemization-slots-rarity-affixes.md) | Itemization — slot roles & split MNA-gate, rarity (count+quality) vs ilvl (base), slot-locked affixes + special/unique layer |
 | [0016](0016-buff-debuff-system.md) | Buff/Debuff system — unified status model (catalog + instances), distinct signature DoTs, 5-layer × 6-bucket catalog, stacking/phase-transition + lifecycle rules |
 | [0017](0017-dev-test-harness-borrows-runstate.md) | Dev test harness ("Test Loop") reuses the live run-state behind a `testMode` flag (suppresses save + game-over); built on shipping systems |
+| [0018](0018-breaking-systems-rewrite-v3.md) | The V3 systems rewrite — one coordinated breaking change (clean stat cutover, full-V3 level-scaled enemies, save-compat dropped) on a long-lived branch; `main` stays live as v0.116 until the flip |
