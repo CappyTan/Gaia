@@ -281,7 +281,7 @@ maximal round into the marked, Doomed foe.**
 ## Passives — 3 sets of 3, **pick 1 each** @ MNA 30 / 60 / 90 *(one per lane)*
 
 **Set @ MNA 30**
-- **A · Observer's Hand** · *holding a target in the scope builds Superposition on it faster — your long
+- **A · Long Watch** · *holding a target in the scope builds Superposition on it faster — your long
   observation loads sooner* · `proposed`
 - **B · Marked Mind** · *your **Doom** stamps resolve for more determined damage* · `proposed`
 - **C · Range Sense** · *you begin each fight with a filled head-start on your attack-bar and read the
