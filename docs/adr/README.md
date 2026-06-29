@@ -18,3 +18,4 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0011](0011-environmental-wayfinding-derived-objectives.md) | Environmental wayfinding — derived Objectives + persisted known-regions fog-of-war |
 | [0012](0012-field-godmodule-split.md) | Split the field.ts god-module → ui/fieldRender (draw) + systems/mapgen (pure, RNG-injected) |
 | [0013](0013-no-magic-stat-casters-are-archetype.md) | No "Magic" stat — casters are archetype-defined (Staff/Spellblade); VIT is the universal channeling fuel |
+| [0014](0014-secondary-stats-matter-energy-final-20.md) | Secondary stats — Matter/Energy damage typing, the final 20 (zero dead), dual-source (primary baseline + gear) |

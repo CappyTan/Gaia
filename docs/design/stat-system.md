@@ -84,49 +84,44 @@ fast/critty vs **DEF (S)** bruiser). Itemization should make these viable.
 
 ---
 
-## 3 · Attribute → substat conversions (canon)
+## 3 · Attribute → substat conversions (canon — dual-source)
 
-Universal and flat — **the same for every class** (the Attunement tier in §2 is separate, and applies
-to ability output only). Biased toward each attribute's fantasy (Dara's final version):
+> **RATIFIED — see [ADR 0014](../adr/0014-secondary-stats-matter-energy-final-20.md).** Secondary
+> stats are **dual-source**: each primary grants a baseline trickle of **its own group's 4 substats**
+> (§4), and gear affixes add **any** of the 20 on top. The group structure *is* the conversion table —
+> the free-standing per-attribute list below is retained only as the *flavor* summary.
 
-| Per **10** of… | grants |
-|---|---|
-| **STR** | **+1 Atk**, **+0.10% Arp** (armor pen), **+0.05% Lif** (lifesteal) |
-| **AGI** | **+0.10% Crt** (crit chance), **+0.20% Acc** (accuracy), **+0.10% Eva** (evasion) |
-| **VIT** | **+0.20% Abp** (ability power), **+0.20% Hld** (healing done), **+0.10% Deb** (debuff potency) |
-| **SPD** | **+0.20% Abg** (attack-bar gain), **+1 Ini** (initiative), **+0.10% Cdr** (cooldown recovery) |
-| **DEF** | **+1 Arm**, **+0.10% Dmr** (damage reduction), **+0.20% Bar** (barrier power) |
+**Summary:** STR → Matter penetration, execute, lifesteal, follow-through · AGI → crit, evasion,
+accuracy · VIT → ability power, healing, energy penetration, buff strength · SPD → attack-bar,
+cooldowns, turn economy · DEF → Matter/Energy reduction, block, resistance.
 
-**Summary:** STR → raw offense & armor pen · AGI → accuracy, crits, evasion, counters · VIT →
-healing, barriers, buff/debuff strength · SPD → attack-bar, cooldowns, turn economy · DEF → damage
-reduction, shielding, resistance.
-
-**Per-Attunement secondary conversions (canon idea).** On top of the universal table, an Attunement
-can convert a stat into **Ability Power** at *different* rates by tier — Dara's example: per **100**
-AGI, **SOL** gains **+5% Abp** while **UMBRAXIS** gains only **+2% Abp**. Same stat, same item,
-different value. *(recommended: derive these from the §2 coefficients — Abp-per-100 ≈ `5 × tierCoef`
-→ S 5% · A 3.5% · B 2.25% · C 1.25% · D 0.25% per 100. Tune later.)*
+**Per-Attunement secondary conversions (canon idea).** On top of the baseline, an Attunement can
+convert a stat into **Ability Power** at *different* rates by tier — Dara's example: per **100** AGI,
+**SOL** gains **+5% Abp** while **UMBRAXIS** gains only **+2% Abp**. Same stat, same item, different
+value. *(recommended: derive from the §2 coefficients — Abp-per-100 ≈ `5 × tierCoef`. Tune later.)*
 
 ---
 
-## 4 · The substat taxonomy (V3)
+## 4 · The substat taxonomy — the final 20 (RATIFIED, [ADR 0014](../adr/0014-secondary-stats-matter-energy-final-20.md))
 
-Visible gear substats, by category. (Abbreviations are Dara's; see §9 for two I recommend
-de-conflicting.)
+Damage is typed **Matter** (struck/martial/kinetic) vs **Energy** (projected/ability); offense and
+defense stay symmetric across the axis. **4 substats per primary** (off/def is descriptive, not a
+quota), all functional targets, **zero dead stats**.
 
-- **Core combat:** HP (health) · Atk (attack, mainly from weapons) · Arm (armor, mainly from armor) ·
-  Abp (ability power — multiplies all ability output).
-- **Offensive:** Crt (crit chance) · Cmd (crit damage) · Arp (armor pen %) · Brk (armor break) ·
-  Bdm (break damage) · Exe (execute) · Lif (lifesteal).
-- **Precision / flow:** Acc (accuracy) · Eva (evasion) · Ctr (counter chance) · Cmb (combo chance).
-- **Turn economy:** Ini (initiative) · Abg (attack-bar gain) · Cdr (cooldown recovery) · Ext (extra-turn chance).
-- **Defensive:** Dmr (damage reduction) · Blk (block chance) · Blv (block value) · Bar (barrier power) · Res (status resist).
-- **Healing & status:** Hld (healing done) · Hlr (healing received) · Buf (buff potency) · Deb (debuff potency) · **Dot (DoT potency)** · **Hot (HoT potency)**.
-- **Utility:** Mfd (magic find) · Afd (Aether find) · Exp (experience gain) · Thr (threat).
+| Group | Substats *(proposed engine key)* |
+|---|---|
+| **STR** force/sustain | Matter Penetration `Mpn` · Execute `Exe` · Life Steal `Lfs` · Combo Chance `Cch` |
+| **AGI** precision/crit | Crit Chance `Crt` · Crit Damage `Cmd` · Evasion `Eva` *(universal)* · Accuracy `Acc` |
+| **DEF** protection | Matter Reduction `Mrd` · Energy Reduction `Erd` · Block `Blk` *(Matter-only)* · Resistance `Res` |
+| **SPD** tempo | Attack-Bar Gain `Abg` · Action Refund `Acr` · Cooldown Recovery `Cdr` · Chase Chance `Chc` |
+| **VIT** fuel/life | Ability Power `Abp` · Healing Done `Hld` · Energy Penetration `Epn` · Buff Potency `Buf` |
 
-**Count:** 5 primary + 4 core + 7 offensive + 4 precision + 4 turn + 5 defensive + 6 healing/status +
-4 utility = **39 visible**, plus **4 hidden** (§5) = **43 tracked**. *(Dara's note said "39 total / 35
-visible + 4 hidden" — the visible count comes to 39 on its own; reconcile the label — see §9.)*
+**Removed from the old V3 set:** `Crs` Crush (→ Matter Pen) · `Drd` Damage Reduction (→ split into
+Matter/Energy Reduction) · `Pry` Parry (→ Block) · `Vei` Veil (→ Energy Reduction) · `Grv` Gravity
+(→ survives as an ability effect, not a substat). The doc's earlier 39-stat taxonomy is **not adopted.**
+
+Plus the unchanged **core combat** values: HP · Atk (weapons) · Arm (armor) — base inputs to the
+hidden ratings (§5).
 
 ---
 
