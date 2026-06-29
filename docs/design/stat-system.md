@@ -174,9 +174,7 @@ for that class even if the Attunement table would rate it lower. Exact stacking 
 
 - **Weapons always carry Atk; armor always carries Arm.** Both feed Offense/Defense (§5). Kept from
   the POC.
-- **No biased affix rolls — for now.** Affix pools are **not** tilted toward an item's preferred
-  S/A/B tier stats; the loot hunt should stay challenging (upgrades shouldn't be too easy). *(This is
-  the opposite of an earlier suggestion — Dara's call.)*
+- **Affix rolling — slot-weighted + slot-locked (RATIFIED, [ADR 0015](../adr/0015-itemization-slots-rarity-affixes.md), supersedes the old "no biased rolls" ruling).** Substats roll **soft-weighted by slot/type** (weapons offensive, armor defensive/sustain) and are **slot-locked** to defined homes with a few hard exclusives (Crit Chance→Gloves, Evasion→Boots, Block→Chest). **Rarity owns affix count (0–5) AND quality**; **ilvl owns base stats** (decoupled). Affixes are **not** limited to substats — a rarity-gated **special-affix** layer (extra slots) plus **hand-authored uniques** at legendary/artifact. The per-item **primary attribute rolls randomly** (no longer fixed by slot). See ADR 0015 for the full slot↔affix map.
 - **Tier-breaking chase affixes (canon — do it).** Mods that **raise a stat's scaling tier for the
   wearer** (e.g. *"SPD scales one tier higher,"* up to turning a D stat into something real). Delivered
   via **consumables, crafting, and/or directly on weapons & armor.** This is the marquee chase: gear

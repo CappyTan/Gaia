@@ -19,3 +19,4 @@ the result of a real trade-off. Each ADR is a short paragraph: what we decided a
 | [0012](0012-field-godmodule-split.md) | Split the field.ts god-module → ui/fieldRender (draw) + systems/mapgen (pure, RNG-injected) |
 | [0013](0013-no-magic-stat-casters-are-archetype.md) | No "Magic" stat — casters are archetype-defined (Staff/Spellblade); VIT is the universal channeling fuel |
 | [0014](0014-secondary-stats-matter-energy-final-20.md) | Secondary stats — Matter/Energy damage typing, the final 20 (zero dead), dual-source (primary baseline + gear) |
+| [0015](0015-itemization-slots-rarity-affixes.md) | Itemization — slot roles & split MNA-gate, rarity (count+quality) vs ilvl (base), slot-locked affixes + special/unique layer |
