@@ -30,7 +30,7 @@ defense in one), and flow. **Daggers spend speed; duelists spend skill.**
 | × Dual Swords | Canon name | Primary + AGI | Seat | vs its dagger cousin |
 |---|---|---|---|---|
 | **SOL** | Sunblade | **AGI+AGI** | **pure crit duelist** *(flagship)* | stand-and-duel crit machine, not Eclipsedancer's hit-and-vanish |
-| **NOX** | Rimewalker | STR+AGI | **frost control/preservation duelist** | still-then-Shatter crit-duelist, not Velestra's mobile applicator-executioner |
+| **NOX** | Rimewalker | STR+AGI | **durable crit-parry preservationist** | crit-shatter + parry/ward + NOX battery — *not* Velestra's tempo/flood/execute (no grind, no attack-bar denial) |
 | **ANIMA** | Pulse Arbiter | VIT+AGI | **adaptation/evolution duelist** | mutating bladework that *adapts*, not Symbiote Hunter's contagion-flood — **and explicitly NOT a healer** |
 | **QUANTA** | Phasewalker | SPD+AGI | **evasive phase-duelist** | blink-dodge-and-riposte (controls *space*), not the Anomaly's turn-stealing (controls *time*) |
 | **UMBRAXIS** | Abyssal Vector | DEF+AGI | **counter/redirect duelist** | parry-and-redirect with gravity, not the Lagrangian's drain-siphon |
@@ -61,15 +61,19 @@ SOL dagger (Eclipsedancer): a stand-and-duel crit machine, not a hit-and-vanish 
 - **B · Sunflare** — Burn through sustained cuts, then **Detonate** it; Blind to win the exchange.
 - **C · Riposte** — the light parry: parry → radiant counter, evasion-via-Blind. The duelist's defense.
 
-### NOX · Rimewalker — frost control/preservation duelist *(re-spec'd to the framework)*
-STR+AGI. Wins by **stilling the target, then Shattering it.** Reconciled to the ratified NOX suite:
-**Stasis** (not "Decay"), the **Chill → Frozen → Shatter** chain, Brittle, stillness/lattice ward, the
-**banks** economy, the control+preservation identity. *Distinct from the NOX dagger (Velestra, the
-mobile applicator-executioner): Rimewalker is the AGI crit-duelist whose crits Shatter, with a frost
-parry.*
-- **A · Rimebleed** — **Stasis-attrition**: Stasis DoT + Chill drag; the patient grind.
-- **B · Glasscutter** — crit + **Frozen → Shatter**: clean crits that Shatter a frozen target (the showcase NOX payoff). Execute.
-- **C · Hoarwarden** — frost-control + **NOX battery**: banks economy, time-lock, lattice ward; the preservation/control enabler.
+### NOX · Rimewalker — durable crit-parry preservationist *(re-spec'd to the framework)*
+STR+AGI. Rimewalker owns NOX's **preservation** half — parry, ward, the "banks" battery — plus the
+**crit-shatter** payoff, and survives by **defending**. Reconciled to the ratified NOX suite: **Stasis**
+(not "Decay"), **Chill → Frozen → Shatter**, Brittle, stillness/lattice ward, the **banks** economy.
+*Distinct from the NOX dagger (Velestra, the glass tempo/flood/execute assassin): Rimewalker has **no
+grind lane, no attack-bar denial, no fast execute** — his Shatter is a clean **AGI crit** on a frozen
+guard, and his defense is a **frost parry**. They share only the NOX signature.*
+- **A · Glasscutter** — **crit-shatter**: clean AGI crits that Shatter a Frozen/Brittle target — the
+  showcase NOX payoff, his lead lane.
+- **B · Frostward** — **frost parry / riposte + ward**: parry with the off-blade, counter with cold
+  (Chill the attacker), lattice ward self-mitigation. The duelist's defense — distinctly his.
+- **C · Hoarwarden** — **preservation + NOX battery**: time-lock, a party stillness/lattice ward, and
+  banks the shared NOX pool — the control/economy enabler.
 
 ### ANIMA · Pulse Arbiter — adaptation/evolution duelist (NOT a medic)
 VIT+AGI. Per the ratified **"Staff + one secondary healer"** decision, this class is **explicitly not a

@@ -22,7 +22,7 @@ different prize, and the **attunement primary tilts each into a different kind o
 |---|---|---|---|---|---|
 | **QUANTA** | The Anomaly | **SPD+SPD** | more turns + forced outcomes | **pure crit/tempo probabilist** *(the fastest thing alive)* | dodge → ~100% |
 | **SOL** | Eclipsedancer | **AGI+SPD** | burst before they blink | **glass-cannon burst assassin** | Blind (they miss) + blink |
-| **NOX** | Velestra | **STR+SPD** | a first strike that *stops* them | **lockdown executioner** | Frozen (they can't act) |
+| **NOX** | Velestra | **STR+SPD** | more turns — and you take *theirs* | **glass tempo-executioner** | deny their turns (tempo + Frozen) |
 | **ANIMA** | Symbiote Hunter | **VIT+SPD** | more applications, and you outlast | **poison-skirmisher** *(the durable dagger)* | VIT + Regen + lifesteal |
 | **UMBRAXIS** | The Lagrangian | **DEF+SPD** | strike, drain, and don't die | **drain-duelist** *(the tanky dagger)* | Mass armor + Drain |
 
@@ -76,17 +76,19 @@ or simply killing first.
 - **C · Wildfire** — Burn-spread: rake **Burn** on with every cut (fast = many stacks), then
   **Detonate** it to spread across the enemy line (Overheat → Ignite → Detonate). *(Burn engine, AoE payoff)*
 
-### NOX · Velestra — lockdown executioner (cold precision)
-STR+SPD: each cut is precise *and* heavy. Velestra stills the target, then shatters it; the relentless
-executioner. Survives by stopping the enemy from acting (Chill → Frozen). *Deliberately distinct from
-the NOX Hammer (Equilibrium Ascendant, the control-crusher): Velestra is a **mobile single-target
-executioner** — fast precise strikes, not heavy slams.*
-- **A · Hoarfang** — Stasis-attrition: stack **Stasis** (DoT) + **Chill** with rapid cuts; grind the
-  target down and drag its attack-bar. *(DoT + tempo-drag)*
-- **B · Shatterpoint** — Frozen → Shatter execute: freeze the target, then a heavy STR finisher with
-  bonus damage vs Frozen / Brittle / low-HP. *(STR / single-target execute)*
-- **C · Stillblade** — lockdown / preservation: Chill → Frozen control, **time-lock** enemy actions,
-  **Brittle** the target for the team; a little stillness-ward self-protection. *(SPD/DEF control-survival)*
+### NOX · Velestra — glass tempo-executioner (steal their turns, then execute)
+STR+SPD. Velestra owns NOX's **action-economy / tempo** half: she floods Stasis faster than anyone,
+drags and skips the enemy's attack-bar, and executes the foe she's locked out of the fight. A glass
+knife that survives by **denying the enemy its turns** (Frozen / tempo-denial), not by warding. *Two
+deliberate distinctions: from the NOX Hammer (Equilibrium Ascendant, the planted control-crusher), and
+— the important one — from the NOX **Rimewalker** (Dual Swords). Velestra has **no ward, no NOX
+battery, no parry**, and her Shatter is a **fast STR execute** (a turn-economy kill), never a crit.*
+- **A · Hoarfang** — **Stasis-flood**: rapid twin-strikes pile **Stasis** + **Chill** — the fastest
+  applicator of NOX's signature (volume from her speed, not a slow grind). *(DoT engine)*
+- **B · Stillblade** — **tempo lockdown**: attack-bar **drag** / push-back, **time-skip**, Freeze-to-deny
+  — lock the enemy out of acting. The action-economy lane, distinctly hers. *(SPD / tempo denial)*
+- **C · Shatterpoint** — **fast STR execute**: exploit Frozen / Brittle / low-HP for a quick heavy kill.
+  *(STR / executioner)*
 
 ### ANIMA · Symbiote Hunter — poison-skirmisher (the durable dagger)
 VIT+SPD: the *survivable* dagger that can actually hold the front row. Bonded to a living symbiote, it
@@ -117,10 +119,12 @@ Lagrangian is a **single-target drain-duelist.***
 - **QUANTA flavor register:** all of The Anomaly's probability language stays **math/physics**
   (wavefunction / amplitude / measurement / collapse / decohere), **never gambling motifs** — per the
   same call that made canon prefer "Decohere" over "Jinx." (Dev direction, 2026; confirm.)
-- **NOX Velestra** seated as a *mobile single-target executioner*, kept clear of the NOX Hammer's
-  control-crusher and the NOX Dual Swords' Rimewalker — confirm the lane split holds at build time and
-  the shared NOX lexicon (crystalline / lattice / absolute zero) isn't name-colliding (Rimewalker took
-  "Absolute Zero", the Hammer took "Entombment").
+- **NOX Velestra ↔ Rimewalker split (resolved 2026-06-29).** The two NOX dual-wield classes first read
+  too alike (both Stasis-attrition → Frozen→Shatter → control). Re-cut so they own opposite halves of
+  NOX: **Velestra = action-economy/tempo + flood + fast execute (glass)**; **Rimewalker = crit-shatter +
+  frost parry/ward + NOX battery (durable)**. They now share only the NOX signature (Stasis,
+  Chill→Frozen→Shatter), expressed via speed/execute vs crit/parry. (Both kept clear of the Hammer's
+  Equilibrium Ascendant.)
 - **UMBRAXIS "The Lagrangian"** shares its name with Dara's legendary figure **"The Last Lagrangian"**
   ([legendary-figures](../legendary-figures.md)) — intentional resonance or rename? Flagging the lore
   tie for Dara to bless.
