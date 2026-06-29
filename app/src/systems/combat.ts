@@ -12,13 +12,12 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   const s = act.skill;
   if (actor.status.blind && rng() < 0.4) return { dmg: 0, crit: false, mult: 1, miss: true };
   const isMag = s ? s.type === "mag" : false;
-  // V3 defender procs that can fully avoid the hit (clamped so you can't become unhittable):
-  //   Parry — block a physical attack · Veil — negate an ability attack.
+  // Damage is typed: ENERGY = projected/ability (isMag); MATTER = struck/martial (!energy). (ADR 0014)
+  const energy = isMag;
+  // Defender avoid proc: Block fully stops a MATTER hit (clamped so you can't become unhittable).
+  // Energy has no full-block — it's answered by Energy Reduction below. Evasion (any) applies later.
   const td = target.sub;
-  if (td) {
-    if (!isMag && rng() * 100 < Math.min(40, td.Pry)) return { dmg: 0, crit: false, mult: 1, miss: true };
-    if (isMag && rng() * 100 < Math.min(40, td.Vei)) return { dmg: 0, crit: false, mult: 1, miss: true };
-  }
+  if (td && !energy && rng() * 100 < Math.min(40, td.Blk)) return { dmg: 0, crit: false, mult: 1, miss: true };
   const power = s && s.power != null ? s.power : 1.0;
   const baseStat = isMag ? actor.mag : actor.atk;
   let raw = baseStat * power + (rng() * 3 - 1); // jitter [-1,2)
@@ -48,20 +47,25 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   if (ao && ao.Exe && target.maxhp > 0 && target.hp / target.maxhp < 0.2) raw *= 1 + ao.Exe / 100;
   const critC = (actor.critPct || 5) + (s && s.crit ? s.crit : 0) + (actor.att === "QUANTA" ? 10 : 0);
   const crit = rng() * 100 < critC;
-  if (crit) raw *= 1.8;
-  // V3 armor handling: Crush (chance to ignore defense entirely) then Armor Penetration (ignore a %).
+  if (crit) raw *= 1.8 + (ao && ao.Cmd ? ao.Cmd / 100 : 0); // Crit Damage adds to the crit multiplier
+  // MATTER mitigation = physical armor, cut by Matter Penetration. ENERGY ignores physical armor
+  // (it's answered by Energy Reduction below).
   let eff = target.armor;
-  if (ao) {
-    if (eff > 0 && rng() * 100 < Math.min(50, ao.Crs)) eff = 0;
-    else if (ao.Arp) eff *= 1 - Math.min(80, ao.Arp) / 100;
-  }
-  let dmg = Math.max(1, Math.round(raw - eff * 0.6 * (isMag ? 0.5 : 1)));
+  if (!energy && ao && ao.Mpn) eff *= 1 - Math.min(80, ao.Mpn) / 100;
+  let dmg = Math.max(1, Math.round(raw - (energy ? 0 : eff * 0.6)));
   // UMBRAXIS MNA scales the defender's damage reduction.
   if (target.mna && target.mna.UMBRAXIS) dmg = Math.max(1, Math.round(dmg * (1 - mnaBonus(target.mna.UMBRAXIS))));
-  // V3 defender mitigation: Evasion (chance to halve) then flat Damage Reduction.
+  // Defender mitigation: Evasion (halve ANY hit) then the typed % Reduction — Matter Reduction vs
+  // Energy Reduction (the latter penetrable by the attacker's Energy Penetration).
   if (td) {
     if (rng() * 100 < Math.min(60, td.Eva)) dmg = Math.max(1, Math.round(dmg * 0.5));
-    if (td.Drd) dmg = Math.max(1, Math.round(dmg * (1 - Math.min(75, td.Drd) / 100)));
+    if (energy) {
+      let erd = Math.min(75, td.Erd || 0);
+      if (ao && ao.Epn) erd *= 1 - Math.min(80, ao.Epn) / 100;
+      if (erd > 0) dmg = Math.max(1, Math.round(dmg * (1 - erd / 100)));
+    } else if (td.Mrd) {
+      dmg = Math.max(1, Math.round(dmg * (1 - Math.min(75, td.Mrd) / 100)));
+    }
   }
   if (target.guarding) dmg = Math.round(dmg * 0.5);
   if (target.status.wardArmor) dmg = Math.max(1, dmg - (target.wardAmt || 0));

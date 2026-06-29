@@ -8,16 +8,16 @@
 import type { Attunement } from "../types";
 import { RING } from "./attunements";
 
-export type PrimaryStat = "STR" | "AGI" | "MGC" | "SPD" | "DEF";
+export type PrimaryStat = "STR" | "AGI" | "VIT" | "SPD" | "DEF";
 export type ScalingTier = "S" | "A" | "B" | "C" | "D";
 
-export const PRIMARY_STATS: PrimaryStat[] = ["STR", "AGI", "MGC", "SPD", "DEF"];
+export const PRIMARY_STATS: PrimaryStat[] = ["STR", "AGI", "VIT", "SPD", "DEF"];
 
-/** Each Attunement's GOVERNING (S-tier) primary stat. */
+/** Each Attunement's GOVERNING (S-tier) primary stat. (ANIMA→VIT per ADR 0013.) */
 export const GOVERNING_STAT: Record<Attunement, PrimaryStat> = {
   SOL: "AGI",
   NOX: "STR",
-  ANIMA: "MGC",
+  ANIMA: "VIT",
   QUANTA: "SPD",
   UMBRAXIS: "DEF",
 };
