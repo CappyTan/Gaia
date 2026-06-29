@@ -137,7 +137,7 @@ export const UI = {
 
   // ── STATUS & EQUIPMENT ─────────────────────────────────────────────────────────────────────────
   // Per-hero gear with a LIVE totals panel: Offense/Defense/Overall, a Primary-stat grid (col1
-  // HP/ATK/ARM · col2 STR/AGI/MGC/SPD/DEF) and a Secondary-stat sheet you toggle to. Choosing a slot
+  // HP/ATK/ARM · col2 STR/AGI/VIT/SPD/DEF) and a Secondary-stat sheet you toggle to. Choosing a slot
   // swaps the left column to that slot's bag items IN PLACE; selecting one PREVIEWS its impact on the
   // right BEFORE you equip. Swapping a weapon (which reclasses the hero) asks first.
   _eq: null as null | { mid: string; slot: Slot | null; pick: number; view: "primary" | "secondary"; confirm: boolean },

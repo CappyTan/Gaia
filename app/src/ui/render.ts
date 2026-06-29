@@ -97,7 +97,7 @@ export function itemHtml(it: Item, actionBtn?: string): string {
     .map(([k, v]) => `<b>+${v}</b> ${IMP_LABEL[k] ?? k.toUpperCase()}`).join(" · ");
   // weapon MNA grant — the main thing that unlocks/scales abilities (and sets the class)
   const mna = it.mna ? Object.entries(it.mna).filter(([, v]) => v).map(([a, v]) => `+${v} ${a} MNA`).join("  ") : "";
-  // V3 primary attributes carried by the piece (STR/AGI/MGC/SPD/DEF) — feed the wearer's ability scaling
+  // V3 primary attributes carried by the piece (STR/AGI/VIT/SPD/DEF) — feed the wearer's ability scaling
   const prim = it.prim ? Object.entries(it.prim).filter(([, v]) => v).map(([p, v]) => `+${v} ${p}`).join("  ") : "";
   const ico = itemIcon(it);
   // The Attunement tag is always colour-coded to its power (SOL gold, NOX blue, ANIMA green, QUANTA red, UMBRAXIS purple).

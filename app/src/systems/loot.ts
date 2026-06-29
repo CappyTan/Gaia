@@ -30,10 +30,10 @@ const ilvlMult = (ilvl: number): number => 1 + Math.max(0, ilvl) * 0.07;
 
 // V3 primary-attribute grant on a drop (Stat System V3). Every piece carries one primary by SLOT
 // IDENTITY: weapons grant their Attunement's governing stat; each armor slot leans a distinct stat
-// (helmet→MGC, chest→DEF, gloves→STR, boots→SPD); trinkets→AGI. Magnitude grows with rarity + ilvl.
+// (helmet→VIT, chest→DEF, gloves→STR, boots→SPD); trinkets→AGI. Magnitude grows with rarity + ilvl.
 // These feed the wearer's ability scaling (systems/stats abp) and the character-sheet primaries.
 const primVal = (r: number, ilvl: number): number => Math.round(1.5 + r * 1.2 + Math.max(0, ilvl) * 0.15);
-const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "MGC", armor: "DEF", gloves: "STR", boots: "SPD" };
+const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "VIT", armor: "DEF", gloves: "STR", boots: "SPD" };
 // Intrinsic gear MNA (Stat System balance) — toned WAY down (Dara): early pieces give +1–2, not +30.
 // Weapons ALWAYS carry at least +1 in their Attunement (it sets the class); armor only SOMETIMES does.
 // No flat base (that was what made early drops absurd, e.g. +33): MNA grows from rarity × ilvl, so the

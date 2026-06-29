@@ -15,11 +15,24 @@ import { SUBSTATS } from "../data/substats";
  *  party lands the design targets while an ungeared one is unchanged. */
 export const ABP_K = 0.006;
 
+/** Dual-source (ADR 0014): % of secondary stat granted per point of its group's GEAR primary.
+ *  Small + gear-only so an ungeared hero is combat-neutral; tune via the balance sim. */
+export const SUB_BASE_K = 0.03;
+
 /** Ability-power amplifier (fraction) from a hero's GEAR primaries, weighted by Attunement tier. */
 export function abpFromGear(att: Attunement, gearPrim: Partial<Prims>): number {
   let sum = 0;
   for (const s of PRIM_KEYS) sum += (gearPrim[s] || 0) * scalingCoef(att, s);
   return sum * ABP_K;
+}
+
+/** Dual-source baseline: each GEAR primary feeds a trickle into its OWN group's 4 substats (the group
+ *  structure IS the §3 conversion table). Mutates `sub` in place. Gear-only by design. */
+export function substatBaseline(gearPrim: Partial<Prims>, sub: Subs): void {
+  for (const d of SUBSTATS) {
+    const p = gearPrim[d.group as PrimaryStat] || 0;
+    if (p) sub[d.key] += p * SUB_BASE_K;
+  }
 }
 
 /** A derived substat (display): code + label + value (already a % where the unit is %). */

@@ -63,24 +63,26 @@ export interface Affix {
 
 export type Implicit = Partial<Record<"atk" | "hp" | "armor" | "mp" | "mag" | "spd", number>>;
 
-/** The five V3 primary attributes (Stat System V3). Keyed the same as data/statScaling. */
-export type PrimaryStat = "STR" | "AGI" | "MGC" | "SPD" | "DEF";
+/** The five primary attributes (Stat System V3; MGC→VIT per ADR 0013). Keyed the same as
+ *  data/statScaling. */
+export type PrimaryStat = "STR" | "AGI" | "VIT" | "SPD" | "DEF";
 export type Prims = Record<PrimaryStat, number>;
-export const PRIM_KEYS: PrimaryStat[] = ["STR", "AGI", "MGC", "SPD", "DEF"];
-export const zeroPrims = (): Prims => ({ STR: 0, AGI: 0, MGC: 0, SPD: 0, DEF: 0 });
+export const PRIM_KEYS: PrimaryStat[] = ["STR", "AGI", "VIT", "SPD", "DEF"];
+export const zeroPrims = (): Prims => ({ STR: 0, AGI: 0, VIT: 0, SPD: 0, DEF: 0 });
 
-/** The 20 V3 secondary stats (4 per primary). These are the rollable affix pool AND the substat sheet
- *  (canonical defs/labels/order in data/substats). All values are percentages. */
+/** The 20 secondary stats (4 per primary; ADR 0014 — Matter/Energy typing, the final 20). These are
+ *  the rollable affix pool AND the substat sheet (canonical defs/labels/order in data/substats).
+ *  All values are percentages. */
 export type SubKey =
-  | "Arp" | "Pry" | "Exe" | "Lfs"   // STR
-  | "Crt" | "Eva" | "Acc" | "Cch"   // AGI
-  | "Abp" | "Hld" | "Buf" | "Vei"   // MGC
-  | "Abg" | "Cdr" | "Acr" | "Chc"   // SPD
-  | "Drd" | "Grv" | "Res" | "Crs";  // DEF
+  | "Mpn" | "Exe" | "Lfs" | "Cch"   // STR
+  | "Crt" | "Cmd" | "Eva" | "Acc"   // AGI
+  | "Abp" | "Hld" | "Epn" | "Buf"   // VIT
+  | "Abg" | "Acr" | "Cdr" | "Chc"   // SPD
+  | "Mrd" | "Erd" | "Blk" | "Res";  // DEF
 export type Subs = Record<SubKey, number>;
 export const SUB_KEYS: SubKey[] = [
-  "Arp", "Pry", "Exe", "Lfs", "Crt", "Eva", "Acc", "Cch", "Abp", "Hld",
-  "Buf", "Vei", "Abg", "Cdr", "Acr", "Chc", "Drd", "Grv", "Res", "Crs",
+  "Mpn", "Exe", "Lfs", "Cch", "Crt", "Cmd", "Eva", "Acc", "Abp", "Hld",
+  "Epn", "Buf", "Abg", "Acr", "Cdr", "Chc", "Mrd", "Erd", "Blk", "Res",
 ];
 export const zeroSubs = (): Subs =>
   SUB_KEYS.reduce((o, k) => { o[k] = 0; return o; }, {} as Subs);
@@ -97,7 +99,7 @@ export interface Item {
   implicit: Implicit;
   /** Gear MNA grants by Attunement (weapons carry intrinsic MNA in their Attunement). */
   mna?: Partial<MnaPools>;
-  /** V3 primary-attribute grants (STR/AGI/MGC/SPD/DEF) carried by the piece — every drop carries some. */
+  /** V3 primary-attribute grants (STR/AGI/VIT/SPD/DEF) carried by the piece — every drop carries some. */
   prim?: Partial<Prims>;
   affixes: Affix[];
 }

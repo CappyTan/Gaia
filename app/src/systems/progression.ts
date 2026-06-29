@@ -4,7 +4,7 @@ import type { Rng } from "../core/rng";
 import { SKILLS } from "../data/skills";
 import { kitFor } from "../data/classes";
 import { SUB_BY_KEY } from "../data/substats";
-import { abpFromGear } from "./stats";
+import { abpFromGear, substatBaseline } from "./stats";
 
 // Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
 // Attunement until the manual allocator ships — see mna-progression.md).
@@ -57,9 +57,9 @@ export function recalc(party: Member[]): void {
     (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
     // V3 primaries — innate (display) derived from this hero's core profile, then GEAR adds on top.
     // Gear primaries are what drive ability scaling (abp); innate is context for the character sheet.
-    const innate: Prims = { STR: Math.round(s.atk), AGI: Math.round(s.spd), MGC: Math.round(s.mag), SPD: Math.round(s.spd), DEF: Math.round(s.armor) };
+    const innate: Prims = { STR: Math.round(s.atk), AGI: Math.round(s.spd), VIT: Math.round(s.mag), SPD: Math.round(s.spd), DEF: Math.round(s.armor) };
     const gearPrim = zeroPrims();
-    const sub = zeroSubs(); // the 20 V3 secondary stats, summed from gear affixes
+    const sub = zeroSubs(); // the 20 secondary stats, summed from gear affixes (+ dual-source baseline below)
     for (const slot of EQUIP_SLOTS) {
       const it = m.equip[slot];
       if (!it) continue;
@@ -73,9 +73,12 @@ export function recalc(party: Member[]): void {
       if (it.prim) PRIM_KEYS.forEach((p) => (gearPrim[p] += it.prim![p] || 0));
       if (it.mna) (Object.keys(it.mna) as Attunement[]).forEach((a) => (mna[a] += it.mna![a] || 0));
     }
+    // Dual-source (ADR 0014): GEAR primaries grant a baseline trickle of their own group's substats,
+    // on top of rolled affixes. Gear-only (like abp) so an ungeared hero stays combat-neutral.
+    substatBaseline(gearPrim, sub);
     s.spd += Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
     m.mna = mna;
-    m.prim = { STR: innate.STR + gearPrim.STR, AGI: innate.AGI + gearPrim.AGI, MGC: innate.MGC + gearPrim.MGC, SPD: innate.SPD + gearPrim.SPD, DEF: innate.DEF + gearPrim.DEF };
+    m.prim = { STR: innate.STR + gearPrim.STR, AGI: innate.AGI + gearPrim.AGI, VIT: innate.VIT + gearPrim.VIT, SPD: innate.SPD + gearPrim.SPD, DEF: innate.DEF + gearPrim.DEF };
     m.sub = sub;
     // GEAR primaries (ability scaling) + the Ability Power affix both feed the ability-power amplifier.
     m.abp = abpFromGear(m.att, gearPrim) + sub.Abp / 100;

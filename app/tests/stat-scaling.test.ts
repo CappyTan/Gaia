@@ -11,12 +11,12 @@ describe("stat scaling tiers", () => {
   });
 
   it("matches the canon master table (incl. Dara's UMBRAXIS example)", () => {
-    // UMBRAXIS: DEF=S, AGI=A, STR=B, MGC=C, SPD=D
-    expect(STAT_TIERS.UMBRAXIS).toEqual({ DEF: "S", AGI: "A", STR: "B", MGC: "C", SPD: "D" });
-    expect(STAT_TIERS.SOL).toEqual({ AGI: "S", STR: "A", MGC: "B", SPD: "C", DEF: "D" });
-    expect(STAT_TIERS.NOX).toEqual({ STR: "S", MGC: "A", SPD: "B", DEF: "C", AGI: "D" });
-    expect(STAT_TIERS.ANIMA).toEqual({ MGC: "S", SPD: "A", DEF: "B", AGI: "C", STR: "D" });
-    expect(STAT_TIERS.QUANTA).toEqual({ SPD: "S", DEF: "A", AGI: "B", STR: "C", MGC: "D" });
+    // UMBRAXIS: DEF=S, AGI=A, STR=B, VIT=C, SPD=D
+    expect(STAT_TIERS.UMBRAXIS).toEqual({ DEF: "S", AGI: "A", STR: "B", VIT: "C", SPD: "D" });
+    expect(STAT_TIERS.SOL).toEqual({ AGI: "S", STR: "A", VIT: "B", SPD: "C", DEF: "D" });
+    expect(STAT_TIERS.NOX).toEqual({ STR: "S", VIT: "A", SPD: "B", DEF: "C", AGI: "D" });
+    expect(STAT_TIERS.ANIMA).toEqual({ VIT: "S", SPD: "A", DEF: "B", AGI: "C", STR: "D" });
+    expect(STAT_TIERS.QUANTA).toEqual({ SPD: "S", DEF: "A", AGI: "B", STR: "C", VIT: "D" });
   });
 
   it("A = prey's stat and D = predator's stat (the ring rule)", () => {
