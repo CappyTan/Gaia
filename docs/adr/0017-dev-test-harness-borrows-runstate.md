@@ -5,6 +5,15 @@ into a configurable fight → loot → equip loop so the team can exercise comba
 loot/affix rolls, progression, and the MNA allocator without playing through the overworld. Built
 entirely on the *shipping* systems so that testing the harness = testing the game.
 
+**Sequencing (deliberate):** the harness is built **after** the pending design-system implementations
+(Stat System V3 / ADR 0014, itemization / ADR 0015, buff-debuff / ADR 0016, the 52-slot class wiring,
+the bestiary level-seeding rebuild), **not before.** It depends on nearly every one of those seams
+(`Member` stats, `Item`/loot shape, kits, status, `makeEnemy`), and those are shape-breaking changes —
+so building the harness first would mean building against types about to be rewritten, then reworking it
+repeatedly. During the overhaul window, testing leans on the existing `npm run sim` + Vitest suites; the
+harness then serves as the hands-on acceptance tool for the new systems. The enemy-level dial in
+particular is only fully useful once the bestiary level-seeding rework lands.
+
 ## Context
 
 The team wants a fast way to stress-test the mechanics: pick a party, fight progressively harder real
