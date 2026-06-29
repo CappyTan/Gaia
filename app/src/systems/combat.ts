@@ -12,8 +12,11 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   const s = act.skill;
   if (actor.status.blind && rng() < 0.4) return { dmg: 0, crit: false, mult: 1, miss: true };
   const isMag = s ? s.type === "mag" : false;
-  // Damage is typed: ENERGY = projected/ability (isMag); MATTER = struck/martial (!energy). (ADR 0014)
-  const energy = isMag;
+  // Damage is typed (ADR 0014): an explicit `dmgType` wins, else derive from the skill kind
+  // (mag→ENERGY = projected/ability; else MATTER = struck/martial). `isMag` still drives baseStat +
+  // formation separately. Default-from-kind keeps this a behavioral no-op until something opts in.
+  const dmgType = act.dmgType ?? (s ? s.dmgType : undefined) ?? (isMag ? "energy" : "matter");
+  const energy = dmgType === "energy";
   // Defender avoid proc: Block fully stops a MATTER hit (clamped so you can't become unhittable).
   // Energy has no full-block — it's answered by Energy Reduction below. Evasion (any) applies later.
   const td = target.sub;

@@ -115,6 +115,9 @@ export interface Stats {
 
 export type SkillTarget = "enemy" | "allEnemies" | "ally" | "allAllies" | "self";
 export type SkillType = "phys" | "mag" | "heal" | "buff" | "util";
+/** ADR 0014 damage typing — MATTER (struck/martial) vs ENERGY (projected/channeled). When unset on a
+ *  Skill/CombatAct, combat derives it from the skill kind (mag→energy, else matter), so tagging is opt-in. */
+export type DmgType = "matter" | "energy";
 
 export interface Skill {
   name: string;
@@ -127,6 +130,8 @@ export interface Skill {
   /** Marks the class Ultimate (unlocks at Archon = 100 MNA). */
   ult?: boolean;
   type: SkillType;
+  /** Optional explicit damage type (ADR 0014); unset = derived from `type` (mag→energy, else matter). */
+  dmgType?: DmgType;
   power?: number;
   hits?: number;
   sol?: boolean;
@@ -208,7 +213,8 @@ export interface Unit {
   /** V3 effective primary attributes (innate + gear) — members only; enemies leave undefined. Display. */
   prim?: Prims;
   /** V3 secondary stats from gear affixes (the 20). Members only; enemies leave undefined. Combat reads
-   *  the wired ones (Arp/Exe/Crs/Pry/Vei/Eva/Drd/…); the rest are display until the skill-tree pass. */
+   *  Block/Evasion/typed Reduction & Penetration/Execute/Crit-Damage; the SPD-tempo group + Acc/Buf/Res
+   *  stay display until the ATB/status pass (ADR 0016). */
   sub?: Subs;
   /** V3 ability-power amplifier from GEAR primaries + Ability Power affix (e.g. 0.12 = +12% ability
    *  damage). Zero with no gear, so a fresh hero is combat-neutral. Members only. */
@@ -281,6 +287,8 @@ export interface CombatAct {
   type?: string;
   skill?: Skill;
   aoe?: boolean;
+  /** Explicit damage type override (ADR 0014); falls back to the skill's derived type. */
+  dmgType?: DmgType;
 }
 
 export interface DamageResult {
