@@ -87,6 +87,17 @@ Self-check the hard invariants and report each ✓/✗. **Do not finalize on any
    collides with an ability name in any existing `docs/design/classes/*.md`. Grep the other specs
    before finalizing; rename collisions (reusing a flavor *concept* is fine, an exact *name* is not).
 
+### After writing — gate + handoff
+
+- **Run the deterministic gate:** `npm run lint:classes`. It re-checks invariants 1–8 mechanically
+  across *all* specs (counts, milestones, lane rotation, economy one-way, type enum, and the global
+  name-uniqueness sweep you can't eyeball). A **✗ is blocking** — fix the spec until it's green. This
+  is the same gate `npm test` enforces in CI, so a red linter = a red build.
+- **Recommend the review handoff:** the structural gate is only Lens 1. The judgment lenses
+  (attunement-mechanics fidelity, stat/Matter-Energy typing, lane quality, distinctness, canon) are
+  the **`class-spec-reviewer`** agent's job (rubric: `class-spec-review`). Tell the designer the spec
+  is written + lint-green, and recommend running `class-spec-reviewer` for the design review.
+
 ## Output format
 
 Match the worked example at [`docs/design/classes/nox-dual-swords.md`](../../../docs/design/classes/nox-dual-swords.md):
