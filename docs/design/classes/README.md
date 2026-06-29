@@ -164,6 +164,13 @@ onto the existing `Skill` interface (`type`, `target`, `status`, `desc`) for eve
 8. **Ability names are globally unique** — no two abilities share a name, **within the kit and
    across every other class spec**. (Reuse of a flavor *concept* is fine; reuse of an exact ability
    *name* is not. Check new names against the existing `docs/design/classes/*.md` before finalizing.)
+9. **Same-archetype distinctness** — the class occupies a *distinct seat* within its weapon family
+   (the other classes of the same Archetype): a different role / fantasy / signature mechanic from
+   each sibling, not merely a unique name. (Read `<archetype>-family.md` + the sibling specs.)
+10. **Same-attunement concept budget** — the class does not pile onto a concept its Attunement
+    already over-uses across weapons (e.g. ANIMA party-healing). Reuse the Attunement *signature*
+    freely; a *saturated role* is off-limits unless the brief says so. Honor ratified attunement
+    policy (e.g. [attunement-mechanics](../attunement-mechanics.md) ledger #16).
 
 ## Deferred (parked) — not needed to author specs
 

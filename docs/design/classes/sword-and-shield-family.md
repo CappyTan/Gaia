@@ -19,12 +19,12 @@ defensive mechanic** — no two overlap.
 | **NOX** | Penumbral Bastion | STR + DEF | **Mitigate-magnitude** — freeze/slow the blow + stillness armor; punishes back | **control-tank** |
 | **QUANTA** | Paradox Bastion | SPD + DEF | **Dodge %** — collapse the attack to a miss *(no immune state — see avoidance rule)* | **evasion-tank** |
 | **SOL** | Dawnwarden | AGI + DEF | **Block / block-stacking** — active, gear-dependent | **damage off-tank** |
-| **ANIMA** | Soul-Bound Aegis | VIT + DEF | **Summoned life + barriers + entangle + heal** | **summoner-protector** |
+| **ANIMA** | Soul-Bound Aegis | VIT + DEF | **Summoned life + barriers + entangle + grafted buffs/wards** | **summoner-protector** |
 
 Three are dedicated tanks, each a different *physics of not-dying* (**absorb / mitigate / evade**);
 two break the mold because their Attunement isn't defensive — **SOL** (pure offense → a damage
 off-tank) and **ANIMA** (life → a protector). This gives players a real menu: pick a tank *flavor*,
-or a durable front-liner that *also* deals damage / sustains the party.
+or a durable front-liner that *also* deals damage / empowers and shields the party.
 
 ## Per-class sketches
 
@@ -49,7 +49,7 @@ life that behave differently**, and each summon can **Evolve** mid-fight (ANIMA'
 Seed→Bloom→Overgrowth changes a summon's form).
 - **A · Guardian** *(fauna)* — one big, durable **beast body-blocker**: taunts, soaks hits for the party. *Protection by soaking. (few, tough)*
 - **B · Thornwild** *(flora)* — spreading **plants that entangle/root/snare** enemies (rooted/disarmed → their attacks never land) and raise thorn-walls. *Protection by debuffing the enemy's offense — the living mirror of QUANTA's Decoherence. (control/deny)*
-- **C · Symbiote** *(symbiosis)* — **regenerative life grafted onto allies**: heal, regen, link vitality. *Protection by sustain. (buff/heal organism)*
+- **C · Symbiote** *(symbiosis)* — **growing symbiotic life grafted onto allies**: escalating Bloom buffs (ATK/power), absorb-wards, and damage-redirect onto your summons. *Protection by empowering + shielding, never healing — party-healing is reserved for the Staff (Genesis Sage) and Hammer (Lifekeeper). (buff/ward organism)*
 
 ### NOX · Penumbral Bastion — control-tank *(sketch; detail at build time)*
 Mitigates by **lowering the magnitude** — freeze/slow incoming attacks, stillness/lattice armor — and
@@ -63,5 +63,6 @@ in place, **drain** to self-sustain. The purest tank of the five; detail with th
 ## Ratified decisions & notes
 - **SOL lane C = Riposte** (block→counter), ratified over the Radiance/AoE-control alternative.
 - **Summon persistence (ANIMA): per-battle** — summoned creatures are conjured within a fight and reset between battles; no out-of-combat menagerie to manage.
+- **ANIMA-healer concentration (Dara, 2026-06-29):** ANIMA party-healing is reserved for the Staff (Genesis Sage, dedicated) and the Hammer (Lifekeeper, the one secondary); every other ANIMA class must not be a party-healer. Accordingly the Soul-Bound Aegis's **lane C (Symbiote) shifted from healing → growing buffs/wards** — escalating Bloom buffs, absorb-wards, and damage-redirect, with no HP-heal/Regen/revive.
 - **"Block" vs "Dodge" are distinct defensive mechanics** (ratified): SOL *reduces/negates a portion & stacks*; QUANTA *avoids entirely* (dodge %). Both belong in the engine's defensive model.
 - **Entangle/Root** (ANIMA Thornwild) shares a mechanic shape with UMBRAXIS's gravity **Anchored** — same effect, different flavor (vines vs gravity); a single underlying "rooted" status can serve both.

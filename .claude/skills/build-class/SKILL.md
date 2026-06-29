@@ -32,6 +32,25 @@ From the model's tables, fill and state:
 - **Resource** = the class's own attunement pool.
 - **Attunement signature** (Burn/Decay/Poison/probability/Drain) to design on-theme.
 
+### Gate 0.5 — Survey the neighbors (read this BEFORE you design)
+
+Two reads that shape the design — do them *before* proposing lanes, and **summarize what you found**:
+
+- **The weapon family** (same Archetype, all 5 Attunements). Read the archetype's family note
+  (`<archetype>-family.md`) and every sibling spec already built (`*-<archetype>.md`). Your class
+  must occupy a **distinct seat** in that family — a different *role / fantasy / signature mechanic*
+  from each sibling. State explicitly how yours differs, especially from its closest cousin. This is
+  **design distinctness**, separate from (and beyond) the ability-name uniqueness check.
+- **The attunement across weapons** (same Attunement, all 9 Archetypes). Read the Attunement's other
+  specs (`<attunement>-*.md`). Note which concepts/roles the Attunement already leans on heavily and
+  **do not pile onto a saturated one.** Reuse the Attunement's *signature* (Burn/Stasis/Infestation/
+  probability/Drain) freely — that's the shared identity — but a *role* it's already crowded with is
+  off-limits unless the brief says so. **Honor any ratified attunement policy** (e.g.
+  [`attunement-mechanics.md`](../../../docs/design/attunement-mechanics.md) ledger #16 — *ANIMA
+  party-healing belongs to the Staff + one Hammer secondary; every other ANIMA class is a
+  non-healer*). If the brief pushes you into a saturated concept, **flag it** rather than shipping the
+  N-th copy. *(This is the lesson of the ANIMA "five offensive healers" fix.)*
+
 ### Gate 1 — Class DNA (STOP for approval)
 
 Propose, then **wait for the designer to approve or edit**:
@@ -40,6 +59,9 @@ Propose, then **wait for the designer to approve or edit**:
   the **team role**, and **the gear + party situation it's best for** (so gear/party tip the
   optimum). Lanes must be genuinely distinct.
 - The **build axes** the pairs trade along.
+- **Distinctness & concept-budget** (from the Gate 0.5 survey): one line on how this class's seat is
+  **distinct within its weapon family**, and one line confirming it is **not over-using a concept its
+  Attunement is already saturated with** (cite the relevant ratified attunement policy if any).
 - Fold any `from-brief` lore/concepts into the relevant lane here.
 
 Do not proceed to Gate 2 until lanes are locked.
@@ -86,6 +108,13 @@ Self-check the hard invariants and report each ✓/✗. **Do not finalize on any
 8. **Ability names are globally unique** — no two entries share a name within this kit, **and** none
    collides with an ability name in any existing `docs/design/classes/*.md`. Grep the other specs
    before finalizing; rename collisions (reusing a flavor *concept* is fine, an exact *name* is not).
+9. **Same-archetype distinctness** — the class's seat (role / fantasy / signature mechanic) is
+   **distinct from every other class in its weapon family** (the same-Archetype siblings); no two
+   siblings are the same build. (Read `<archetype>-family.md` + the sibling specs — Gate 0.5.)
+10. **Same-attunement concept budget** — the class does **not** pile onto a concept its Attunement
+    already over-uses across weapons (the ANIMA-healing precedent), and it **honors any ratified
+    attunement policy** (e.g. `attunement-mechanics.md` ledger #16). Reusing the Attunement
+    *signature* is fine; duplicating a *saturated role* is not.
 
 ### After writing — gate + handoff
 
