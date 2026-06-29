@@ -53,3 +53,25 @@ exercising the *exact* code the game ships.
   faucet, scored by `itemScore`) is a harness-only presentation layer — pure, no engine change.
 - **Not a player feature.** Lives on the title screen beside Data/Telemetry. If it is ever promoted to a
   real player mode, the persistence story (currently: deliberately none) must be revisited.
+
+## Instrumentation — `BattleLog` + dashboard (harness-only)
+
+The harness captures **granular per-action battle telemetry** for later tuning analysis — a different
+shape from the shipping `Telemetry` service, which records session **aggregates** (sums of dmg/crits/
+affinity/drops). Decisions:
+
+- **A dedicated `BattleLog` buffer, gated by `testMode`** — *not* an extension of shipping `Telemetry`.
+  Per-action data is heavy; keeping it harness-only means **zero cost in real play** (no storage/perf hit
+  for players) and no schema bloat on the aggregate format the `telemetry-analyst` already consumes.
+- **Captured at the `battle.ts` seams** (the same controller layer that already calls `Telemetry.dmg`),
+  so `systems/combat` stays pure (no telemetry import in the logic layer). Records a per-action event
+  stream — `{turn, actor, ability, target, rawDmg, affinityMult, crit, status, hpBefore/After, atb}` —
+  under a per-fight context header (enemy keys/levels/attunements/affixes, party comp + gearScore, spawn
+  config, outcome). Per-fight summaries roll up from the stream.
+- **In-memory per harness session**, capped at the last N fights as a backstop; exported on demand (Copy/
+  Download JSON, reusing the Telemetry export plumbing). Deliberately **not** persisted across sessions in
+  v1 — it dies on exit-to-title.
+- **A `Battle Log` dashboard** (loop-menu only) renders the session aggregate + a per-fight list, with a
+  drill-down into each fight's action timeline.
+- **Downstream consumer.** The raw `BattleLog` JSON is a new format; the `telemetry-analyst` agent (or a
+  new analyzer) must learn it — it is not the shipping session-aggregate schema.
