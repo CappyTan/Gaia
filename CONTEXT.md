@@ -44,6 +44,10 @@ _POC note:_ the playable build currently uses `atk/armor/mag/spd` (+`hp/mp`), no
 _VIT (canon):_ **VIT (Vitality)** is the ratified rename of the former **MGC ("Magic")** slot —
 ANIMA's governing stat, fitting the Life/negentropy stance; it keeps that slot's substat role
 (ability power / healing / debuff potency) and is also the **Staff** archetype's secondary.
+Framed physically, **VIT is free energy / negentropic reserve — the universal *fuel* every Attunement
+burns to do work against entropy.** That is *why* it amplifies ability output for all classes: VIT is
+**universally applicable like the other four primaries** (not a "caster stat"). ANIMA scaling off VIT
+is the deepest case of this — life *is* negentropy.
 
 **Scaling Tier** (canon):
 How well an Attunement converts a given primary stat into **ability power**, best→worst: **S, A, B,
