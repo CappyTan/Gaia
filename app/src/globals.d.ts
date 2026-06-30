@@ -11,6 +11,7 @@ import type { Minimap } from "./controllers/minimap";
 import type { Screens } from "./controllers/screens";
 import type { DataBrowser } from "./controllers/dataBrowser";
 import type { WorldMapView } from "./controllers/worldMap";
+import type { ClassPicker } from "./controllers/classPicker";
 import type { Overlay } from "./ui/overlay";
 import type { Dialogue } from "./ui/dialogue";
 import type { Music } from "./audio/music";
@@ -28,6 +29,7 @@ declare global {
     Screens: typeof Screens;
     DataBrowser: typeof DataBrowser;
     WorldMapView: typeof WorldMapView;
+    ClassPicker: typeof ClassPicker;
     Overlay: typeof Overlay;
     Dialogue: typeof Dialogue;
     Music: typeof Music;
