@@ -5,7 +5,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { BattleLog } from "../src/telemetry/battleLog";
 import { Game } from "../src/controllers/game";
-import { TestLoop, percentileLE } from "../src/controllers/testLoop";
+import { TestLoop, percentileLE, zoneForLevel } from "../src/controllers/testLoop";
+import { ZONES } from "../src/data/zones";
+import { ENEMIES } from "../src/data/enemies";
 import type { Member } from "../src/types";
 
 const ctx = () => ({
@@ -59,6 +61,23 @@ describe("loot percentile (harness readout math)", () => {
     expect(percentileLE(arr, 5)).toBe(0);     // beats nothing
     expect(percentileLE(arr, 99)).toBe(100);  // beats everything
     expect(percentileLE([], 50)).toBe(100);   // no sample → top by convention
+  });
+});
+
+describe("zoneForLevel (default-fight level scaling)", () => {
+  const avgLvl = (z: typeof ZONES[number]) => {
+    const lvls = z.bands.flatMap((b) => b.sets.flat()).map((k) => ENEMIES[k]?.lvl ?? 1);
+    return lvls.reduce((a, b) => a + b, 0) / lvls.length;
+  };
+  it("a low-level party matches an early zone; a high-level party a later one (it scales)", () => {
+    const lo = zoneForLevel(1), hi = zoneForLevel(99);
+    expect(avgLvl(lo)).toBeLessThan(avgLvl(hi));        // higher party level → tougher (higher-level) zone
+    expect(ZONES.indexOf(lo)).toBeLessThan(ZONES.indexOf(hi)); // and an earlier zone on the arc
+  });
+  it("picks the zone whose average enemy level is closest to the party level", () => {
+    const target = zoneForLevel(7);
+    const best = ZONES.reduce((b, z) => Math.abs(avgLvl(z) - 7) < Math.abs(avgLvl(b) - 7) ? z : b, ZONES[0]);
+    expect(target).toBe(best);
   });
 });
 
