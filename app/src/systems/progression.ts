@@ -125,7 +125,7 @@ export interface LevelUp {
   name: string;
   level: number;
   newSkill: string | null;
-  /** MNA points won this level (the 50/50 thrill: 0, or a chunky +2, rarely +3). */
+  /** MNA gained on THIS level — a fixed, deterministic +MNA_PER_LEVEL (no roll, no variance). */
   mnaGain?: number;
   /** Stat bumps gained across the level(s) this member just earned (shown on the Victory card). */
   hp?: number;
@@ -137,38 +137,34 @@ export interface LevelUp {
 export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): LevelUp[] {
   void rng;
   const leveled: LevelUp[] = [];
-  // snapshot what's unlocked + the pre-level stats so we can report newly-opened abilities and stat bumps
-  const before = new Map(party.map((m) => [m.id, new Set(unlockedSkills(m))]));
-  const statBefore = new Map(party.map((m) => [m.id, { hp: m.maxhp, atk: m.atk, arm: m.armor }]));
-  const mnaWon = new Map<string, number>();
   party.forEach((m) => {
     m.xp += xp;
+    let unlocked = new Set(unlockedSkills(m)); // running set so each level reports only what IT opens
+    let didLevel = false;
     while (m.xp >= xpForLevel(m.level)) {
+      didLevel = true;
+      const sb = { hp: m.maxhp, atk: m.atk, arm: m.armor }; // pre-level snapshot for THIS level's deltas
       m.xp -= xpForLevel(m.level);
       m.level++;
       // AUTO-ASSIGNED into the hero's own Attunement, a FIXED +1/level (no variance) — milestones open on a
       // predictable schedule and you just pick; the Mana allocator is an optional redistribution tool.
       m.mnaAlloc[m.att] += MNA_PER_LEVEL;
-      mnaWon.set(m.id, (mnaWon.get(m.id) || 0) + MNA_PER_LEVEL);
-      leveled.push({ name: m.name, level: m.level, newSkill: null });
+      recalc([m]); // settle this single level so the deltas below are per-level (never lumped onto the last)
+      const opened = unlockedSkills(m).find((k) => !unlocked.has(k));
+      unlocked = new Set(unlockedSkills(m));
+      leveled.push({
+        name: m.name,
+        level: m.level,
+        newSkill: opened ? SKILLS[opened].name : null,
+        mnaGain: MNA_PER_LEVEL,
+        hp: m.maxhp - sb.hp,
+        atk: m.atk - sb.atk,
+        arm: m.armor - sb.arm,
+      });
     }
-  });
-  recalc(party);
-  // attribute newly-unlocked abilities + the MNA/stat gains to the member's last level-up entry
-  party.forEach((m) => {
-    const entry = [...leveled].reverse().find((l) => l.name === m.name);
-    if (!entry) return;
-    const prev = before.get(m.id)!;
-    const opened = unlockedSkills(m).find((k) => !prev.has(k));
-    if (opened) entry.newSkill = SKILLS[opened].name;
-    const sb = statBefore.get(m.id)!;
-    entry.hp = m.maxhp - sb.hp;
-    entry.atk = m.atk - sb.atk;
-    entry.arm = m.armor - sb.arm;
-    entry.mnaGain = mnaWon.get(m.id) || 0;
     // level-up fully heals (FF-style) — but a FALLEN hero stays dead until revived in town (Dara);
     // never resurrect on level-up.
-    if (m.alive) {
+    if (didLevel && m.alive) {
       m.hp = m.maxhp;
       m.mp = m.maxmp;
     }
