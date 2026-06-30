@@ -9,7 +9,7 @@ import { PARTY_DEFS } from "../data/party";
 import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
-import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { starterWeapon, rollItemAtLevel, itemScore } from "../systems/loot";
 import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
@@ -93,7 +93,7 @@ export const Game = {
     this.party = defs.map((d) => makeMember(d));
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
     // weapon (which sets the class) would default to SOL and silently re-class the whole party.
-    this.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att); });
+    this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +3 MNA starter weapon
     recalc(this.party);
     Field.init();          // ready zone 0 behind the village (canvas, tiles, map, encounter state)
     this.openStartVillage(); // ...but begin the run walking around the starting village

@@ -55,10 +55,10 @@ export const Battle = {
   _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean; mirror: boolean }[],
   _animHasImpact: false,   // true while resolving an animatedStrike whose anim supplies its own impact
 
-  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = ""): void {
+  begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = "", eliteChance = 0.22): void {
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
-    this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp, i === champIdx));
+    this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp, i === champIdx, Math.random, eliteChance));
     if (this.enemies.some((e) => e.elite)) Telemetry.noteElite();
     Telemetry.encounterStart(enemyKeys, env || "plains", !!isBoss);
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
@@ -641,9 +641,8 @@ export const Battle = {
     if (leveled.length) {
       h += `<div class="card" style="background:#161226;border-color:var(--gold)"><b class="title-gold">Level up!</b><br>`;
       leveled.forEach((l) => {
-        // the MNA roll — usually +1, the super-rare +2 is a jackpot, 0 is an unlucky whiff
-        const mna = (l.mnaGain ?? 0) >= 2 ? `<span class="r-legendary">+${l.mnaGain} MNA ⭐ JACKPOT!</span>`
-          : l.mnaGain === 1 ? `+1 MNA` : `<span style="opacity:.6">no MNA — unlucky</span>`;
+        // MNA is a fixed, automatic grant each level (no roll) — assigned straight into the hero's tree
+        const mna = `+${l.mnaGain ?? 0} MNA`;
         h += `<div class="small" style="margin-top:3px">${l.name} → Lv ${l.level}${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`;
         h += `<div class="small" style="opacity:.9;margin-left:10px">+${l.hp ?? 0} HP · +${l.atk ?? 0} ATK · +${l.arm ?? 0} ARM · ${mna}</div>`;
       });
@@ -717,10 +716,11 @@ export const Battle = {
       `<span class="ac-node${live.has(a) ? " live" : ""}" style="color:${ATT[a].color}" title="${a}">${ABBR[a]}</span>`
     ).join('<span class="ac-arrow">▸</span>') + '<span class="ac-arrow">↺</span>';
     // Party-shared Resource pools (ADR 0019) — a compact per-Attunement strip under the affinity ring.
+    // High-contrast chips (white value + attunement-coloured label) so the pools read clearly in battle.
     const pools = RING.map((a) =>
-      `<span class="ac-node" style="color:${ATT[a].color}" title="${a} Resource">${ABBR[a]} ${Game.resources[a]}</span>`
-    ).join(" ");
-    host.innerHTML = ring + `<div class="res-pools" style="margin-top:3px;font-size:11px;opacity:.85">${pools}</div>`;
+      `<span class="res-pool" title="${a} Resource"><b style="color:${ATT[a].color}">${ABBR[a]}</b> <span class="res-val">${Game.resources[a]}</span></span>`
+    ).join("");
+    host.innerHTML = ring + `<div class="res-pools">${pools}</div>`;
   },
   // RECONCILE in place rather than rebuilding (Dara's attack flicker): a full innerHTML wipe re-created
   // every sprite <img> on each re-render, flashing a blank frame at the start/end of the lunge. We keep
@@ -817,7 +817,6 @@ export const Battle = {
         row.innerHTML = `<div class="pn" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div>
         <div class="bars">
           <div class="bar hp"><i style="width:${pct(m.hp, m.maxhp)}%"></i><span class="bartxt">${Math.max(0, m.hp)}/${m.maxhp}</span></div>
-          <div class="bar mp"><i style="width:${pct(m.mp, m.maxmp)}%"></i></div>
           <div class="bar atb"><i style="width:${m.atb}%"></i></div>
         </div>`;
         p.appendChild(row);
@@ -830,8 +829,7 @@ export const Battle = {
       row.classList.toggle("turn", m === this.current);
       const bars = row.querySelectorAll<HTMLElement>(".bar > i");
       if (bars[0]) { bars[0].style.width = pct(m.hp, m.maxhp) + "%"; row.querySelector(".bar.hp .bartxt")!.textContent = `${Math.max(0, m.hp)}/${m.maxhp}`; }
-      if (bars[1]) bars[1].style.width = pct(m.mp, m.maxmp) + "%";
-      if (bars[2]) bars[2].style.width = m.atb + "%";
+      if (bars[1]) bars[1].style.width = m.atb + "%"; // [hp, atb] — the MP bar was removed (Battle 2.0 uses cooldowns + Resource pools)
     });
   },
   // The battle log lives in the right column of the lower window: a scrollable history (capped),

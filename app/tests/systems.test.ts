@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { affinity } from "../src/systems/affinity";
 import { gearScore } from "../src/systems/gearScore";
-import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
+import { makeItem, itemScore, rollDrop, rarityBand, starterWeapon, STARTER_WEAPON_MNA } from "../src/systems/loot";
 import { combatDamage, makeEnemy, damage, heal } from "../src/systems/combat";
 import { applyStatus, findStatus } from "../src/systems/status";
 import { makeMember, recalc, grantXp, xpForLevel, skillUnlocked, unlockedSkills } from "../src/systems/progression";
@@ -65,6 +65,15 @@ describe("loot generation", () => {
     const common = makeItem("Staff", "weapon", 0, "Staff");
     const artifact = makeItem("Staff", "weapon", 5, "Staff");
     expect(itemScore(artifact)).toBeGreaterThan(itemScore(common));
+  });
+  it("a starter weapon is a common piece in-class with a FIXED +3 MNA in the hero's Attunement", () => {
+    for (const att of ATTUNEMENTS) {
+      const w = starterWeapon("Staff", att, seeded(1));
+      expect(w.slot).toBe("weapon");
+      expect(w.rarity).toBe("common");
+      expect(w.att).toBe(att);
+      expect(w.mna?.[att]).toBe(STARTER_WEAPON_MNA); // deterministic, not the random weaponMna roll
+    }
   });
   it("a boss drop is uncommon-or-better — a notch above its level band, NOT a guaranteed epic", () => {
     const boss = makeEnemy("kingpin", 0, true, 0); // an EARLY boss (Greenvale) must not hand out epics
