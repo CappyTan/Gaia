@@ -27,6 +27,12 @@ describe("passives — prose → Subs bonus (first-pass)", () => {
     expect(m.Abp).toBeGreaterThan(0);
   });
 
+  it("a HEALING passive boosts Healing Done, not the offensive low-HP execute", () => {
+    const m = passiveMods([pas("your heals do more to low-HP allies")]);
+    expect(m.Hld).toBeGreaterThan(0);   // healing-done lever
+    expect(m.Exe).toBeUndefined();      // NOT mis-tagged as offensive execute
+  });
+
   it("accumulates across multiple active passives", () => {
     const m = passiveMods([pas("your beams crit more"), pas("more single-target crit pressure")]);
     expect(m.Crt).toBeGreaterThan(passiveMods([pas("your beams crit more")]).Crt!);
@@ -66,5 +72,19 @@ describe("passives — recalc integration (gated to a re-encoded class with pick
     m.picks = { "passive@30": ["Focus"] }; // Heliomancer @30 lane B — "your beams crit more"
     recalc([m]);
     expect(m.critPct).toBeGreaterThan(before); // the passive folded a crit bonus into the effective stat
+  });
+
+  it("recalc is idempotent — passives don't accumulate across repeated recalc", () => {
+    const m = heliomancer();
+    m.picks = { "passive@30": ["Focus"] };
+    recalc([m]); const once = m.critPct;
+    recalc([m]); recalc([m]);
+    expect(m.critPct).toBe(once); // sub is rebuilt fresh each recalc → no stacking
+  });
+
+  it("a passive picked above current MNA is dormant (no bonus until its set is reached)", () => {
+    // Heliomancer's @60 passive set (Pierce is lane B). Below MNA 60 it must not be active.
+    expect(activePassives("SOL", "Staff", { "passive@60": ["Pierce"] }, 30)).toEqual([]);
+    expect(activePassives("SOL", "Staff", { "passive@60": ["Pierce"] }, 100).map((a) => a.name)).toEqual(["Pierce"]);
   });
 });

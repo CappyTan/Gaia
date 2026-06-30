@@ -13,15 +13,18 @@ import type { AbilityEntry } from "../data/classSpec";
 import type { SubKey, Subs } from "../types";
 
 /** First-pass magnitudes (percentage points on the Subs sheet; tuned in a later balance pass). */
-const MAG = { crit: 6, abp: 8, leech: 5, exe: 12, pen: 10, def: 6, eva: 6, cmd: 10 } as const;
+const MAG = { crit: 6, abp: 8, leech: 5, exe: 12, pen: 10, def: 6, eva: 6, cmd: 10, heal: 10 } as const;
 
-// Effect-prose → the sub-stat(s) a passive boosts. First match wins (most specific first); anything that
-// doesn't match a lever falls through to ability power, so every passive does *something*.
+// Effect-prose → the sub-stat(s) a passive boosts. First match wins, so ORDER is meaningful: the `heal`
+// rule precedes `execute` so "your heals do more to low-HP allies" maps to Healing Done (Hld), not the
+// offensive low-HP execute. Anything that doesn't match a lever falls through to ability power, so every
+// passive does *something*.
 const RULES: { re: RegExp; subs: Partial<Record<SubKey, number>> }[] = [
   { re: /crit damage|crit.*harder|harder.*crit/i, subs: { Cmd: MAG.cmd } },
   { re: /\bcrit/i, subs: { Crt: MAG.crit } },
+  { re: /\bheal|\bmend/i, subs: { Hld: MAG.heal } }, // healing-done (must precede the low-hp execute rule)
   { re: /execut|finish|killing blow|low[- ]?hp|missing hp|already low/i, subs: { Exe: MAG.exe } },
-  { re: /lifesteal|life steal|leech|siphon|vampir|sustain|heal more/i, subs: { Lfs: MAG.leech } },
+  { re: /lifesteal|life steal|leech|siphon|vampir|sustain/i, subs: { Lfs: MAG.leech } },
   { re: /pierc|ignore.*(resist|armor|defen)|penetrat|bypass|ignores? more/i, subs: { Mpn: MAG.pen, Epn: MAG.pen } },
   { re: /evas|dodge|avoid/i, subs: { Eva: MAG.eva } },
   { re: /reduc|mitigat|\barmor\b|\bward\b|tankier|tougher|absorb|defens|damage taken/i, subs: { Mrd: MAG.def, Erd: MAG.def } },
