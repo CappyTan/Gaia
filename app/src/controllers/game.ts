@@ -87,6 +87,7 @@ export const Game = {
     this._lastDefs = defs;
     this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
+    this.testMode = false; this.testReturn = null; // a real run is NEVER in test mode (ADR 0017) — enforce the invariant at the one entry point
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
