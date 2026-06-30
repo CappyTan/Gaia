@@ -187,6 +187,11 @@
   #affinityChain .ac-node.live{opacity:1; box-shadow:0 0 6px -1px currentColor, inset 0 0 0 1px currentColor;}
   #affinityChain .ac-arrow{font-size:10px; color:var(--dim); opacity:.65; flex:0 0 auto;}
   @media (max-width:430px){ #affinityChain{gap:2px;} #affinityChain .ac-node{font-size:9px; padding:2px 3px;} #affinityChain .ac-beats{display:none;} }
+  /* Party-shared Resource pools (ADR 0019) — high-contrast chips so the values read clearly in battle. */
+  #affinityChain .res-pools{display:flex; gap:8px; justify-content:center; align-items:center; margin-top:5px; flex-wrap:wrap; pointer-events:none;}
+  #affinityChain .res-pools .res-pool{font-size:12px; line-height:1; padding:3px 8px; border-radius:6px; background:#0a0a12; border:1px solid #ffffff2e; font-weight:700;}
+  #affinityChain .res-pools .res-pool b{font-size:10px; letter-spacing:.3px;}
+  #affinityChain .res-pools .res-pool .res-val{color:#fff;}
   #battleField{position:absolute; top:0; left:0; right:0; height:70%; overflow:hidden;}
   #battleBg{position:absolute; inset:0;}
   /* combatants stand on the lower "ground" band — clear of the sky, bottom-anchored so a lone

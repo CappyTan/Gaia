@@ -133,18 +133,9 @@ export interface LevelUp {
   arm?: number;
 }
 
-/** A level-up's MNA reward (Dara): usually +1, sometimes nothing, and a SUPER-RARE +2 jackpot.
- *  ~5% +2 · ~75% +1 · ~20% nothing → averages ~0.85/level. The whiff/jackpot spread keeps a little
- *  "did I get lucky?" thrill without the old swingy +2/+3. (rng()→0 yields the jackpot, so the
- *  deterministic test still sees a gain.) */
-function rollLevelMna(rng: Rng): number {
-  const r = rng();
-  if (r < 0.05) return 2; // super-rare jackpot
-  if (r < 0.80) return 1; // the common case
-  return 0;               // unlucky whiff
-}
-
+// rng kept in the signature for call-site compatibility (and future use); leveling MNA is now DETERMINISTIC.
 export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): LevelUp[] {
+  void rng;
   const leveled: LevelUp[] = [];
   // snapshot what's unlocked + the pre-level stats so we can report newly-opened abilities and stat bumps
   const before = new Map(party.map((m) => [m.id, new Set(unlockedSkills(m))]));
@@ -155,10 +146,10 @@ export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): Le
     while (m.xp >= xpForLevel(m.level)) {
       m.xp -= xpForLevel(m.level);
       m.level++;
-      const gain = rollLevelMna(rng);
-      m.mnaAlloc[m.att] += gain; // AUTO-ASSIGNED into the hero's own Attunement (milestones open as you
-      // level → just pick); the Mana allocator is now an optional redistribution tool, not a required step.
-      mnaWon.set(m.id, (mnaWon.get(m.id) || 0) + gain);
+      // AUTO-ASSIGNED into the hero's own Attunement, a FIXED +1/level (no variance) — milestones open on a
+      // predictable schedule and you just pick; the Mana allocator is an optional redistribution tool.
+      m.mnaAlloc[m.att] += MNA_PER_LEVEL;
+      mnaWon.set(m.id, (mnaWon.get(m.id) || 0) + MNA_PER_LEVEL);
       leveled.push({ name: m.name, level: m.level, newSkill: null });
     }
   });

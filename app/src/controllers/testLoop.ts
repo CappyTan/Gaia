@@ -13,7 +13,7 @@ import { ZONES, type Zone } from "../data/zones";
 import { PARTY_DEFS } from "../data/party";
 import { rollEncounter } from "../systems/encounter";
 import { makeMember, recalc } from "../systems/progression";
-import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { starterWeapon, rollItemAtLevel, itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
 import { zeroMna } from "../types";
 import { itemHtml } from "../ui/render";
@@ -54,6 +54,7 @@ export const TestLoop = {
   depth: 0.3,
   isBoss: false,
   champ: false,
+  elite: true, // bench default: guarantee elites so they're always exercised (toggle off for vanilla)
   // party config
   level: 1,
   // loot config
@@ -74,7 +75,7 @@ export const TestLoop = {
    *  hero's own Attunement, recalc), set it to the chosen level, then show the loop. */
   installParty(defs: MemberDef[]): void {
     Game.party = defs.map((d) => makeMember(d));
-    Game.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att); });
+    Game.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +3 MNA starter
     recalc(Game.party);
     this.setLevel(this.level); // sets level/MNA/HP and renders the loop menu
   },
@@ -99,9 +100,12 @@ export const TestLoop = {
     this.lootLevel = Math.max(1, Math.min(100, isFinite(v) ? v : this.lootLevel));
     this.menu();
   },
-  // Relative ±1 steppers read the CURRENT value (not an HTML-captured literal), so rapid taps before a
-  // re-render paint each count — every tap is authoritative.
-  stepLevel(d: number): void { this.setLevel(this.level + d); },
+  /** The party's current highest level — the live default for the Level box. It RISES as the party wins
+   *  fights (grantXp on victory), so the loop naturally escalates without touching any dial. */
+  partyMaxLevel(): number { return Game.party.reduce((n, m) => Math.max(n, m.level), 1); },
+  // Relative ±1 steppers read the party's CURRENT level (not an HTML-captured literal), so a tap always
+  // steps from where the party actually is — and a manual jump (setLevel) cleanly re-levels the party.
+  stepLevel(d: number): void { this.setLevel(this.partyMaxLevel() + d); },
   stepLoot(d: number): void { this.setLootLevel(this.lootLevel + d); },
 
   /* ---- fight config ---- */
@@ -116,6 +120,7 @@ export const TestLoop = {
   setDepth(d: number): void { this.depth = Math.max(0, Math.min(1, Math.round(d * 100) / 100)); this.menu(); },
   toggleBoss(): void { this.isBoss = !this.isBoss; this.menu(); },
   toggleChamp(): void { this.champ = !this.champ; this.menu(); },
+  toggleElite(): void { this.elite = !this.elite; this.menu(); },
 
   /** Bench rule: a fight always starts from full — so a prior wipe can't leave a dead party that
    *  instantly re-wipes (Battle.begin resets statuses/cooldowns but not HP/alive). (ADR 0017) */
@@ -127,17 +132,20 @@ export const TestLoop = {
   fight(): void {
     this.reviveParty();
     Overlay.hide(); // the loop menu is an overlay — hide it so the battle screen underneath is visible
+    const eliteChance = this.elite ? 1 : 0; // bench: guarantee elites when toggled on (default), else none
     if (this.foes.length) {
-      Battle.begin(this.foes, "plains", this.isBoss, false, this.depth, this.champ ? 0 : -1);
+      Battle.begin(this.foes, "plains", this.isBoss, false, this.depth, this.champ ? 0 : -1, "", eliteChance);
       return;
     }
-    const z = zoneForLevel(this.level);
+    // No hand-picked foes → a random encounter from the zone matching the party's CURRENT level, so every
+    // Fight is level-appropriate and the loop ESCALATES as the party wins & levels up (grantXp on victory).
+    const z = zoneForLevel(this.partyMaxLevel());
     if (this.isBoss) { Battle.begin([z.boss], "plains", true, false, 1, -1); return; } // boss toggle → that zone's boss
     const enc = rollEncounter({
       bands: z.bands, progress: Math.random(), inDungeon: false, dungeonFloor: 0,
       zoneIndex: ZONES.indexOf(z), rareKeys: [], fav: undefined,
     });
-    Battle.begin(enc.keys, "plains", false, false, enc.depth, this.champ ? 0 : enc.champIdx);
+    Battle.begin(enc.keys, "plains", false, false, enc.depth, this.champ ? 0 : enc.champIdx, "", eliteChance);
   },
 
   /* ---- loot tools ---- */
@@ -215,13 +223,14 @@ export const TestLoop = {
       <div class="row" style="margin:5px 0;align-items:center">
         <button class="btn" onclick="TestLoop.pickParty()">Build party ▸</button>
         <button class="btn" onclick="UI.openParty()">Abilities ▸</button>
-        ${stepper("Level", this.level, "setLevel", "stepLevel")}
+        ${stepper("Level", this.partyMaxLevel(), "setLevel", "stepLevel")}
       </div>
 
       ${head("Fight")}
       <div class="row" style="margin:5px 0;align-items:center">
         <label class="small"><input type="checkbox" ${this.isBoss ? "checked" : ""} onclick="TestLoop.toggleBoss()"> boss</label>
         <label class="small"><input type="checkbox" ${this.champ ? "checked" : ""} onclick="TestLoop.toggleChamp()"> champion</label>
+        <label class="small"><input type="checkbox" ${this.elite ? "checked" : ""} onclick="TestLoop.toggleElite()"> elites</label>
         <span class="small" title="enemy level scaling: 0 = zone start, 1 = zone end">depth ${this.depth.toFixed(2)} (0–1)</span>
         <button class="btn" style="min-width:34px" onclick="TestLoop.setDepth(${(this.depth - 0.1).toFixed(2)})">−</button>
         <button class="btn" style="min-width:34px" onclick="TestLoop.setDepth(${(this.depth + 0.1).toFixed(2)})">+</button>

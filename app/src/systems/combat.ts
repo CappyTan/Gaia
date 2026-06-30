@@ -110,7 +110,7 @@ function applyAffixes(e: Enemy, n: number, rng: Rng = Math.random): void {
  * to roll Elite (1-2 affixes). Passing `champion` makes a tanky pack leader: much higher HP, more
  * ATK, three affixes, and richer XP/gold (a tier above elite) — see Field champion packs.
  */
-export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false, rng: Rng = Math.random): Enemy {
+export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false, rng: Rng = Math.random, eliteChance = 0.22): Enemy {
   const d = ENEMIES[key];
   // V3 (ADR 0018): stats DERIVE from (role, level). `depth` (0–1, how far into the zone) lifts the
   // EFFECTIVE level (DEPTH_LEVELS) — replacing the old HP/ATK depth-scale AND the std-HP trash cut,
@@ -135,6 +135,6 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
   };
   if (e.boss || e.miniboss || e.rare) return e; // rares are their own tier — no random elite roll
   if (champion) { e.champion = true; e.elite = true; applyAffixes(e, 3, rng); }
-  else if (rng() < 0.22) { e.elite = true; applyAffixes(e, riR(rng, 1, 2), rng); } // elite roll
+  else if (rng() < eliteChance) { e.elite = true; applyAffixes(e, riR(rng, 1, 2), rng); } // elite roll (chance is caller-tunable; the Test Loop can force it)
   return e;
 }

@@ -127,6 +127,17 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   return { slot, cls: weaponClass || cls || "", att: itemAtt, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, prim, affixes };
 }
 
+/** MNA every hero's starting weapon grants in its own Attunement — a fixed head start (so a fresh hero
+ *  reaches the first ability milestone a few levels in, with the auto-assigned per-level MNA on top). */
+export const STARTER_WEAPON_MNA = 3;
+/** The basic level-0 weapon a new hero begins with — a common piece in their class, pinned to a
+ *  deterministic +STARTER_WEAPON_MNA (not the random roll) so every new character starts identically. */
+export function starterWeapon(cls: string, att: Attunement, rng: Rng = Math.random): Item {
+  const w = makeItem(cls, "weapon", 0, cls, 0, att, rng);
+  w.mna = { [att]: STARTER_WEAPON_MNA };
+  return w;
+}
+
 // crude power score for comparing/sorting items
 export function itemScore(it: Item): number {
   let s =
