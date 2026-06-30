@@ -187,10 +187,10 @@ export interface Skill {
   cleanse?: boolean;
   /** V3 resource economy (ADR 0019): own-Attunement resource GENERATED on use (specials/auto) — added to
    *  the shared pool at turn end. One-way with `resourceCost` (a skill does one or the other). Set by the
-   *  band→number generator (systems/classKit) on generated kits; unset on the legacy hand-authored kits. */
+   *  band→number generator (systems/classKit); unset on abilities that don't generate (signatures/ults). */
   resourceGen?: number;
   /** V3 resource economy: own-Attunement resource SPENT on use (signatures/ultimates) — debited from the
-   *  shared pool at resolution. Unset on legacy kits (they spend nothing). */
+   *  shared pool at resolution. Unset on abilities that don't spend (specials/auto). */
   resourceCost?: number;
   /** Per-skill cooldown in turns (from the cooldown band). Unset → the flat `Battle.ABILITY_CD`. */
   cd?: number;
@@ -317,8 +317,8 @@ export interface Member extends Unit {
   mnaPoints: number;
   /** V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s); see `Picks` in systems/choice
    *  (structurally `Record<string, string[]>`). Present once the player has banked picks for this class
-   *  in the picker; drives the usable kit via `activeKit` (systems/classKit) instead of the static KITS
-   *  map. Absent → the member falls back to the legacy `kitFor` kit. Persisted per-member. */
+   *  in the picker; drives the usable kit via `activeKit` (systems/classKit). Absent / empty → the member
+   *  wields only the basic Attack/Defend (there is no legacy kit) until they pick. Persisted per-member. */
   picks?: Record<string, string[]>;
   mp: number;
   maxmp: number;

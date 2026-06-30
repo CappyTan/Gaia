@@ -1,8 +1,8 @@
 // Roster picker: before a run, build your party of five — each hero's Attunement × Archetype
 // (= class). The formation is fixed 3 front / 2 back (front line is targeted first, the back
 // line of casters/ranged is shielded). Class = weapon, so a hero's starting class is set here
-// and can later change via loot. Bodies/kits for any attunement come from the art + the
-// KITS_GENERIC fallback, so every attunement is playable.
+// and can later change via loot. Every Attunement × Archetype is a real class (a 52-slot spec in
+// data/classSpecs), so every attunement is playable; abilities are built from picks in the class picker.
 
 import type { Attunement, MemberDef } from "../types";
 import { ATTUNEMENTS } from "../types";

@@ -118,14 +118,14 @@ describe("save round-trip", () => {
     expect(r.resources.SOL).toBe(30);
   });
 
-  it("an old save with no picks/resources loads cleanly (legacy kit, empty pools), never throws", () => {
+  it("an old save with no picks/resources loads cleanly (no picks → empty kit, empty pools), never throws", () => {
     const { snapshot } = makeRun();
     const env = serialize(snapshot, "v1");
     delete env.run.resources;                       // simulate a pre-V3 envelope
     for (const sm of env.run.party) delete sm.picks;
     const r = deserialize(env)!;
-    expect(r.party[0].picks).toBeUndefined();           // → falls back to the legacy kit
-    expect(r.party[0].skills.length).toBeGreaterThan(0);
+    expect(r.party[0].picks).toBeUndefined();           // no picks banked…
+    expect(r.party[0].skills).toEqual([]);              // …→ only the basic Attack/Defend (no legacy kit)
     expect(r.resources).toEqual({ SOL: 0, NOX: 0, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 });
   });
 
@@ -396,17 +396,16 @@ describe("graceful degradation (never throws; keeps the party)", () => {
     expect(r.inventory[0].affixes.every((a) => a.key !== "this_affix_was_deleted")).toBe(true);
   });
 
-  it("a member with an UNKNOWN ARCHETYPE still resumes (kept playable via the generic kit)", () => {
-    // ADR 0007 prefers KEEPING the party. An unknown archetype on a valid attunement still
-    // resolves to a usable kit (kitFor falls back to the attunement's generic kit), so the hero
-    // is preserved — not dropped. (A member is only dropped when nothing resolves; see below.)
+  it("a member with an UNKNOWN ARCHETYPE is dropped (no 52-slot spec → no kit), the rest survive", () => {
+    // V3 (ADR 0020): a class IS its 52-slot spec; there is no generic legacy fallback. An archetype with
+    // no spec can't resolve a kit, so the hero is dropped on load (degrade-never-throw) — the rest survive.
     const { snapshot } = makeRun();
     const env = serialize(snapshot, "v1");
     env.run.party[0].def = { ...env.run.party[0].def, cls: "Plasma Whip (unknown archetype)" };
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
-    expect(r.party.length).toBe(2);
-    expect(r.party[0].skills.length).toBeGreaterThan(0); // playable fallback kit
+    expect(r.party.length).toBe(1);     // the unknown-archetype hero dropped; member 1 survives
+    expect(r.party[0].id).toBe("h1");
   });
 
   it("a member whose ATTUNEMENT no longer exists is dropped, the rest survive", () => {

@@ -133,7 +133,9 @@ export const UI = {
   // player builds the kit that becomes their battle commands.
   openClassPicker(memberId: string): void {
     const m = Game.party.find((x) => x.id === memberId);
-    if (m && hasSpec(m.att, m.cls)) ClassPicker.open(undefined, m);
+    // Return to the Abilities screen on Confirm/Cancel (not the bare title) — so the picker, reached from
+    // the Party menu (incl. via the Test Loop), comes back where it was opened instead of stranding.
+    if (m && hasSpec(m.att, m.cls)) ClassPicker.open(undefined, m, () => this.partyAbilities());
   },
   useHeal(memberId: string, key: string): void {
     const m = Game.party.find((x) => x.id === memberId), s = SKILLS[key];

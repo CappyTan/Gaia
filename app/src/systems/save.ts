@@ -18,7 +18,7 @@ import { makeMember, recalc } from "./progression";
 import { ZONES } from "../data/zones";
 import { placementOf } from "../data/world";
 import { SETTLEMENTS } from "../data/towns";
-import { kitFor } from "../data/classes";
+import { hasSpec } from "./classKit";
 import { AFFIXES } from "../data/items";
 import { HELD_ITEMS } from "../data/heldItems";
 import { RARITY } from "../data/rarity";
@@ -58,9 +58,9 @@ export interface SavedMember {
   equip: Partial<Record<Slot, SavedItem | null>>;
   pendingRegen?: number; // carried dungeon "regen" reprieve (ADR 0010); absent on most saves
   // V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s). OPTIONAL — absent on a save from
-  // before the choice system (or a hero on a legacy kit) → the member uses the static kitFor kit. Stale
-  // names (a spec changed) are harmless: activeKit just skips an option it can't find. No schema bump
-  // needed (back-compatible, like the other optional run fields).
+  // before the choice system → the hero simply has no picks yet (only the basic Attack/Defend until the
+  // player picks). Stale names (a spec changed) are harmless: activeKit just skips an option it can't
+  // find. No schema bump needed (back-compatible, like the other optional run fields).
   picks?: Record<string, string[]>;
 }
 
@@ -357,8 +357,8 @@ function reviveItem(si: SavedItem | null | undefined): Item | null {
 function reviveMember(sm: SavedMember, notes: string[]): Member | null {
   if (!sm || !sm.def || typeof sm.def.att !== "string" || typeof sm.def.cls !== "string") return null;
   if (!ATTUNEMENTS.includes(sm.def.att)) return null;        // a removed attunement → drop the hero
-  // The class must still resolve to a kit (Attunement × Archetype); else its abilities are gone.
-  if (!kitFor(sm.def.att, sm.def.cls)) { notes.push(`dropped ${sm.def.name}: class no longer exists`); return null; }
+  // The class (Attunement × Archetype) must still exist as a 52-slot spec; else it can't resolve a kit.
+  if (!hasSpec(sm.def.att, sm.def.cls)) { notes.push(`dropped ${sm.def.name}: class no longer exists`); return null; }
   const m = makeMember(sm.def);
   m.level = Math.max(1, Math.floor(sm.level || 1));
   m.xp = Math.max(0, sm.xp || 0);
@@ -368,8 +368,8 @@ function reviveMember(sm: SavedMember, notes: string[]): Member | null {
   // V3 picks (ADR 0020) — restored BEFORE recalc so the choice-derived kit resolves on rebuild. A plain
   // {string→string[]} map; anything malformed is ignored (degrade-never-throw). Stale ability names (a
   // renamed ability after a deploy) are harmless — activeKit just skips them, leaving fewer/no active
-  // picks (only Attack/Defend until the player re-picks). The legacy kit is the fallback only for a hero
-  // with NO picks at all (recalc), not for one whose picks happen to resolve empty.
+  // picks (only Attack/Defend until the player re-picks). A hero with no picks likewise wields only the
+  // basic Attack/Defend (there is no legacy fallback kit) until they pick abilities in their lanes.
   if (sm.picks && typeof sm.picks === "object" && !Array.isArray(sm.picks)) {
     const picks: Record<string, string[]> = {};
     for (const [id, names] of Object.entries(sm.picks)) if (Array.isArray(names)) picks[id] = names.filter((n) => typeof n === "string");

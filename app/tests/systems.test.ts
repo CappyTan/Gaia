@@ -14,10 +14,23 @@ import { SKILLS } from "../src/data/skills";
 import { ITEM_NAMES } from "../src/data/items";
 import { RARITY } from "../src/data/rarity";
 import { WEAPON_MNA_ROLL, ARMOR_MNA_ROLL } from "../src/data/loot";
-import { kitFor, KITS_GENERIC } from "../src/data/classes";
 import { buildDef, ARCHETYPE_KEYS } from "../src/data/party";
-import { zeroMna, ARMOR_SLOTS } from "../src/types";
-import type { Enemy, Member } from "../src/types";
+import { genSkillKey, hasSpec } from "../src/systems/classKit";
+import { defaultPicks } from "../src/systems/choice";
+import { specFor } from "../src/data/classSpecs";
+import { zeroMna, ARMOR_SLOTS, ATTUNEMENTS } from "../src/types";
+import type { Attunement, Enemy, Member } from "../src/types";
+
+// Build a hero on its FULL default V3 kit (lane A at every milestone) at a given own-Attunement MNA —
+// the game ships heroes with only the auto-attack until they pick, but these tests need a built kit to
+// exercise the MNA gating / reclass / playability invariants. (defaultPicks is a test/sim helper.)
+const built = (att: Attunement, cls: string, mna: number, row: "front" | "back" = "front"): Member => {
+  const m = makeMember(buildDef("h", "Tester", att, cls, row));
+  m.picks = defaultPicks(specFor(att, cls)!);
+  m.mnaAlloc[att] = mna;
+  recalc([m]);
+  return m;
+};
 
 describe("affinity ring", () => {
   it("each power beats the next and is weak to the previous", () => {
@@ -157,7 +170,8 @@ describe("roster start preserves the chosen attunement", () => {
     m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att);
     recalc([m]);
     expect(m.att).toBe("NOX"); // NOT silently re-classed to SOL
-    expect(m.skills).toEqual(kitFor("NOX", "Dual Swords"));
+    expect(m.cls).toBe("Dual Swords");
+    expect(m.skills).toEqual([]); // no picks yet → only the basic Attack/Defend (there is no legacy kit)
   });
 });
 
@@ -212,36 +226,34 @@ describe("progression", () => {
 });
 
 describe("MNA gating & scaling", () => {
-  it("abilities are gated by MNA threshold in their tree", () => {
-    const m = makeMember(PARTY_DEFS[0]); // Auren, SOL
-    recalc([m]); // no gear, no alloc -> SOL MNA 0
-    expect(skillUnlocked(m, SKILLS.guard)).toBe(true); // req 0
-    expect(skillUnlocked(m, SKILLS.shieldBash)).toBe(false); // req 5
-    m.mnaAlloc.SOL = 10;
-    recalc([m]);
-    expect(skillUnlocked(m, SKILLS.shieldBash)).toBe(true);
-    expect(skillUnlocked(m, SKILLS.radiantSmite)).toBe(false); // req 40
-    expect(skillUnlocked(m, SKILLS.sunbreaker)).toBe(false); // ult, req 100
+  it("V3 abilities are gated by MNA threshold in their tree (the choice-system milestones)", () => {
+    const fire = SKILLS[genSkillKey("Firebolt")]; // Heliomancer (SOL Staff) special @ MNA 5
+    const ray = SKILLS[genSkillKey("Death Ray")]; // its ultimate @ MNA 100
+    const m = built("SOL", "Staff", 0); // full picks, but SOL MNA 0
+    expect(skillUnlocked(m, fire)).toBe(false); // 0 < 5
+    expect(m.skills).toEqual([]); // nothing reached → empty active kit
+    m.mnaAlloc.SOL = 10; recalc([m]);
+    expect(skillUnlocked(m, fire)).toBe(true); // 10 ≥ 5
+    expect(m.skills).toContain(genSkillKey("Firebolt")); // now in the active kit
+    expect(skillUnlocked(m, ray)).toBe(false); // ult still gated at 100
   });
   it("a high-MNA weapon instantly opens a cluster of abilities", () => {
-    const m = makeMember(PARTY_DEFS[0]);
-    recalc([m]);
+    const m = built("SOL", "Staff", 0); // picks set, MNA 0 → empty active kit
     const before = unlockedSkills(m).length;
-    m.equip.weapon = makeItem(m.cls, "weapon", 5, m.cls, 12); // artifact, high ilvl
+    expect(before).toBe(0);
+    m.equip.weapon = makeItem(m.cls, "weapon", 5, m.cls, 12, "SOL"); // artifact, high ilvl → big MNA
     recalc([m]);
-    expect(m.mna.SOL).toBeGreaterThan(10); // gear MNA is toned down (Stat System balance), but still opens abilities
+    expect(m.mna.SOL).toBeGreaterThan(10); // gear MNA is toned down, but still opens abilities
     expect(unlockedSkills(m).length).toBeGreaterThan(before);
   });
   it("Archon (100 MNA) is required for the ultimate", () => {
-    const m = makeMember(PARTY_DEFS[1]);
-    m.mnaAlloc[m.att] = 100; // allocate into the hero's own tree (party comp is attunement-diverse)
-    recalc([m]);
+    const m = built("SOL", "Staff", 100);
     const ult = m.skills.map((k) => SKILLS[k]).find((s) => s.ult)!;
     expect(ult.mnaReq).toBe(100);
     expect(skillUnlocked(m, ult)).toBe(true);
-    m.mnaAlloc[m.att] = 99;
-    recalc([m]);
-    expect(skillUnlocked(m, ult)).toBe(false);
+    m.mnaAlloc.SOL = 99; recalc([m]);
+    // at 99 MNA the @100 ultimate pick is dormant → it isn't in the active kit at all
+    expect(m.skills.map((k) => SKILLS[k]).some((s) => s.ult)).toBe(false);
   });
   it("leveling grants spendable MNA points; recalc folds allocation into totals", () => {
     const party = [makeMember(PARTY_DEFS[0])];
@@ -256,39 +268,30 @@ describe("MNA gating & scaling", () => {
     expect(m.mna.SOL).toBe(pts); // no gear -> total equals allocation
   });
   it("equipping a foreign-attunement weapon reclasses the hero (class = weapon)", () => {
-    const m = makeMember(buildDef("hero0", "Kael", "SOL", "Dual Swords", "front")); // innate SOL Dual Swords
-    recalc([m]);
+    const m = built("SOL", "Dual Swords", 10); // innate SOL Dual Swords, full SOL kit
     expect(m.att).toBe("SOL");
-    expect(m.skills).toEqual(kitFor("SOL", "Dual Swords"));
+    expect(m.skills.length).toBeGreaterThan(0);
     m.equip.weapon = makeItem(m.cls, "weapon", 3, "Dual Swords", 10, "NOX"); // a NOX blade
+    m.picks = defaultPicks(specFor("NOX", "Dual Swords")!); // a player re-picks for the new class (Rimewalker)
     recalc([m]);
     expect(m.att).toBe("NOX"); // reclassed
     expect(m.mna.NOX).toBeGreaterThan(0); // gear MNA flows to NOX
-    expect(m.skills).toEqual(kitFor("NOX", "Dual Swords")); // NOX kit (Rimewalker)
-    expect(skillUnlocked(m, SKILLS.noxFrostLace)).toBe(true); // low NOX ability usable
+    expect(m.skills.length).toBeGreaterThan(0); // a usable NOX kit
+    expect(m.skills.every((k) => SKILLS[k]?.att === "NOX")).toBe(true); // every active ability is NOX
   });
-  it("any attunement is playable: every archetype resolves to a usable kit", () => {
-    for (const att of ["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"] as const)
+  it("any attunement is playable: every archetype is a real class (52-slot spec) with a usable kit", () => {
+    for (const att of ATTUNEMENTS)
       for (const arch of ARCHETYPE_KEYS) {
-        const kit = kitFor(att, arch);
-        expect(kit && kit.length).toBeGreaterThan(0);
-        kit!.forEach((k) => expect(SKILLS[k]).toBeTruthy()); // every kit key is a real skill
+        expect(hasSpec(att, arch)).toBe(true); // all 45 classes are re-encoded
+        const m = built(att, arch, 100); // full picks at a maxed well
+        expect(m.skills.length).toBeGreaterThan(0); // a non-empty active kit
+        m.skills.forEach((k) => { expect(SKILLS[k]).toBeTruthy(); expect(SKILLS[k].att).toBe(att); });
       }
-    // every class now has its OWN canon kit, not the shared generic placeholder (the fix for
-    // "ANIMA S&S borrowed another class's abilities" / "classes need distinction")
-    expect(kitFor("ANIMA", "Staff")).not.toEqual(KITS_GENERIC.ANIMA);
-    expect(kitFor("SOL", "Hammer")).not.toEqual(KITS_GENERIC.SOL);
-    // all 45 attunement×archetype kits are distinct
-    const all = (["SOL", "NOX", "ANIMA", "QUANTA", "UMBRAXIS"] as const)
-      .flatMap((att) => ARCHETYPE_KEYS.map((arch) => JSON.stringify(kitFor(att, arch))));
-    expect(new Set(all).size).toBe(45);
   });
   it("buildDef makes a playable hero of a chosen attunement × archetype", () => {
-    const m = makeMember(buildDef("hero0", "Test", "QUANTA", "Rifle", "back"));
-    m.mnaAlloc.QUANTA = 10; recalc([m]);
+    const m = built("QUANTA", "Rifle", 10, "back");
     expect(m.att).toBe("QUANTA");
     expect(m.row).toBe("back");
-    expect(m.skills).toEqual(kitFor("QUANTA", "Rifle"));
     expect(unlockedSkills(m).length).toBeGreaterThan(0); // has a usable ability
   });
   it("SOL MNA scales damage output", () => {

@@ -146,8 +146,11 @@ export const Battle = {
       list.appendChild(b);
     };
     mk("Attack", 0, () => this.chooseTarget(m, { type: "attack" }));
+    // V3 (ADR 0020): the Skill menu only appears once the hero has usable picked abilities — an un-built
+    // hero (no picks, or all dormant at low MNA) just has Attack/Defend until they pick abilities in their
+    // lanes (the class picker). No empty "Skill ▸" menu to tap into.
     const knownKeys = m.skills.filter((k) => SKILLS[k] && skillUnlocked(m, SKILLS[k]));
-    const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, knownKeys); list.appendChild(skBtn);
+    if (knownKeys.length) { const skBtn = el("button", "cmd", "Skill ▸"); skBtn.onclick = () => this.showSkills(m, knownKeys); list.appendChild(skBtn); }
     // Ultimate: a per-class signature super (its own button, between Skill and Defend). Only shown for
     // members who have one (e.g. the Photon Vanguard's Orbital Cannon).
     const ult = ULTIMATES[`${m.att}:${m.cls}`];

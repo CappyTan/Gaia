@@ -10,12 +10,11 @@
 // system). Don't assert an exact `skills.ids().length`/`ults()` set in a test that doesn't import classKit.
 
 import type { Attunement, EnemyDef, Skill } from "../types";
-import { ATTUNEMENTS } from "../types";
 import { SKILLS } from "./skills";
 import { ENEMIES, RARE_MONSTERS } from "./enemies";
 import { ZONES } from "./zones";
-import { kitFor, className } from "./classes";
-import { ARCHETYPE_KEYS } from "./party";
+import { className } from "./classes";
+import { SPECS } from "./classSpecs";
 
 /** An enemy def with its registry key folded in (the bestiary row shape). */
 export type EnemyRow = EnemyDef & { key: string };
@@ -30,11 +29,6 @@ ZONES.forEach((z, zi) => {
 });
 RARE_MONSTERS.forEach((r) => r.zones.forEach((zi) => addZone(r.key, zi)));
 
-// skill key -> the class labels ("ATT Archetype") whose kit includes it
-const skillClasses: Record<string, string[]> = {};
-for (const att of ATTUNEMENTS) for (const arch of ARCHETYPE_KEYS)
-  (kitFor(att, arch) || []).forEach((k) => { (skillClasses[k] ||= []).push(`${att} ${arch}`); });
-
 export const DB = {
   skills: {
     get: (id: string): Skill | undefined => SKILLS[id],
@@ -42,8 +36,6 @@ export const DB = {
     ids: (): string[] => Object.keys(SKILLS),
     byAtt: (att: Attunement): Skill[] => Object.values(SKILLS).filter((s) => s.att === att),
     ults: (): Skill[] => Object.values(SKILLS).filter((s) => s.ult),
-    /** Which classes (Attunement × Archetype) include this skill in their kit. */
-    usedBy: (id: string): string[] => skillClasses[id] || [],
   },
   enemies: {
     get: (key: string): EnemyDef | undefined => ENEMIES[key],
@@ -59,11 +51,9 @@ export const DB = {
     inZone: (zi: number): EnemyRow[] => DB.enemies.all().filter((e) => (enemyZones[e.key] || []).includes(zi)),
   },
   classes: {
-    kit: kitFor,
     name: className,
-    /** The full 45-class grid with each class's resolved kit. */
-    all: () => ATTUNEMENTS.flatMap((att) =>
-      ARCHETYPE_KEYS.map((arch) => ({ att, archetype: arch, name: className(att, arch), kit: kitFor(att, arch) || [] }))),
+    /** The full 45-class grid (Attunement × Archetype) with each class's 52-slot ability list (by name). */
+    all: () => SPECS.map((s) => ({ att: s.att, archetype: s.archetype, name: s.name, kit: s.abilities.map((a) => a.name) })),
   },
   zones: {
     get: (i: number) => ZONES[i],

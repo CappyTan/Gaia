@@ -9,7 +9,9 @@ import type { Attunement, Item, Member, MemberDef } from "../types";
 import { ATTUNEMENTS } from "../types";
 import { ATT } from "../data/attunements";
 import { ENEMIES } from "../data/enemies";
+import { ZONES, type Zone } from "../data/zones";
 import { PARTY_DEFS } from "../data/party";
+import { rollEncounter } from "../systems/encounter";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
@@ -30,6 +32,20 @@ const NUM_INPUT = "width:54px;text-align:center;background:#16122a;color:#fff;bo
 /** Percentile of `v` within `arr` (% of samples ≤ v). Empty sample → 100. Pure (exported for tests). */
 export const percentileLE = (arr: number[], v: number): number =>
   arr.length ? Math.round((arr.filter((x) => x <= v).length / arr.length) * 100) : 100;
+
+/** The zone whose enemies' average base level is closest to `level` — so a default Test Loop fight (no
+ *  hand-picked enemies) draws a level-appropriate pack and SCALES with the party's Level dial across the
+ *  L1–25 arc, instead of always spawning the first enemy in the table. Pure (exported for tests). */
+export const zoneForLevel = (level: number): Zone => {
+  let best = ZONES[0], bestDiff = Infinity;
+  for (const z of ZONES) {
+    const lvls = z.bands.flatMap((b) => b.sets.flat()).map((k) => ENEMIES[k]?.lvl ?? 1);
+    const avg = lvls.length ? lvls.reduce((a, b) => a + b, 0) / lvls.length : 1;
+    const diff = Math.abs(avg - level);
+    if (diff < bestDiff) { bestDiff = diff; best = z; }
+  }
+  return best;
+};
 
 export const TestLoop = {
   // fight config
@@ -104,12 +120,24 @@ export const TestLoop = {
   /** Bench rule: a fight always starts from full — so a prior wipe can't leave a dead party that
    *  instantly re-wipes (Battle.begin resets statuses/cooldowns but not HP/alive). (ADR 0017) */
   reviveParty(): void { Game.party.forEach((m) => { m.hp = m.maxhp; m.mp = m.maxmp; m.alive = true; }); },
-  /** Start the configured fight (testMode is on → wipe/victory return here, no save touched). */
+  /** Start the configured fight (testMode is on → wipe/victory return here, no save touched).
+   *  With enemies hand-picked, fight exactly those (honoring the boss/champion/depth dials). With NONE
+   *  picked, roll a RANDOM encounter from the zone whose enemies match the party's Level — so just hitting
+   *  Fight gives a varied, level-appropriate pack that scales as you raise the Level dial. */
   fight(): void {
-    const foes = this.foes.length ? this.foes : [Object.keys(ENEMIES)[0]];
     this.reviveParty();
     Overlay.hide(); // the loop menu is an overlay — hide it so the battle screen underneath is visible
-    Battle.begin(foes, "plains", this.isBoss, false, this.depth, this.champ ? 0 : -1);
+    if (this.foes.length) {
+      Battle.begin(this.foes, "plains", this.isBoss, false, this.depth, this.champ ? 0 : -1);
+      return;
+    }
+    const z = zoneForLevel(this.level);
+    if (this.isBoss) { Battle.begin([z.boss], "plains", true, false, 1, -1); return; } // boss toggle → that zone's boss
+    const enc = rollEncounter({
+      bands: z.bands, progress: Math.random(), inDungeon: false, dungeonFloor: 0,
+      zoneIndex: ZONES.indexOf(z), rareKeys: [], fav: undefined,
+    });
+    Battle.begin(enc.keys, "plains", false, false, enc.depth, this.champ ? 0 : enc.champIdx);
   },
 
   /* ---- loot tools ---- */
@@ -152,7 +180,7 @@ export const TestLoop = {
     // Enemy picker — a collapsed accordion (the bulk of the screen); selection summary in the header.
     const selSummary = this.foes.length
       ? `${this.foes.length} selected · ${this.foes.slice(0, 2).join(", ")}${this.foes.length > 2 ? "…" : ""}`
-      : "none — defaults to one";
+      : "none → a random fight scaled to your party level";
     let foeGrid = "";
     for (const att of ATTUNEMENTS) {
       const keys = Object.keys(ENEMIES).filter((k) => ENEMIES[k].att === att);

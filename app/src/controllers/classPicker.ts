@@ -26,10 +26,14 @@ export const ClassPicker = {
   picks: {} as Picks,
   mna: 100,
   member: null as Member | null,
+  onClose: null as (() => void) | null, // where Confirm/Cancel/Close return to (set by the opener); null → just hide
 
   /** Open the picker. With a `member`, bind to it: seed the picks/MNA from the hero and surface a Confirm
-   *  that writes them back. With none, it's a standalone preview (the title "Classes" button). */
-  open(spec: ClassSpec = HELIOMANCER, member: Member | null = null): void {
+   *  that writes them back. With none, it's a standalone preview (the title "Classes" button). `onClose`
+   *  is the return target (e.g. the Party→Abilities screen) so closing doesn't dump the player to the title
+   *  — important when the picker is reached from the Test Loop / a menu (every page returns to its opener). */
+  open(spec: ClassSpec = HELIOMANCER, member: Member | null = null, onClose: (() => void) | null = null): void {
+    this.onClose = onClose;
     if (member) {
       this.member = member;
       this.spec = specFor(member.att, member.cls) ?? spec;
@@ -43,6 +47,9 @@ export const ClassPicker = {
     }
     this.render();
   },
+
+  /** Leave the picker — return to the opener (the menu/screen that launched it) or just hide if standalone. */
+  close(): void { if (this.onClose) this.onClose(); else Overlay.hide(); },
   setMna(v: number): void { this.mna = clamp(v, 0, 200); this.render(); },
   reset(): void { this.picks = {}; this.render(); },
   pick(id: string, idx: number): void {
@@ -64,13 +71,13 @@ export const ClassPicker = {
     }
     this.render();
   },
-  /** Bound mode: write the banked picks onto the member, recompute its kit, persist. */
+  /** Bound mode: write the banked picks onto the member, recompute its kit, persist, return to the opener. */
   confirm(): void {
     if (!this.member) return;
     this.member.picks = { ...this.picks };
     recalc(Game.party);   // re-derive m.skills from the picks (gated by the member's real MNA)
     Game.saveNow();
-    Overlay.hide();
+    this.close();
   },
 
   render(): void {
@@ -99,8 +106,8 @@ export const ClassPicker = {
       ? `Choose this hero's abilities. Picks at milestones beyond their current ${this.spec.att} MNA are <i>banked</i> (dormant until they reach it). Confirm to apply.`
       : `${this.spec.att} × ${this.spec.archetype} — the 3-lane choice system. Pick at each milestone your MNA has reached; picks above your MNA go <i>dormant</i> (banked, inactive).`;
     const actions = bound
-      ? `<button class="btn gold" onclick="ClassPicker.confirm()">Confirm</button><button class="btn" onclick="Overlay.hide()">Cancel</button>`
-      : `<button class="btn gold" onclick="Overlay.hide()">Close</button>`;
+      ? `<button class="btn gold" onclick="ClassPicker.confirm()">Confirm</button><button class="btn" onclick="ClassPicker.close()">Cancel</button>`
+      : `<button class="btn gold" onclick="ClassPicker.close()">Close</button>`;
     Overlay.show(`<h2 class="title-gold" style="color:${col}">${this.spec.name}${who}</h2>
       <div class="small">${intro}</div>
       <div class="row" style="margin:6px 0;align-items:center">

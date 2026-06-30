@@ -39,8 +39,8 @@ function bestiary(): string {
 function skills(): string {
   const rows = DB.skills.ids().map((id) => ({ id, s: DB.skills.get(id)! }))
     .sort((a, b) => a.s.att.localeCompare(b.s.att) || a.s.mnaReq - b.s.mnaReq)
-    .map(({ id, s }) => `<tr><td>${s.name}</td><td>${att(s.att)}</td><td>${num("skill", id, "mnaReq", s.mnaReq)}</td><td>${s.ult ? "ULT" : s.type}</td><td>${num("skill", id, "power", s.power)}</td><td>${num("skill", id, "hits", s.hits)}</td><td>${num("skill", id, "mp", s.mp || 0)}</td><td class="small">${DB.skills.usedBy(id).length}</td><td class="small" style="max-width:220px">${s.desc}</td></tr>`).join("");
-  return `<table class="dt"><thead><tr><th>Ability</th><th>Att</th><th>MNA</th><th>Type</th><th>Pow</th><th>Hits</th><th>MP</th><th>#cls</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table>`;
+    .map(({ id, s }) => `<tr><td>${s.name}</td><td>${att(s.att)}</td><td>${num("skill", id, "mnaReq", s.mnaReq)}</td><td>${s.ult ? "ULT" : s.type}</td><td>${num("skill", id, "power", s.power)}</td><td>${num("skill", id, "hits", s.hits)}</td><td>${num("skill", id, "mp", s.mp || 0)}</td><td class="small" style="max-width:220px">${s.desc}</td></tr>`).join("");
+  return `<table class="dt"><thead><tr><th>Ability</th><th>Att</th><th>MNA</th><th>Type</th><th>Pow</th><th>Hits</th><th>MP</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function classes(): string {
