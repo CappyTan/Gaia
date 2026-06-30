@@ -25,6 +25,7 @@ frozen at `app/gaia.html` as a reference; see History.)
 | [`app/src/`](app/src/) | **The game**, as TypeScript modules (see Architecture). |
 | [`app/tools/balance-sim.ts`](app/tools/balance-sim.ts) | Headless full-run combat simulator; imports the *shipping* systems. |
 | [`app/tools/dungeon-map.ts`](app/tools/dungeon-map.ts) | Headless dungeon-floor **topology** dumper (`npm run map`); ASCII map + a rubric-keyed read (mesh/corridor loops, soft-lock, gate-pinch) on the pure `systems/dungeonTopology`. For the dungeon design/review agents. |
+| [`app/tools/class-spec-lint.ts`](app/tools/class-spec-lint.ts) · [`gen-class-specs.ts`](app/tools/gen-class-specs.ts) | V3 class pipeline (ADR 0020): the **linter** (`npm run lint:classes`, vitest-gated) checks the 45 numberless specs' 52-slot invariants; the **generator** (`npm run gen:classes`) transcribes them → `data/classSpecs.generated.ts` (committed/never hand-edited). |
 | [`app/tools/slice-art.py`](app/tools/slice-art.py) | Reproducible art pipeline: slices Dara's reference sheets → transparent sprites in `app/assets/` (companions `slice-enemies`/`slice-equipment`/`slice-rares`/`slice-backgrounds`/`slice-crit-fx`/`process-bg` handle the specific sheet types). |
 | [`app/tests/`](app/tests/) | Vitest unit tests for the pure systems. |
 | [`app/assets/`](app/assets/) | Generated game sprites (items, enemies, heroes). Hashed + copied into the build by Vite. |
@@ -92,6 +93,11 @@ Requires Node (≥18) + npm. First time: `npm install`.
   montage). Writes `app/assets/{items,enemies,heroes}/*.png`.
 - **REQUIEM canon** — if `requiem-compendium.source.html` changes, re-run the parser; never
   hand-edit the generated files: `node docs/design/requiem/parse-requiem.js`.
+- **Class specs (V3, ADR 0020)** — the 45 numberless design specs (`docs/design/classes/*.md`) are
+  validated by `npm run lint:classes` (a vitest-gated structural linter) and transcribed into engine
+  data by `npm run gen:classes` (`app/tools/gen-class-specs.ts` → `data/classSpecs.generated.ts`,
+  **committed/never hand-edited** — re-run it when a spec changes; the generator reproduces the original
+  hand-encoded Heliomancer exactly, the validation anchor).
 
 ## Shipping changes (Git & deploy) — agents own this; Dara never touches git
 
@@ -217,15 +223,23 @@ rarities, and crit-hit VFX. Gold-on-dark emoji / flat-fill placeholders now rema
 unbuilt backlog continents**; every gap is logged in `docs/design/asset-gaps.md`.
 
 **In flight — the V3 systems rewrite** (ADRs 0014–0020): a coordinated *breaking* upgrade developed
-on a long-lived branch (`main` stays live until one deliberate flip; ADR 0018). **Already shipped
-(this is why the POC framing above is partly historical):** the **Stat System V3** — five primaries
-(STR/AGI/VIT/SPD/DEF), the final-20 Matter/Energy secondary stats, dual-source substats, and typed
-combat (`systems/stats`, `systems/combat`). **Designed but not yet engine-wired:** itemization (ADR
-0015), the unified buff/debuff catalog (ADR 0016), the **resource economy** — five party-shared
-per-Attunement pools (ADR 0019), and the **52-slot class wiring** (ADR 0020, vertical-slice-first).
-**Next in this branch:** the **enemy V3 cutover** — full-V3 level-scaled enemies (folding in the
-bestiary level-seeding rebuild). A dev **Test Loop** harness (ADR 0017) is planned on top once the
-systems land. (Earlier in flight: the Greenvale→Silverwood wayfinding streamline, ADR 0011.)
+on a long-lived branch (`main` stays live at `v0.157` until **one deliberate flip you call**; ADR 0018).
+**Now substantially complete on the branch:** the **Stat System V3** (five primaries STR/AGI/VIT/SPD/DEF
++ the final-20 Matter/Energy secondary stats + dual-source substats + typed combat); the **enemy V3
+cutover** (level-scaled enemies DERIVE stats from role+lvl, `systems/enemyStats`); **itemization** (ADR
+0015 — slot-locked affixes); the **buff/debuff catalog** (ADR 0016 — instance status model live in
+combat, `systems/status`); the **resource economy** (ADR 0019 — five party-shared per-Attunement pools,
+`systems/resources`, per-ability gen/cost); and the capstone **52-slot class system** (ADR 0020): the
+**3-lane choice system wired into live member progression** (`systems/choice` + `systems/classKit` →
+`controllers/battle`), **all 45 classes** transcribed from their numberless design specs (the generator
+`app/tools/gen-class-specs.ts` → `data/classSpecs.generated.ts`, **committed/never hand-edited**) and
+usable in combat, **picks + Resource pools persisted** (`systems/save`), and **passive effects** applied
+(`systems/passives`). A dev **Test Loop** harness (ADR 0017, title screen) — a fight/loot/equip bench
+that borrows run-state behind `Game.testMode` + a per-action **BattleLog** dashboard — is built on top.
+**What remains is design + tuning, not engineering:** balance tuning of the first-pass numbers (the Test
+Loop is the bench), Dara's per-passive/per-ability design refinements + the ADR 0019/0020 canon residuals,
+and the **deliberate flip to `main`** (bump `GAME_VERSION`, update this section, deploy).
+(Earlier in flight: the Greenvale→Silverwood wayfinding streamline, ADR 0011.)
 
 ## History
 
