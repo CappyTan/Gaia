@@ -23,6 +23,8 @@ import { BattleLog } from "../telemetry/battleLog";
 import { Game } from "./game";
 
 const MC_ROLLS = 400; // Monte-Carlo sample for the loot-percentile readout
+// A dark-theme numeric stepper field (type to jump, native ±1 step) — used for Level and loot level.
+const NUM_INPUT = "width:54px;text-align:center;background:#16122a;color:#fff;border:1px solid #3a3358;border-radius:6px;padding:4px;font-weight:600";
 
 /** Percentile of `v` within `arr` (% of samples ≤ v). Empty sample → 100. Pure (exported for tests). */
 export const percentileLE = (arr: number[], v: number): number =>
@@ -31,13 +33,14 @@ export const percentileLE = (arr: number[], v: number): number =>
 export const TestLoop = {
   // fight config
   foes: [] as string[],
+  foesOpen: false, // the enemy picker is a collapsed accordion by default (it's the bulk of the screen)
   depth: 0.3,
   isBoss: false,
   champ: false,
   // party config
-  level: 5,
+  level: 1,
   // loot config
-  lootLevel: 5,
+  lootLevel: 1,
   lastLoot: null as Item | null,
   lastPct: null as { overall: number; within: number; rarity: string } | null,
 
@@ -56,46 +59,51 @@ export const TestLoop = {
     Game.party = defs.map((d) => makeMember(d));
     Game.party.forEach((m) => { m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, m.att); });
     recalc(Game.party);
-    this.setLevel(this.level);
-    this.menu();
+    this.setLevel(this.level); // sets level/MNA/HP and renders the loop menu
   },
 
   pickParty(): void { Roster.open((defs) => this.installParty(defs)); },
 
-  /** Set every hero to level N with N intrinsic MNA in its own Attunement (≈ the 1/level auto-bank), full
-   *  HP/MP — a clean bench character. Enough MNA to reach the kit milestones up to N. */
-  setLevel(n: number): void {
-    this.level = Math.max(1, Math.min(100, Math.round(n)));
+  /** Set every hero to level N (1–100) with N intrinsic MNA in its own Attunement (≈ the 1/level
+   *  auto-bank), full HP/MP — a clean bench character. Coerces a string (from the number field). */
+  setLevel(n: number | string): void {
+    const v = Math.round(Number(n));
+    this.level = Math.max(1, Math.min(100, isFinite(v) ? v : this.level));
     Game.party.forEach((m) => {
       m.level = this.level; m.xp = 0; m.mnaPoints = 0;
       m.mnaAlloc = zeroMna(); m.mnaAlloc[m.att] = this.level;
     });
     recalc(Game.party);
     Game.party.forEach((m) => { m.hp = m.maxhp; m.mp = m.maxmp; m.alive = true; });
+    this.menu();
+  },
+  setLootLevel(n: number | string): void {
+    const v = Math.round(Number(n));
+    this.lootLevel = Math.max(1, Math.min(100, isFinite(v) ? v : this.lootLevel));
+    this.menu();
   },
 
   /* ---- fight config ---- */
+  toggleFoesPanel(): void { this.foesOpen = !this.foesOpen; this.menu(); },
   toggleFoe(key: string): void {
     const i = this.foes.indexOf(key);
     if (i >= 0) this.foes.splice(i, 1);
     else if (this.foes.length < 5) this.foes.push(key); // packs ≤ 5
     this.menu();
   },
+  clearFoes(): void { this.foes = []; this.menu(); },
   setDepth(d: number): void { this.depth = Math.max(0, Math.min(1, Math.round(d * 100) / 100)); this.menu(); },
   toggleBoss(): void { this.isBoss = !this.isBoss; this.menu(); },
   toggleChamp(): void { this.champ = !this.champ; this.menu(); },
-  bump(field: "level" | "lootLevel", d: number): void {
-    if (field === "level") this.setLevel(this.level + d);
-    else { this.lootLevel = Math.max(1, Math.min(100, this.lootLevel + d)); this.menu(); }
-  },
 
-  /** Start the configured fight (testMode is on → wipe/victory return here, no save touched). */
   /** Bench rule: a fight always starts from full — so a prior wipe can't leave a dead party that
    *  instantly re-wipes (Battle.begin resets statuses/cooldowns but not HP/alive). (ADR 0017) */
   reviveParty(): void { Game.party.forEach((m) => { m.hp = m.maxhp; m.mp = m.maxmp; m.alive = true; }); },
+  /** Start the configured fight (testMode is on → wipe/victory return here, no save touched). */
   fight(): void {
     const foes = this.foes.length ? this.foes : [Object.keys(ENEMIES)[0]];
     this.reviveParty();
+    Overlay.hide(); // the loop menu is an overlay — hide it so the battle screen underneath is visible
     Battle.begin(foes, "plains", this.isBoss, false, this.depth, this.champ ? 0 : -1);
   },
 
@@ -120,12 +128,22 @@ export const TestLoop = {
   menu(): void {
     Game.continueAfterBattle = () => this.menu(); // returning from Bag/Party (UI.close) comes back here
     Screens.show("title");
+
+    // Party — one hero per line (no wrapping/cut-off).
     const party = Game.party.map((m) => {
       const c = ATT[m.att].color;
-      return `<span class="pill" style="border-color:${c}66"><b style="color:${c}">${m.name}</b> ${m.cls} L${m.level} · GS ${gearScore(m).overall} · ${m.hp}/${m.maxhp}</span>`;
-    }).join(" ");
+      return `<div class="small" style="text-align:left;padding:1px 2px"><b style="color:${c}">${m.name}</b> <span style="opacity:.82">${m.cls} · L${m.level} · GS ${gearScore(m).overall} · ${m.hp}/${m.maxhp} HP</span></div>`;
+    }).join("");
 
-    // enemy picker — grouped by Attunement, toggle up to 5
+    // Level + loot-level stepper: − [type-to-jump field] + (increments of 1).
+    const stepper = (label: string, val: number, setter: string, bump: string) =>
+      `<span class="small">${label}</span>
+       <button class="btn" style="min-width:34px" onclick="TestLoop.${bump}(${val - 1})">−</button>
+       <input type="number" value="${val}" min="1" max="100" inputmode="numeric" onchange="TestLoop.${bump}(this.value)" style="${NUM_INPUT}">
+       <button class="btn" style="min-width:34px" onclick="TestLoop.${bump}(${val + 1})">+</button>`;
+
+    // Enemy picker — a collapsed accordion (the bulk of the screen); selection summary in the header.
+    const selSummary = this.foes.length ? `${this.foes.length} selected: ${this.foes.join(", ")}` : "none — defaults to one";
     let foeGrid = "";
     for (const att of ATTUNEMENTS) {
       const keys = Object.keys(ENEMIES).filter((k) => ENEMIES[k].att === att);
@@ -139,50 +157,49 @@ export const TestLoop = {
       }
       foeGrid += `</div>`;
     }
+    const foePanel = `<div class="row" style="margin:4px 0;align-items:center;cursor:pointer" onclick="TestLoop.toggleFoesPanel()">
+        <span class="tag" style="margin:0">Enemies ${this.foesOpen ? "▾" : "▸"}</span>
+        <span class="small" style="flex:1;opacity:.8">${selSummary}</span>
+        ${this.foes.length ? `<button class="btn" style="font-size:11px;min-height:0;padding:2px 8px" onclick="event.stopPropagation();TestLoop.clearFoes()">clear</button>` : ""}
+      </div>
+      ${this.foesOpen ? `<div class="scroll" style="max-height:30vh;text-align:left">${foeGrid}</div>` : ""}`;
 
-    const sel = this.foes.length ? this.foes.join(", ") : "(none — defaults to one)";
     const lootRead = this.lastLoot && this.lastPct
       ? `<div class="card" style="text-align:left;margin-top:4px">${itemHtml(this.lastLoot)}
           <div class="small" style="margin-top:4px">Score <b>${itemScore(this.lastLoot)}</b> · <b>${this.lastPct.overall}%</b> overall · <b>${this.lastPct.within}%</b> within ${this.lastPct.rarity} <span style="opacity:.6">(vs ${MC_ROLLS} rolls @ L${this.lootLevel})</span></div></div>`
       : "";
 
     Overlay.show(`<h2 class="title-gold">Test Loop</h2>
-      <div class="small" style="opacity:.8">Dev harness (ADR 0017) — fight real enemies, roll/equip loot, read the Battle Log. Your saved run is never touched.</div>
+      <div class="small" style="opacity:.78">Dev harness — fight real enemies, roll/equip loot, read the Battle Log. Your saved run is never touched.</div>
 
-      <div class="tag" style="margin-top:6px">Party</div>
-      <div style="line-height:1.9">${party || "<span class='small'>none</span>"}</div>
-      <div class="row" style="margin:4px 0">
+      <div class="tag" style="margin-top:8px">Party</div>
+      <div>${party || "<span class='small'>none</span>"}</div>
+      <div class="row" style="margin:5px 0;align-items:center">
         <button class="btn" onclick="TestLoop.pickParty()">Build party ▸</button>
-        <button class="btn" onclick="UI.openParty()">Party / Abilities ▸</button>
-        <span class="small">Level</span>
-        <button class="btn" onclick="TestLoop.bump('level',-5)">−5</button>
-        <b style="min-width:24px;text-align:center">${this.level}</b>
-        <button class="btn" onclick="TestLoop.bump('level',5)">+5</button>
+        <button class="btn" onclick="UI.openParty()">Abilities ▸</button>
+        ${stepper("Level", this.level, "setLevel", "setLevel")}
       </div>
 
-      <div class="tag" style="margin-top:6px">Fight — <span class="small">${sel}</span></div>
-      <div class="row" style="margin:4px 0">
+      <div class="tag" style="margin-top:10px">Fight</div>
+      <div class="row" style="margin:5px 0;align-items:center">
         <label class="small"><input type="checkbox" ${this.isBoss ? "checked" : ""} onclick="TestLoop.toggleBoss()"> boss</label>
         <label class="small"><input type="checkbox" ${this.champ ? "checked" : ""} onclick="TestLoop.toggleChamp()"> champion</label>
         <span class="small">depth ${this.depth.toFixed(2)}</span>
-        <button class="btn" onclick="TestLoop.setDepth(${(this.depth - 0.1).toFixed(2)})">−</button>
-        <button class="btn" onclick="TestLoop.setDepth(${(this.depth + 0.1).toFixed(2)})">+</button>
-        <button class="btn gold" onclick="TestLoop.fight()">⚔ Fight</button>
+        <button class="btn" style="min-width:34px" onclick="TestLoop.setDepth(${(this.depth - 0.1).toFixed(2)})">−</button>
+        <button class="btn" style="min-width:34px" onclick="TestLoop.setDepth(${(this.depth + 0.1).toFixed(2)})">+</button>
       </div>
-      <div class="scroll" style="max-height:22vh;text-align:left">${foeGrid}</div>
+      ${foePanel}
+      <div class="row" style="margin:8px 0"><button class="btn gold" style="flex:1;font-size:16px;padding:10px" onclick="TestLoop.fight()">⚔ Fight</button></div>
 
-      <div class="tag" style="margin-top:6px">Loot</div>
-      <div class="row" style="margin:4px 0">
-        <span class="small">@ level</span>
-        <button class="btn" onclick="TestLoop.bump('lootLevel',-5)">−5</button>
-        <b style="min-width:24px;text-align:center">${this.lootLevel}</b>
-        <button class="btn" onclick="TestLoop.bump('lootLevel',5)">+5</button>
+      <div class="tag" style="margin-top:10px">Loot</div>
+      <div class="row" style="margin:5px 0;align-items:center">
+        ${stepper("@ level", this.lootLevel, "setLootLevel", "setLootLevel")}
         <button class="btn gold" onclick="TestLoop.rollLoot()">Roll loot</button>
         <button class="btn" onclick="UI.openInventory()">Bag ▸</button>
       </div>
       ${lootRead}
 
-      <div class="row" style="margin-top:8px">
+      <div class="row" style="margin-top:12px">
         <button class="btn" onclick="BattleLog.show()">Battle Log ▸</button>
         <button class="btn" onclick="TestLoop.exit()">Exit to title</button>
       </div>`);
