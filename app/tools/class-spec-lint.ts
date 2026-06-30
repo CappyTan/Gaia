@@ -190,7 +190,10 @@ function lintOne(p: Parsed): Finding[] {
 export interface LintResult { findings: Finding[]; parsed: Parsed[]; specCount: number; }
 
 function isSpec(file: string): boolean {
-  return file.endsWith(".md") && file !== "README.md" && !file.endsWith("-family.md") && file !== "ROSTER.md";
+  // A class spec is "<attunement>-<archetype>.md". Match the attunement prefix so README, *-family.md,
+  // ROSTER.md AND any other doc dropped in the folder (e.g. endgame-mechanics.md) are excluded — only the
+  // 45 real specs are linted.
+  return /^(sol|nox|anima|quanta|umbraxis)-.+\.md$/.test(file);
 }
 
 export function lintSpecs(dir: string = SPECS_DIR): LintResult {

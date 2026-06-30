@@ -181,7 +181,7 @@ finicky parts don't surface:
   existing `vX.Y: summary` commit-message style.
 - **Record hard-to-reverse decisions as ADRs** in `docs/adr/` (short: what + why).
 
-## Current state (v0.157)
+## Current state (v0.200 — V3 systems live)
 
 **One full continent — Aurelion, the Heartland — is built and playable** as a single **seamless
 overworld** (ADR 0008/0009): one continuous ~960×640-tile coordinate space you roam with **no
@@ -222,9 +222,9 @@ dungeon, biome, enemy, NPC, the hero walk cycle, all six equip slots across five
 rarities, and crit-hit VFX. Gold-on-dark emoji / flat-fill placeholders now remain **only for the
 unbuilt backlog continents**; every gap is logged in `docs/design/asset-gaps.md`.
 
-**In flight — the V3 systems rewrite** (ADRs 0014–0020): a coordinated *breaking* upgrade developed
-on a long-lived branch (`main` stays live at `v0.157` until **one deliberate flip you call**; ADR 0018).
-**Now substantially complete on the branch:** the **Stat System V3** (five primaries STR/AGI/VIT/SPD/DEF
+**Shipped — the V3 systems rewrite** (ADRs 0014–0020): a coordinated *breaking* upgrade that was
+developed on a long-lived branch and **flipped to `main` at `v0.200`** (the one deliberate flip; ADR 0018).
+**What it delivered:** the **Stat System V3** (five primaries STR/AGI/VIT/SPD/DEF
 + the final-20 Matter/Energy secondary stats + dual-source substats + typed combat); the **enemy V3
 cutover** (level-scaled enemies DERIVE stats from role+lvl, `systems/enemyStats`); **itemization** (ADR
 0015 — slot-locked affixes); the **buff/debuff catalog** (ADR 0016 — instance status model live in
@@ -237,9 +237,9 @@ usable in combat, **picks + Resource pools persisted** (`systems/save`), and **p
 (`systems/passives`). A dev **Test Loop** harness (ADR 0017, title screen) — a fight/loot/equip bench
 that borrows run-state behind `Game.testMode` + a per-action **BattleLog** dashboard — is built on top.
 **What remains is design + tuning, not engineering:** balance tuning of the first-pass numbers (the Test
-Loop is the bench), Dara's per-passive/per-ability design refinements + the ADR 0019/0020 canon residuals,
-and the **deliberate flip to `main`** (bump `GAME_VERSION`, update this section, deploy).
-(Earlier in flight: the Greenvale→Silverwood wayfinding streamline, ADR 0011.)
+Loop is the bench), and Dara's per-passive/per-ability design refinements + the ADR 0019/0020 canon
+residuals (Soul Burn, bespoke meters, respec-vs-permanent picks). (Earlier: the Greenvale→Silverwood
+wayfinding streamline, ADR 0011.)
 
 ## History
 

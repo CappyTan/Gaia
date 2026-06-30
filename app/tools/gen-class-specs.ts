@@ -218,7 +218,9 @@ function emitSpec(s: Spec): string {
   return `  {\n    att: ${q(s.att)}, archetype: ${q(s.archetype)}, name: ${q(s.name)},\n    abilities: [\n${s.abilities.map(emitEntry).join("\n")}\n    ],\n  },`;
 }
 
-function isSpec(f: string): boolean { return f.endsWith(".md") && f !== "README.md" && f !== "ROSTER.md" && !f.endsWith("-family.md"); }
+// A class spec is "<attunement>-<archetype>.md" — match the attunement prefix so README, *-family.md,
+// ROSTER.md and any other doc in the folder (e.g. endgame-mechanics.md) are skipped, not mis-parsed.
+function isSpec(f: string): boolean { return /^(sol|nox|anima|quanta|umbraxis)-.+\.md$/.test(f); }
 
 function main(): void {
   const files = readdirSync(SPECS_DIR).filter(isSpec).sort();
