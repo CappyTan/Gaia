@@ -3,7 +3,8 @@ import { zeroMna, zeroPrims, zeroSubs, PRIM_KEYS, EQUIP_SLOTS } from "../types";
 import type { Rng } from "../core/rng";
 import { SKILLS } from "../data/skills";
 import { kitFor } from "../data/classes";
-import { activeKitKeys, hasSpec } from "./classKit";
+import { activeKitKeys, activePassives, hasSpec } from "./classKit";
+import { passiveMods, applyMods } from "./passives";
 import { SUB_BY_KEY } from "../data/substats";
 import { abpFromGear, substatBaseline } from "./stats";
 
@@ -78,6 +79,12 @@ export function recalc(party: Member[]): void {
     // Dual-source (ADR 0014): GEAR primaries grant a baseline trickle of their own group's substats,
     // on top of rolled affixes. Gear-only (like abp) so an ungeared hero stays combat-neutral.
     substatBaseline(gearPrim, sub);
+    // V3 passives (ADR 0020 §5): a hero's ACTIVE passive picks add continuous Subs bonuses (crit / ability
+    // power / penetration / mitigation / lifesteal), which flow into the effective stats derived below.
+    // Gated to a re-encoded class with picks → a hero with no picks (and the whole legacy roster / the sim)
+    // is unaffected. Resolved from the effective MNA (so a passive goes dormant if MNA drops below its set).
+    if (m.picks && Object.keys(m.picks).length && hasSpec(m.att, m.cls))
+      applyMods(sub, passiveMods(activePassives(m.att, m.cls, m.picks, mna[m.att])));
     s.spd += Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
     m.mna = mna;
     // V3 (ADR 0020): once the player has banked picks for a RE-ENCODED class, the hero is on the choice

@@ -329,7 +329,7 @@ export const Battle = {
 
     if (s && s.type === "heal") {
       const hld = 1 + (actor.sub?.Hld ?? 0) / 100; // V3 Healing Done amplifies all healing the caster does
-      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); const hpBefore = t.hp; heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) this.applySkillStatuses(actor, t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); BattleLog.action({ side: actor.side, actor: actor.name, ability: s.name, target: t.name, dmg: -amt, affinityMult: 1, crit: false, hpBefore, hpAfter: t.hp }); });
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); const hpBefore = t.hp; heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); const stN = s.status ? this.applySkillStatuses(actor, t, s.status) : []; this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); BattleLog.action({ side: actor.side, actor: actor.name, ability: s.name, target: t.name, dmg: -amt, affinityMult: 1, crit: false, status: stN.length ? stN.join(", ") : undefined, hpBefore, hpAfter: t.hp }); });
     } else if (s && s.type === "buff") {
       const applied: string[] = [];
       if (s.buff?.def) applied.push("Guard");
@@ -339,6 +339,7 @@ export const Battle = {
         if (s.buff?.def) t.guarding = true;
         if (s.buff?.atkup) applyStatus(t.statuses, "atkup", { turns: s.buff.turns ?? 0 });
         if (s.buff?.wardArmor) { applyStatus(t.statuses, "barrier", { turns: s.buff.turns ?? 0 }); t.wardAmt = s.buff.wardArmor; }
+        BattleLog.action({ side: actor.side, actor: actor.name, ability: s.name, target: t.name, dmg: 0, affinityMult: 1, crit: false, status: applied.length ? applied.join(", ") : undefined, hpBefore: t.hp, hpAfter: t.hp });
       });
       const who = targets.length > 1 ? "the party" : targets[0]?.name ?? actor.name;
       this.log(`${actor.name}'s ${s.name}${applied.length ? ` grants ${applied.join(", ")} to ${who}` : ""}`);

@@ -8,7 +8,7 @@
 // REQUIEM kits) — data/skills stays pure.
 
 import type { Skill, SkillTarget, SkillType, StatusMap } from "../types";
-import type { ClassSpec } from "../data/classSpec";
+import type { AbilityEntry, ClassSpec } from "../data/classSpec";
 import { SKILLS } from "../data/skills";
 import { SPECS, specFor } from "../data/classSpecs";
 import { genAbility, type GeneratedAbility } from "./classGen";
@@ -76,6 +76,14 @@ export function activeKitKeys(att: string, cls: string, picks: Picks, mna: numbe
   return activeKit(spec, picks, mna)
     .filter((a) => a.tier !== "auto" && a.tier !== "passive")
     .map((a) => genSkillKey(a.name));
+}
+
+/** The hero's ACTIVE passive picks (tier "passive", picked + MNA-reached) — the continuous modifiers
+ *  (systems/passives) recalc folds into the effective stats. Empty when the class has no spec. */
+export function activePassives(att: string, cls: string, picks: Picks, mna: number): AbilityEntry[] {
+  const spec = specFor(att, cls);
+  if (!spec) return [];
+  return activeKit(spec, picks, mna).filter((a) => a.tier === "passive");
 }
 
 /** The own-Attunement resource a basic Attack generates for this class: the spec's auto-attack gen band,

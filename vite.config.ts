@@ -31,5 +31,19 @@ export default defineConfig({
     outDir: "../dist",
     emptyOutDir: true,
     target: "es2020",
+    // Split the large, rarely-changing generated CONTENT data (the 45 re-encoded class specs + the
+    // REQUIEM kits — ~200KB of authored ability text) into its own chunk. It's statically imported, so
+    // this doesn't shrink first-load, but it isolates that bulk from the app shell so an app-code change
+    // re-caches a small chunk instead of forcing a re-download of the static content. (True on-demand
+    // lazy-loading would shrink first-load but needs an async skill-registration refactor — deferred.)
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("classSpecs.generated") || id.includes("requiem-kits")) return "classdata";
+          return undefined;
+        },
+      },
+    },
   },
 });

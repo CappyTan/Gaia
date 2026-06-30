@@ -24,6 +24,10 @@ import { Game } from "./game";
 
 const MC_ROLLS = 400; // Monte-Carlo sample for the loot-percentile readout
 
+/** Percentile of `v` within `arr` (% of samples ≤ v). Empty sample → 100. Pure (exported for tests). */
+export const percentileLE = (arr: number[], v: number): number =>
+  arr.length ? Math.round((arr.filter((x) => x <= v).length / arr.length) * 100) : 100;
+
 export const TestLoop = {
   // fight config
   foes: [] as string[],
@@ -107,9 +111,8 @@ export const TestLoop = {
     const sample = Array.from({ length: MC_ROLLS }, () => rollItemAtLevel(this.lootLevel, prefCls, this.lootLevel, prefAtt));
     const scores = sample.map(itemScore);
     const within = sample.filter((s) => s.rarity === it.rarity).map(itemScore);
-    const pctLE = (arr: number[], v: number) => (arr.length ? Math.round((arr.filter((x) => x <= v).length / arr.length) * 100) : 100);
     this.lastLoot = it;
-    this.lastPct = { overall: pctLE(scores, score), within: pctLE(within, score), rarity: it.rarity };
+    this.lastPct = { overall: percentileLE(scores, score), within: percentileLE(within, score), rarity: it.rarity };
     this.menu();
   },
 

@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { BattleLog } from "../src/telemetry/battleLog";
 import { Game } from "../src/controllers/game";
-import { TestLoop } from "../src/controllers/testLoop";
+import { TestLoop, percentileLE } from "../src/controllers/testLoop";
 import type { Member } from "../src/types";
 
 const ctx = () => ({
@@ -49,6 +49,16 @@ describe("BattleLog — per-action buffer (ADR 0017)", () => {
     expect(BattleLog.fights.length).toBe(30); // CAP
     BattleLog.clear();
     expect(BattleLog.fights.length).toBe(0);
+  });
+});
+
+describe("loot percentile (harness readout math)", () => {
+  it("scores a value's percentile within a sample (% ≤ v); empty → 100", () => {
+    const arr = [10, 20, 30, 40]; // 4 samples
+    expect(percentileLE(arr, 30)).toBe(75);  // 3 of 4 are ≤ 30
+    expect(percentileLE(arr, 5)).toBe(0);     // beats nothing
+    expect(percentileLE(arr, 99)).toBe(100);  // beats everything
+    expect(percentileLE([], 50)).toBe(100);   // no sample → top by convention
   });
 });
 
