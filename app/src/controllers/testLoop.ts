@@ -24,7 +24,8 @@ import { Game } from "./game";
 
 const MC_ROLLS = 400; // Monte-Carlo sample for the loot-percentile readout
 // A dark-theme numeric stepper field (type to jump, native ±1 step) — used for Level and loot level.
-const NUM_INPUT = "width:54px;text-align:center;background:#16122a;color:#fff;border:1px solid #3a3358;border-radius:6px;padding:4px;font-weight:600";
+// font-size:16px keeps it legible AND (belt-and-suspenders with the viewport meta) prevents iOS focus-zoom.
+const NUM_INPUT = "width:54px;text-align:center;background:#16122a;color:#fff;border:1px solid #3a3358;border-radius:6px;padding:5px;font-size:16px;font-weight:600";
 
 /** Percentile of `v` within `arr` (% of samples ≤ v). Empty sample → 100. Pure (exported for tests). */
 export const percentileLE = (arr: number[], v: number): number =>
@@ -82,6 +83,10 @@ export const TestLoop = {
     this.lootLevel = Math.max(1, Math.min(100, isFinite(v) ? v : this.lootLevel));
     this.menu();
   },
+  // Relative ±1 steppers read the CURRENT value (not an HTML-captured literal), so rapid taps before a
+  // re-render paint each count — every tap is authoritative.
+  stepLevel(d: number): void { this.setLevel(this.level + d); },
+  stepLoot(d: number): void { this.setLootLevel(this.lootLevel + d); },
 
   /* ---- fight config ---- */
   toggleFoesPanel(): void { this.foesOpen = !this.foesOpen; this.menu(); },
@@ -135,34 +140,39 @@ export const TestLoop = {
       return `<div class="small" style="text-align:left;padding:1px 2px"><b style="color:${c}">${m.name}</b> <span style="opacity:.82">${m.cls} · L${m.level} · GS ${gearScore(m).overall} · ${m.hp}/${m.maxhp} HP</span></div>`;
     }).join("");
 
-    // Level + loot-level stepper: − [type-to-jump field] + (increments of 1).
-    const stepper = (label: string, val: number, setter: string, bump: string) =>
+    // Level + loot-level stepper: − [type-to-jump field] + (increments of 1). The ± buttons step relative
+    // to the live value (`rel`); the field sets an absolute value (`abs`).
+    const stepper = (label: string, val: number, abs: string, rel: string) =>
       `<span class="small">${label}</span>
-       <button class="btn" style="min-width:34px" onclick="TestLoop.${bump}(${val - 1})">−</button>
-       <input type="number" value="${val}" min="1" max="100" inputmode="numeric" onchange="TestLoop.${bump}(this.value)" style="${NUM_INPUT}">
-       <button class="btn" style="min-width:34px" onclick="TestLoop.${bump}(${val + 1})">+</button>`;
+       <button class="btn" style="min-width:38px" onclick="TestLoop.${rel}(-1)">−</button>
+       <input type="number" value="${val}" min="1" max="100" inputmode="numeric" onchange="TestLoop.${abs}(this.value)" style="${NUM_INPUT}">
+       <button class="btn" style="min-width:38px" onclick="TestLoop.${rel}(1)">+</button>`;
+    const head = (label: string) => `<div class="tag" style="margin-top:10px;font-size:11px;color:var(--gold);opacity:.85">${label}</div>`;
 
     // Enemy picker — a collapsed accordion (the bulk of the screen); selection summary in the header.
-    const selSummary = this.foes.length ? `${this.foes.length} selected: ${this.foes.join(", ")}` : "none — defaults to one";
+    const selSummary = this.foes.length
+      ? `${this.foes.length} selected · ${this.foes.slice(0, 2).join(", ")}${this.foes.length > 2 ? "…" : ""}`
+      : "none — defaults to one";
     let foeGrid = "";
     for (const att of ATTUNEMENTS) {
       const keys = Object.keys(ENEMIES).filter((k) => ENEMIES[k].att === att);
       if (!keys.length) continue;
-      foeGrid += `<div class="small" style="color:${ATT[att].color};margin-top:4px">${att}</div><div>`;
+      foeGrid += `<div class="small" style="color:${ATT[att].color};margin-top:6px">${att}</div><div>`;
       for (const k of keys) {
         const on = this.foes.includes(k);
         const e = ENEMIES[k];
         const tag = e.boss ? "♛" : e.miniboss ? "✦" : "";
-        foeGrid += `<button class="btn${on ? " gold" : ""}" style="font-size:10px;margin:1px;padding:2px 6px;min-height:0" onclick="TestLoop.toggleFoe('${k}')" title="${e.name} L${e.lvl} ${e.role}">${tag}${k}</button>`;
+        // tap-sized chip with the level INLINE (no hover tooltip on touch); title carries the full name.
+        foeGrid += `<button class="btn${on ? " gold" : ""}" style="font-size:12px;margin:3px;padding:7px 10px;min-height:36px" onclick="TestLoop.toggleFoe('${k}')" title="${e.name} · ${e.role}">${tag}${k} L${e.lvl}</button>`;
       }
       foeGrid += `</div>`;
     }
     const foePanel = `<div class="row" style="margin:4px 0;align-items:center;cursor:pointer" onclick="TestLoop.toggleFoesPanel()">
-        <span class="tag" style="margin:0">Enemies ${this.foesOpen ? "▾" : "▸"}</span>
-        <span class="small" style="flex:1;opacity:.8">${selSummary}</span>
-        ${this.foes.length ? `<button class="btn" style="font-size:11px;min-height:0;padding:2px 8px" onclick="event.stopPropagation();TestLoop.clearFoes()">clear</button>` : ""}
+        <span class="tag" style="margin:0;font-size:11px;color:var(--gold);opacity:.85">Enemies ${this.foesOpen ? "▾" : "▸"}</span>
+        <span class="small" style="flex:1;min-width:0;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${selSummary}</span>
+        ${this.foes.length ? `<button class="btn" style="font-size:12px;padding:5px 10px" onclick="event.stopPropagation();TestLoop.clearFoes()">clear</button>` : ""}
       </div>
-      ${this.foesOpen ? `<div class="scroll" style="max-height:30vh;text-align:left">${foeGrid}</div>` : ""}`;
+      ${this.foesOpen ? `<div class="scroll" style="max-height:32vh;text-align:left">${foeGrid}</div>` : ""}`;
 
     const lootRead = this.lastLoot && this.lastPct
       ? `<div class="card" style="text-align:left;margin-top:4px">${itemHtml(this.lastLoot)}
@@ -172,28 +182,28 @@ export const TestLoop = {
     Overlay.show(`<h2 class="title-gold">Test Loop</h2>
       <div class="small" style="opacity:.78">Dev harness — fight real enemies, roll/equip loot, read the Battle Log. Your saved run is never touched.</div>
 
-      <div class="tag" style="margin-top:8px">Party</div>
+      ${head("Party")}
       <div>${party || "<span class='small'>none</span>"}</div>
       <div class="row" style="margin:5px 0;align-items:center">
         <button class="btn" onclick="TestLoop.pickParty()">Build party ▸</button>
         <button class="btn" onclick="UI.openParty()">Abilities ▸</button>
-        ${stepper("Level", this.level, "setLevel", "setLevel")}
+        ${stepper("Level", this.level, "setLevel", "stepLevel")}
       </div>
 
-      <div class="tag" style="margin-top:10px">Fight</div>
+      ${head("Fight")}
       <div class="row" style="margin:5px 0;align-items:center">
         <label class="small"><input type="checkbox" ${this.isBoss ? "checked" : ""} onclick="TestLoop.toggleBoss()"> boss</label>
         <label class="small"><input type="checkbox" ${this.champ ? "checked" : ""} onclick="TestLoop.toggleChamp()"> champion</label>
-        <span class="small">depth ${this.depth.toFixed(2)}</span>
+        <span class="small" title="enemy level scaling: 0 = zone start, 1 = zone end">depth ${this.depth.toFixed(2)} (0–1)</span>
         <button class="btn" style="min-width:34px" onclick="TestLoop.setDepth(${(this.depth - 0.1).toFixed(2)})">−</button>
         <button class="btn" style="min-width:34px" onclick="TestLoop.setDepth(${(this.depth + 0.1).toFixed(2)})">+</button>
       </div>
       ${foePanel}
       <div class="row" style="margin:8px 0"><button class="btn gold" style="flex:1;font-size:16px;padding:10px" onclick="TestLoop.fight()">⚔ Fight</button></div>
 
-      <div class="tag" style="margin-top:10px">Loot</div>
+      ${head("Loot")}
       <div class="row" style="margin:5px 0;align-items:center">
-        ${stepper("@ level", this.lootLevel, "setLootLevel", "setLootLevel")}
+        ${stepper("@ level", this.lootLevel, "setLootLevel", "stepLoot")}
         <button class="btn gold" onclick="TestLoop.rollLoot()">Roll loot</button>
         <button class="btn" onclick="UI.openInventory()">Bag ▸</button>
       </div>
