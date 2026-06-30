@@ -51,6 +51,36 @@ flagship here** (AGI+AGI), the way QUANTA was for the daggers — the purest cri
    the daggers): SOL **Detonate**, NOX **Shatter**, ANIMA **Overgrowth**, UMBRAXIS **Singularity**,
    QUANTA **Collapse**.
 
+## The distinctness matrix — *how each one survives & serves* (RATIFIED, Dara 2026-06-30)
+
+All five are **AGI-crit duelists** with the same parry-riposte DNA — so the crit-burst loop is *not*
+the differentiator. What separates the seats is **how each survives the exchange and what it does for
+the team**. That survival/role axis is the load-bearing seam; read the family along it:
+
+| Class | Attunement / primary | Survival verb | The one-line seat |
+|---|---|---|---|
+| **Sunblade** | SOL / AGI | **Depends** | team-dependent glass cannon — *no* defensive line; cleaves + crits, and **needs the party to keep it alive** |
+| **Phasewalker** | QUANTA / SPD | **Dodges** | self-sufficient solo-survivor — phases out of harm, **spikes one target with certainty** |
+| **Rimewalker** | NOX / STR | **Protects** | gives — ward + freeze + the shared **NOX battery**; survives by **defending the line**, not himself alone |
+| **Abyssal Vector** | UMBRAXIS / DEF | **Punishes** | selfish anchor — armor + reflect + pull + drain; survives by **making the attacker pay** |
+| **Pulse Arbiter** | ANIMA / VIT | **Adapts** | grows the answer mid-fight — resistances + evolving stance; survives by **becoming what the fight needs** |
+
+### Two intentional mirror-pairs
+
+The seats aren't five points on a line — they're **two deliberate opposing pairs plus the wildcard**:
+
+- **SOL ↔ QUANTA — *the offense mirror.*** **Sunblade** is the **team-dependent glass cannon that
+  cleaves** (AoE crit, fragile, leans on the party); **Phasewalker** is the **self-sufficient
+  solo-survivor that spikes one target with certainty** (single-target, evasive, needs no one). Same
+  pure-offense crit chassis, opposite answers to *"who keeps you alive and what do you hit?"*
+- **NOX ↔ UMBRAXIS — *the defense mirror (protect vs punish).*** **Rimewalker** survives by **giving**
+  — ward, freeze, team battery — defending the whole line. **Abyssal Vector** survives by **taking** —
+  armor, reflect, anchor, drain — a selfish counter-duelist that makes attacking it a mistake. Both are
+  durable; one shields the team, the other punishes the enemy.
+
+**Pulse Arbiter (ANIMA)** is the **wildcard / adapter** — it doesn't sit on either mirror; it *becomes*
+whichever answer the fight rewards.
+
 ## Per-class sketches
 
 ### SOL · Sunblade — pure crit duelist (the flagship)
@@ -87,7 +117,9 @@ contagion-flood skirmisher): this one mutates and adapts rather than floods.*
 
 ### QUANTA · Phasewalker — evasive phase-duelist
 SPD+AGI. Controls **space** (phase/blink), where the QUANTA dagger (The Anomaly) controls **time**
-(turn-economy). Survives by phasing; crit + dodge + riposte. *(QUANTA flavor stays in the math/physics
+(turn-economy). Survives by phasing; crit + dodge + riposte. **The self-sufficient mirror of Sunblade**:
+where the SOL flagship is a team-dependent cannon that *cleaves*, Phasewalker is the solo-survivor that
+*spikes one target with certainty* and needs no one to keep it alive. *(QUANTA flavor stays in the math/physics
 register — phase, superposition, decohere, observation, paradox — **never gambling motifs**, per the
 same call that re-specced the Anomaly.)*
 - **A · Phase Edge** — blink-strike crit: phase in, land a measured crit, phase out.
@@ -96,8 +128,11 @@ same call that re-specced the Anomaly.)*
 
 ### UMBRAXIS · Abyssal Vector — counter/redirect duelist
 DEF+AGI: the durable bladesman. Uses gravity to **bend the exchange back** — parry-and-redirect, the
-counter-duelist. *Distinct from the UMBRAXIS dagger (The Lagrangian, the drain-siphon skirmisher):
-Abyssal Vector **redirects** force rather than **siphons** life.*
+counter-duelist. **The selfish mirror of Rimewalker**: both are durable NOX/UMBRAXIS defenders, but
+where Rimewalker *gives* (ward, freeze, team battery — protects the line), Abyssal Vector *takes*
+(armor, reflect, anchor, drain — punishes the attacker, holds the duel alone). *Distinct from the
+UMBRAXIS dagger (The Lagrangian, the drain-siphon skirmisher): Abyssal Vector **redirects** force
+rather than **siphons** life.*
 - **A · Redirect** — parry-and-redirect: bend the incoming attack back with gravity (the signature counter).
 - **B · Gravity Edge** — Anchor/pull the target into your blade; ramping **Crush** in the exchange.
 - **C · Event Blade** — DEF mass-armor sustain + a little drain to hold the duel; the durable anchor.
