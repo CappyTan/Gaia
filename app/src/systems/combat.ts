@@ -1,19 +1,24 @@
-import type { Attunement, CombatAct, DamageResult, Enemy, StatusMap, Unit } from "../types";
+import type { Attunement, CombatAct, DamageResult, Enemy, Unit } from "../types";
 import type { Rng } from "../core/rng";
-import { riR, pickR } from "../core/rng";
+import { riR, pickR, clamp } from "../core/rng";
 import { affinity } from "./affinity";
 import { mnaBonus } from "./progression";
-import { ENEMIES, depthHpScale, depthAtkScale, ENEMY_HP_EASE, ENEMY_ATK_EASE } from "../data/enemies";
+import { ENEMIES, ENEMY_HP_EASE, ENEMY_ATK_EASE } from "../data/enemies";
+import { enemyBlock, DEPTH_LEVELS } from "./enemyStats";
+import { hasStatus } from "./status";
 import { ELITE_AFFIXES } from "../data/items";
 
 // PURE damage math — no DOM, no side effects. Used by the battle controller AND the balance
 // sim. rng is injectable for deterministic tests. Returns {dmg, crit, mult, miss}.
 export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng = Math.random): DamageResult {
   const s = act.skill;
-  if (actor.status.blind && rng() < 0.4) return { dmg: 0, crit: false, mult: 1, miss: true };
+  if (hasStatus(actor.statuses, "blind") && rng() < 0.4) return { dmg: 0, crit: false, mult: 1, miss: true };
   const isMag = s ? s.type === "mag" : false;
-  // Damage is typed: ENERGY = projected/ability (isMag); MATTER = struck/martial (!energy). (ADR 0014)
-  const energy = isMag;
+  // Damage is typed (ADR 0014): an explicit `dmgType` wins, else derive from the skill kind
+  // (mag→ENERGY = projected/ability; else MATTER = struck/martial). `isMag` still drives baseStat +
+  // formation separately. Default-from-kind keeps this a behavioral no-op until something opts in.
+  const dmgType = act.dmgType ?? (s ? s.dmgType : undefined) ?? actor.dmgType ?? (isMag ? "energy" : "matter");
+  const energy = dmgType === "energy";
   // Defender avoid proc: Block fully stops a MATTER hit (clamped so you can't become unhittable).
   // Energy has no full-block — it's answered by Energy Reduction below. Evasion (any) applies later.
   const td = target.sub;
@@ -21,7 +26,7 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   const power = s && s.power != null ? s.power : 1.0;
   const baseStat = isMag ? actor.mag : actor.atk;
   let raw = baseStat * power + (rng() * 3 - 1); // jitter [-1,2)
-  if (actor.status.atkup) raw *= 1.5;
+  if (hasStatus(actor.statuses, "atkup")) raw *= 1.5;
   if (act && act.aoe) raw *= 0.6; // sweep hits everyone, but glancing
   const atkAtt: Attunement = s && s.sol ? "SOL" : actor.att;
   const mult = affinity(atkAtt, target.att);
@@ -68,7 +73,7 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
     }
   }
   if (target.guarding) dmg = Math.round(dmg * 0.5);
-  if (target.status.wardArmor) dmg = Math.max(1, dmg - (target.wardAmt || 0));
+  if (hasStatus(target.statuses, "barrier")) dmg = Math.max(1, dmg - (target.wardAmt || 0));
   return { dmg, crit, mult, miss: false };
 }
 
@@ -86,13 +91,6 @@ export function heal(u: Unit, h: number): void {
 export function stunImmune(u: Unit): boolean {
   const e = u as Enemy;
   return u.side === "enemy" && !!(e.boss || e.miniboss || e.elite || e.champion);
-}
-
-export function applyStatus(u: Unit, st: StatusMap): void {
-  for (const k in st) {
-    if (k === "turns") continue;
-    u.status[k] = Math.max(u.status[k] || 0, st[k]);
-  }
 }
 
 /** Roll N distinct elite affixes onto an enemy (mutates eliteAffixes + applies stat effects). */
@@ -114,23 +112,26 @@ function applyAffixes(e: Enemy, n: number, rng: Rng = Math.random): void {
  */
 export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, depth = 0, champion = false, rng: Rng = Math.random): Enemy {
   const d = ENEMIES[key];
+  // V3 (ADR 0018): stats DERIVE from (role, level). `depth` (0–1, how far into the zone) lifts the
+  // EFFECTIVE level (DEPTH_LEVELS) — replacing the old HP/ATK depth-scale AND the std-HP trash cut,
+  // which now live in the role HP/ATK multipliers (systems/enemyStats). Champion/elite affixes apply
+  // after, on the derived magnitudes.
+  const effLvl = d.lvl + DEPTH_LEVELS * clamp(depth, 0, 1);
+  const b = enemyBlock(d.att, d.role, effLvl, d.lean);
   const champHp = champion ? 1.4 : 1;
   const champAtk = champion ? 1.3 : 1;
-  // STANDARD enemies (not bosses/mini-bosses/rare treasure monsters) carry heavily reduced HP to ease
-  // difficulty (Dara): −35% then a further −50% → ~0.325× of base. Bosses/mini/rares keep full HP;
-  // elites/champions scale off the reduced base.
-  const stdHp = (d.boss || d.miniboss || d.rare) ? 1 : 0.325;
-  const hp = Math.round(d.hp * depthHpScale(depth) * champHp * stdHp * ENEMY_HP_EASE);
-  const atk = Math.round(d.atk * depthAtkScale(depth) * champAtk * ENEMY_ATK_EASE);
-  const mag = Math.round((d.mag || 0) * depthAtkScale(depth) * champAtk * ENEMY_ATK_EASE);
+  const hp = Math.round(b.maxhp * champHp * ENEMY_HP_EASE);
+  const atk = Math.round(b.atk * champAtk * ENEMY_ATK_EASE);
+  const mag = Math.round(b.mag * champAtk * ENEMY_ATK_EASE);
   const e: Enemy = {
     key, name: d.name, spr: d.spr, att: d.att, lvl: d.lvl, side: "enemy", // champion marker is a render concern
-    maxhp: hp, hp, atk, spd: d.spd, armor: d.armor + (champion ? 2 : 0), mag,
+    maxhp: hp, hp, atk, spd: b.spd, armor: b.armor + (champion ? 2 : 0), mag,
+    prim: b.prim, sub: b.sub, abp: b.abp, dmgType: d.dmgType ?? "matter",
     xpReward: champion ? Math.round(d.xp * 2.2) : d.xp,
     goldRange: champion ? [d.gold[0] * 2, d.gold[1] * 2] : d.gold,
     ai: d.ai, boss: !!d.boss, miniboss: !!d.miniboss, rare: !!d.rare, art: d.art, enrage: d.enrage,
     skills: d.skills || null, castChance: d.castChance || 0, onHitPoison: (d.onHit && d.onHit.poison) || 0,
-    alive: true, atb: 0, status: {}, critPct: 5, leech: d.leech || 0, solPct: 0,
+    alive: true, atb: 0, statuses: [], critPct: b.critPct, leech: d.leech || 0, solPct: 0,
   };
   if (e.boss || e.miniboss || e.rare) return e; // rares are their own tier — no random elite roll
   if (champion) { e.champion = true; e.elite = true; applyAffixes(e, 3, rng); }

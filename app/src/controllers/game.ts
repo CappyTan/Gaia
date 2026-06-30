@@ -10,6 +10,7 @@ import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
@@ -40,6 +41,9 @@ export function hubsFor(z: Zone): string[] {
 export const Game = {
   state: "title",
   gold: 0,
+  // The five party-shared per-Attunement Resource pools (ADR 0019). Run-state: carries across fights
+  // (aged by personality at fight start); reset on a fresh run. (Save-persistence is a follow-up.)
+  resources: zeroResources(),
   party: [] as Member[],
   inventory: [] as Item[],
   // HELD ITEMS (party-menu "Items" tab) — quest/key items (held forever, never consumed) + later
@@ -51,6 +55,13 @@ export const Game = {
   bossDefeated: false,
   miniBossDefeated: false,
   continueAfterBattle: null as (() => void) | null,
+  // ── TEST LOOP (ADR 0017) ── the dev harness BORROWS this live run-state behind `testMode`. While set:
+  // saveNow() early-returns (a test session never touches the player's save slot), a wipe returns to the
+  // loop menu instead of gameOver→title, and a victory routes to the loop menu instead of the field.
+  // `testReturn` is the loop-menu closure the harness installs; the three seams below call it. Keep the
+  // testMode branches confined to these seams (saveNow/gameOver/victory route) — do not let them spread.
+  testMode: false,
+  testReturn: null as (() => void) | null,
   _inMerchant: false,
   _inTown: false,
   _revisitTown: false, // entered a hub via the overworld marker → leaving returns to the overworld
@@ -74,8 +85,9 @@ export const Game = {
   // Begin a fresh run with a specific party composition (from the Roster picker or default).
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
-    this.gold = 0; this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
+    this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
+    this.testMode = false; this.testReturn = null; // a real run is NEVER in test mode (ADR 0017) — enforce the invariant at the one entry point
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
@@ -114,6 +126,7 @@ export const Game = {
   // (battle resolved, enter/leave town, zone change, equip change). Cheap + silent; the pure
   // serialize/validate lives in systems/save.ts. Never saves the title screen / a dead run.
   saveNow(): void {
+    if (this.testMode) return; // Test Loop (ADR 0017): never touch the player's save slot during a dev session
     if (this.state === "title" || !this.party.length) return;
     // wx/wy is the seamless-world tile — meaningful while roaming the continent AND while standing in a
     // big-map TOWN (there it's the overworld RETURN point you stepped in from; genTown leaves it intact).
@@ -153,6 +166,9 @@ export const Game = {
       // WAYFINDING PROGRESS (ADR 0011) — the run's known/entered regions as two string[]s; restored into
       // Field.progress (Sets) on resume so the continent overview map re-reveals the right regions.
       progress: { known: [...Field.wayfinding.known], entered: [...Field.wayfinding.entered] },
+      // RESOURCE POOLS (ADR 0019) — the five shared per-Attunement pools, persisted so they carry across a
+      // reload like they carry across fights down a dungeon.
+      resources: this.resources,
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -170,7 +186,7 @@ export const Game = {
     }
     // install run state
     this._lastDefs = r.defs;
-    this.gold = r.gold; this.steps = r.steps; this.encountersWon = r.encountersWon;
+    this.gold = r.gold; this.resources = r.resources; this.steps = r.steps; this.encountersWon = r.encountersWon;
     this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
     this.party = r.party; this.inventory = r.inventory;
     // HELD ITEMS (quest/key items): restore the set, then BACK-COMPAT seed — an old save that owns a cap
@@ -272,6 +288,7 @@ export const Game = {
   // Whether the title screen should offer Continue (a valid save exists).
   hasSave(): boolean { return Save.hasSave(); },
   gameOver(): void {
+    if (this.testMode) { this.testReturn?.(); return; } // Test Loop (ADR 0017): a wipe returns to the loop menu — no save-clear, no kick to title
     Save.clear(); // the run is over — don't offer a dead party to resume
     Telemetry.endSession("wipe");
     Screens.show("title");
@@ -457,7 +474,7 @@ export const Game = {
     try { const raw = localStorage.getItem("gaia_stash_v1"); this.stash = raw ? (JSON.parse(raw) as Item[]) : []; }
     catch { this.stash = []; }
   },
-  saveStash(): void { try { localStorage.setItem("gaia_stash_v1", JSON.stringify(this.stash)); } catch { /* storage off (private mode) */ } },
+  saveStash(): void { if (this.testMode) return; try { localStorage.setItem("gaia_stash_v1", JSON.stringify(this.stash)); } catch { /* storage off (private mode) */ } }, // never write persistence during a test session (ADR 0017 defense-in-depth)
   // Dismiss the one-time "Add to Home Screen" hint and remember it (bridged to the title button).
   dismissA2HS(): void {
     try { localStorage.setItem("gaia_a2hs_seen", "1"); } catch { /* storage off */ }

@@ -45,7 +45,7 @@ export function validateContent(): string[] {
   // enemy sanity: art refs point at a real enemy sprite key; stats are positive
   DB.enemies.all().forEach((e) => {
     if (e.art && !ENEMIES[e.art]) issues.push(`enemy ${e.key}: art ref "${e.art}" is not an enemy key`);
-    if (e.hp <= 0 || e.atk < 0) issues.push(`enemy ${e.key}: nonsensical hp/atk (${e.hp}/${e.atk})`);
+    if (e.lvl <= 0) issues.push(`enemy ${e.key}: nonsensical level (${e.lvl})`); // V3: stats derive from role+lvl
     if (!ATTUNEMENTS.includes(e.att)) issues.push(`enemy ${e.key}: bad attunement "${e.att}"`);
   });
 

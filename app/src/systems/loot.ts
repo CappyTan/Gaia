@@ -1,6 +1,6 @@
-import type { Affix, Attunement, Implicit, Item, PrimaryStat, Prims, Slot } from "../types";
+import type { Affix, Attunement, Implicit, Item, PrimaryStat, Prims, Slot, SubKey } from "../types";
 import type { Enemy } from "../types";
-import { ATTUNEMENTS, isArmorSlot } from "../types";
+import { ATTUNEMENTS, isArmorSlot, PRIM_KEYS } from "../types";
 import type { Rng } from "../core/rng";
 import { riR, pickR, clamp } from "../core/rng";
 import { GOVERNING_STAT } from "../data/statScaling";
@@ -28,12 +28,11 @@ function rollWeaponClass(rng: Rng, pref?: string): string {
 // a low-ilvl high-rarity one — rarity sets the affix count + base rung, ilvl sets the magnitude.
 const ilvlMult = (ilvl: number): number => 1 + Math.max(0, ilvl) * 0.07;
 
-// V3 primary-attribute grant on a drop (Stat System V3). Every piece carries one primary by SLOT
-// IDENTITY: weapons grant their Attunement's governing stat; each armor slot leans a distinct stat
-// (helmet→VIT, chest→DEF, gloves→STR, boots→SPD); trinkets→AGI. Magnitude grows with rarity + ilvl.
-// These feed the wearer's ability scaling (systems/stats abp) and the character-sheet primaries.
+// V3 primary-attribute grant (ADR 0015 §4). Every piece grants ONE primary: a weapon grants its
+// Attunement's GOVERNING stat (it sets the class); armor/trinket roll a RANDOM primary — slot identity
+// now lives in the affix slot-homes (SLOT_AFFIXES), not the primary. Magnitude grows with rarity + ilvl;
+// feeds the wearer's ability scaling (systems/stats abp) + the character-sheet primaries.
 const primVal = (r: number, ilvl: number): number => Math.round(1.5 + r * 1.2 + Math.max(0, ilvl) * 0.15);
-const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "VIT", armor: "DEF", gloves: "STR", boots: "SPD" };
 // Intrinsic gear MNA (ADR 0015) — weapon and non-weapon gear roll from per-rarity ranges (rarity owns
 // the roll, each value equally weighted; tables + the attune chance live in data/loot.ts). A weapon's
 // MNA is its Attunement and sets the class (it ALWAYS carries it). Armor/trinket MNA is a small,
@@ -41,10 +40,23 @@ const ARMOR_SLOT_PRIM: Record<string, PrimaryStat> = { helmet: "VIT", armor: "DE
 // (the roll is floored to 1).
 const weaponMna = (r: number, rng: Rng): number => { const [lo, hi] = WEAPON_MNA_ROLL[r]; return riR(rng, lo, hi); };
 const armorMna  = (r: number, rng: Rng): number => { const [lo, hi] = ARMOR_MNA_ROLL[r];  return Math.max(1, riR(rng, lo, hi)); };
-function rollPrim(slot: Slot, att: Attunement, r: number, ilvl: number): Partial<Prims> {
-  const stat: PrimaryStat = slot === "weapon" ? GOVERNING_STAT[att] : slot === "trinket" ? "AGI" : ARMOR_SLOT_PRIM[slot] ?? "STR";
+function rollPrim(slot: Slot, att: Attunement, r: number, ilvl: number, rng: Rng): Partial<Prims> {
+  const stat: PrimaryStat = slot === "weapon" ? GOVERNING_STAT[att] : pickR(rng, PRIM_KEYS);
   return { [stat]: primVal(r, ilvl) };
 }
+
+// ADR 0015 §5 — slot homes: each slot rolls affixes only from its identity's substats (the 20 V3
+// substats ARE the affix pool = AFFIXES). The hard exclusives fall out of the map — Crit Chance (Crt)
+// only on Gloves, Evasion (Eva) only on Boots, Block (Blk) only on Chest (=armor slot). Brick-safe (no
+// build needs two stats trapped on the same slot). A tight slot (gloves, 4) simply caps its affix count.
+const SLOT_AFFIXES: Record<Slot, SubKey[]> = {
+  weapon: ["Mpn", "Epn", "Abp", "Exe", "Cmd", "Hld"],
+  gloves: ["Crt", "Cch", "Acc", "Mpn"],
+  helmet: ["Abp", "Acc", "Cdr", "Hld", "Erd", "Buf", "Res"],
+  armor: ["Mrd", "Erd", "Blk", "Res", "Lfs"],
+  boots: ["Eva", "Abg", "Acr", "Chc", "Mrd"],
+  trinket: ["Lfs", "Buf", "Hld", "Epn", "Cmd", "Abg", "Cdr", "Res"],
+};
 
 // Per-slot base stat budgets for the armor family (chest carries the most; gloves lean offence,
 // boots lean speed, helmet leans focus). `r` = rarity index, `k` = ilvl magnitude multiplier.
@@ -100,8 +112,8 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
       name = TRINKET_NAMES[r];
     }
   }
-  // roll affixes
-  const pool = [...AFFIXES];
+  // roll affixes from the slot's home pool (ADR 0015 §5) — no duplicates; count + quality by rarity
+  const pool = AFFIXES.filter((a) => SLOT_AFFIXES[slot].includes(a.stat as SubKey));
   const affixes: Affix[] = [];
   for (let i = 0; i < R.affixes; i++) {
     const a = pool.splice(Math.floor(rng() * pool.length), 1)[0];
@@ -109,7 +121,7 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
     affixes.push({ key: a.key, stat: a.stat, value: a.roll(r), label: a.label });
   }
   // every piece carries a V3 primary attribute by slot identity (weapon → governing stat, etc.)
-  const prim = rollPrim(slot, att, r, ilvl);
+  const prim = rollPrim(slot, att, r, ilvl, rng);
   // att is stamped only where it means something: weapons (always) + attuned armor (rolled MNA). Neutral
   // armor and trinkets carry no attunement designation.
   return { slot, cls: weaponClass || cls || "", att: itemAtt, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, prim, affixes };

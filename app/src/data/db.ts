@@ -3,6 +3,11 @@
 // `DB` instead of reaching into raw consts, which gives one place to see relationships (which zones
 // spawn an enemy, which classes use a skill) and a stable seam: Phase 2 can swap the backing data to
 // authored JSON without touching any consumer. The raw consts still export for now (non-breaking).
+//
+// NOTE: `skills.*` reflects the LIVE `SKILLS` map, into which systems/classKit registers the generated
+// V3 kit (`v3:*`) abilities at module load (ADR 0020). So the skill query results include those only
+// once classKit has been imported (always true in the running app + any test that touches the kit
+// system). Don't assert an exact `skills.ids().length`/`ults()` set in a test that doesn't import classKit.
 
 import type { Attunement, EnemyDef, Skill } from "../types";
 import { ATTUNEMENTS } from "../types";

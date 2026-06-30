@@ -92,9 +92,15 @@ power. The five stances on entropy define *what* a caster's projected power does
 fire, a NOX caster freezes at range, …).
 _Avoid_: treating "caster" as needing an Intelligence/Magic stat — in Gaia, magic is not a separate axis.
 
-**Resource** (per Class):
-The class-specific meter its abilities build/spend (e.g. Radiance, Solar Charge, Core Heat,
-Entropy Debt, Lagrange Nodes). Distinct from MNA (attunement mana) and RES/MP costs.
+**Resource** (per Attunement — ratified 2026-06-29):
+The spendable combat currency, **one shared pool per Attunement** (SOL/NOX/ANIMA/QUANTA/UMBRAXIS).
+Each hero **generates** into the pool of *their* Attunement, and **any** hero of that Attunement may
+**spend** it — so two SOL heroes draw on a common SOL pool. Specials generate it; signatures/ultimates
+spend it; the auto-attack trickles a little. Distinct from **MNA** (the never-spent unlock *threshold*)
+and from RES/MP. _Supersedes_ the earlier per-Class meter framing (Radiance, Core Heat, Entropy Debt…)
+per Dara's ruling; genuinely bespoke per-class meters that aren't simple fill-bars (**Lagrange Nodes**
+positional, **Kindling** HP-fueled) await reconciliation into this model.
+_Avoid_: calling the spend pool "MNA" (MNA is the threshold gate, never spent).
 
 **Rarity**:
 A loot item's quality tier, lowest to highest: **Common, Uncommon, Rare, Epic, Legendary,

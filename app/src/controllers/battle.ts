@@ -2,12 +2,17 @@
 // player/enemy turns, and damage resolution by calling the pure combat systems, then paints
 // the DOM. Pure math (combatDamage, makeEnemy, status helpers) lives in ../systems/combat.
 
-import type { CombatAct, Enemy, Item, Member, Skill, Unit } from "../types";
+import type { CombatAct, Enemy, Item, Member, Skill, StatusMap, Unit } from "../types";
 import type { HeldItemDef } from "../data/heldItems";
 import { $, el } from "../core/dom";
 import { cap, ri, pick } from "../core/rng";
 import { SKILLS } from "../data/skills";
-import { combatDamage, damage, heal, applyStatus, makeEnemy, stunImmune } from "../systems/combat";
+import { combatDamage, damage, heal, makeEnemy, stunImmune } from "../systems/combat";
+import { applyStatus, tickStatus, cleanse, hasStatus, resolveApply } from "../systems/status";
+import { STATUS } from "../data/status";
+import { gain, spend, carryPools, turnGain } from "../systems/resources";
+import { autoGenFor } from "../systems/classKit";
+import { RESOURCE } from "../data/resources";
 import { ATT, RING } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
@@ -21,6 +26,8 @@ import { assetUrl, preloadVideoUrl, videoUrlSync } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
 import { Telemetry } from "../telemetry/telemetry";
+import { BattleLog } from "../telemetry/battleLog";
+import { gearScore } from "../systems/gearScore";
 import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
@@ -39,7 +46,8 @@ export const Battle = {
   isBoss: false,
   finalBoss: false,
   logLines: [] as string[],
-  STATUS_NAMES: { burn: "Burn", poison: "Poison", decay: "Decay", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", def: "Guard", wardArmor: "Ward" } as Record<string, string>,
+  STATUS_NAMES: { burn: "Burn", poison: "Infestation", decay: "Stasis", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", barrier: "Ward", doom: "Doom", chill: "Chill", frozen: "Frozen" } as Record<string, string>,
+  DOT_COLOR: { burn: "#ffb27a", poison: "#aef0a0", decay: "#7ad0c0", drain: "#c4a7ff" } as Record<string, string>,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
   // damage numbers held back during an animated skill, flushed when the hit lands (see animatedStrike).
   // `univ` = also play the universal mana-slash here (skills with their OWN bespoke impact layer set it
@@ -56,8 +64,17 @@ export const Battle = {
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     // per-battle status starts clean; a carried dungeon "regen" reprieve (ADR 0010) seeds in AFTER the wipe
     // (and is spent), so a regen rest node heals gradually across THIS fight rather than instantly at the node.
-    Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.cooldowns = {}; if (m.pendingRegen) { m.status.regen = m.pendingRegen; m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
+    Game.party.forEach((m) => { m.atb = ri(0, 40); m.statuses = []; m.cooldowns = {}; if (m.pendingRegen) { applyStatus(m.statuses, "regen", { turns: m.pendingRegen }); m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
+    carryPools(Game.resources); // pools age by personality (or reset if not persistent) at fight start (ADR 0019)
+    // Test Loop (ADR 0017): open a per-action BattleLog fight context. `enabled` mirrors testMode (the
+    // authority); the ctx build is gated so real play does literally nothing (no gearScore/alloc cost).
+    BattleLog.enabled = Game.testMode;
+    if (Game.testMode) BattleLog.startFight({
+      enemies: this.enemies.map((e) => ({ key: e.key, lvl: e.lvl, att: e.att, elite: e.elite, champion: e.champion })),
+      party: Game.party.map((m) => ({ name: m.name, cls: m.cls, att: m.att, level: m.level, gearScore: gearScore(m).overall })),
+      isBoss: this.isBoss, depth: dp, env: this.env,
+    });
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
@@ -161,11 +178,19 @@ export const Battle = {
     const cds = (m.cooldowns ||= {});
     keys.forEach((key) => {
       const s = SKILLS[key]; if (!s) return;
-      const cd = cds[key] || 0, ready = cd <= 0; // Battle 2.0: cooldown-gated (no MP cost)
-      const tag = `<span class="cost${ready ? "" : " low"}">${ready ? "Ready" : `CD ${cd}`}</span>`;
-      const b = el("button", "cmd", `${s.name}${tag}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
+      const cd = cds[key] || 0, offCd = cd <= 0; // Battle 2.0: cooldown-gated (no MP cost)
+      // V3 (ADR 0019): signatures/ultimates COST the Attunement's shared pool — gate the button on it too.
+      // Gate on the SAME amount spend() will actually debit (clamped by the per-action spendCap, D8), so a
+      // future cost above the cap can't require more than it takes.
+      const afford = !s.resourceCost || Game.resources[m.att] >= Math.min(s.resourceCost, RESOURCE.spendCap);
+      const ready = offCd && afford;
+      // Resource delta badge: −cost (sig/ult) or +gen (special); the pool fuel the whole party shares.
+      const rTag = s.resourceCost ? ` <span class="cost${afford ? "" : " low"}">−${s.resourceCost} ${m.att}</span>`
+        : s.resourceGen ? ` <span class="cost">+${s.resourceGen} ${m.att}</span>` : "";
+      const cdTag = `<span class="cost${offCd ? "" : " low"}">${offCd ? "Ready" : `CD ${cd}`}</span>`;
+      const b = el("button", "cmd", `${s.name}${cdTag}${rTag}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
       if (!ready) b.disabled = true;
-      else b.onclick = () => { this.setCmdWide(false); cds[key] = this.ABILITY_CD; this.useSkill(m, s); };
+      else b.onclick = () => { this.setCmdWide(false); cds[key] = s.cd && s.cd > 0 ? s.cd : this.ABILITY_CD; this.useSkill(m, s); };
       list.appendChild(b);
     });
     if (keys.length === 0) list.appendChild(el("div", "small", "No abilities unlocked yet — raise MNA in the Party screen."));
@@ -198,6 +223,7 @@ export const Battle = {
   // the hit to the chosen target(s) (with an impact burst), then resolve the turn / victory.
   fireUltimate(m: Member, ult: Ultimate, targets: Unit[]): void {
     this.selecting = null; this.awaiting = true; this.current = m;
+    spend(Game.resources, m.att, RESOURCE.ultSpend); // legacy cutscene ultimate spends a flat pool amount (V3 ults are Skills with their own cost band, spent in resolveNow)
     if (ult.mp) m.mp = Math.max(0, m.mp - ult.mp);
     const list = $("#cmdList"); if (list) list.innerHTML = "";
     $("#cmdWho")!.textContent = `${m.name} — ${ult.name}!`;
@@ -283,6 +309,10 @@ export const Battle = {
   resolveNow(actor: Unit, targets: Unit[], act: CombatAct): void {
     const s = act.skill;
     // Battle System 2.0: abilities no longer cost MP — they're gated by cooldown (set in showSkills).
+    // V3 (ADR 0019): a costing ability (signature/ultimate) debits its Attunement's shared pool at the
+    // moment it resolves (one-way; the affordability was gated in showSkills, re-checked here implicitly
+    // by `spend`). Generating abilities (specials/auto) credit the pool at turn end — see endTurn.
+    if (actor.side === "party" && s?.resourceCost) spend(Game.resources, actor.att, s.resourceCost);
 
     // Layered combat animation (REQUIEM): a skill with an `anim` — or a class whose plain Attack has
     // a bespoke animation (BASIC_ATTACK_ANIM, e.g. the Photon Vanguard's rifle shot) — plays its
@@ -299,7 +329,7 @@ export const Battle = {
 
     if (s && s.type === "heal") {
       const hld = 1 + (actor.sub?.Hld ?? 0) / 100; // V3 Healing Done amplifies all healing the caster does
-      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); const hpBefore = t.hp; heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); const stN = s.status ? this.applySkillStatuses(actor, t, s.status) : []; this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); BattleLog.action({ side: actor.side, actor: actor.name, ability: s.name, target: t.name, dmg: -amt, affinityMult: 1, crit: false, status: stN.length ? stN.join(", ") : undefined, hpBefore, hpAfter: t.hp }); });
     } else if (s && s.type === "buff") {
       const applied: string[] = [];
       if (s.buff?.def) applied.push("Guard");
@@ -307,13 +337,14 @@ export const Battle = {
       if (s.buff?.wardArmor) applied.push("Ward");
       targets.forEach((t) => {
         if (s.buff?.def) t.guarding = true;
-        if (s.buff?.atkup) applyStatus(t, { atkup: s.buff.turns ?? 0 });
-        if (s.buff?.wardArmor) { applyStatus(t, { wardArmor: s.buff.turns ?? 0 }); t.wardAmt = s.buff.wardArmor; }
+        if (s.buff?.atkup) applyStatus(t.statuses, "atkup", { turns: s.buff.turns ?? 0 });
+        if (s.buff?.wardArmor) { applyStatus(t.statuses, "barrier", { turns: s.buff.turns ?? 0 }); t.wardAmt = s.buff.wardArmor; }
+        BattleLog.action({ side: actor.side, actor: actor.name, ability: s.name, target: t.name, dmg: 0, affinityMult: 1, crit: false, status: applied.length ? applied.join(", ") : undefined, hpBefore: t.hp, hpAfter: t.hp });
       });
       const who = targets.length > 1 ? "the party" : targets[0]?.name ?? actor.name;
       this.log(`${actor.name}'s ${s.name}${applied.length ? ` grants ${applied.join(", ")} to ${who}` : ""}`);
     } else if (s && s.type === "util" && s.cleanse) {
-      targets.forEach((t) => { t.status = {}; this.float(t, "cleansed", "#9cd1ff"); });
+      targets.forEach((t) => { cleanse(t.statuses); this.float(t, "cleansed", "#9cd1ff"); });
       this.log(`${actor.name} cleanses ${targets[0].name}.`);
     } else {
       // damage (attack or offensive skill) — each strike() logs who it hit for how much
@@ -324,7 +355,7 @@ export const Battle = {
     }
     recalc(Game.party);
     this.renderAll();
-    setTimeout(() => this.afterAction(actor), 360);
+    setTimeout(() => this.afterAction(actor, act), 360);
   },
 
   // Run a skill's layered animation, then resolve the hit on its damage frame and float the number
@@ -335,7 +366,7 @@ export const Battle = {
     if (!stage || !aEl || !tEl) {
       const hits = act.skill?.hits || 1;
       for (let h = 0; h < hits; h++) { if (target.alive) this.strike(actor, target, act); }
-      recalc(Game.party); this.renderAll(); setTimeout(() => this.afterAction(actor), 360); return;
+      recalc(Game.party); this.renderAll(); setTimeout(() => this.afterAction(actor, act), 360); return;
     }
     this._animFloats = [];
     this._animHasImpact = !!anim.impact;   // a bespoke impact layer overrides the universal burst
@@ -347,7 +378,7 @@ export const Battle = {
         recalc(Game.party); this.renderAll();
       },
       onImpact: () => this.flushAnimFloats(),
-      onComplete: () => this.afterAction(actor),
+      onComplete: () => this.afterAction(actor, act),
     });
   },
   flushAnimFloats(): void {
@@ -357,15 +388,19 @@ export const Battle = {
 
   strike(actor: Unit, target: Unit, act: CombatAct, silent = false): void {
     const s = act.skill;
+    const abilityName = s ? s.name : "Attack"; // for the Test Loop BattleLog
     const r = combatDamage(actor, target, act);
     if (r.miss) {
       if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att, univ: false, mirror: false });
       else this.float(target, "miss", "#bbb");
-      this.log(`${actor.name} misses ${target.name}.`); return;
+      this.log(`${actor.name} misses ${target.name}.`);
+      BattleLog.action({ side: actor.side, actor: actor.name, ability: abilityName, target: target.name, dmg: 0, affinityMult: 1, crit: false, hpBefore: target.hp, hpAfter: target.hp });
+      return;
     }
     const { crit, mult } = r;
     let dmg = r.dmg;
     if (actor.side === "enemy" && (actor as Enemy).enraged) dmg = Math.round(dmg * 2); // enrage: double damage
+    const hpBefore = target.hp; // Test Loop BattleLog: capture HP across the hit
     damage(target, dmg);
     Telemetry.dmg(actor.side, dmg, crit, mult);
     const txt = (crit ? "✦" : "") + dmg, color = mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff";
@@ -380,15 +415,15 @@ export const Battle = {
     const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";
     this.log(`${s ? `${actor.name}'s ${s.name}` : actor.name} hits ${target.name} for ${dmg}${tag}`);
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
+    const applied: string[] = [];
     if (s && s.status) {
-      let st = s.status;
-      if (st.stun && stunImmune(target)) { st = { ...st }; delete st.stun; this.float(target, "resist", "#ccc"); this.log(`${target.name} resists Stun`); }
-      applyStatus(target, st);
-      const names = Object.keys(st).map((k) => this.STATUS_NAMES[k] || k);
+      const names = this.applySkillStatuses(actor, target, s.status);
+      applied.push(...names);
       if (names.length) this.log(`${target.name} is afflicted with ${names.join(", ")}`);
     }
-    if (actor.bonusBurn) { applyStatus(target, { burn: 2 }); this.log(`${target.name} is afflicted with Burn`); }
-    if (actor.onHitPoison) { applyStatus(target, { poison: actor.onHitPoison }); this.log(`${target.name} is afflicted with Poison`); }
+    if (actor.bonusBurn) { applyStatus(target.statuses, "burn", { turns: 2, source: (actor as Member).id }); applied.push("Burn"); this.log(`${target.name} is afflicted with Burn`); }
+    if (actor.onHitPoison) { applyStatus(target.statuses, "poison", { turns: actor.onHitPoison, source: (actor as Member).id }); applied.push("Infestation"); this.log(`${target.name} is afflicted with Infestation`); }
+    BattleLog.action({ side: actor.side, actor: actor.name, ability: abilityName, target: target.name, dmg, affinityMult: mult, crit, status: applied.length ? applied.join(", ") : undefined, hpBefore, hpAfter: target.hp });
     this.markHurt(target);
     if (target.alive) this.maybeEnrage(target);
     if (!target.alive) this.onDeath(target);
@@ -428,8 +463,20 @@ export const Battle = {
     }
   },
 
-  afterAction(actor: Unit): void { if (this.checkEnd()) return; this.endTurn(actor); },
-  endTurn(actor: Unit): void {
+  afterAction(actor: Unit, act?: CombatAct): void { if (this.checkEnd()) return; this.endTurn(actor, act); },
+  endTurn(actor: Unit, act?: CombatAct): void {
+    // A party action feeds its Attunement's shared pool (ADR 0019). V3 per-ability bands (one-way): a
+    // generating special credits its `resourceGen`, a basic Attack/Defend the class's auto trickle; a
+    // costing signature/ultimate generated nothing here (it spent at resolution). A legacy hand-authored
+    // skill credits the flat genSpecial. For classes not yet re-encoded `autoGenFor` is null → the legacy
+    // flat trickle, so their economy is unchanged. (The two legacy CUTSCENE ultimates — Photon Vanguard /
+    // Lagrangian, fireUltimate — are the one exception that both spends and trickles: a showcase pre-dating
+    // the V3 cost bands, behavior intentionally preserved until they're re-encoded as V3 ult Skills.)
+    if (actor.side === "party") {
+      const m = actor as Member;
+      const autoGen = autoGenFor(m.att, m.cls) ?? RESOURCE.genSpecial;
+      gain(Game.resources, m.att, turnGain(act?.skill, autoGen, RESOURCE.genSpecial));
+    }
     actor.atb = 0; actor.acting = false;
     this.awaiting = false; this.current = null;
     this.renderAll();
@@ -450,7 +497,7 @@ export const Battle = {
       if (!used) {
         let target: Member;
         const pool = this.reachable(e); // front line shields the back row
-        const taunter = party.find((p) => p.status.wardArmor && p.role === "Tank");
+        const taunter = party.find((p) => hasStatus(p.statuses, "barrier") && p.role === "Tank");
         if (e.ai === "boss") target = Math.random() < 0.5 ? pool.slice().sort((a, b) => a.hp - b.hp)[0] : pick(pool);
         else target = pick(pool);
         if (taunter && Math.random() < 0.5) target = taunter;
@@ -467,21 +514,40 @@ export const Battle = {
     });
   },
 
-  /* ---- status ticking at the start of a unit's turn ---- */
+  /* ---- status: apply a skill's effects + tick at the start of a unit's turn (ADR 0016) ---- */
+  // Apply a skill's StatusMap (effect id → turns) as catalog instances: skip Stun on immune foes, roll
+  // resistible effects (Accuracy ↔ Resistance), and tag the caster as `source` for transfer effects
+  // (Drain). Returns the display names applied, for the combat log.
+  applySkillStatuses(actor: Unit, target: Unit, st: StatusMap): string[] {
+    const names: string[] = [];
+    for (const id of Object.keys(st)) {
+      if (id === "stun" && stunImmune(target)) { this.float(target, "resist", "#ccc"); this.log(`${target.name} resists Stun`); continue; }
+      const def = STATUS[id];
+      if (def && def.apply === "resistible" && !resolveApply(id, actor.sub?.Acc ?? 0, target.sub?.Res ?? 0)) { this.float(target, "resist", "#ccc"); continue; }
+      applyStatus(target.statuses, id, { turns: st[id], source: (actor as Member).id });
+      names.push(this.STATUS_NAMES[id] || def?.name || id);
+    }
+    return names;
+  },
   tickStatuses(u: Unit, done: () => void): void {
-    const st = u.status; let delay = 0;
-    if (st.burn) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#ffb27a"); st.burn--; if (st.burn <= 0) delete st.burn; delay = 300; }
-    if (st.poison) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.06)); damage(u, d); this.float(u, `-${d}`, "#aef0a0"); st.poison--; if (st.poison <= 0) delete st.poison; delay = 300; }
-    if (st.decay) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#7ad0c0"); st.decay--; if (st.decay <= 0) delete st.decay; delay = 300; }
-    if (st.drain) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#c4a7ff"); st.drain--; if (st.drain <= 0) delete st.drain; delay = 300; } // UMBRAXIS signature
-    if (st.regen) { const h = Math.round((u.maxhp || 40) * 0.08); heal(u, h); this.float(u, `+${h}`, "#aef0a0"); st.regen--; if (st.regen <= 0) delete st.regen; delay = 300; }
-    if (st.wardArmor) { st.wardArmor--; if (st.wardArmor <= 0) { delete st.wardArmor; delete u.wardAmt; } }
-    if (st.atkup) { st.atkup--; if (st.atkup <= 0) delete st.atkup; }
-    if (st.blind) { st.blind--; if (st.blind <= 0) delete st.blind; }
+    // A unit hard-CC'd (Stun/Frozen) at its turn start loses the turn; the tick then expires the CC.
+    const wasCC = hasStatus(u.statuses, "stun") || hasStatus(u.statuses, "frozen");
+    let delay = 0;
+    for (const ev of tickStatus(u.statuses)) {
+      if (ev.layer !== "status") continue; // only DoT/HoT/Doom touch HP here; other layers just counted down
+      if (ev.detonated) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.25)); damage(u, d); this.float(u, `-${d}`, "#ef9bff"); delay = 300; continue; } // Doom — determined hit
+      if (ev.magnitude <= 0) continue;
+      const amt = Math.max(2, Math.round((u.maxhp || 40) * (ev.magnitude / 100) * ev.stacks)); // magnitude is %-of-maxhp per stack
+      if (ev.kind === "buff") { heal(u, amt); this.float(u, `+${amt}`, "#aef0a0"); delay = 300; } // HoT (Regen)
+      else {
+        damage(u, amt); this.float(u, `-${amt}`, this.DOT_COLOR[ev.defId] || "#ffb27a"); delay = 300;
+        if (ev.needsSource && ev.source) { const src = this.allUnits().find((x) => (x as Member).id === ev.source); if (src && src.alive) heal(src, amt); } // Drain → caster
+      }
+    }
     if (u.alive) this.maybeEnrage(u); // DoT ticks can cross the 20% enrage threshold at turn start
     u.guarding = false;
-    if (st.stun) {
-      delete st.stun; this.log(`${u.name} is stunned!`); recalc(Game.party); this.renderAll();
+    if (wasCC) {
+      this.log(`${u.name} is stunned!`); recalc(Game.party); this.renderAll();
       if (!u.alive) { done(); return; }
       setTimeout(() => { u.atb = 0; this.awaiting = false; this.current = null; this.endTurn(u); }, 400);
       return;
@@ -511,6 +577,9 @@ export const Battle = {
     const cmdList = $("#cmdList"); if (cmdList) cmdList.innerHTML = "";
     Game.party.forEach((m) => { m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.acting = false; });
+    // Test Loop (ADR 0017): close the BattleLog fight with its outcome + party-HP-remaining (no-op in real play).
+    const totalHp = Game.party.reduce((s, m) => s + Math.max(0, m.hp), 0), totalMax = Game.party.reduce((s, m) => s + m.maxhp, 0) || 1;
+    BattleLog.endFight(fled ? "fled" : victory ? "won" : "wipe", (totalHp / totalMax) * 100);
     if (fled) { Telemetry.encounterEnd("fled"); setTimeout(() => Screens.show("field"), 300); return; }
     if (!victory) { Telemetry.encounterEnd("wipe"); setTimeout(() => Game.gameOver(), 600); return; }
     // ----- victory: XP + gold + loot -----
@@ -552,7 +621,8 @@ export const Battle = {
         ? () => Game.victory()
         : () => Game.afterZoneBoss() // post-boss flow (roam-first for Greenvale→Silverwood; hub chain elsewhere)
       : () => Screens.show("field");
-    Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007)
+    if (Game.testMode && Game.testReturn) Game.continueAfterBattle = Game.testReturn; // Test Loop (ADR 0017): victory routes to the loop menu, not the field/zone flow
+    Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007). (early-returns under testMode)
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
   },
   showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {
@@ -640,9 +710,14 @@ export const Battle = {
     // 3-letter labels keep it legible at phone size + clear of the music button; the leading "beats"
     // tells the player the arrows mean prey-order (each node beats the next), not just sequence.
     const ABBR: Record<string, string> = { SOL: "SOL", NOX: "NOX", ANIMA: "ANI", QUANTA: "QUA", UMBRAXIS: "UMB" };
-    host.innerHTML = '<span class="ac-beats">beats</span>' + RING.map((a) =>
+    const ring = '<span class="ac-beats">beats</span>' + RING.map((a) =>
       `<span class="ac-node${live.has(a) ? " live" : ""}" style="color:${ATT[a].color}" title="${a}">${ABBR[a]}</span>`
     ).join('<span class="ac-arrow">▸</span>') + '<span class="ac-arrow">↺</span>';
+    // Party-shared Resource pools (ADR 0019) — a compact per-Attunement strip under the affinity ring.
+    const pools = RING.map((a) =>
+      `<span class="ac-node" style="color:${ATT[a].color}" title="${a} Resource">${ABBR[a]} ${Game.resources[a]}</span>`
+    ).join(" ");
+    host.innerHTML = ring + `<div class="res-pools" style="margin-top:3px;font-size:11px;opacity:.85">${pools}</div>`;
   },
   // RECONCILE in place rather than rebuilding (Dara's attack flicker): a full innerHTML wipe re-created
   // every sprite <img> on each re-render, flashing a blank frame at the start/end of the lunge. We keep

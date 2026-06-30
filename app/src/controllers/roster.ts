@@ -19,11 +19,21 @@ const HEAL_ROLES = ["Healer", "Caster"]; // a party with neither has no sustain/
 
 export const Roster = {
   draft: [] as Slot[],
+  // Optional override for what "confirm" does with the built defs (the Test Loop harness installs them
+  // into a borrowed test party instead of starting a real run). Reset on every open(); null = start a run.
+  onConfirm: null as ((defs: MemberDef[]) => void) | null,
   rowOf(i: number): "front" | "back" { return i < 3 ? "front" : "back"; }, // slots 0-2 front, 3-4 back
 
-  open(): void {
+  open(onConfirm: ((defs: MemberDef[]) => void) | null = null): void {
+    this.onConfirm = onConfirm;
     this.draft = PARTY_DEFS.map((d) => ({ name: d.name, att: d.att, cls: d.cls }));
     this.render();
+  },
+  // Hand the built defs to the active consumer: the harness hook if set, else a fresh real run.
+  confirm(defs: MemberDef[]): void {
+    Overlay.hide();
+    if (this.onConfirm) { const fn = this.onConfirm; this.onConfirm = null; fn(defs); }
+    else Game.startRun(defs);
   },
 
   card(i: number): string {
@@ -76,10 +86,9 @@ export const Roster = {
     this.render();
   },
 
-  useDefault(): void { Overlay.hide(); Game.startRun(PARTY_DEFS); },
+  useDefault(): void { this.confirm(PARTY_DEFS); },
   begin(): void {
     const defs: MemberDef[] = this.draft.map((s, i) => buildDef(`hero${i}`, s.name, s.att, s.cls, this.rowOf(i)));
-    Overlay.hide();
-    Game.startRun(defs);
+    this.confirm(defs);
   },
 };

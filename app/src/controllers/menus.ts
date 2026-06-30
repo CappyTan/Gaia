@@ -10,6 +10,8 @@ import { className } from "../data/classes";
 import { ATT } from "../data/attunements";
 import { PRIMARY_STATS, STAT_TIERS } from "../data/statScaling";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
+import { hasSpec } from "../systems/classKit";
+import { ClassPicker } from "./classPicker";
 import { itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
 import { substats } from "../systems/stats";
@@ -107,8 +109,11 @@ export const UI = {
       <div class="scroll">`;
     Game.party.forEach((m) => {
       const arch = m.equip.weapon?.cls || m.cls;
+      // Re-encoded classes (ADR 0020) drive their kit through the 3-lane choice picker; offer it here.
+      const v3 = hasSpec(m.att, m.cls)
+        ? ` <button class="btn gold" style="padding:3px 8px;font-size:11px;min-height:0" onclick="UI.openClassPicker('${m.id}')">Choose abilities ▸</button>` : "";
       h += `<div class="card" style="text-align:left;margin:6px 0">
-        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${className(m.att, arch)}</span> <span class="pill">${m.att} MNA ${m.mna[m.att]}</span>`;
+        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${className(m.att, arch)}</span> <span class="pill">${m.att} MNA ${m.mna[m.att]}</span>${v3}`;
       const kit = m.skills.map((k) => ({ k, s: SKILLS[k] })).filter((x) => x.s).sort((a, b) => a.s.mnaReq - b.s.mnaReq);
       kit.forEach(({ k, s }) => {
         const ok = m.mna[s.att] >= s.mnaReq;
@@ -123,6 +128,12 @@ export const UI = {
     });
     h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`;
     Overlay.show(h);
+  },
+  // Open the 3-lane choice picker bound to a hero (ADR 0020) — for a re-encoded class, this is where the
+  // player builds the kit that becomes their battle commands.
+  openClassPicker(memberId: string): void {
+    const m = Game.party.find((x) => x.id === memberId);
+    if (m && hasSpec(m.att, m.cls)) ClassPicker.open(undefined, m);
   },
   useHeal(memberId: string, key: string): void {
     const m = Game.party.find((x) => x.id === memberId), s = SKILLS[key];

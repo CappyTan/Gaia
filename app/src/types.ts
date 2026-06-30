@@ -13,6 +13,52 @@ export type RarityKey =
 /** A status/buff timer keyed by effect name (burn, poison, decay, regen, stun, blind, atkup, wardArmor). */
 export type StatusMap = Record<string, number>;
 
+// ── Status-effect catalog (ADR 0016) — the unified buff/debuff model that supersedes the loose
+//    StatusMap + rigid Skill.buff: every effect is a DEFINITION (data/status.ts), applied to a unit as
+//    a structured INSTANCE. Engine wiring (combat/battle/save/UI) migrates onto this incrementally;
+//    StatusMap stays until that pass lands.
+/** The 5 ratified mechanic layers (attunement-mechanics.md). */
+export type StatusLayer = "status" | "action" | "stat" | "meta" | "economy";
+export type StatusKind = "buff" | "debuff";
+/** 6 buckets: class-agnostic Neutral + the 5 attunement suites. */
+export type StatusBucket = "neutral" | Attunement;
+export type StackRule = "refresh" | "stack-intensity" | "stack-duration" | "unique";
+/** How an effect lands: `on-hit` chip (auto with the hit) or `resistible` (Accuracy ↔ Resistance). */
+export type StatusApply = "on-hit" | "resistible";
+
+/** A buff/debuff DEFINITION in the catalog (data/status.ts). Magnitudes are a balance pass. */
+export interface StatusDef {
+  id: string;
+  name: string;
+  kind: StatusKind;
+  layer: StatusLayer;
+  bucket: StatusBucket;
+  /** Default duration in the bearer's turns. */
+  turns: number;
+  /** Per-stack effect magnitude — units are effect-specific (% for stat mods, dmg/tick for DoTs, …). */
+  magnitude?: number;
+  /** Max stacks for `stack-intensity` (default 1). */
+  maxStacks?: number;
+  stacking: StackRule;
+  apply: StatusApply;
+  cleansable?: boolean;   // removed by Cleanse (debuffs)
+  dispellable?: boolean;  // removed by buff-strip / dispel (buffs)
+  timeLockable?: boolean; // NOX preserve / dispel-lock target
+  needsSource?: boolean;  // ticked effect that references its caster (Drain → caster)
+  /** Phase-transition: at max stacks, auto-promotes to this def id (Chill→Frozen…). */
+  promotesTo?: string;
+  desc: string;
+}
+
+/** A live buff/debuff INSTANCE carried on a unit. */
+export interface StatusInstance {
+  defId: string;
+  turns: number;
+  stacks: number;
+  magnitude: number;
+  source?: string; // attacker/caster id, for needsSource effects
+}
+
 /**
  * DUNGEON REPRIEVE (ADR 0010) — a dungeon rest node's TAILORED relief. Deliberately NOT a full heal:
  * each kind relieves ONE axis, partially, so a deep dungeon stays punishing (a full HP+MP refill every
@@ -115,6 +161,9 @@ export interface Stats {
 
 export type SkillTarget = "enemy" | "allEnemies" | "ally" | "allAllies" | "self";
 export type SkillType = "phys" | "mag" | "heal" | "buff" | "util";
+/** ADR 0014 damage typing — MATTER (struck/martial) vs ENERGY (projected/channeled). When unset on a
+ *  Skill/CombatAct, combat derives it from the skill kind (mag→energy, else matter), so tagging is opt-in. */
+export type DmgType = "matter" | "energy";
 
 export interface Skill {
   name: string;
@@ -127,6 +176,8 @@ export interface Skill {
   /** Marks the class Ultimate (unlocks at Archon = 100 MNA). */
   ult?: boolean;
   type: SkillType;
+  /** Optional explicit damage type (ADR 0014); unset = derived from `type` (mag→energy, else matter). */
+  dmgType?: DmgType;
   power?: number;
   hits?: number;
   sol?: boolean;
@@ -134,6 +185,17 @@ export interface Skill {
   status?: StatusMap;
   buff?: { def?: number; atkup?: number; wardArmor?: number; turns?: number };
   cleanse?: boolean;
+  /** V3 resource economy (ADR 0019): own-Attunement resource GENERATED on use (specials/auto) — added to
+   *  the shared pool at turn end. One-way with `resourceCost` (a skill does one or the other). Set by the
+   *  band→number generator (systems/classKit) on generated kits; unset on the legacy hand-authored kits. */
+  resourceGen?: number;
+  /** V3 resource economy: own-Attunement resource SPENT on use (signatures/ultimates) — debited from the
+   *  shared pool at resolution. Unset on legacy kits (they spend nothing). */
+  resourceCost?: number;
+  /** Per-skill cooldown in turns (from the cooldown band). Unset → the flat `Battle.ABILITY_CD`. */
+  cd?: number;
+  /** Build-identity lane (A/B/C) — V3 generated kits only; display/future use. */
+  lane?: string;
   /** Optional combat-animation key (SKILL_ANIM in data/skillAnimations) — plays a layered
    *  character/effect/impact sequence on use instead of the instant hit. */
   anim?: string;
@@ -156,16 +218,24 @@ export interface MemberDef {
   skills: string[];
 }
 
+/** Enemy combat role — sets the V3 primary SHAPE + HP/ATK multipliers (systems/enemyStats), so a
+ *  level-N enemy's stats are DERIVED, not hand-authored (ADR 0018 — the bestiary level-seeding rebuild). */
+export type EnemyRole =
+  | "skirmisher" | "bruiser" | "harrier" | "caster" | "wall" | "brute"
+  | "miniboss" | "boss" | "rare";
+
 export interface EnemyDef {
   name: string;
   spr: string;
   att: Attunement;
   lvl: number;
-  hp: number;
-  atk: number;
-  spd: number;
-  armor: number;
-  mag: number;
+  /** V3 (ADR 0018): combat stats DERIVE from role + lvl (+ lean) via systems/enemyStats — not authored. */
+  role: EnemyRole;
+  /** Optional per-enemy primary re-weighting (multiplies a role weight) — for outliers: armored
+   *  "metal" jackpots (DEF huge, VIT near 0), sponges, fast variants. */
+  lean?: Partial<Prims>;
+  /** Optional explicit basic-attack damage type (ADR 0014); defaults to matter. */
+  dmgType?: DmgType;
   xp: number;
   gold: [number, number];
   ai: string;
@@ -195,7 +265,8 @@ export interface Unit {
   spd: number;
   armor: number;
   mag: number;
-  status: StatusMap;
+  /** Live buff/debuff instances (ADR 0016). Per-battle: reset at battle start, never saved. */
+  statuses: StatusInstance[];
   atb: number;
   alive: boolean;
   critPct: number;
@@ -208,11 +279,15 @@ export interface Unit {
   /** V3 effective primary attributes (innate + gear) — members only; enemies leave undefined. Display. */
   prim?: Prims;
   /** V3 secondary stats from gear affixes (the 20). Members only; enemies leave undefined. Combat reads
-   *  the wired ones (Arp/Exe/Crs/Pry/Vei/Eva/Drd/…); the rest are display until the skill-tree pass. */
+   *  Block/Evasion/typed Reduction & Penetration/Execute/Crit-Damage; the SPD-tempo group + Acc/Buf/Res
+   *  stay display until the ATB/status pass (ADR 0016). */
   sub?: Subs;
   /** V3 ability-power amplifier from GEAR primaries + Ability Power affix (e.g. 0.12 = +12% ability
    *  damage). Zero with no gear, so a fresh hero is combat-neutral. Members only. */
   abp?: number;
+  /** Damage type of this unit's BASIC attack (ADR 0014). Enemies set it (default matter); members
+   *  leave it unset — combat derives per-skill. */
+  dmgType?: DmgType;
   guarding?: boolean;
   acting?: boolean;
   _hurt?: boolean;
@@ -240,6 +315,11 @@ export interface Member extends Unit {
   mna: MnaPools;
   /** Unspent intrinsic MNA points awaiting allocation (manual allocator = Phase 2). */
   mnaPoints: number;
+  /** V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s); see `Picks` in systems/choice
+   *  (structurally `Record<string, string[]>`). Present once the player has banked picks for this class
+   *  in the picker; drives the usable kit via `activeKit` (systems/classKit) instead of the static KITS
+   *  map. Absent → the member falls back to the legacy `kitFor` kit. Persisted per-member. */
+  picks?: Record<string, string[]>;
   mp: number;
   maxmp: number;
   /** Battle System 2.0: per-skill cooldown timers (skill key → turns remaining) — the substitute for
@@ -281,6 +361,8 @@ export interface CombatAct {
   type?: string;
   skill?: Skill;
   aoe?: boolean;
+  /** Explicit damage type override (ADR 0014); falls back to the skill's derived type. */
+  dmgType?: DmgType;
 }
 
 export interface DamageResult {

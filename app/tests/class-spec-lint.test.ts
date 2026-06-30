@@ -62,30 +62,30 @@ describe("class-spec-lint — synthetic negatives (the checks bite)", () => {
   };
 
   it("a clean synthetic spec passes", () => {
-    const f = lensesIn("clean.md", goodBody("CleanAuto"));
+    const f = lensesIn("sol-clean.md", goodBody("CleanAuto"));
     expect(f.filter((x) => x.severity === "Blocking")).toEqual([]);
-    rmSync(join(dir, "clean.md"));
+    rmSync(join(dir, "sol-clean.md"));
   });
 
   it("flags a missing milestone option (counts/milestones)", () => {
     const broken = goodBody("CountAuto").replace(/^- \*\*B · Sp5b\*\*.*$/m, "");
-    const f = lensesIn("count.md", broken);
+    const f = lensesIn("sol-count.md", broken);
     expect(f.some((x) => x.severity === "Blocking" && (x.lens === "counts" || x.lens === "milestones"))).toBe(true);
-    rmSync(join(dir, "count.md"));
+    rmSync(join(dir, "sol-count.md"));
   });
 
   it("flags an economy violation (a special that costs)", () => {
     const broken = goodBody("EconAuto").replace("**A · Sp5a** · phys · enemy · *does a thing* · gen **minor X**", "**A · Sp5a** · phys · enemy · *does a thing* · cost **low X**");
-    const f = lensesIn("econ.md", broken);
+    const f = lensesIn("sol-econ.md", broken);
     expect(f.some((x) => x.severity === "Blocking" && x.lens === "economy")).toBe(true);
-    rmSync(join(dir, "econ.md"));
+    rmSync(join(dir, "sol-econ.md"));
   });
 
   it("flags a globally-duplicated ability name across two specs", () => {
-    writeFileSync(join(dir, "one.md"), goodBody("SharedAuto"));
-    writeFileSync(join(dir, "two.md"), goodBody("SharedAuto")); // same auto name in both
+    writeFileSync(join(dir, "sol-one.md"), goodBody("SharedAuto"));
+    writeFileSync(join(dir, "sol-two.md"), goodBody("SharedAuto")); // same auto name in both
     const f = lintSpecs(dir).findings;
     expect(f.some((x) => x.severity === "Blocking" && x.lens === "name-uniqueness" && x.msg.includes("sharedauto"))).toBe(true);
-    rmSync(join(dir, "one.md")); rmSync(join(dir, "two.md"));
+    rmSync(join(dir, "sol-one.md")); rmSync(join(dir, "sol-two.md"));
   });
 });

@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "sim": "tsx app/tools/balance-sim.ts",
     "map": "tsx app/tools/dungeon-map.ts",
-    "lint:classes": "tsx app/tools/class-spec-lint.ts"
+    "lint:classes": "tsx app/tools/class-spec-lint.ts",
+    "gen:classes": "tsx app/tools/gen-class-specs.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

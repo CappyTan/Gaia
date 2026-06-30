@@ -17,14 +17,14 @@ import type { Enemy, Member } from "../src/types";
 function enemy(over: Partial<Enemy> = {}): Enemy {
   return {
     key: "gbandit", name: "Greenvale Bandit", att: "NOX", spr: "🗡",
-    hp: 40, maxhp: 40, atb: 0, spd: 10, status: {}, alive: true, side: "enemy",
+    hp: 40, maxhp: 40, atb: 0, spd: 10, statuses: [], alive: true, side: "enemy",
     ...over,
   } as unknown as Enemy;
 }
 function member(over: Partial<Member> = {}): Member {
   return {
     id: "auren", name: "Auren", att: "SOL", cls: "S&S", row: "front", spr: "🛡",
-    hp: 30, maxhp: 30, mp: 10, maxmp: 10, atb: 0, status: {}, alive: true, side: "party",
+    hp: 30, maxhp: 30, mp: 10, maxmp: 10, atb: 0, statuses: [], alive: true, side: "party",
     ...over,
   } as unknown as Member;
 }

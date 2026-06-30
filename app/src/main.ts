@@ -13,6 +13,9 @@ import { Minimap } from "./controllers/minimap";
 import { Screens } from "./controllers/screens";
 import { DataBrowser } from "./controllers/dataBrowser";
 import { WorldMapView } from "./controllers/worldMap";
+import { ClassPicker } from "./controllers/classPicker";
+import { TestLoop } from "./controllers/testLoop";
+import { BattleLog } from "./telemetry/battleLog";
 import { applyCurrent } from "./data/overrides";
 import { Overlay } from "./ui/overlay";
 import { Dialogue } from "./ui/dialogue";
@@ -21,7 +24,7 @@ import { Telemetry } from "./telemetry/telemetry";
 import { Save } from "./systems/save";
 
 // Publish controllers for the HTML's inline onclick handlers.
-Object.assign(window, { Game, Roster, UI, Battle, Field, Minimap, Screens, DataBrowser, WorldMapView, Overlay, Dialogue, Music, Telemetry, Save });
+Object.assign(window, { Game, Roster, UI, Battle, Field, Minimap, Screens, DataBrowser, WorldMapView, ClassPicker, TestLoop, BattleLog, Overlay, Dialogue, Music, Telemetry, Save });
 
 // Keyboard on the field: while a conversation is open, any movement/confirm key advances it;
 // otherwise the keys walk the map.

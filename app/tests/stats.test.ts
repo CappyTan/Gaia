@@ -72,4 +72,25 @@ describe("substatBaseline (dual-source — ADR 0014)", () => {
     substatBaseline(zeroPrims(), sub);
     expect(Object.values(sub).every((v) => v === 0)).toBe(true);
   });
+
+  it("routes a primary into its full group of 4 (locks the SPD tempo group)", () => {
+    const sub = zeroSubs();
+    substatBaseline({ SPD: 50 }, sub); // SPD group = Abg/Acr/Cdr/Chc
+    for (const k of ["Abg", "Acr", "Cdr", "Chc"] as const) expect(sub[k]).toBeCloseTo(50 * SUB_BASE_K, 6);
+    expect(sub.Mpn).toBe(0); // STR group untouched
+  });
+
+  it("adds onto an existing affix value (does not overwrite)", () => {
+    const sub = { ...zeroSubs(), Mpn: 10 };
+    substatBaseline({ STR: 100 }, sub);
+    expect(sub.Mpn).toBeCloseTo(10 + 100 * SUB_BASE_K, 6);
+  });
+
+  it("handles multiple primaries in one call (DEF wall + STR)", () => {
+    const sub = zeroSubs();
+    substatBaseline({ STR: 100, DEF: 100 }, sub);
+    expect(sub.Mrd).toBeCloseTo(100 * SUB_BASE_K, 6); // DEF group
+    expect(sub.Mpn).toBeCloseTo(100 * SUB_BASE_K, 6); // STR group
+    expect(sub.Crt).toBe(0); // AGI group untouched
+  });
 });
