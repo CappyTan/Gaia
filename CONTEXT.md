@@ -210,9 +210,10 @@ _Not yet in the POC._
 **MNA** (canon, per REQUIEM):
 Per-Attunement mana — five pools (SOL/NOX/ANIMA/QUANTA/UMBRAXIS) forming a talent tree. MNA is a
 **threshold, not a cast cost**: each ability requires a minimum MNA in its tree to be usable
-(e.g. Solar Strike needs 10 SOL MNA). It also **scales output** (up to +60% at 200). MNA comes
-from **intrinsic points** (~1/level, **player-assigned**, respec-able for gold) plus **gear**
-(items grant MNA in specific trees). Distinct from **MP/RES** (what you spend to cast). See
+(e.g. Solar Strike needs 10 SOL MNA). It also **scales output** (up to +60% at 200). MNA is
+**gear-dominant** (ADR 0021): a small **derived floor** — `floor(level/5)` in your *active* tree,
+~20% of the climb — plus **gear** (items grant MNA in specific trees), which carries the other ~80%.
+Distinct from **MP/RES** (what you spend to cast). See
 [`docs/design/requiem/mna-progression.md`](docs/design/requiem/mna-progression.md).
 _POC: reconciling toward it (MNA-gated abilities + output scaling)._
 

@@ -43,7 +43,12 @@ A rough dependency read (to be confirmed when we design them):
 - **Ascension (1)** is the gate. **Soul Burn (2)** rides *inside* it. **Harmonic Ascension (3)** is two
   players hitting Ascension together — so 1 is the foundation for 2 and 3.
 - **Cross-class combo (4)** is orthogonal — a team-sequencing layer that can exist independently but
-  pairs naturally with Harmonic Ascension's "two players in alignment" idea.
+  pairs naturally with Harmonic Ascension's "two players in alignment" idea. **It also revives a
+  mothballed system:** [ADR 0021](../../adr/0021-mna-from-gear-level-floor.md) removed free cross-tree
+  MNA allocation because, in the one-weapon-one-class model, a player never has a reason to spend MNA
+  outside their weapon's tree. Free allocation (and the paid respec) only *earn their keep* once you
+  can draw skills from **multiple classes at once** — i.e. exactly when this pillar (and/or Archon
+  Type II) ships. When we pick up #4, reconsider re-introducing player-assigned MNA alongside it.
 - **Archon Type II (5)** is the *identity/progression* ceiling above Archon Type I — it changes **who
   you are** (two attunements), where 1–4 change **what a fight does**. (REQUIEM also reserves **Archon
   Type III** as "intentionally mysterious" — noted, not in scope here.)
