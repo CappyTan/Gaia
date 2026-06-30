@@ -5,6 +5,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { BattleLog } from "../src/telemetry/battleLog";
 import { Game } from "../src/controllers/game";
+import { TestLoop } from "../src/controllers/testLoop";
+import type { Member } from "../src/types";
 
 const ctx = () => ({
   enemies: [{ key: "gbandit", lvl: 3, att: "NOX" as const }],
@@ -79,5 +81,15 @@ describe("Game testMode gating (ADR 0017)", () => {
     Game.gameOver();
     expect(returned).toBe(true);                                  // returned to the harness loop
     expect(localStorage.getItem("gaia.save.v1")).toBe("SENTINEL"); // the player's run is untouched
+  });
+
+  it("reviveParty() restores a wiped bench party to full (no instant-wipe loop)", () => {
+    Game.party = [
+      { hp: 0, maxhp: 40, mp: 0, maxmp: 10, alive: false } as Member,
+      { hp: 5, maxhp: 30, mp: 2, maxmp: 8, alive: true } as Member,
+    ];
+    TestLoop.reviveParty();
+    expect(Game.party.every((m) => m.alive && m.hp === m.maxhp && m.mp === m.maxmp)).toBe(true);
+    Game.party = [];
   });
 });

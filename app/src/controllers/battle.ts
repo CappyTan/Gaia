@@ -67,9 +67,10 @@ export const Battle = {
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.statuses = []; m.cooldowns = {}; if (m.pendingRegen) { applyStatus(m.statuses, "regen", { turns: m.pendingRegen }); m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     carryPools(Game.resources); // pools age by personality (or reset if not persistent) at fight start (ADR 0019)
-    // Test Loop (ADR 0017): open a per-action BattleLog fight context (no-op in real play — enabled mirrors testMode).
+    // Test Loop (ADR 0017): open a per-action BattleLog fight context. `enabled` mirrors testMode (the
+    // authority); the ctx build is gated so real play does literally nothing (no gearScore/alloc cost).
     BattleLog.enabled = Game.testMode;
-    BattleLog.startFight({
+    if (Game.testMode) BattleLog.startFight({
       enemies: this.enemies.map((e) => ({ key: e.key, lvl: e.lvl, att: e.att, elite: e.elite, champion: e.champion })),
       party: Game.party.map((m) => ({ name: m.name, cls: m.cls, att: m.att, level: m.level, gearScore: gearScore(m).overall })),
       isBoss: this.isBoss, depth: dp, env: this.env,

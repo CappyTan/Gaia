@@ -474,7 +474,7 @@ export const Game = {
     try { const raw = localStorage.getItem("gaia_stash_v1"); this.stash = raw ? (JSON.parse(raw) as Item[]) : []; }
     catch { this.stash = []; }
   },
-  saveStash(): void { try { localStorage.setItem("gaia_stash_v1", JSON.stringify(this.stash)); } catch { /* storage off (private mode) */ } },
+  saveStash(): void { if (this.testMode) return; try { localStorage.setItem("gaia_stash_v1", JSON.stringify(this.stash)); } catch { /* storage off (private mode) */ } }, // never write persistence during a test session (ADR 0017 defense-in-depth)
   // Dismiss the one-time "Add to Home Screen" hint and remember it (bridged to the title button).
   dismissA2HS(): void {
     try { localStorage.setItem("gaia_a2hs_seen", "1"); } catch { /* storage off */ }

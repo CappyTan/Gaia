@@ -37,13 +37,13 @@ export const TestLoop = {
   lastLoot: null as Item | null,
   lastPct: null as { overall: number; within: number; rarity: string } | null,
 
-  /** Enter the harness from the title. Installs a default party if none, arms the testMode seams, opens the loop. */
+  /** Enter the harness from the title. Arms the testMode seams and installs a FRESH bench party — never
+   *  borrows a leftover real-run party that might still be sitting in Game.party. */
   open(): void {
     Game.testMode = true;
     Game.testReturn = () => this.menu();
     BattleLog.enabled = true;
-    if (!Game.party.length) this.installParty(PARTY_DEFS);
-    else this.menu();
+    this.installParty(PARTY_DEFS);
   },
 
   /** Build a borrowed test party from defs (mirrors Game.startRun's party setup — starter weapon in each
@@ -86,8 +86,12 @@ export const TestLoop = {
   },
 
   /** Start the configured fight (testMode is on → wipe/victory return here, no save touched). */
+  /** Bench rule: a fight always starts from full — so a prior wipe can't leave a dead party that
+   *  instantly re-wipes (Battle.begin resets statuses/cooldowns but not HP/alive). (ADR 0017) */
+  reviveParty(): void { Game.party.forEach((m) => { m.hp = m.maxhp; m.mp = m.maxmp; m.alive = true; }); },
   fight(): void {
     const foes = this.foes.length ? this.foes : [Object.keys(ENEMIES)[0]];
+    this.reviveParty();
     Battle.begin(foes, "plains", this.isBoss, false, this.depth, this.champ ? 0 : -1);
   },
 
