@@ -647,7 +647,7 @@ export const Battle = {
         h += `<div class="small" style="margin-top:3px">${l.name} → Lv ${l.level}${l.newSkill ? ` · learned <span class="r-legendary">${l.newSkill}</span>` : ""}</div>`;
         h += `<div class="small" style="opacity:.9;margin-left:10px">+${l.hp ?? 0} HP · +${l.atk ?? 0} ATK · +${l.arm ?? 0} ARM · ${mna}</div>`;
       });
-      h += `<div class="small" style="opacity:.8;margin-top:4px">Spend MNA points in the Party screen.</div>`;
+      h += `<div class="small" style="opacity:.8;margin-top:4px">MNA is assigned automatically — pick new abilities in Party → Abilities.</div>`;
       h += "</div>";
     }
     if (drops.length) {
