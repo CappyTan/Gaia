@@ -255,17 +255,17 @@ describe("MNA gating & scaling", () => {
     // at 99 MNA the @100 ultimate pick is dormant → it isn't in the active kit at all
     expect(m.skills.map((k) => SKILLS[k]).some((s) => s.ult)).toBe(false);
   });
-  it("leveling grants spendable MNA points; recalc folds allocation into totals", () => {
-    const party = [makeMember(PARTY_DEFS[0])];
+  it("leveling AUTO-ASSIGNS MNA into the hero's own Attunement; recalc folds it into the total", () => {
+    const party = [makeMember(PARTY_DEFS[0])]; // Auren, SOL
     recalc(party);
     const m = party[0];
+    expect(m.mnaAlloc.SOL).toBe(0);
     expect(m.mnaPoints).toBe(0);
-    grantXp(party, xpForLevel(1) * 4, () => 0); // a few levels; rng()=0 forces the 50/50 MNA win each level
-    expect(m.mnaPoints).toBeGreaterThan(0);
-    const pts = m.mnaPoints;
-    m.mnaAlloc.SOL += pts; m.mnaPoints = 0; // allocate all into SOL (what UI.allocMna does)
+    grantXp(party, xpForLevel(1) * 4, () => 0); // a few levels; rng()=0 forces the MNA jackpot each level
+    expect(m.mnaAlloc.SOL).toBeGreaterThan(0); // auto-assigned into the hero's own tree (no manual step)
+    expect(m.mnaPoints).toBe(0);               // nothing left sitting in an unspent pool
     recalc(party);
-    expect(m.mna.SOL).toBe(pts); // no gear -> total equals allocation
+    expect(m.mna.SOL).toBe(m.mnaAlloc.SOL);    // no gear → total equals the auto-assigned allocation
   });
   it("equipping a foreign-attunement weapon reclasses the hero (class = weapon)", () => {
     const m = built("SOL", "Dual Swords", 10); // innate SOL Dual Swords, full SOL kit

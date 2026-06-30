@@ -156,7 +156,8 @@ export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): Le
       m.xp -= xpForLevel(m.level);
       m.level++;
       const gain = rollLevelMna(rng);
-      m.mnaPoints += gain; // earned, spent by the player in the allocator
+      m.mnaAlloc[m.att] += gain; // AUTO-ASSIGNED into the hero's own Attunement (milestones open as you
+      // level → just pick); the Mana allocator is now an optional redistribution tool, not a required step.
       mnaWon.set(m.id, (mnaWon.get(m.id) || 0) + gain);
       leveled.push({ name: m.name, level: m.level, newSkill: null });
     }

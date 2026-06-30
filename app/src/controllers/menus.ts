@@ -271,16 +271,17 @@ export const UI = {
     </div>`;
   },
 
-  // ── MANA: spend earned MNA points per hero (full-width thumb rows; ±1 and respec). ─────────────
+  // ── MANA: MNA auto-assigns into each hero's own tree as they level; here you can REDISTRIBUTE it
+  //    across Attunements (− to free a point, + to place it) or respec. (full-width thumb rows). ─────
   partyMana(): void {
     let h = `<h2 class="title-gold">Mana (MNA)</h2>
-      <div class="small" style="opacity:.78">Spend earned points into an Attunement tree to unlock & power abilities. Reach 100 for Archon (the ultimate).</div>
+      <div class="small" style="opacity:.78">MNA is assigned automatically into each hero's own Attunement as they level — raising it unlocks & powers their abilities (reach 100 for Archon). Use − / + below to move points to another tree if you want a different build.</div>
       <div class="scroll">`;
     Game.party.forEach((m) => {
       const showTree = (a: typeof ATTUNEMENTS[number]) => m.mna[a] > 0 || m.mnaPoints > 0 || a === m.att;
       const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
       const pool = m.mnaPoints;
-      const poolBar = `<div class="mna-pool"><span>${m.spr} ${m.name} · MNA points</span>${pool > 0 ? `<b class="r-legendary">${pool} to spend</b>` : `<span class="small">all spent</span>`}</div>`;
+      const poolBar = `<div class="mna-pool"><span>${m.spr} ${m.name} · MNA points</span>${pool > 0 ? `<b class="r-legendary">${pool} free to place</b>` : `<span class="small">all assigned</span>`}</div>`;
       const rows = ATTUNEMENTS.filter(showTree).map((a) => {
         const tot = m.mna[a], fromGear = tot - m.mnaAlloc[a];
         const dec = m.mnaAlloc[a] > 0 ? `<button class="btn mna-btn" onclick="UI.deallocMna('${m.id}','${a}')" aria-label="remove ${a}">−</button>` : "";
