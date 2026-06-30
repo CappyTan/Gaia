@@ -50,18 +50,20 @@ const STATUS_KEYWORDS: [RegExp, string][] = [
   [/\bfrozen|\bfreeze|\bfreezing/i, "frozen"],     // NOX
   [/\bstasis|\bdecay/i, "decay"],                  // NOX DoT (Stasis = engine `decay`, per the NOX specs)
   [/\binfest|\bpoison|\bvenom|\btoxin/i, "poison"], // ANIMA signature (display "Infestation")
-  [/\bdrain|\bsiphon/i, "drain"],                  // UMBRAXIS signature
+  [/\bdrain|\bsiphon|\bsaps?\b/i, "drain"],         // UMBRAXIS signature (also "saps MP/resource")
   [/\bstun/i, "stun"],
   [/\bdoom/i, "doom"],
-  [/\bregen/i, "regen"],
-  [/\bslow\b/i, "slow"],
+  [/\bregen\b/i, "regen"],                          // the Regen HoT — NOT the verb "regenerate" (e.g. "regenerate no resource")
+  [/\bslow|\btime-dilat/i, "slow"],                 // slow/slowed/slowing + time-dilation (= "slowed near the mass", per the framework)
   [/\bhaste/i, "haste"],
 ];
 // A keyword hit is a REFERENCE (a condition/target descriptor — "vs a Frozen target", "if Chilled",
-// "consumes the Chill"), not an APPLICATION, when one of these sits just before it…
-const REF_BEFORE = /(?:\bvs\b|against|bonus vs|\bif\b|already|consum|scaling with|\bwhile\b|\bis\b|\bare\b|\bwas\b)[\s\w/]*$/i;
-// …or when it's immediately followed by a target descriptor.
-const REF_AFTER = /^[\s/]*(?:target|foe|or\b|brittle|frozen|chilled|low\b|-hp)/i;
+// "consumes the Chill", "scales with the Infestation"), not an APPLICATION, when a reference cue sits in
+// the ~28 chars just before it (containment — apostrophes/punctuation no longer break the match)…
+const REF_BEFORE = /\bvs\b|against|\bif\b|already|consum|\bscal|\bwhile\b|\bis\b|\bare\b|\bwas\b|preserv|time-lock|stop tick|\bcurrent\b/i;
+// …or when the matched keyword's WORD is immediately followed by a target/condition descriptor
+// ("Chilled target", "a Frozen/Brittle target") — [a-z]* completes the matched word stem (chill→chilled).
+const REF_AFTER = /^[a-z]*[\s/]+(?:target|foe|brittle|frozen|chilled)\b/i;
 
 /** The catalog status an ability APPLIES (the earliest applied keyword in reading order), or undefined.
  *  Passives are never tagged (their prose names statuses they MODIFY, not apply). */
@@ -72,7 +74,7 @@ function deriveStatus(tier: Tier, effect: string): string | undefined {
     const m = re.exec(effect);
     if (!m) continue;
     const i = m.index;
-    const before = effect.slice(Math.max(0, i - 24), i);
+    const before = effect.slice(Math.max(0, i - 28), i);
     const after = effect.slice(i + m[0].length);
     if (REF_BEFORE.test(before) || REF_AFTER.test(after)) continue; // referenced, not applied
     if (!best || i < best.i) best = { i, status };
@@ -107,6 +109,17 @@ const cdBand = (rest: string): string | undefined => {
   const m = /\bcd\s+\*\*(\w+)/i.exec(rest);
   return m ? m[1].toLowerCase() : undefined;
 };
+
+// Normalize a spec's target token to a SkillTarget. Most are already the enum; the specs also use `all`
+// for whole-field ultimates (buff party + hit/drain ALL foes) — no engine target covers "everyone", so we
+// approximate to the offensive half, `allEnemies` (the party-buff half is a known single-target-slot loss,
+// like multi-status). A compound "self → enemy" takes its offensive (later) half.
+const TARGETS = ["enemy", "allEnemies", "ally", "allAllies", "self"];
+function normTarget(raw: string): string {
+  const parts = raw.split(/→|->/).map((s) => s.trim());
+  for (const p of [...parts].reverse()) if (TARGETS.includes(p)) return p; // prefer the offensive (later) half
+  return /\ball\b|enem/i.test(raw) ? "allEnemies" : "enemy";
+}
 
 function parseSpec(file: string, text: string): Spec {
   const slug = basename(file, ".md");
@@ -149,28 +162,28 @@ function parseSpec(file: string, text: string): Spec {
     const name2 = (laneM ? laneM[2] : boldRaw).trim();
     const rest = b[2];
     const fields = rest.split(/\s·\s/).map((s) => s.trim()).filter(Boolean); // drop the leading empty (rest starts " · …")
-    const stripItalic = (s: string) => s.replace(/^\*+|\*+$/g, "").trim();
+    const stripMd = (s: string) => s.replace(/\*/g, "").trim(); // strip ALL emphasis markers (wrapping `*…*` AND inline `**word**`)
 
     if (section === "passive") {
       // block form: "- **L · Name** · *effect* · `proposed`"
       const eff = fields.find((f) => f.startsWith("*") && !f.startsWith("**") && !/^\*\(/.test(f));
-      abilities.push({ name: name2, tier: "passive", lane, milestone: ms, type: "util", target: "self", effect: eff ? sentence(stripItalic(eff)) : "" });
+      abilities.push({ name: name2, tier: "passive", lane, milestone: ms, type: "util", target: "self", effect: eff ? sentence(stripMd(eff)) : "" });
       continue;
     }
     if (section === "ultimate") {
       // "- **[L · ]Name** *(LaneLabel)* · target · *effect*" — type derived later; cost/cd from header
-      const target = fields.find((f) => /^(enemy|allEnemies|ally|allAllies|self)$/.test(f)) ?? "enemy";
+      const tf = fields.find((f) => /^(enemy|allEnemies|ally|allAllies|self|all\b)/i.test(f) || /→|->/.test(f)) ?? "enemy";
       const eff = fields.find((f) => f.startsWith("*") && !/^\*\(/.test(f) && !f.startsWith("**"));
-      const effText = eff ? sentence(stripItalic(eff)) : "";
-      const u: Entry = { name: name2, tier: "ultimate", lane, milestone: 100, type: "mag", target, effect: effText, cost: ultCost, cooldown: ultCd };
+      const effText = eff ? sentence(stripMd(eff)) : "";
+      const u: Entry = { name: name2, tier: "ultimate", lane, milestone: 100, type: "mag", target: normTarget(tf), effect: effText, cost: ultCost, cooldown: ultCd };
       const ust = deriveStatus("ultimate", effText); if (ust) u.status = ust;
       abilities.push(u);
       continue;
     }
     // auto / special / signature: "- **[L · ]Name** · type · target · *effect* · gen|cost **band** · cd **band**"
     const type = (fields[0] || "").toLowerCase();
-    const target = fields[1] || "enemy";
-    const eff = fields[2] ? sentence(stripItalic(fields[2])) : "";
+    const target = normTarget(fields[1] || "enemy");
+    const eff = fields[2] ? sentence(stripMd(fields[2])) : "";
     const e: Entry = { name: name2, tier: section, lane, milestone: section === "auto" ? 0 : ms, type, target, effect: eff };
     const st = deriveStatus(section, eff); if (st) e.status = st;
     if (section === "auto" || section === "special") e.gen = band(rest, "gen") ?? "none";
