@@ -270,8 +270,9 @@ describe("MNA gating & scaling", () => {
     const m = party[0];
     expect(m.mnaAlloc.SOL).toBe(0);
     expect(m.mnaPoints).toBe(0);
-    grantXp(party, xpForLevel(1) * 4, () => 0); // a few levels; rng()=0 forces the MNA jackpot each level
+    const leveled = grantXp(party, xpForLevel(1) * 4); // a few levels; MNA is a fixed +1 each (no roll)
     expect(m.mnaAlloc.SOL).toBeGreaterThan(0); // auto-assigned into the hero's own tree (no manual step)
+    expect(leveled.every((l) => l.mnaGain === 1)).toBe(true); // EVERY level reports exactly +1 MNA (not lumped)
     expect(m.mnaPoints).toBe(0);               // nothing left sitting in an unspent pool
     recalc(party);
     expect(m.mna.SOL).toBe(m.mnaAlloc.SOL);    // no gear → total equals the auto-assigned allocation
