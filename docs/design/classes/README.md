@@ -51,6 +51,10 @@ There is **one master progression axis — MNA** — sourced from level early an
   kit, squishy base stats).
 - **Endgame:** past level 100 all further MNA — and any content beyond the 100 milestone — is gated
   by **gear/drops**. (MNA already scales 0→200 in canon: 0–100 leveling band, 100–200 gear band.)
+  Reaching +100 MNA = **Archon Type I**, our first milestone — and where the 52-slot tree currently
+  **ends**. The five mechanics *above* it (Ascension · Soul Burn · Harmonic Ascension · cross-class
+  combo · Archon Type II) are tracked as future scope in
+  [Endgame Mechanics](./endgame-mechanics.md).
 
 A skill's MNA threshold is **derived from its milestone** by default; per-skill off-curve overrides
 are allowed (a deliberate "this one's a reach") but should be rare.
