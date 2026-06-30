@@ -76,3 +76,12 @@ export const HELIOMANCER: ClassSpec = {
  *  re-encoded). Add the other four here as they're transcribed — the generator + lint handle them
  *  uniformly. */
 export const SLICE_SPECS: ClassSpec[] = [HELIOMANCER];
+
+/** Registry of the re-encoded specs, keyed by "Attunement:Archetype" (a Member's `att` × `cls`), like
+ *  ULTIMATES / BASIC_ATTACK_ANIM. The lookup the live kit-resolution + picker use to find a class's
+ *  52-slot spec; absent for the ~40 classes still on the legacy `kitFor` kits. */
+export const SPEC_BY_CLASS: Record<string, ClassSpec> =
+  Object.fromEntries(SLICE_SPECS.map((s) => [`${s.att}:${s.archetype}`, s]));
+
+/** The 52-slot spec for a class (Attunement × Archetype), or undefined if it isn't re-encoded yet. */
+export const specFor = (att: string, archetype: string): ClassSpec | undefined => SPEC_BY_CLASS[`${att}:${archetype}`];

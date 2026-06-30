@@ -19,8 +19,9 @@ export const RESOURCE = {
   persist: true, // D1 — pools carry across fights; flip to false for reset-per-fight
   personalities: true, // D2 — per-pool rules on; flip to false to collapse every pool to flat
   spendCap: 60, // D8 — per-action spend cap (anti-degeneracy: no single ability dumps the whole pool)
-  genAuto: 4, // auto-attack trickle (own attunement)
-  genSpecial: 12, // a generating (special/skill) action
+  genAuto: 4, // auto-attack trickle (own attunement) — fallback when a class isn't re-encoded
+  genSpecial: 12, // a generating (special/skill) action — the legacy flat gen (pre per-ability bands)
+  ultSpend: 40, // flat spend for the legacy cutscene ultimates (Photon Vanguard); V3 ults carry their own cost
   // Per-pool personality (D2) + cap (D6). NOX banks (deep cap, no decay); SOL runs hot (bleeds if
   // hoarded); ANIMA compounds (passive regen); QUANTA gambles (variance); UMBRAXIS conserves (steady).
   pools: {

@@ -22,6 +22,23 @@ export function gain(pools: Resources, att: Attunement, amt: number): void {
 
 export const canAfford = (pools: Resources, att: Attunement, cost: number): boolean => pools[att] >= cost;
 
+/** How much own-Attunement resource a party action GENERATES this turn (cost is debited separately at
+ *  resolution). Pure decision used by the battle turn loop (ADR 0019 one-way economy):
+ *   • a spend action (signature/ultimate — `resourceCost > 0`) generates nothing;
+ *   • a V3 generating skill (special — `resourceGen` set) gives its own band amount;
+ *   • a legacy hand-authored skill (no resource fields) gives the flat `legacyGen`;
+ *   • a basic Attack / Defend (no skill) gives `autoGen` (the class's auto trickle, or `legacyGen`). */
+export function turnGain(
+  skill: { resourceGen?: number; resourceCost?: number } | null | undefined,
+  autoGen: number,
+  legacyGen: number,
+): number {
+  if (!skill) return autoGen;
+  if (skill.resourceCost) return 0;
+  if (skill.resourceGen != null) return skill.resourceGen;
+  return legacyGen;
+}
+
 /** Spend from a pool if affordable. The cost is clamped by the per-action spend cap (D8 anti-degeneracy)
  *  so one ability can never dump the whole reserve. Returns true iff it was debited. */
 export function spend(pools: Resources, att: Attunement, cost: number): boolean {

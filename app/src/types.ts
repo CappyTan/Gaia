@@ -185,6 +185,17 @@ export interface Skill {
   status?: StatusMap;
   buff?: { def?: number; atkup?: number; wardArmor?: number; turns?: number };
   cleanse?: boolean;
+  /** V3 resource economy (ADR 0019): own-Attunement resource GENERATED on use (specials/auto) — added to
+   *  the shared pool at turn end. One-way with `resourceCost` (a skill does one or the other). Set by the
+   *  band→number generator (systems/classKit) on generated kits; unset on the legacy hand-authored kits. */
+  resourceGen?: number;
+  /** V3 resource economy: own-Attunement resource SPENT on use (signatures/ultimates) — debited from the
+   *  shared pool at resolution. Unset on legacy kits (they spend nothing). */
+  resourceCost?: number;
+  /** Per-skill cooldown in turns (from the cooldown band). Unset → the flat `Battle.ABILITY_CD`. */
+  cd?: number;
+  /** Build-identity lane (A/B/C) — V3 generated kits only; display/future use. */
+  lane?: string;
   /** Optional combat-animation key (SKILL_ANIM in data/skillAnimations) — plays a layered
    *  character/effect/impact sequence on use instead of the instant hit. */
   anim?: string;
@@ -304,6 +315,11 @@ export interface Member extends Unit {
   mna: MnaPools;
   /** Unspent intrinsic MNA points awaiting allocation (manual allocator = Phase 2). */
   mnaPoints: number;
+  /** V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s); see `Picks` in systems/choice
+   *  (structurally `Record<string, string[]>`). Present once the player has banked picks for this class
+   *  in the picker; drives the usable kit via `activeKit` (systems/classKit) instead of the static KITS
+   *  map. Absent → the member falls back to the legacy `kitFor` kit. Persisted per-member. */
+  picks?: Record<string, string[]>;
   mp: number;
   maxmp: number;
   /** Battle System 2.0: per-skill cooldown timers (skill key → turns remaining) — the substitute for

@@ -55,6 +55,7 @@ function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot 
     ownedCaps: [],
     heldItems: [],
     progress: { known: [], entered: [] },
+    resources: { SOL: 30, NOX: 12, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 },
   };
   return { party, inventory, snapshot };
 }
@@ -104,6 +105,28 @@ describe("save round-trip", () => {
 
     // saved defs carried for "play again"
     expect(r.defs?.length).toBe(2);
+
+    // the five shared Resource pools (ADR 0019) round-trip
+    expect(r.resources).toEqual({ SOL: 30, NOX: 12, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 });
+  });
+
+  it("persists a member's V3 choice picks + the Resource pools (ADR 0019/0020)", () => {
+    const { snapshot } = makeRun();
+    snapshot.party[0].picks = { "special@5": ["Firebolt"], "signature@10": ["Ignition"] };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.party[0].picks).toEqual({ "special@5": ["Firebolt"], "signature@10": ["Ignition"] });
+    expect(r.resources.SOL).toBe(30);
+  });
+
+  it("an old save with no picks/resources loads cleanly (legacy kit, empty pools), never throws", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete env.run.resources;                       // simulate a pre-V3 envelope
+    for (const sm of env.run.party) delete sm.picks;
+    const r = deserialize(env)!;
+    expect(r.party[0].picks).toBeUndefined();           // → falls back to the legacy kit
+    expect(r.party[0].skills.length).toBeGreaterThan(0);
+    expect(r.resources).toEqual({ SOL: 0, NOX: 0, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 });
   });
 
   it("persists through localStorage (save → load)", () => {

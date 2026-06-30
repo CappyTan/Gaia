@@ -57,6 +57,11 @@ export interface SavedMember {
   mnaPoints: number;
   equip: Partial<Record<Slot, SavedItem | null>>;
   pendingRegen?: number; // carried dungeon "regen" reprieve (ADR 0010); absent on most saves
+  // V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s). OPTIONAL — absent on a save from
+  // before the choice system (or a hero on a legacy kit) → the member uses the static kitFor kit. Stale
+  // names (a spec changed) are harmless: activeKit just skips an option it can't find. No schema bump
+  // needed (back-compatible, like the other optional run fields).
+  picks?: Record<string, string[]>;
 }
 
 export interface SavedRun {
@@ -127,6 +132,10 @@ export interface SavedRun {
   // derived Objective + the continent overview-map reveal. OPTIONAL + degrade-never-throw — absent on an
   // old save = empty progress (cosmetic/wayfinding only; gates nothing, so no soft-lock risk). No bump.
   progress?: { known?: string[]; entered?: string[] };
+  // RESOURCE POOLS (ADR 0019): the five party-shared per-Attunement pools, persisted so they carry across
+  // a save/reload the way they carry across fights (D1 persist). OPTIONAL + degrade-never-throw — absent on
+  // an old save = pools resume empty (carryPools then ages them as usual). No schema bump needed.
+  resources?: Record<Attunement, number>;
 }
 
 export interface SaveEnvelope {
@@ -167,6 +176,7 @@ export interface RunSnapshot {
   ownedCaps: string[];
   heldItems: string[];
   progress: { known: string[]; entered: string[] };
+  resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019)
 }
 
 /** A rebuilt run, content-validated, ready for the controller to install. */
@@ -200,6 +210,7 @@ export interface LoadedRun {
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   heldItems: string[];       // held quest/key item ids (e.g. ["raft"]); empty on an old save (the controller re-seeds a key item whose cap is already owned)
   progress: { known: string[]; entered: string[] }; // wayfinding known/entered regions (ADR 0011); empty on an old save (cosmetic — gates nothing)
+  resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019); empty (zero) on an old save
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
   notes: string[];
 }
@@ -257,6 +268,7 @@ function serializeMember(m: Member): SavedMember {
     def: m.def, level: m.level, xp: m.xp, row: m.row, hp: m.hp, mp: m.mp, alive: m.alive,
     mnaAlloc, mnaPoints: m.mnaPoints, equip,
     ...(m.pendingRegen ? { pendingRegen: m.pendingRegen } : {}),
+    ...(m.picks && Object.keys(m.picks).length ? { picks: m.picks } : {}),
   };
 }
 
@@ -282,6 +294,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     ownedCaps: [...s.ownedCaps],
     heldItems: [...s.heldItems],
     progress: { known: [...s.progress.known], entered: [...s.progress.entered] },
+    resources: { ...s.resources },
   };
   return { saveSchema: SAVE_SCHEMA, gameVersion, savedAt: Date.now(), run };
 }
@@ -352,6 +365,16 @@ function reviveMember(sm: SavedMember, notes: string[]): Member | null {
   m.row = sm.row === "back" ? "back" : "front";
   m.mnaPoints = Math.max(0, sm.mnaPoints || 0);
   for (const a of ATTUNEMENTS) m.mnaAlloc[a] = Math.max(0, sm.mnaAlloc?.[a] || 0);
+  // V3 picks (ADR 0020) — restored BEFORE recalc so the choice-derived kit resolves on rebuild. A plain
+  // {string→string[]} map; anything malformed is ignored (degrade-never-throw). Stale ability names (a
+  // renamed ability after a deploy) are harmless — activeKit just skips them, leaving fewer/no active
+  // picks (only Attack/Defend until the player re-picks). The legacy kit is the fallback only for a hero
+  // with NO picks at all (recalc), not for one whose picks happen to resolve empty.
+  if (sm.picks && typeof sm.picks === "object" && !Array.isArray(sm.picks)) {
+    const picks: Record<string, string[]> = {};
+    for (const [id, names] of Object.entries(sm.picks)) if (Array.isArray(names)) picks[id] = names.filter((n) => typeof n === "string");
+    m.picks = picks;
+  }
   for (const slot of EQUIP_SLOTS) {
     const it = reviveItem(sm.equip?.[slot]);
     if (sm.equip?.[slot] && !it) notes.push(`dropped a ${slot} on ${sm.def.name} (content removed)`);
@@ -373,6 +396,15 @@ function reviveMember(sm: SavedMember, notes: string[]): Member | null {
 function clampN(v: unknown, lo: number, hi: number): number {
   const n = typeof v === "number" && isFinite(v) ? v : hi;
   return Math.max(lo, Math.min(hi, Math.round(n)));
+}
+
+/** Sanitize the persisted Resource pools (ADR 0019): a per-Attunement {att→number≥0}; missing/garbled
+ *  entries → 0 (degrade-never-throw). Pool caps are re-applied by the engine on use, so we only floor here. */
+function reviveResources(v: unknown): Record<Attunement, number> {
+  const out = {} as Record<Attunement, number>;
+  const src = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  for (const a of ATTUNEMENTS) { const n = src[a]; out[a] = typeof n === "number" && isFinite(n) && n > 0 ? Math.floor(n) : 0; }
+  return out;
 }
 
 /** Sanitize the persisted cleared-POI map: a plain {string→true} dict; anything else → empty (never throws). */
@@ -563,6 +595,9 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // old save with no field loads empty; reset when the zone changed under us (the run restarts elsewhere,
     // and syncZoneFromWorld re-marks the landing zone entered on the first step).
     progress: resetPos ? { known: [], entered: [] } : reviveProgressSave(r.progress),
+    // RESOURCE POOLS (ADR 0019) — restored as-is (not tied to position; a vanished zone doesn't strand a
+    // pool). Empty/zero on an old save; the controller installs these into Game.resources on resume.
+    resources: reviveResources(r.resources),
     notes,
   };
 }

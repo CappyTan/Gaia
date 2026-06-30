@@ -157,6 +157,9 @@ export const Game = {
       // WAYFINDING PROGRESS (ADR 0011) — the run's known/entered regions as two string[]s; restored into
       // Field.progress (Sets) on resume so the continent overview map re-reveals the right regions.
       progress: { known: [...Field.wayfinding.known], entered: [...Field.wayfinding.entered] },
+      // RESOURCE POOLS (ADR 0019) — the five shared per-Attunement pools, persisted so they carry across a
+      // reload like they carry across fights down a dungeon.
+      resources: this.resources,
     }, GAME_VERSION);
   },
   // Resume the saved run from the title screen. Loads + validates + rebuilds the party, restores
@@ -174,7 +177,7 @@ export const Game = {
     }
     // install run state
     this._lastDefs = r.defs;
-    this.gold = r.gold; this.resources = zeroResources(); this.steps = r.steps; this.encountersWon = r.encountersWon;
+    this.gold = r.gold; this.resources = r.resources; this.steps = r.steps; this.encountersWon = r.encountersWon;
     this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
     this.party = r.party; this.inventory = r.inventory;
     // HELD ITEMS (quest/key items): restore the set, then BACK-COMPAT seed — an old save that owns a cap

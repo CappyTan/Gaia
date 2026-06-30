@@ -3,6 +3,7 @@ import { zeroMna, zeroPrims, zeroSubs, PRIM_KEYS, EQUIP_SLOTS } from "../types";
 import type { Rng } from "../core/rng";
 import { SKILLS } from "../data/skills";
 import { kitFor } from "../data/classes";
+import { activeKitKeys, hasSpec } from "./classKit";
 import { SUB_BY_KEY } from "../data/substats";
 import { abpFromGear, substatBaseline } from "./stats";
 
@@ -55,6 +56,7 @@ export function recalc(party: Member[]): void {
     };
     const mna = zeroMna();
     (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
+    // (gear MNA folds into `mna` below; the V3 kit is then resolved from the EFFECTIVE total, after gear.)
     // V3 primaries — innate (display) derived from this hero's core profile, then GEAR adds on top.
     // Gear primaries are what drive ability scaling (abp); innate is context for the character sheet.
     const innate: Prims = { STR: Math.round(s.atk), AGI: Math.round(s.spd), VIT: Math.round(s.mag), SPD: Math.round(s.spd), DEF: Math.round(s.armor) };
@@ -78,6 +80,14 @@ export function recalc(party: Member[]): void {
     substatBaseline(gearPrim, sub);
     s.spd += Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
     m.mna = mna;
+    // V3 (ADR 0020): once the player has banked picks for a RE-ENCODED class, the hero is on the choice
+    // system and the usable kit IS the active picks — gated by the EFFECTIVE MNA total (intrinsic + gear,
+    // computed just now), with above-threshold picks dormant. That active set is legitimately EMPTY when
+    // every pick is still dormant (low MNA) or stale (a renamed ability across a deploy) — leaving only
+    // Attack/Defend, which is intended; the picker (respec) refills it. The legacy kitFor kit set above is
+    // the fallback ONLY for a hero with no picks at all (never engaged the picker) or a class with no spec.
+    if (m.picks && Object.keys(m.picks).length && hasSpec(m.att, m.cls))
+      m.skills = activeKitKeys(m.att, m.cls, m.picks, m.mna[m.att]) ?? m.skills;
     m.prim = { STR: innate.STR + gearPrim.STR, AGI: innate.AGI + gearPrim.AGI, VIT: innate.VIT + gearPrim.VIT, SPD: innate.SPD + gearPrim.SPD, DEF: innate.DEF + gearPrim.DEF };
     m.sub = sub;
     // GEAR primaries (ability scaling) + the Ability Power affix both feed the ability-power amplifier.

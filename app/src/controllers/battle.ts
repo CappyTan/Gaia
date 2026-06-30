@@ -10,7 +10,8 @@ import { SKILLS } from "../data/skills";
 import { combatDamage, damage, heal, makeEnemy, stunImmune } from "../systems/combat";
 import { applyStatus, tickStatus, cleanse, hasStatus, resolveApply } from "../systems/status";
 import { STATUS } from "../data/status";
-import { gain, spend, carryPools } from "../systems/resources";
+import { gain, spend, carryPools, turnGain } from "../systems/resources";
+import { autoGenFor } from "../systems/classKit";
 import { RESOURCE } from "../data/resources";
 import { ATT, RING } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
@@ -167,11 +168,19 @@ export const Battle = {
     const cds = (m.cooldowns ||= {});
     keys.forEach((key) => {
       const s = SKILLS[key]; if (!s) return;
-      const cd = cds[key] || 0, ready = cd <= 0; // Battle 2.0: cooldown-gated (no MP cost)
-      const tag = `<span class="cost${ready ? "" : " low"}">${ready ? "Ready" : `CD ${cd}`}</span>`;
-      const b = el("button", "cmd", `${s.name}${tag}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
+      const cd = cds[key] || 0, offCd = cd <= 0; // Battle 2.0: cooldown-gated (no MP cost)
+      // V3 (ADR 0019): signatures/ultimates COST the Attunement's shared pool — gate the button on it too.
+      // Gate on the SAME amount spend() will actually debit (clamped by the per-action spendCap, D8), so a
+      // future cost above the cap can't require more than it takes.
+      const afford = !s.resourceCost || Game.resources[m.att] >= Math.min(s.resourceCost, RESOURCE.spendCap);
+      const ready = offCd && afford;
+      // Resource delta badge: −cost (sig/ult) or +gen (special); the pool fuel the whole party shares.
+      const rTag = s.resourceCost ? ` <span class="cost${afford ? "" : " low"}">−${s.resourceCost} ${m.att}</span>`
+        : s.resourceGen ? ` <span class="cost">+${s.resourceGen} ${m.att}</span>` : "";
+      const cdTag = `<span class="cost${offCd ? "" : " low"}">${offCd ? "Ready" : `CD ${cd}`}</span>`;
+      const b = el("button", "cmd", `${s.name}${cdTag}${rTag}<div class="small" style="font-size:11px;opacity:.82;line-height:1.2;margin-top:3px;white-space:normal">${s.desc}</div>`) as HTMLButtonElement;
       if (!ready) b.disabled = true;
-      else b.onclick = () => { this.setCmdWide(false); cds[key] = this.ABILITY_CD; this.useSkill(m, s); };
+      else b.onclick = () => { this.setCmdWide(false); cds[key] = s.cd && s.cd > 0 ? s.cd : this.ABILITY_CD; this.useSkill(m, s); };
       list.appendChild(b);
     });
     if (keys.length === 0) list.appendChild(el("div", "small", "No abilities unlocked yet — raise MNA in the Party screen."));
@@ -204,7 +213,7 @@ export const Battle = {
   // the hit to the chosen target(s) (with an impact burst), then resolve the turn / victory.
   fireUltimate(m: Member, ult: Ultimate, targets: Unit[]): void {
     this.selecting = null; this.awaiting = true; this.current = m;
-    spend(Game.resources, m.att, 40); // an ultimate spends its Attunement's shared pool (opportunistic until kit costs land)
+    spend(Game.resources, m.att, RESOURCE.ultSpend); // legacy cutscene ultimate spends a flat pool amount (V3 ults are Skills with their own cost band, spent in resolveNow)
     if (ult.mp) m.mp = Math.max(0, m.mp - ult.mp);
     const list = $("#cmdList"); if (list) list.innerHTML = "";
     $("#cmdWho")!.textContent = `${m.name} — ${ult.name}!`;
@@ -290,6 +299,10 @@ export const Battle = {
   resolveNow(actor: Unit, targets: Unit[], act: CombatAct): void {
     const s = act.skill;
     // Battle System 2.0: abilities no longer cost MP — they're gated by cooldown (set in showSkills).
+    // V3 (ADR 0019): a costing ability (signature/ultimate) debits its Attunement's shared pool at the
+    // moment it resolves (one-way; the affordability was gated in showSkills, re-checked here implicitly
+    // by `spend`). Generating abilities (specials/auto) credit the pool at turn end — see endTurn.
+    if (actor.side === "party" && s?.resourceCost) spend(Game.resources, actor.att, s.resourceCost);
 
     // Layered combat animation (REQUIEM): a skill with an `anim` — or a class whose plain Attack has
     // a bespoke animation (BASIC_ATTACK_ANIM, e.g. the Photon Vanguard's rifle shot) — plays its
@@ -331,7 +344,7 @@ export const Battle = {
     }
     recalc(Game.party);
     this.renderAll();
-    setTimeout(() => this.afterAction(actor), 360);
+    setTimeout(() => this.afterAction(actor, act), 360);
   },
 
   // Run a skill's layered animation, then resolve the hit on its damage frame and float the number
@@ -342,7 +355,7 @@ export const Battle = {
     if (!stage || !aEl || !tEl) {
       const hits = act.skill?.hits || 1;
       for (let h = 0; h < hits; h++) { if (target.alive) this.strike(actor, target, act); }
-      recalc(Game.party); this.renderAll(); setTimeout(() => this.afterAction(actor), 360); return;
+      recalc(Game.party); this.renderAll(); setTimeout(() => this.afterAction(actor, act), 360); return;
     }
     this._animFloats = [];
     this._animHasImpact = !!anim.impact;   // a bespoke impact layer overrides the universal burst
@@ -354,7 +367,7 @@ export const Battle = {
         recalc(Game.party); this.renderAll();
       },
       onImpact: () => this.flushAnimFloats(),
-      onComplete: () => this.afterAction(actor),
+      onComplete: () => this.afterAction(actor, act),
     });
   },
   flushAnimFloats(): void {
@@ -432,9 +445,20 @@ export const Battle = {
     }
   },
 
-  afterAction(actor: Unit): void { if (this.checkEnd()) return; this.endTurn(actor); },
-  endTurn(actor: Unit): void {
-    if (actor.side === "party") gain(Game.resources, actor.att, RESOURCE.genSpecial); // a party action feeds its Attunement's shared pool (ADR 0019; per-ability gen/cost bands arrive with the 52-slot kits)
+  afterAction(actor: Unit, act?: CombatAct): void { if (this.checkEnd()) return; this.endTurn(actor, act); },
+  endTurn(actor: Unit, act?: CombatAct): void {
+    // A party action feeds its Attunement's shared pool (ADR 0019). V3 per-ability bands (one-way): a
+    // generating special credits its `resourceGen`, a basic Attack/Defend the class's auto trickle; a
+    // costing signature/ultimate generated nothing here (it spent at resolution). A legacy hand-authored
+    // skill credits the flat genSpecial. For classes not yet re-encoded `autoGenFor` is null → the legacy
+    // flat trickle, so their economy is unchanged. (The two legacy CUTSCENE ultimates — Photon Vanguard /
+    // Lagrangian, fireUltimate — are the one exception that both spends and trickles: a showcase pre-dating
+    // the V3 cost bands, behavior intentionally preserved until they're re-encoded as V3 ult Skills.)
+    if (actor.side === "party") {
+      const m = actor as Member;
+      const autoGen = autoGenFor(m.att, m.cls) ?? RESOURCE.genSpecial;
+      gain(Game.resources, m.att, turnGain(act?.skill, autoGen, RESOURCE.genSpecial));
+    }
     actor.atb = 0; actor.acting = false;
     this.awaiting = false; this.current = null;
     this.renderAll();
