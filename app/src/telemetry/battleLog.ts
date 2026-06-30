@@ -118,7 +118,7 @@ export const BattleLog = {
       const mark = f.outcome === "won" ? "✓" : f.outcome === "wipe" ? "✗" : "•";
       const foes = f.ctx.enemies.map((e) => `${e.key} L${e.lvl}`).join(", ");
       list += `<div class="card" style="margin:4px 0;padding:6px 8px">
-        <button class="btn" style="font-size:11px;min-height:0;padding:3px 8px" onclick="BattleLog.showFight(${i})">${mark} #${i + 1} ▸</button>
+        <button class="btn" style="font-size:12px;padding:6px 10px" onclick="BattleLog.showFight(${i})">${mark} #${i + 1} ▸</button>
         <span class="small"> ${f.ctx.isBoss ? "BOSS " : ""}${foes}</span>
         <div class="small" style="opacity:.8;margin-top:3px">${f.summary.actions} actions · party ${f.summary.partyDmg} dmg · enemy ${f.summary.enemyDmg} dmg · ${f.summary.crits} crits · party ended ${f.summary.partyHpEndPct}% HP</div>
       </div>`;
