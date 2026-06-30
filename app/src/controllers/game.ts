@@ -10,6 +10,7 @@ import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
 import { makeMember, recalc } from "../systems/progression";
 import { makeItem, rollItemAtLevel, itemScore } from "../systems/loot";
+import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
@@ -40,6 +41,9 @@ export function hubsFor(z: Zone): string[] {
 export const Game = {
   state: "title",
   gold: 0,
+  // The five party-shared per-Attunement Resource pools (ADR 0019). Run-state: carries across fights
+  // (aged by personality at fight start); reset on a fresh run. (Save-persistence is a follow-up.)
+  resources: zeroResources(),
   party: [] as Member[],
   inventory: [] as Item[],
   // HELD ITEMS (party-menu "Items" tab) — quest/key items (held forever, never consumed) + later
@@ -74,7 +78,7 @@ export const Game = {
   // Begin a fresh run with a specific party composition (from the Roster picker or default).
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
-    this.gold = 0; this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
+    this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
@@ -170,7 +174,7 @@ export const Game = {
     }
     // install run state
     this._lastDefs = r.defs;
-    this.gold = r.gold; this.steps = r.steps; this.encountersWon = r.encountersWon;
+    this.gold = r.gold; this.resources = zeroResources(); this.steps = r.steps; this.encountersWon = r.encountersWon;
     this.bossDefeated = r.bossDefeated; this.miniBossDefeated = r.miniBossDefeated;
     this.party = r.party; this.inventory = r.inventory;
     // HELD ITEMS (quest/key items): restore the set, then BACK-COMPAT seed — an old save that owns a cap

@@ -10,6 +10,8 @@ import { SKILLS } from "../data/skills";
 import { combatDamage, damage, heal, makeEnemy, stunImmune } from "../systems/combat";
 import { applyStatus, tickStatus, cleanse, hasStatus, resolveApply } from "../systems/status";
 import { STATUS } from "../data/status";
+import { gain, spend, carryPools } from "../systems/resources";
+import { RESOURCE } from "../data/resources";
 import { ATT, RING } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
@@ -61,6 +63,7 @@ export const Battle = {
     // (and is spent), so a regen rest node heals gradually across THIS fight rather than instantly at the node.
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.statuses = []; m.cooldowns = {}; if (m.pendingRegen) { applyStatus(m.statuses, "regen", { turns: m.pendingRegen }); m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
+    carryPools(Game.resources); // pools age by personality (or reset if not persistent) at fight start (ADR 0019)
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
@@ -201,6 +204,7 @@ export const Battle = {
   // the hit to the chosen target(s) (with an impact burst), then resolve the turn / victory.
   fireUltimate(m: Member, ult: Ultimate, targets: Unit[]): void {
     this.selecting = null; this.awaiting = true; this.current = m;
+    spend(Game.resources, m.att, 40); // an ultimate spends its Attunement's shared pool (opportunistic until kit costs land)
     if (ult.mp) m.mp = Math.max(0, m.mp - ult.mp);
     const list = $("#cmdList"); if (list) list.innerHTML = "";
     $("#cmdWho")!.textContent = `${m.name} — ${ult.name}!`;
@@ -430,6 +434,7 @@ export const Battle = {
 
   afterAction(actor: Unit): void { if (this.checkEnd()) return; this.endTurn(actor); },
   endTurn(actor: Unit): void {
+    if (actor.side === "party") gain(Game.resources, actor.att, RESOURCE.genSpecial); // a party action feeds its Attunement's shared pool (ADR 0019; per-ability gen/cost bands arrive with the 52-slot kits)
     actor.atb = 0; actor.acting = false;
     this.awaiting = false; this.current = null;
     this.renderAll();
@@ -659,9 +664,14 @@ export const Battle = {
     // 3-letter labels keep it legible at phone size + clear of the music button; the leading "beats"
     // tells the player the arrows mean prey-order (each node beats the next), not just sequence.
     const ABBR: Record<string, string> = { SOL: "SOL", NOX: "NOX", ANIMA: "ANI", QUANTA: "QUA", UMBRAXIS: "UMB" };
-    host.innerHTML = '<span class="ac-beats">beats</span>' + RING.map((a) =>
+    const ring = '<span class="ac-beats">beats</span>' + RING.map((a) =>
       `<span class="ac-node${live.has(a) ? " live" : ""}" style="color:${ATT[a].color}" title="${a}">${ABBR[a]}</span>`
     ).join('<span class="ac-arrow">▸</span>') + '<span class="ac-arrow">↺</span>';
+    // Party-shared Resource pools (ADR 0019) — a compact per-Attunement strip under the affinity ring.
+    const pools = RING.map((a) =>
+      `<span class="ac-node" style="color:${ATT[a].color}" title="${a} Resource">${ABBR[a]} ${Game.resources[a]}</span>`
+    ).join(" ");
+    host.innerHTML = ring + `<div class="res-pools" style="margin-top:3px;font-size:11px;opacity:.85">${pools}</div>`;
   },
   // RECONCILE in place rather than rebuilding (Dara's attack flicker): a full innerHTML wipe re-created
   // every sprite <img> on each re-render, flashing a blank frame at the start/end of the lunge. We keep
