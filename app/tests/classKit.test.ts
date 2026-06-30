@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { GENERATED_SKILLS, genSkillKey, activeKitKeys, autoGenFor, hasSpec } from "../src/systems/classKit";
 import { SKILLS } from "../src/data/skills";
-import { HELIOMANCER, SLICE_SPECS } from "../src/data/classSpecs";
+import { HELIOMANCER, SPECS } from "../src/data/classSpecs";
 import { genAbility } from "../src/systems/classGen";
 import { turnGain } from "../src/systems/resources";
 import { makeMember, recalc } from "../src/systems/progression";
@@ -27,13 +27,13 @@ describe("classKit — spec → engine Skill registration", () => {
     }
   });
 
-  it("generated keys are globally unique across every slice spec (the slug-collision gate)", () => {
-    // genSkillKey slugifies (strips non-alphanumerics), which is MORE aggressive than the spec lint's
-    // name-uniqueness (lowercase only) — so two names differing only in punctuation would pass the lint
-    // but collide here, silently dropping one ability. This assertion is the gate that catches that the
-    // moment such a spec is added to SLICE_SPECS (fail loud at the test gate, never silently at runtime).
-    const keys = SLICE_SPECS.flatMap((sp) => sp.abilities.map((a) => genSkillKey(a.name)));
-    expect(new Set(keys).size).toBe(keys.length);
+  it("generated keys are globally unique across ALL 45 classes, and every ability is registered (slug-collision gate)", () => {
+    // genSkillKey normalizes names to a key; two distinct names could in principle still collapse to one
+    // (a future pair differing only in dropped punctuation), silently dropping an ability from the map.
+    // This is the gate that catches it across the WHOLE roster (fail loud here, never silently at runtime).
+    const keys = SPECS.flatMap((sp) => sp.abilities.map((a) => genSkillKey(a.name)));
+    expect(new Set(keys).size).toBe(keys.length);                    // no slug collisions
+    expect(Object.keys(GENERATED_SKILLS).length).toBe(keys.length);  // every ability registered (2340)
   });
 
   it("the converter carries the one-way economy: specials generate, signatures/ultimates cost", () => {
@@ -73,16 +73,17 @@ describe("classKit — activeKitKeys (the commandable kit from picks + MNA)", ()
     expect(activeKitKeys("SOL", "Staff", picks, 4)).toEqual([]); // below milestone 5 → dormant
   });
 
-  it("a class with no re-encoded spec → null (caller falls back to the legacy kit)", () => {
-    expect(hasSpec("NOX", "Dual Swords")).toBe(false);
-    expect(activeKitKeys("NOX", "Dual Swords", { "special@5": ["x"] }, 100)).toBeNull();
+  it("every one of the 45 classes now has a spec; a NON-existent class → null (legacy-kit fallback path)", () => {
     expect(hasSpec("SOL", "Staff")).toBe(true);
+    expect(hasSpec("NOX", "Dual Swords")).toBe(true);   // full rollout — all 45 are re-encoded
+    expect(hasSpec("SOL", "Flail")).toBe(false);        // not a real archetype
+    expect(activeKitKeys("SOL", "Flail", { "special@5": ["x"] }, 100)).toBeNull();
   });
 
-  it("autoGenFor returns the spec's auto-attack gen (SOL Staff) and null otherwise", () => {
+  it("autoGenFor returns the spec's auto-attack gen (SOL Staff) and null for a non-existent class", () => {
     expect(autoGenFor("SOL", "Staff")).toBe(genAbility(HELIOMANCER.abilities.find((a) => a.tier === "auto")!).resourceGen);
     expect(autoGenFor("SOL", "Staff")).toBeGreaterThan(0);
-    expect(autoGenFor("NOX", "Dual Swords")).toBeNull();
+    expect(autoGenFor("SOL", "Flail")).toBeNull();
   });
 });
 
