@@ -26,6 +26,8 @@ import { assetUrl, preloadVideoUrl, videoUrlSync } from "../core/assets";
 import { Overlay } from "../ui/overlay";
 import { Music } from "../audio/music";
 import { Telemetry } from "../telemetry/telemetry";
+import { BattleLog } from "../telemetry/battleLog";
+import { gearScore } from "../systems/gearScore";
 import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
@@ -65,6 +67,13 @@ export const Battle = {
     Game.party.forEach((m) => { m.atb = ri(0, 40); m.statuses = []; m.cooldowns = {}; if (m.pendingRegen) { applyStatus(m.statuses, "regen", { turns: m.pendingRegen }); m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     carryPools(Game.resources); // pools age by personality (or reset if not persistent) at fight start (ADR 0019)
+    // Test Loop (ADR 0017): open a per-action BattleLog fight context (no-op in real play — enabled mirrors testMode).
+    BattleLog.enabled = Game.testMode;
+    BattleLog.startFight({
+      enemies: this.enemies.map((e) => ({ key: e.key, lvl: e.lvl, att: e.att, elite: e.elite, champion: e.champion })),
+      party: Game.party.map((m) => ({ name: m.name, cls: m.cls, att: m.att, level: m.level, gearScore: gearScore(m).overall })),
+      isBoss: this.isBoss, depth: dp, env: this.env,
+    });
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
@@ -319,7 +328,7 @@ export const Battle = {
 
     if (s && s.type === "heal") {
       const hld = 1 + (actor.sub?.Hld ?? 0) / 100; // V3 Healing Done amplifies all healing the caster does
-      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) this.applySkillStatuses(actor, t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); const hpBefore = t.hp; heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) this.applySkillStatuses(actor, t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); BattleLog.action({ side: actor.side, actor: actor.name, ability: s.name, target: t.name, dmg: -amt, affinityMult: 1, crit: false, hpBefore, hpAfter: t.hp }); });
     } else if (s && s.type === "buff") {
       const applied: string[] = [];
       if (s.buff?.def) applied.push("Guard");
@@ -377,15 +386,19 @@ export const Battle = {
 
   strike(actor: Unit, target: Unit, act: CombatAct, silent = false): void {
     const s = act.skill;
+    const abilityName = s ? s.name : "Attack"; // for the Test Loop BattleLog
     const r = combatDamage(actor, target, act);
     if (r.miss) {
       if (silent) this._animFloats.push({ u: target, txt: "miss", color: "#bbb", crit: false, att: actor.att, univ: false, mirror: false });
       else this.float(target, "miss", "#bbb");
-      this.log(`${actor.name} misses ${target.name}.`); return;
+      this.log(`${actor.name} misses ${target.name}.`);
+      BattleLog.action({ side: actor.side, actor: actor.name, ability: abilityName, target: target.name, dmg: 0, affinityMult: 1, crit: false, hpBefore: target.hp, hpAfter: target.hp });
+      return;
     }
     const { crit, mult } = r;
     let dmg = r.dmg;
     if (actor.side === "enemy" && (actor as Enemy).enraged) dmg = Math.round(dmg * 2); // enrage: double damage
+    const hpBefore = target.hp; // Test Loop BattleLog: capture HP across the hit
     damage(target, dmg);
     Telemetry.dmg(actor.side, dmg, crit, mult);
     const txt = (crit ? "✦" : "") + dmg, color = mult > 1 ? "#ffd97a" : mult < 1 ? "#9aa" : "#fff";
@@ -400,12 +413,15 @@ export const Battle = {
     const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";
     this.log(`${s ? `${actor.name}'s ${s.name}` : actor.name} hits ${target.name} for ${dmg}${tag}`);
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
+    const applied: string[] = [];
     if (s && s.status) {
       const names = this.applySkillStatuses(actor, target, s.status);
+      applied.push(...names);
       if (names.length) this.log(`${target.name} is afflicted with ${names.join(", ")}`);
     }
-    if (actor.bonusBurn) { applyStatus(target.statuses, "burn", { turns: 2, source: (actor as Member).id }); this.log(`${target.name} is afflicted with Burn`); }
-    if (actor.onHitPoison) { applyStatus(target.statuses, "poison", { turns: actor.onHitPoison, source: (actor as Member).id }); this.log(`${target.name} is afflicted with Infestation`); }
+    if (actor.bonusBurn) { applyStatus(target.statuses, "burn", { turns: 2, source: (actor as Member).id }); applied.push("Burn"); this.log(`${target.name} is afflicted with Burn`); }
+    if (actor.onHitPoison) { applyStatus(target.statuses, "poison", { turns: actor.onHitPoison, source: (actor as Member).id }); applied.push("Infestation"); this.log(`${target.name} is afflicted with Infestation`); }
+    BattleLog.action({ side: actor.side, actor: actor.name, ability: abilityName, target: target.name, dmg, affinityMult: mult, crit, status: applied.length ? applied.join(", ") : undefined, hpBefore, hpAfter: target.hp });
     this.markHurt(target);
     if (target.alive) this.maybeEnrage(target);
     if (!target.alive) this.onDeath(target);
@@ -559,6 +575,9 @@ export const Battle = {
     const cmdList = $("#cmdList"); if (cmdList) cmdList.innerHTML = "";
     Game.party.forEach((m) => { m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.acting = false; });
+    // Test Loop (ADR 0017): close the BattleLog fight with its outcome + party-HP-remaining (no-op in real play).
+    const totalHp = Game.party.reduce((s, m) => s + Math.max(0, m.hp), 0), totalMax = Game.party.reduce((s, m) => s + m.maxhp, 0) || 1;
+    BattleLog.endFight(fled ? "fled" : victory ? "won" : "wipe", (totalHp / totalMax) * 100);
     if (fled) { Telemetry.encounterEnd("fled"); setTimeout(() => Screens.show("field"), 300); return; }
     if (!victory) { Telemetry.encounterEnd("wipe"); setTimeout(() => Game.gameOver(), 600); return; }
     // ----- victory: XP + gold + loot -----
@@ -600,7 +619,8 @@ export const Battle = {
         ? () => Game.victory()
         : () => Game.afterZoneBoss() // post-boss flow (roam-first for Greenvale→Silverwood; hub chain elsewhere)
       : () => Screens.show("field");
-    Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007)
+    if (Game.testMode && Game.testReturn) Game.continueAfterBattle = Game.testReturn; // Test Loop (ADR 0017): victory routes to the loop menu, not the field/zone flow
+    Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007). (early-returns under testMode)
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
   },
   showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {

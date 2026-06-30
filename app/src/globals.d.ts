@@ -12,6 +12,8 @@ import type { Screens } from "./controllers/screens";
 import type { DataBrowser } from "./controllers/dataBrowser";
 import type { WorldMapView } from "./controllers/worldMap";
 import type { ClassPicker } from "./controllers/classPicker";
+import type { TestLoop } from "./controllers/testLoop";
+import type { BattleLog } from "./telemetry/battleLog";
 import type { Overlay } from "./ui/overlay";
 import type { Dialogue } from "./ui/dialogue";
 import type { Music } from "./audio/music";
@@ -30,6 +32,8 @@ declare global {
     DataBrowser: typeof DataBrowser;
     WorldMapView: typeof WorldMapView;
     ClassPicker: typeof ClassPicker;
+    TestLoop: typeof TestLoop;
+    BattleLog: typeof BattleLog;
     Overlay: typeof Overlay;
     Dialogue: typeof Dialogue;
     Music: typeof Music;

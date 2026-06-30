@@ -55,6 +55,13 @@ export const Game = {
   bossDefeated: false,
   miniBossDefeated: false,
   continueAfterBattle: null as (() => void) | null,
+  // ── TEST LOOP (ADR 0017) ── the dev harness BORROWS this live run-state behind `testMode`. While set:
+  // saveNow() early-returns (a test session never touches the player's save slot), a wipe returns to the
+  // loop menu instead of gameOver→title, and a victory routes to the loop menu instead of the field.
+  // `testReturn` is the loop-menu closure the harness installs; the three seams below call it. Keep the
+  // testMode branches confined to these seams (saveNow/gameOver/victory route) — do not let them spread.
+  testMode: false,
+  testReturn: null as (() => void) | null,
   _inMerchant: false,
   _inTown: false,
   _revisitTown: false, // entered a hub via the overworld marker → leaving returns to the overworld
@@ -118,6 +125,7 @@ export const Game = {
   // (battle resolved, enter/leave town, zone change, equip change). Cheap + silent; the pure
   // serialize/validate lives in systems/save.ts. Never saves the title screen / a dead run.
   saveNow(): void {
+    if (this.testMode) return; // Test Loop (ADR 0017): never touch the player's save slot during a dev session
     if (this.state === "title" || !this.party.length) return;
     // wx/wy is the seamless-world tile — meaningful while roaming the continent AND while standing in a
     // big-map TOWN (there it's the overworld RETURN point you stepped in from; genTown leaves it intact).
@@ -279,6 +287,7 @@ export const Game = {
   // Whether the title screen should offer Continue (a valid save exists).
   hasSave(): boolean { return Save.hasSave(); },
   gameOver(): void {
+    if (this.testMode) { this.testReturn?.(); return; } // Test Loop (ADR 0017): a wipe returns to the loop menu — no save-clear, no kick to title
     Save.clear(); // the run is over — don't offer a dead party to resume
     Telemetry.endSession("wipe");
     Screens.show("title");
