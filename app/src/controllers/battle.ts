@@ -2,12 +2,14 @@
 // player/enemy turns, and damage resolution by calling the pure combat systems, then paints
 // the DOM. Pure math (combatDamage, makeEnemy, status helpers) lives in ../systems/combat.
 
-import type { CombatAct, Enemy, Item, Member, Skill, Unit } from "../types";
+import type { CombatAct, Enemy, Item, Member, Skill, StatusMap, Unit } from "../types";
 import type { HeldItemDef } from "../data/heldItems";
 import { $, el } from "../core/dom";
 import { cap, ri, pick } from "../core/rng";
 import { SKILLS } from "../data/skills";
-import { combatDamage, damage, heal, applyStatus, makeEnemy, stunImmune } from "../systems/combat";
+import { combatDamage, damage, heal, makeEnemy, stunImmune } from "../systems/combat";
+import { applyStatus, tickStatus, cleanse, hasStatus, resolveApply } from "../systems/status";
+import { STATUS } from "../data/status";
 import { ATT, RING } from "../data/attunements";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
@@ -39,7 +41,8 @@ export const Battle = {
   isBoss: false,
   finalBoss: false,
   logLines: [] as string[],
-  STATUS_NAMES: { burn: "Burn", poison: "Poison", decay: "Decay", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", def: "Guard", wardArmor: "Ward" } as Record<string, string>,
+  STATUS_NAMES: { burn: "Burn", poison: "Infestation", decay: "Stasis", drain: "Drain", stun: "Stun", blind: "Blind", atkup: "+ATK", regen: "Regen", barrier: "Ward", doom: "Doom", chill: "Chill", frozen: "Frozen" } as Record<string, string>,
+  DOT_COLOR: { burn: "#ffb27a", poison: "#aef0a0", decay: "#7ad0c0", drain: "#c4a7ff" } as Record<string, string>,
   _unlockT: undefined as ReturnType<typeof setTimeout> | undefined,
   // damage numbers held back during an animated skill, flushed when the hit lands (see animatedStrike).
   // `univ` = also play the universal mana-slash here (skills with their OWN bespoke impact layer set it
@@ -56,7 +59,7 @@ export const Battle = {
     Music.play(isBoss ? Music.forBoss(zoneId) : "battle"); Music._renderStyleLabels();
     // per-battle status starts clean; a carried dungeon "regen" reprieve (ADR 0010) seeds in AFTER the wipe
     // (and is spent), so a regen rest node heals gradually across THIS fight rather than instantly at the node.
-    Game.party.forEach((m) => { m.atb = ri(0, 40); m.status = {}; m.cooldowns = {}; if (m.pendingRegen) { m.status.regen = m.pendingRegen; m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
+    Game.party.forEach((m) => { m.atb = ri(0, 40); m.statuses = []; m.cooldowns = {}; if (m.pendingRegen) { applyStatus(m.statuses, "regen", { turns: m.pendingRegen }); m.pendingRegen = 0; } m.side = "party"; m.guarding = false; m.acted = false; m.acting = false; m._hurt = false; });
     this.enemies.forEach((e) => { e.atb = ri(0, 30); });
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
@@ -299,7 +302,7 @@ export const Battle = {
 
     if (s && s.type === "heal") {
       const hld = 1 + (actor.sub?.Hld ?? 0) / 100; // V3 Healing Done amplifies all healing the caster does
-      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) applyStatus(t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
+      targets.forEach((t) => { const amt = Math.round((actor.mag * (s.power ?? 0) + 6) * (1 + mnaBonus(actor.mna?.ANIMA ?? 0)) * hld); heal(t, amt); this.float(t, `+${amt}`, "#aef0a0"); if (s.status) this.applySkillStatuses(actor, t, s.status); this.log(`${actor.name}'s ${s.name} heals ${t.name} for ${amt}`); });
     } else if (s && s.type === "buff") {
       const applied: string[] = [];
       if (s.buff?.def) applied.push("Guard");
@@ -307,13 +310,13 @@ export const Battle = {
       if (s.buff?.wardArmor) applied.push("Ward");
       targets.forEach((t) => {
         if (s.buff?.def) t.guarding = true;
-        if (s.buff?.atkup) applyStatus(t, { atkup: s.buff.turns ?? 0 });
-        if (s.buff?.wardArmor) { applyStatus(t, { wardArmor: s.buff.turns ?? 0 }); t.wardAmt = s.buff.wardArmor; }
+        if (s.buff?.atkup) applyStatus(t.statuses, "atkup", { turns: s.buff.turns ?? 0 });
+        if (s.buff?.wardArmor) { applyStatus(t.statuses, "barrier", { turns: s.buff.turns ?? 0 }); t.wardAmt = s.buff.wardArmor; }
       });
       const who = targets.length > 1 ? "the party" : targets[0]?.name ?? actor.name;
       this.log(`${actor.name}'s ${s.name}${applied.length ? ` grants ${applied.join(", ")} to ${who}` : ""}`);
     } else if (s && s.type === "util" && s.cleanse) {
-      targets.forEach((t) => { t.status = {}; this.float(t, "cleansed", "#9cd1ff"); });
+      targets.forEach((t) => { cleanse(t.statuses); this.float(t, "cleansed", "#9cd1ff"); });
       this.log(`${actor.name} cleanses ${targets[0].name}.`);
     } else {
       // damage (attack or offensive skill) — each strike() logs who it hit for how much
@@ -381,14 +384,11 @@ export const Battle = {
     this.log(`${s ? `${actor.name}'s ${s.name}` : actor.name} hits ${target.name} for ${dmg}${tag}`);
     if (actor.leech) { const h = Math.round((dmg * actor.leech) / 100); if (h > 0) heal(actor, h); }
     if (s && s.status) {
-      let st = s.status;
-      if (st.stun && stunImmune(target)) { st = { ...st }; delete st.stun; this.float(target, "resist", "#ccc"); this.log(`${target.name} resists Stun`); }
-      applyStatus(target, st);
-      const names = Object.keys(st).map((k) => this.STATUS_NAMES[k] || k);
+      const names = this.applySkillStatuses(actor, target, s.status);
       if (names.length) this.log(`${target.name} is afflicted with ${names.join(", ")}`);
     }
-    if (actor.bonusBurn) { applyStatus(target, { burn: 2 }); this.log(`${target.name} is afflicted with Burn`); }
-    if (actor.onHitPoison) { applyStatus(target, { poison: actor.onHitPoison }); this.log(`${target.name} is afflicted with Poison`); }
+    if (actor.bonusBurn) { applyStatus(target.statuses, "burn", { turns: 2, source: (actor as Member).id }); this.log(`${target.name} is afflicted with Burn`); }
+    if (actor.onHitPoison) { applyStatus(target.statuses, "poison", { turns: actor.onHitPoison, source: (actor as Member).id }); this.log(`${target.name} is afflicted with Infestation`); }
     this.markHurt(target);
     if (target.alive) this.maybeEnrage(target);
     if (!target.alive) this.onDeath(target);
@@ -450,7 +450,7 @@ export const Battle = {
       if (!used) {
         let target: Member;
         const pool = this.reachable(e); // front line shields the back row
-        const taunter = party.find((p) => p.status.wardArmor && p.role === "Tank");
+        const taunter = party.find((p) => hasStatus(p.statuses, "barrier") && p.role === "Tank");
         if (e.ai === "boss") target = Math.random() < 0.5 ? pool.slice().sort((a, b) => a.hp - b.hp)[0] : pick(pool);
         else target = pick(pool);
         if (taunter && Math.random() < 0.5) target = taunter;
@@ -467,21 +467,40 @@ export const Battle = {
     });
   },
 
-  /* ---- status ticking at the start of a unit's turn ---- */
+  /* ---- status: apply a skill's effects + tick at the start of a unit's turn (ADR 0016) ---- */
+  // Apply a skill's StatusMap (effect id → turns) as catalog instances: skip Stun on immune foes, roll
+  // resistible effects (Accuracy ↔ Resistance), and tag the caster as `source` for transfer effects
+  // (Drain). Returns the display names applied, for the combat log.
+  applySkillStatuses(actor: Unit, target: Unit, st: StatusMap): string[] {
+    const names: string[] = [];
+    for (const id of Object.keys(st)) {
+      if (id === "stun" && stunImmune(target)) { this.float(target, "resist", "#ccc"); this.log(`${target.name} resists Stun`); continue; }
+      const def = STATUS[id];
+      if (def && def.apply === "resistible" && !resolveApply(id, actor.sub?.Acc ?? 0, target.sub?.Res ?? 0)) { this.float(target, "resist", "#ccc"); continue; }
+      applyStatus(target.statuses, id, { turns: st[id], source: (actor as Member).id });
+      names.push(this.STATUS_NAMES[id] || def?.name || id);
+    }
+    return names;
+  },
   tickStatuses(u: Unit, done: () => void): void {
-    const st = u.status; let delay = 0;
-    if (st.burn) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#ffb27a"); st.burn--; if (st.burn <= 0) delete st.burn; delay = 300; }
-    if (st.poison) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.06)); damage(u, d); this.float(u, `-${d}`, "#aef0a0"); st.poison--; if (st.poison <= 0) delete st.poison; delay = 300; }
-    if (st.decay) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#7ad0c0"); st.decay--; if (st.decay <= 0) delete st.decay; delay = 300; }
-    if (st.drain) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.05)); damage(u, d); this.float(u, `-${d}`, "#c4a7ff"); st.drain--; if (st.drain <= 0) delete st.drain; delay = 300; } // UMBRAXIS signature
-    if (st.regen) { const h = Math.round((u.maxhp || 40) * 0.08); heal(u, h); this.float(u, `+${h}`, "#aef0a0"); st.regen--; if (st.regen <= 0) delete st.regen; delay = 300; }
-    if (st.wardArmor) { st.wardArmor--; if (st.wardArmor <= 0) { delete st.wardArmor; delete u.wardAmt; } }
-    if (st.atkup) { st.atkup--; if (st.atkup <= 0) delete st.atkup; }
-    if (st.blind) { st.blind--; if (st.blind <= 0) delete st.blind; }
+    // A unit hard-CC'd (Stun/Frozen) at its turn start loses the turn; the tick then expires the CC.
+    const wasCC = hasStatus(u.statuses, "stun") || hasStatus(u.statuses, "frozen");
+    let delay = 0;
+    for (const ev of tickStatus(u.statuses)) {
+      if (ev.layer !== "status") continue; // only DoT/HoT/Doom touch HP here; other layers just counted down
+      if (ev.detonated) { const d = Math.max(2, Math.round((u.maxhp || 40) * 0.25)); damage(u, d); this.float(u, `-${d}`, "#ef9bff"); delay = 300; continue; } // Doom — determined hit
+      if (ev.magnitude <= 0) continue;
+      const amt = Math.max(2, Math.round((u.maxhp || 40) * (ev.magnitude / 100) * ev.stacks)); // magnitude is %-of-maxhp per stack
+      if (ev.kind === "buff") { heal(u, amt); this.float(u, `+${amt}`, "#aef0a0"); delay = 300; } // HoT (Regen)
+      else {
+        damage(u, amt); this.float(u, `-${amt}`, this.DOT_COLOR[ev.defId] || "#ffb27a"); delay = 300;
+        if (ev.needsSource && ev.source) { const src = this.allUnits().find((x) => (x as Member).id === ev.source); if (src && src.alive) heal(src, amt); } // Drain → caster
+      }
+    }
     if (u.alive) this.maybeEnrage(u); // DoT ticks can cross the 20% enrage threshold at turn start
     u.guarding = false;
-    if (st.stun) {
-      delete st.stun; this.log(`${u.name} is stunned!`); recalc(Game.party); this.renderAll();
+    if (wasCC) {
+      this.log(`${u.name} is stunned!`); recalc(Game.party); this.renderAll();
       if (!u.alive) { done(); return; }
       setTimeout(() => { u.atb = 0; this.awaiting = false; this.current = null; this.endTurn(u); }, 400);
       return;

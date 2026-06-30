@@ -30,7 +30,7 @@ export function makeMember(d: MemberDef): Member {
     mnaAlloc: zeroMna(), mna: zeroMna(), mnaPoints: 0,
     // live combat fields filled by recalc / battle:
     hp: 0, maxhp: 0, mp: 0, maxmp: 0, atk: 0, spd: 0, armor: 0, mag: 0,
-    status: {}, atb: 0, side: "party", alive: true,
+    statuses: [], atb: 0, side: "party", alive: true,
     critPct: 0, solPct: 0, leech: 0,
   };
 }

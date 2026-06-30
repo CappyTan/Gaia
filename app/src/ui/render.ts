@@ -112,13 +112,17 @@ export function itemHtml(it: Item, actionBtn?: string): string {
 }
 
 export function statusBadges(u: Unit): string {
-  const m: Record<string, string> = {
-    burn: "burn", blind: "blind", regen: "regen", stun: "stun",
-    atkup: "atkup", wardArmor: "def", poison: "regen", decay: "def", drain: "def",
+  // CSS badge class per catalog effect (falls back to a neutral chip). Instances carry stacks (ADR 0016).
+  const cls: Record<string, string> = {
+    burn: "burn", blind: "blind", regen: "regen", stun: "stun", atkup: "atkup",
+    barrier: "def", poison: "regen", decay: "def", drain: "def", doom: "stun",
+    chill: "def", frozen: "stun", slow: "def", haste: "atkup", defup: "def", atkdown: "blind",
   };
   let h = "";
-  for (const k in u.status) {
-    if (u.status[k] > 0 && m[k]) h += `<span class="badge ${m[k]}">${k.slice(0, 3)}</span>`;
+  for (const inst of u.statuses) {
+    if (inst.turns <= 0) continue;
+    const label = inst.defId.slice(0, 3) + (inst.stacks > 1 ? inst.stacks : "");
+    h += `<span class="badge ${cls[inst.defId] || "def"}">${label}</span>`;
   }
   return h;
 }

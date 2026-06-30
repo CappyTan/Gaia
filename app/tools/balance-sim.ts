@@ -20,6 +20,7 @@ import { ZONES } from "../src/data/zones";
 import { makeMember, recalc, grantXp, skillUnlocked } from "../src/systems/progression";
 import { makeItem, rollDrop, itemScore } from "../src/systems/loot";
 import { makeEnemy, combatDamage } from "../src/systems/combat";
+import { applyStatus, tickStatus, hasStatus } from "../src/systems/status";
 import { rollEncounter } from "../src/systems/encounter";
 
 // Field-layout constants the sim traverses (mirror controllers/field.ts).
@@ -66,10 +67,16 @@ function affordableHeals(m: Member): Skill[] {
   return m.skills.map((k) => SKILLS[k]).filter((s) => skillUnlocked(m, s) && s.mp <= (m.mp ?? 0) && s.type === "heal");
 }
 function dot(u: Member | Enemy): void {
-  const st = u.status;
-  for (const k of ["burn", "poison", "decay", "drain"]) if (st[k]) { u.hp = Math.max(0, u.hp - Math.max(2, Math.round(u.maxhp * 0.05))); if (--st[k] <= 0) delete st[k]; }
-  if (st.regen) { u.hp = Math.min(u.maxhp, u.hp + Math.round(u.maxhp * 0.08)); if (--st.regen <= 0) delete st.regen; }
-  for (const k of ["blind", "atkup", "stun", "wardArmor"]) if (st[k] && --st[k] <= 0) delete st[k];
+  // ADR 0016 instance tick: status-layer DoTs/HoTs change HP (magnitude is %-of-maxhp per stack);
+  // Doom detonates on expiry. Other layers just count down. (Drain's transfer is omitted in the sim.)
+  for (const ev of tickStatus(u.statuses)) {
+    if (ev.layer !== "status") continue;
+    if (ev.detonated) { u.hp = Math.max(0, u.hp - Math.max(2, Math.round(u.maxhp * 0.25))); continue; }
+    if (ev.magnitude <= 0) continue;
+    const amt = Math.max(2, Math.round(u.maxhp * (ev.magnitude / 100) * ev.stacks));
+    if (ev.kind === "buff") u.hp = Math.min(u.maxhp, u.hp + amt);
+    else u.hp = Math.max(0, u.hp - amt);
+  }
   if (u.hp <= 0) u.alive = false;
   u.guarding = false;
 }
@@ -88,7 +95,7 @@ function reachable(e: Enemy, foes: Member[]): Member[] {
 
 function simFight(party: Member[], keys: string[], depth: number, champIdx = -1): FightResult {
   const enemies = keys.map((k, i) => makeEnemy(k, i, false, depth || 0, i === champIdx, rng));
-  party.forEach((m) => { m.atb = ri(0, 30); m.status = {}; m.guarding = false; });
+  party.forEach((m) => { m.atb = ri(0, 30); m.statuses = []; m.guarding = false; });
   enemies.forEach((e) => (e.atb = ri(0, 20)));
   const living = (): (Member | Enemy)[] => [...party.filter((m) => m.alive), ...enemies.filter((e) => e.alive)];
   const maxTot = party.reduce((a, m) => a + m.maxhp, 0);
@@ -106,9 +113,10 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
     for (const u of us) u.atb += espd(u) * bt;
     if (!act) break;
     act.atb = 0; actions++;
+    const ccd = hasStatus(act.statuses, "stun") || hasStatus(act.statuses, "frozen");
     dot(act);
     if (!act.alive) continue;
-    if (act.status.stun) continue;
+    if (ccd) continue;
     if (act.side === "party") {
       const m = act as Member;
       const foesAlive = enemies.filter((e) => e.alive);
@@ -119,7 +127,7 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
       const singleHeal = heals.slice().sort((a, b) => (b.power ?? 0) - (a.power ?? 0))[0];
       if (partyHeal && wounded.length) { // top off the whole party
         m.mp = (m.mp ?? 0) - partyHeal.mp;
-        party.filter((x) => x.alive).forEach((t) => { t.hp = Math.min(t.maxhp, t.hp + Math.round(m.mag * (partyHeal.power ?? 0) + 6)); if (partyHeal.status?.regen) t.status.regen = partyHeal.status.regen; });
+        party.filter((x) => x.alive).forEach((t) => { t.hp = Math.min(t.maxhp, t.hp + Math.round(m.mag * (partyHeal.power ?? 0) + 6)); if (partyHeal.status?.regen) applyStatus(t.statuses, "regen", { turns: partyHeal.status.regen }); });
       } else if (singleHeal && wounded.length) { // patch the most-wounded ally
         m.mp = (m.mp ?? 0) - singleHeal.mp; const t = wounded[0];
         t.hp = Math.min(t.maxhp, t.hp + Math.round(m.mag * (singleHeal.power ?? 0) + 6));
@@ -146,8 +154,8 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
       if (e.skills && e.skills.length && Math.random() < e.castChance) {
         const ab = pick(e.skills);
         if (ab === "mend") { const h = enemies.filter((x) => x.alive && x.hp < x.maxhp).sort((a, b) => a.hp - b.hp)[0]; if (h) { h.hp = Math.min(h.maxhp, h.hp + Math.round(e.mag * 1.7 + 22)); used = true; } }
-        else if (ab === "hex") { pick(foes).status.blind = 2; used = true; }
-        else if (ab === "rally") { enemies.filter((x) => x.alive).forEach((x) => (x.status.atkup = 3)); used = true; }
+        else if (ab === "hex") { applyStatus(pick(foes).statuses, "blind", { turns: 2 }); used = true; }
+        else if (ab === "rally") { enemies.filter((x) => x.alive).forEach((x) => applyStatus(x.statuses, "atkup", { turns: 3 })); used = true; }
       }
       if (!used) {
         const aoe = e.boss && Math.random() < 0.2;
@@ -157,7 +165,7 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
           if (!r.miss) {
             t.hp = Math.max(0, t.hp - r.dmg); taken += r.dmg;
             if (e.leech) e.hp = Math.min(e.maxhp, e.hp + Math.round((r.dmg * e.leech) / 100));
-            if (e.onHitPoison) t.status.poison = e.onHitPoison;
+            if (e.onHitPoison) applyStatus(t.statuses, "poison", { turns: e.onHitPoison });
             if (t.hp <= 0) t.alive = false;
           }
         });

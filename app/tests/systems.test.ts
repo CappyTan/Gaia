@@ -5,7 +5,8 @@ import { describe, it, expect } from "vitest";
 import { affinity } from "../src/systems/affinity";
 import { gearScore } from "../src/systems/gearScore";
 import { makeItem, itemScore, rollDrop, rarityBand } from "../src/systems/loot";
-import { combatDamage, makeEnemy, damage, heal, applyStatus } from "../src/systems/combat";
+import { combatDamage, makeEnemy, damage, heal } from "../src/systems/combat";
+import { applyStatus, findStatus } from "../src/systems/status";
 import { makeMember, recalc, grantXp, xpForLevel, skillUnlocked, unlockedSkills } from "../src/systems/progression";
 import { seeded } from "../src/core/rng";
 import { PARTY_DEFS } from "../src/data/party";
@@ -178,11 +179,13 @@ describe("combat math", () => {
     heal(e, 50); // dead units don't heal
     expect(e.hp).toBe(0);
   });
-  it("applyStatus keeps the longer duration", () => {
+  it("applyStatus stacks Burn (stack-intensity) and keeps the longer duration (ADR 0016)", () => {
     const e = makeEnemy("gbandit", 0, false, 0);
-    applyStatus(e, { burn: 2 });
-    applyStatus(e, { burn: 1 });
-    expect(e.status.burn).toBe(2);
+    applyStatus(e.statuses, "burn", { turns: 2 });
+    applyStatus(e.statuses, "burn", { turns: 1 });
+    const b = findStatus(e.statuses, "burn")!;
+    expect(b.stacks).toBe(2); // stack-intensity climbs
+    expect(b.turns).toBe(2);  // longer remaining duration kept
   });
 });
 

@@ -26,20 +26,20 @@ export const STATUS: Record<string, StatusDef> = {
   haste: { id: "haste", name: "Haste", kind: "buff", layer: "action", bucket: "neutral", turns: 2, magnitude: 30, stacking: "refresh", apply: "on-hit", dispellable: true, desc: "Speeds the bearer's ATB fill." },
 
   // ── SOL — fire/light ──
-  burn: { id: "burn", name: "Burn", kind: "debuff", layer: "status", bucket: "SOL", turns: 2, magnitude: 6, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", cleansable: true, desc: "SOL signature DoT — combustion that ticks each turn; detonatable and can spread." },
+  burn: { id: "burn", name: "Burn", kind: "debuff", layer: "status", bucket: "SOL", turns: 2, magnitude: 5, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", cleansable: true, desc: "SOL signature DoT — combustion that ticks each turn; detonatable and can spread." },
   blind: { id: "blind", name: "Blind", kind: "debuff", layer: "status", bucket: "SOL", turns: 3, magnitude: 40, stacking: "refresh", apply: "resistible", cleansable: true, desc: "The target's attacks have a chance to miss." },
 
   // ── NOX — cold/order (engine keyword for Stasis stays `decay`) ──
-  decay: { id: "decay", name: "Stasis", kind: "debuff", layer: "status", bucket: "NOX", turns: 2, magnitude: 6, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", cleansable: true, desc: "NOX signature DoT — winds the target's vitality toward zero (cold cessation, not rot); sets up Shatter." },
+  decay: { id: "decay", name: "Stasis", kind: "debuff", layer: "status", bucket: "NOX", turns: 2, magnitude: 5, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", cleansable: true, desc: "NOX signature DoT — winds the target's vitality toward zero (cold cessation, not rot); sets up Shatter." },
   chill: { id: "chill", name: "Chill", kind: "debuff", layer: "action", bucket: "NOX", turns: 2, magnitude: 25, maxStacks: 3, stacking: "stack-intensity", apply: "resistible", cleansable: true, promotesTo: "frozen", desc: "Drags ATB fill; at max stacks the target Freezes." },
   frozen: { id: "frozen", name: "Frozen", kind: "debuff", layer: "action", bucket: "NOX", turns: 1, stacking: "unique", apply: "resistible", cleansable: true, desc: "The target cannot act. Hard CC — grants a brief re-application immunity; primes Shatter." },
 
   // ── ANIMA — life/nature (engine keyword stays `poison`) ──
-  poison: { id: "poison", name: "Infestation", kind: "debuff", layer: "status", bucket: "ANIMA", turns: 3, magnitude: 5, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", cleansable: true, desc: "ANIMA signature DoT — a living contagion that stacks and spreads to a new host on the bearer's death." },
-  regen: { id: "regen", name: "Regen", kind: "buff", layer: "status", bucket: "ANIMA", turns: 3, magnitude: 6, stacking: "refresh", apply: "on-hit", dispellable: true, desc: "ANIMA HoT — restores HP each turn (the signature DoT's mirror)." },
+  poison: { id: "poison", name: "Infestation", kind: "debuff", layer: "status", bucket: "ANIMA", turns: 3, magnitude: 6, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", cleansable: true, desc: "ANIMA signature DoT — a living contagion that stacks and spreads to a new host on the bearer's death." },
+  regen: { id: "regen", name: "Regen", kind: "buff", layer: "status", bucket: "ANIMA", turns: 3, magnitude: 8, stacking: "refresh", apply: "on-hit", dispellable: true, desc: "ANIMA HoT — restores HP each turn (the signature DoT's mirror)." },
 
   // ── UMBRAXIS — gravity/void ──
-  drain: { id: "drain", name: "Drain", kind: "debuff", layer: "status", bucket: "UMBRAXIS", turns: 2, magnitude: 6, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", needsSource: true, cleansable: true, desc: "UMBRAXIS signature DoT — ticked HP transfers from the target to the caster (needs source)." },
+  drain: { id: "drain", name: "Drain", kind: "debuff", layer: "status", bucket: "UMBRAXIS", turns: 2, magnitude: 5, maxStacks: 5, stacking: "stack-intensity", apply: "on-hit", needsSource: true, cleansable: true, desc: "UMBRAXIS signature DoT — ticked HP transfers from the target to the caster (needs source)." },
 
   // ── QUANTA — probability/time (no DoT — a delayed, determined hit) ──
   doom: { id: "doom", name: "Doom", kind: "debuff", layer: "status", bucket: "QUANTA", turns: 2, magnitude: 0, stacking: "unique", apply: "resistible", cleansable: false, desc: "QUANTA — a delayed, determined detonation: when the timer expires the hit lands. Un-cleansable." },

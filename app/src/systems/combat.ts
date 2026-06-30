@@ -1,17 +1,18 @@
-import type { Attunement, CombatAct, DamageResult, Enemy, StatusMap, Unit } from "../types";
+import type { Attunement, CombatAct, DamageResult, Enemy, Unit } from "../types";
 import type { Rng } from "../core/rng";
 import { riR, pickR, clamp } from "../core/rng";
 import { affinity } from "./affinity";
 import { mnaBonus } from "./progression";
 import { ENEMIES, ENEMY_HP_EASE, ENEMY_ATK_EASE } from "../data/enemies";
 import { enemyBlock, DEPTH_LEVELS } from "./enemyStats";
+import { hasStatus } from "./status";
 import { ELITE_AFFIXES } from "../data/items";
 
 // PURE damage math — no DOM, no side effects. Used by the battle controller AND the balance
 // sim. rng is injectable for deterministic tests. Returns {dmg, crit, mult, miss}.
 export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng = Math.random): DamageResult {
   const s = act.skill;
-  if (actor.status.blind && rng() < 0.4) return { dmg: 0, crit: false, mult: 1, miss: true };
+  if (hasStatus(actor.statuses, "blind") && rng() < 0.4) return { dmg: 0, crit: false, mult: 1, miss: true };
   const isMag = s ? s.type === "mag" : false;
   // Damage is typed (ADR 0014): an explicit `dmgType` wins, else derive from the skill kind
   // (mag→ENERGY = projected/ability; else MATTER = struck/martial). `isMag` still drives baseStat +
@@ -25,7 +26,7 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
   const power = s && s.power != null ? s.power : 1.0;
   const baseStat = isMag ? actor.mag : actor.atk;
   let raw = baseStat * power + (rng() * 3 - 1); // jitter [-1,2)
-  if (actor.status.atkup) raw *= 1.5;
+  if (hasStatus(actor.statuses, "atkup")) raw *= 1.5;
   if (act && act.aoe) raw *= 0.6; // sweep hits everyone, but glancing
   const atkAtt: Attunement = s && s.sol ? "SOL" : actor.att;
   const mult = affinity(atkAtt, target.att);
@@ -72,7 +73,7 @@ export function combatDamage(actor: Unit, target: Unit, act: CombatAct, rng: Rng
     }
   }
   if (target.guarding) dmg = Math.round(dmg * 0.5);
-  if (target.status.wardArmor) dmg = Math.max(1, dmg - (target.wardAmt || 0));
+  if (hasStatus(target.statuses, "barrier")) dmg = Math.max(1, dmg - (target.wardAmt || 0));
   return { dmg, crit, mult, miss: false };
 }
 
@@ -90,13 +91,6 @@ export function heal(u: Unit, h: number): void {
 export function stunImmune(u: Unit): boolean {
   const e = u as Enemy;
   return u.side === "enemy" && !!(e.boss || e.miniboss || e.elite || e.champion);
-}
-
-export function applyStatus(u: Unit, st: StatusMap): void {
-  for (const k in st) {
-    if (k === "turns") continue;
-    u.status[k] = Math.max(u.status[k] || 0, st[k]);
-  }
 }
 
 /** Roll N distinct elite affixes onto an enemy (mutates eliteAffixes + applies stat effects). */
@@ -137,7 +131,7 @@ export function makeEnemy(key: string, _idx: number, _isBossBattle: boolean, dep
     goldRange: champion ? [d.gold[0] * 2, d.gold[1] * 2] : d.gold,
     ai: d.ai, boss: !!d.boss, miniboss: !!d.miniboss, rare: !!d.rare, art: d.art, enrage: d.enrage,
     skills: d.skills || null, castChance: d.castChance || 0, onHitPoison: (d.onHit && d.onHit.poison) || 0,
-    alive: true, atb: 0, status: {}, critPct: b.critPct, leech: d.leech || 0, solPct: 0,
+    alive: true, atb: 0, statuses: [], critPct: b.critPct, leech: d.leech || 0, solPct: 0,
   };
   if (e.boss || e.miniboss || e.rare) return e; // rares are their own tier — no random elite roll
   if (champion) { e.champion = true; e.elite = true; applyAffixes(e, 3, rng); }

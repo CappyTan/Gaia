@@ -20,7 +20,7 @@ import type { Enemy, Member } from "../src/types";
 function boss(hp: number): Enemy {
   return {
     key: "kingpin", name: "Greenvale Kingpin", att: "SOL", spr: "👑",
-    hp, maxhp: 870, atb: 0, spd: 7, atk: 35, armor: 7, mag: 0, status: {},
+    hp, maxhp: 870, atb: 0, spd: 7, atk: 35, armor: 7, mag: 0, statuses: [],
     alive: true, side: "enemy", boss: true, ai: "boss", enrage: { omega: "kingpin-omega" },
     xpReward: 240, goldRange: [120, 180],
     mna: { SOL: 0, NOX: 0, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 },
@@ -119,7 +119,7 @@ describe("boss fight ends on death (no stuck battle)", () => {
     // 'done' callback fires and — if unchecked — calls showCommands on a finished battle, leaving a
     // live command menu with no enemy to target. The fix: a dead/inactive battle must not show commands.
     const killer = hero(9999);
-    const burned = hero(40); burned.id = "sephi"; burned.name = "Sephi"; burned.status = { burn: 2 };
+    const burned = hero(40); burned.id = "sephi"; burned.name = "Sephi"; burned.statuses = [{ defId: "burn", turns: 2, stacks: 1, magnitude: 5 }];
     Game.party = [killer, burned];
     const e = boss(870);
     Battle.enemies = [e];
@@ -140,7 +140,7 @@ describe("boss fight ends on death (no stuck battle)", () => {
     // Same race, opposite ordering: end() runs FIRST (kill resolves), THEN the deferred showCommands
     // callback fires. The showCommands/startPlayerTurn !active guards must suppress it.
     const killer = hero(9999);
-    const burned = hero(40); burned.id = "sephi"; burned.name = "Sephi"; burned.status = { burn: 2 };
+    const burned = hero(40); burned.id = "sephi"; burned.name = "Sephi"; burned.statuses = [{ defId: "burn", turns: 2, stacks: 1, magnitude: 5 }];
     Game.party = [killer, burned];
     const e = boss(870);
     Battle.enemies = [e];

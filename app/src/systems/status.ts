@@ -4,7 +4,7 @@
 // returned damage/heal to units (and resolving Drain's transfer / Doom's detonation from the events);
 // this module is the logic, RNG-injectable for deterministic tests.
 
-import type { StatusInstance } from "../types";
+import type { StatusInstance, StatusKind, StatusLayer } from "../types";
 import type { Rng } from "../core/rng";
 import { STATUS } from "../data/status";
 
@@ -76,35 +76,35 @@ export function stripBuffs(list: StatusInstance[]): number {
   return before - list.length;
 }
 
-/** What a single instance did this tick — the battle controller applies these to the units. `dmg`/`heal`
- *  are to the BEARER; `toSource` is HP transferred to the instance's `source` (Drain); `detonated` marks a
+/** What a single instance did this tick — a LIFECYCLE event the battle controller turns into HP changes.
+ *  `magnitude`/`stacks` let the caller scale a DoT/HoT by the bearer's maxhp (DoT/HoT magnitude is
+ *  %-of-maxhp per stack); `needsSource`/`source` drive Drain's transfer-to-caster; `detonated` marks a
  *  Doom-style delayed hit firing on expiry; `expired` instances are removed from the list by `tickStatus`. */
-export interface StatusTick { defId: string; dmg: number; heal: number; toSource: number; detonated: boolean; expired: boolean; }
+export interface StatusTick {
+  defId: string; kind: StatusKind; layer: StatusLayer;
+  magnitude: number; stacks: number;
+  needsSource: boolean; source?: string;
+  detonated: boolean; expired: boolean;
+}
 
-/** Tick every instance at the bearer's turn: compute DoT damage / HoT heal (magnitude × stacks),
- *  Drain's transfer-to-source, a delayed-hit detonation on expiry, then count down and drop expired
- *  instances. Pure: returns the per-effect amounts; the caller mutates HP. Mutates `list` (durations). */
+/** Tick every instance at the bearer's turn: count down, flag expiry and a delayed-hit detonation, and
+ *  return one lifecycle event per instance (the caller computes the HP change from magnitude×stacks×maxhp).
+ *  Pure but for the `list` it mutates (durations; drops expired). */
 export function tickStatus(list: StatusInstance[]): StatusTick[] {
   const out: StatusTick[] = [];
   for (let i = list.length - 1; i >= 0; i--) {
     const inst = list[i];
     const def = STATUS[inst.defId];
     if (!def) { list.splice(i, 1); continue; }
-    const amt = inst.magnitude * inst.stacks;
-    const isDot = def.layer === "status" && def.kind === "debuff" && inst.magnitude > 0;
-    const isHot = def.layer === "status" && def.kind === "buff" && inst.magnitude > 0;
     inst.turns -= 1;
     const expired = inst.turns <= 0;
-    // A magnitude-0 unique debuff in the status layer (Doom) is a delayed, determined hit: it fires once,
-    // on expiry, for a caller-supplied burst (engine resolves the amount).
+    // A magnitude-0 unique debuff in the status layer (Doom) is a delayed, determined hit — fires on expiry.
     const detonated = expired && def.kind === "debuff" && inst.magnitude === 0 && def.stacking === "unique";
     out.push({
-      defId: inst.defId,
-      dmg: isDot ? amt : 0,
-      heal: isHot ? amt : 0,
-      toSource: isDot && def.needsSource ? amt : 0,
-      detonated,
-      expired,
+      defId: inst.defId, kind: def.kind, layer: def.layer,
+      magnitude: inst.magnitude, stacks: inst.stacks,
+      needsSource: !!def.needsSource, source: inst.source,
+      detonated, expired,
     });
     if (expired) list.splice(i, 1);
   }

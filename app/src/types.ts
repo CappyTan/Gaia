@@ -254,7 +254,8 @@ export interface Unit {
   spd: number;
   armor: number;
   mag: number;
-  status: StatusMap;
+  /** Live buff/debuff instances (ADR 0016). Per-battle: reset at battle start, never saved. */
+  statuses: StatusInstance[];
   atb: number;
   alive: boolean;
   critPct: number;

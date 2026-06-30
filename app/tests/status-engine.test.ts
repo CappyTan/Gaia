@@ -76,30 +76,33 @@ describe("cleanse / strip", () => {
   });
 });
 
-describe("tickStatus", () => {
-  it("a DoT deals magnitude × stacks and counts down", () => {
+describe("tickStatus (lifecycle events)", () => {
+  it("a DoT event carries its stacks + layer/kind and counts down", () => {
     const list: StatusInstance[] = [];
-    applyStatus(list, "burn"); // mag 6
+    applyStatus(list, "burn");
     applyStatus(list, "burn"); // stacks 2
     const ev = tickStatus(list).find((e) => e.defId === "burn")!;
-    expect(ev.dmg).toBe(12); // magnitude 6 × 2 stacks
-    expect(findStatus(list, "burn")!.turns).toBe(1); // turns 2 (refreshed) − 1 this tick
+    expect(ev.kind).toBe("debuff");
+    expect(ev.layer).toBe("status");
+    expect(ev.stacks).toBe(2);
+    expect(findStatus(list, "burn")!.turns).toBe(1); // turns 2 − 1 this tick
   });
 
-  it("Drain transfers its tick to the source", () => {
+  it("Drain flags needsSource + carries its source (the caller transfers to the caster)", () => {
     const list: StatusInstance[] = [];
-    applyStatus(list, "drain", { source: "h1" }); // mag 6, needsSource
+    applyStatus(list, "drain", { source: "h1" });
     const ev = tickStatus(list).find((e) => e.defId === "drain")!;
-    expect(ev.dmg).toBe(6);
-    expect(ev.toSource).toBe(6);
+    expect(ev.needsSource).toBe(true);
+    expect(ev.source).toBe("h1");
   });
 
-  it("a HoT (Regen) heals magnitude × stacks", () => {
+  it("a HoT (Regen) is a status-layer buff with positive magnitude", () => {
     const list: StatusInstance[] = [];
-    applyStatus(list, "regen"); // mag 6 buff
+    applyStatus(list, "regen");
     const ev = tickStatus(list).find((e) => e.defId === "regen")!;
-    expect(ev.heal).toBe(6);
-    expect(ev.dmg).toBe(0);
+    expect(ev.kind).toBe("buff");
+    expect(ev.layer).toBe("status");
+    expect(ev.magnitude).toBeGreaterThan(0);
   });
 
   it("Doom detonates on expiry (a delayed determined hit), then is removed", () => {
