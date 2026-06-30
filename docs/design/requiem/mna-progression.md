@@ -10,8 +10,12 @@ implementation spec; the playable build reconciles toward it (see "POC reconcili
 An enemy's **level (L)** sets everything it gives: its stats, and the **XP, gold, and loot
 item-level (ilvl)** it drops. You get stronger only by engaging higher-level content, two ways:
 
-- **Leveling** → a slow trickle of intrinsic **MNA points** (~1 per level), player-assigned.
-- **Loot** (ilvl-scaled) → gear granting **MNA**, stats, passives, and procs.
+- **Leveling** → a small **derived MNA floor** — `floor(level/5)` into your *active* attunement
+  (20 at the L100 cap = ~20% of the road to Archon@100). **Not** player-assigned; it follows your
+  equipped weapon. *(Updated by [ADR 0021](../../adr/0021-mna-from-gear-level-floor.md) — supersedes
+  the original "~1/level, player-assigned" line below.)*
+- **Loot** (ilvl-scaled) → gear granting **MNA**, stats, passives, and procs. **Gear is the dominant
+  MNA source (~80% of the climb to Archon).**
 
 Zones are level bands (Zone 1 = L1–5, Zone 2 = L6–10, …). Each zone has a **dungeon** 1–2 levels
 above its overworld max (Zone 1 dungeon = L6–7), with a mid-boss and a boss. **Elites** raise an
@@ -22,10 +26,12 @@ enemy's rewards (loot/gold/XP) by a percentage and its drop rarity floor.
 A character has five **MNA** pools, one per **Attunement** (SOL / NOX / ANIMA / QUANTA /
 UMBRAXIS) — a talent tree across all five. MNA in a tree comes from:
 
-- **Intrinsic:** points gained per level, **freely assigned by the player** into any tree.
-  Respec-able for a **gold fee.**
+- **Intrinsic:** a small **derived floor** — `floor(level/5)` MNA in your *active* attunement, auto-
+  applied and weapon-following (no allocation, no respec). *(Per [ADR 0021](../../adr/0021-mna-from-gear-level-floor.md);
+  the original "freely-assigned points, gold respec" model is mothballed — it only earns its keep once
+  multi-class skill access exists, see [endgame-mechanics.md](../classes/endgame-mechanics.md).)*
 - **Gear:** equipment grants MNA in specific trees (e.g., a sword with **+10 SOL MNA**). Gear MNA
-  applies instantly.
+  applies instantly and is the **dominant** source (~80% of the road to Archon).
 
 MNA does **two** jobs:
 
@@ -43,7 +49,8 @@ threshold (Mortal Mastery — see [`battle-mechanics.md`](battle-mechanics.md)) 
 moment to unlock that class's **Ultimate**. (Two trees at 100 → Archon Type II.)
 
 ### Pacing (Dara-confirmed anchors)
-- Intrinsic MNA: ~1 per level → leveling alone is a slow climb; **gear is the main MNA source.**
+- Intrinsic MNA: a `floor(level/5)` floor (20 at L100) → leveling supplies only ~20%; **gear is the
+  dominant MNA source (~80%)** and paces the climb to Archon ([ADR 0021](../../adr/0021-mna-from-gear-level-floor.md)).
 - Threshold spread: basic abilities ~5–15, signatures ~40–60, **ultimate = 100 (Archon).**
 - The design tension Dara is after: clearing a zone lands you at its level band, *but* a lucky
   high-MNA drop can leapfrog you into abilities early. That gear-vs-grind pacing is the fun.
@@ -72,10 +79,12 @@ The shipping game is a slice. Reconciliation is staged:
 
 - **Phase 1 (engine):** five MNA pools; abilities gated by MNA threshold (replacing level-unlock);
   MNA scales output; Archon@100 → ultimate; ilvl-scaled loot + MNA-granting affixes; class label
-  derived from the equipped weapon. *(Interim:* leveled MNA auto-banks into the hero's own
-  Attunement until the manual allocator ships.)*
-- **Phase 2:** manual point allocation UI + paid respec; weapon-swap actually changes the class's
-  ability kit; enemy-level-derived reward formulas; zone/dungeon restructure.
+  derived from the equipped weapon. The level contribution is the **derived `floor(level/5)` floor**
+  into the active attunement ([ADR 0021](../../adr/0021-mna-from-gear-level-floor.md)) — no banked
+  points.
+- **Phase 2:** weapon-swap actually changes the class's ability kit; enemy-level-derived reward
+  formulas; zone/dungeon restructure. *(The old "manual point allocation UI + paid respec" is dropped
+  by ADR 0021 — mothballed until multi-class skill access exists.)*
 - **Phase 3:** passive & proc affixes (REQUIEM-aligned), full Ascension / Soul Burn / Harmonic
   Ascension.
 

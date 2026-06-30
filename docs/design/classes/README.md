@@ -37,11 +37,15 @@ replaced by the ultimate choice.
 
 ## The two progression axes (Model B)
 
-There is **one master progression axis — MNA** — sourced from level early and from gear forever.
+There is **one master progression axis — MNA** — **dominantly from gear**, with a small level-derived
+floor ([ADR 0021](../../adr/0021-mna-from-gear-level-floor.md)).
 
-- **Character level** grants **base stats (HP / primary attributes)** and **intrinsic MNA**.
-- **Total MNA = intrinsic (from level) + weapon (gear).** The equipped weapon sets the class
-  (Attunement × Archetype) and carries intrinsic MNA in that attunement.
+- **Character level** grants **base stats (HP / primary attributes)** and a small **derived MNA floor**:
+  `floor(level/5)` MNA that auto-lands in your **active** attunement and follows you on weapon-swap
+  (no allocation, no respec). At the L100 cap the floor is **20 MNA = 20% of the road to Archon@100**.
+- **Total MNA = floor(level/5) (active tree) + gear.** Gear owns the other **~80%** of the climb — the
+  equipped weapon sets the class (Attunement × Archetype) and is the **dominant** MNA source; Archon
+  Type I is a reachable-but-earned **loot chase**, not a leveling milestone.
 - **MNA is the single gate.** Each skill has an **MNA threshold = its milestone value**. The moment
   total MNA crosses a milestone you **bank a permanent pick** from that milestone's pair; the pick
   stays yours forever but goes **dormant** if total MNA later drops below its threshold.
@@ -50,9 +54,10 @@ There is **one master progression axis — MNA** — sourced from level early an
   to the skills its MNA was enabling; a low-level character in a great weapon is a **twink** (big
   kit, squishy base stats).
 - **Endgame:** past level 100 all further MNA — and any content beyond the 100 milestone — is gated
-  by **gear/drops**. (MNA already scales 0→200 in canon: 0–100 leveling band, 100–200 gear band.)
-  Reaching +100 MNA = **Archon Type I**, our first milestone — and where the 52-slot tree currently
-  **ends**. The five mechanics *above* it (Ascension · Soul Burn · Harmonic Ascension · cross-class
+  by **gear/drops**. (MNA scales 0→200 in canon; with [ADR 0021](../../adr/0021-mna-from-gear-level-floor.md)
+  the climb is **gear-dominant** the whole way — leveling contributes only the small `floor(level/5)`
+  baseline.) Reaching +100 MNA = **Archon Type I**, our first milestone — and where the 52-slot tree
+  currently **ends**. The five mechanics *above* it (Ascension · Soul Burn · Harmonic Ascension · cross-class
   combo · Archon Type II) are tracked as future scope in
   [Endgame Mechanics](./endgame-mechanics.md).
 

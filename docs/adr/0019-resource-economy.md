@@ -75,6 +75,10 @@ the v1 floor; the sim must confirm the optimal line isn't single-dump. Tempo-deb
 able). Verify in the sim whether Archon@100 / ultimates are reachable within the L1–25 Aurelion arc; tune
 the *rate* if not (don't abandon manual allocation). Flag the QUANTA-MNA→SPD→ATB-fill coupling as a
 balance interaction.
+> **⚠ Superseded by [ADR 0021](0021-mna-from-gear-level-floor.md) (2026-06-30).** The manual ~1/level
+> allocator is **dropped**: the level contribution is now a derived `floor(level/5)` floor into the
+> active attunement (no banked points, no respec), and **gear** is the dominant MNA source (~80% of the
+> climb to Archon). The QUANTA-MNA→SPD→ATB coupling flag still stands.
 
 **D10 · Enemy pools — minimal drain-target bar.** Enemies get an abstract Resource bar so canon
 drain/reduce ultimates have a target — **not** a full enemy spend economy. Define what draining does
