@@ -2,7 +2,6 @@ import type { Attunement, Member, MemberDef, Prims, SubKey, Skill } from "../typ
 import { zeroMna, zeroPrims, zeroSubs, PRIM_KEYS, EQUIP_SLOTS } from "../types";
 import type { Rng } from "../core/rng";
 import { SKILLS } from "../data/skills";
-import { kitFor } from "../data/classes";
 import { activeKitKeys, activePassives, hasSpec } from "./classKit";
 import { passiveMods, applyMods } from "./passives";
 import { SUB_BY_KEY } from "../data/substats";
@@ -44,7 +43,6 @@ export function recalc(party: Member[]): void {
     const w = m.equip.weapon;
     m.att = w?.att ?? m.def.att;
     m.cls = w?.cls ?? m.def.cls;
-    m.skills = kitFor(m.att, m.cls) ?? m.def.skills;
     const g = m.def.growth,
       lv = m.level - 1;
     const s = {
@@ -81,20 +79,19 @@ export function recalc(party: Member[]): void {
     substatBaseline(gearPrim, sub);
     // V3 passives (ADR 0020 §5): a hero's ACTIVE passive picks add continuous Subs bonuses (crit / ability
     // power / penetration / mitigation / lifesteal), which flow into the effective stats derived below.
-    // Gated to a re-encoded class with picks → a hero with no picks (and the whole legacy roster / the sim)
-    // is unaffected. Resolved from the effective MNA (so a passive goes dormant if MNA drops below its set).
-    if (m.picks && Object.keys(m.picks).length && hasSpec(m.att, m.cls))
-      applyMods(sub, passiveMods(activePassives(m.att, m.cls, m.picks, mna[m.att])));
+    // A no-op for an un-built hero (no picks → no passives). Resolved from the effective MNA (so a passive
+    // goes dormant if MNA drops below its set).
+    const picks = m.picks ?? {};
+    if (hasSpec(m.att, m.cls))
+      applyMods(sub, passiveMods(activePassives(m.att, m.cls, picks, mna[m.att])));
     s.spd += Math.round(gearPrim.SPD * 0.5); // SPD primary still speeds the attack bar (Dara), gently
     m.mna = mna;
-    // V3 (ADR 0020): once the player has banked picks for a RE-ENCODED class, the hero is on the choice
-    // system and the usable kit IS the active picks — gated by the EFFECTIVE MNA total (intrinsic + gear,
-    // computed just now), with above-threshold picks dormant. That active set is legitimately EMPTY when
-    // every pick is still dormant (low MNA) or stale (a renamed ability across a deploy) — leaving only
-    // Attack/Defend, which is intended; the picker (respec) refills it. The legacy kitFor kit set above is
-    // the fallback ONLY for a hero with no picks at all (never engaged the picker) or a class with no spec.
-    if (m.picks && Object.keys(m.picks).length && hasSpec(m.att, m.cls))
-      m.skills = activeKitKeys(m.att, m.cls, m.picks, m.mna[m.att]) ?? m.skills;
+    // V3 (ADR 0020): a hero's usable kit IS the choice system — the picked specials/signatures/ultimates
+    // whose milestone the EFFECTIVE MNA total has reached (above-threshold picks stay dormant). There is NO
+    // legacy fallback: a hero with no picks (or whose picks are all dormant at low MNA, or stale after a
+    // rename) wields ONLY the basic Attack/Defend until they pick abilities in their lanes (the class
+    // picker). Empty is the intended un-built state; a class with no spec also resolves empty.
+    m.skills = (hasSpec(m.att, m.cls) ? activeKitKeys(m.att, m.cls, picks, m.mna[m.att]) : null) ?? [];
     m.prim = { STR: innate.STR + gearPrim.STR, AGI: innate.AGI + gearPrim.AGI, VIT: innate.VIT + gearPrim.VIT, SPD: innate.SPD + gearPrim.SPD, DEF: innate.DEF + gearPrim.DEF };
     m.sub = sub;
     // GEAR primaries (ability scaling) + the Ability Power affix both feed the ability-power amplifier.

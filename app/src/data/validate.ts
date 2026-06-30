@@ -5,32 +5,19 @@
 // (or an agent) tweak data without silently breaking the game.
 
 import { DB } from "./db";
-import { SKILLS } from "./skills";
 import { ENEMIES, RARE_MONSTERS } from "./enemies";
 import { ZONES } from "./zones";
 import { RARITY } from "./rarity";
 import { BARRIERS, MAPS } from "./world";
 import { ATTUNEMENTS } from "../types";
-import { ARCHETYPE_KEYS } from "./party";
-import { kitFor } from "./classes";
+
+// Class kits are no longer authored here: every class is the V3 choice-system kit derived from its
+// 52-slot spec (data/classSpecs), whose structural invariants are gated by the class-spec linter
+// (`npm run lint:classes`, vitest-gated) — so there is no kit-integrity check to run in this net.
 
 /** Returns a list of content problems; empty array = content is internally consistent. */
 export function validateContent(): string[] {
   const issues: string[] = [];
-
-  // every class kit references real skills, and carries exactly one ultimate at the top
-  for (const att of ATTUNEMENTS) for (const arch of ARCHETYPE_KEYS) {
-    const kit = kitFor(att, arch) || [];
-    if (!kit.length) { issues.push(`kit ${att} ${arch}: empty`); continue; }
-    kit.forEach((k) => { if (!SKILLS[k]) issues.push(`kit ${att} ${arch}: missing skill "${k}"`); });
-    const ults = kit.filter((k) => SKILLS[k]?.ult).length;
-    if (ults !== 1) issues.push(`kit ${att} ${arch}: expected 1 ultimate, found ${ults}`);
-  }
-
-  // all 45 classes resolve to distinct kits (no accidental shared placeholder)
-  const distinct = new Set(ATTUNEMENTS.flatMap((att) => ARCHETYPE_KEYS.map((arch) => JSON.stringify(kitFor(att, arch)))));
-  if (distinct.size !== ATTUNEMENTS.length * ARCHETYPE_KEYS.length)
-    issues.push(`expected ${ATTUNEMENTS.length * ARCHETYPE_KEYS.length} distinct kits, got ${distinct.size}`);
 
   // every enemy referenced by a zone (encounters/mini/adds/boss) exists
   ZONES.forEach((z, zi) => {

@@ -18,6 +18,8 @@ import { SKILLS } from "../src/data/skills";
 import { ENEMIES } from "../src/data/enemies";
 import { ZONES } from "../src/data/zones";
 import { makeMember, recalc, grantXp, skillUnlocked } from "../src/systems/progression";
+import { specFor } from "../src/data/classSpecs";
+import { defaultPicks } from "../src/systems/choice";
 import { makeItem, rollDrop, itemScore } from "../src/systems/loot";
 import { makeEnemy, combatDamage } from "../src/systems/combat";
 import { applyStatus, tickStatus, hasStatus } from "../src/systems/status";
@@ -48,10 +50,19 @@ const PERSONA: Persona = PERSONAS[process.argv[3]] ?? PERSONAS.skilled;
 
 const ZERO: Item = { slot: "armor", cls: "", rarity: "common", rIx: -1, ilvl: 0, name: "", implicit: {}, affixes: [] };
 
+// Recalc, then give every hero the DEFAULT V3 kit (lane A at each milestone) for its CURRENT class — the
+// game ships heroes with only the auto-attack until the player picks (ADR 0020), but the balance bench
+// needs a fully-built, level-appropriate kit to exercise. Re-derived after a possible reclass (recalc
+// settles att/cls from equipped weapons first), then recalc again to resolve the kit from picks + MNA.
+function v3kit(party: Member[]): void {
+  recalc(party);
+  party.forEach((m) => { const sp = specFor(m.att, m.cls); if (sp) m.picks = defaultPicks(sp); });
+  recalc(party);
+}
 function freshParty(): Member[] {
   const p = PARTY_DEFS.map(makeMember);
   p.forEach((m) => (m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, "SOL", rng)));
-  recalc(p);
+  v3kit(p);
   return p;
 }
 function affordableDmg(m: Member): Skill | null {
@@ -196,7 +207,7 @@ function gearUp(party: Member[], enemies: Enemy[]): void {
       if (!m.equip[it.slot] || itemScore(it) > itemScore(m.equip[it.slot]!)) m.equip[it.slot] = it;
     }
   });
-  recalc(party);
+  v3kit(party); // re-derive each hero's kit (picks follow a reclass; new MNA folds in) after gearing up
 }
 
 interface Fight extends FightResult { kind: string; zone: number; p: number; }

@@ -9,7 +9,6 @@ import { HELIOMANCER, SPECS } from "../src/data/classSpecs";
 import { genAbility } from "../src/systems/classGen";
 import { turnGain } from "../src/systems/resources";
 import { makeMember, recalc } from "../src/systems/progression";
-import { kitFor } from "../src/data/classes";
 import { buildDef } from "../src/data/party";
 
 const heliomancer = () => {
@@ -73,7 +72,7 @@ describe("classKit — activeKitKeys (the commandable kit from picks + MNA)", ()
     expect(activeKitKeys("SOL", "Staff", picks, 4)).toEqual([]); // below milestone 5 → dormant
   });
 
-  it("every one of the 45 classes now has a spec; a NON-existent class → null (legacy-kit fallback path)", () => {
+  it("every one of the 45 classes has a spec; a NON-existent class → null (caller resolves an empty kit)", () => {
     expect(hasSpec("SOL", "Staff")).toBe(true);
     expect(hasSpec("NOX", "Dual Swords")).toBe(true);   // full rollout — all 45 are re-encoded
     expect(hasSpec("SOL", "Flail")).toBe(false);        // not a real archetype
@@ -92,20 +91,19 @@ describe("classKit — turnGain (one-way resource decision, pure)", () => {
     expect(turnGain(null, 6, 12)).toBe(6);
     expect(turnGain(undefined, 6, 12)).toBe(6);
   });
-  it("a generating special gives its band; a spend action gives nothing; a legacy skill gives the flat gen", () => {
+  it("a generating special gives its band; a spend action gives nothing; a fieldless skill gives the flat gen", () => {
     expect(turnGain({ resourceGen: 12, resourceCost: 0 }, 6, 12)).toBe(12); // special
     expect(turnGain({ resourceCost: 30, resourceGen: 0 }, 6, 12)).toBe(0); // signature/ultimate (it spent at resolve)
-    expect(turnGain({}, 6, 12)).toBe(12); // legacy hand-authored skill — no resource fields
+    expect(turnGain({}, 6, 12)).toBe(12); // a skill with no resource fields → the flat per-turn gen
     expect(turnGain({ resourceGen: 20 }, 6, 12)).toBe(20);
   });
 });
 
-describe("progression — recalc resolves the V3 kit from picks (else the legacy kit)", () => {
-  it("no picks → the legacy kitFor kit (a hero is never left without abilities)", () => {
-    const m = heliomancer();
+describe("progression — recalc resolves the V3 kit from picks (no legacy fallback)", () => {
+  it("no picks → an empty kit (only the basic Attack/Defend until the player picks in their lanes)", () => {
+    const m = heliomancer(); // a fully-realised SOL well, but NO picks banked
     recalc([m]);
-    expect(m.skills).toEqual(kitFor("SOL", "Staff"));
-    expect(m.skills.length).toBeGreaterThan(0);
+    expect(m.skills).toEqual([]); // there is no legacy kit to fall back to
   });
 
   it("with picks → the choice-derived kit (the picked specials/signatures), gated by MNA", () => {

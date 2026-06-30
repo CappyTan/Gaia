@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import { DB } from "../src/data/db";
+import { genSkillKey } from "../src/systems/classKit"; // side-effect: registers the V3 abilities into SKILLS
 import { validateContent } from "../src/data/validate";
 import { RARE_MONSTERS } from "../src/data/enemies";
 import { ENEMIES } from "../src/data/enemies";
@@ -171,12 +172,11 @@ describe("traversal BARRIERS cross-ref is real (map + band + crossing)", () => {
 });
 
 describe("DB registry", () => {
-  it("queries skills and reports which classes use them", () => {
-    expect(DB.skills.get("guard")).toBeTruthy();
-    expect(DB.skills.all().length).toBeGreaterThan(0);
+  it("queries skills (the registry holds the V3 class-spec abilities, keyed by their v3 slug)", () => {
+    expect(DB.skills.all().length).toBeGreaterThan(0); // populated by systems/classKit (imported above)
     expect(DB.skills.ults().every((s) => s.ult)).toBe(true);
-    // guard is the SOL Sword & Shield opener
-    expect(DB.skills.usedBy("guard")).toContain("SOL Sword & Shield");
+    // Firebolt is a Heliomancer (SOL Staff) special — looked up by its generated key
+    expect(DB.skills.get(genSkillKey("Firebolt"))?.name).toBe("Firebolt");
   });
   it("queries the bestiary with zone cross-references", () => {
     expect(DB.enemies.get("slime")).toBeTruthy();

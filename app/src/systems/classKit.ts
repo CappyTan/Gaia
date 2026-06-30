@@ -1,8 +1,8 @@
 // The live-combat bridge for the 52-slot class system (ADR 0020 capstone) — pure, no DOM. Turns a
 // re-encoded ClassSpec into engine `Skill`s the battle command menu can use, and resolves a member's
-// ACTIVE kit from their banked picks + MNA. This is the seam that replaces the static `kitFor` kit: all
-// 45 classes are now re-encoded (data/classSpecs), so a hero on ANY class drives its kit from picks once
-// the player has banked some; with no picks they fall back to the legacy `kitFor` kit (never stranded).
+// ACTIVE kit from their banked picks + MNA. This is the ONLY kit source: all 45 classes are re-encoded
+// (data/classSpecs), so every hero drives its kit from picks. There is no legacy fallback — a hero with
+// no picks wields only the basic Attack/Defend until the player picks abilities in their lanes.
 // Layering: systems → data + systems (never the reverse), so the generated skills are merged INTO the
 // shared `SKILLS` registry here (a load-time augmentation, mirroring how data/classes folds in the
 // REQUIEM kits) — data/skills stays pure.
@@ -69,7 +69,7 @@ export const hasSpec = (att: string, cls: string): boolean => !!specFor(att, cls
 /** The COMMANDABLE active-kit skill keys for a member: the auto-attack and passives are dropped (auto is
  *  the basic Attack command; passives aren't commands), leaving the picked-and-reached specials,
  *  signatures, and ultimates — in `SKILLS`-key form for the battle menu. Null when the class has no spec
- *  (caller falls back to the legacy kit). */
+ *  (caller resolves to an empty kit — only the basic Attack/Defend). */
 export function activeKitKeys(att: string, cls: string, picks: Picks, mna: number): string[] | null {
   const spec = specFor(att, cls);
   if (!spec) return null;

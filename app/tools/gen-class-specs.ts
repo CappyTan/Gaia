@@ -2,8 +2,8 @@
 // (docs/design/classes/<attunement>-<archetype>.md — the human design record) into the structured
 // `ClassSpec` shape (app/src/data/classSpec.ts) the band→number generator + the live kit system consume.
 // Emits app/src/data/classSpecs.generated.ts (committed, NEVER hand-edited — re-run this to regenerate),
-// mirroring the requiem-kits.ts / parse-requiem.js pattern. The markdown stays the design record; this
-// JSON-shaped TS is the build input (ADR 0020 §3).
+// the same committed-generated-file pattern as the REQUIEM parser (docs/design/requiem/parse-requiem.js).
+// The markdown stays the design record; this JSON-shaped TS is the build input (ADR 0020 §3).
 //
 //   npm run gen:classes           # regenerate classSpecs.generated.ts from the markdown
 //   npx tsx app/tools/gen-class-specs.ts

@@ -66,3 +66,17 @@ export function activeKit(spec: ClassSpec, picks: Picks, mna: number): AbilityEn
 export function fullyPicked(spec: ClassSpec, picks: Picks, mna: number): boolean {
   return choiceSlots(spec).filter((s) => reached(s.milestone, mna)).every((s) => pickedAt(picks, s.id).length === s.pickCount);
 }
+
+/** A sensible DEFAULT pick-set for a class — the first option (lane A where present) at EVERY milestone,
+ *  respecting pickCount (ultimates take 2). NOT used in live player progression (a hero starts with only
+ *  the auto-attack until the player picks abilities in their lanes); this is for the balance sim and the
+ *  tests, which need a fully-built kit to exercise. Picks above the current MNA stay dormant as usual. */
+export function defaultPicks(spec: ClassSpec): Picks {
+  let picks: Picks = {};
+  for (const s of choiceSlots(spec))
+    for (const o of s.options) {
+      if (pickedAt(picks, s.id).length >= s.pickCount) break;
+      picks = choose(picks, s.id, o.name, s.pickCount);
+    }
+  return picks;
+}
