@@ -135,6 +135,26 @@ to **modify existing ones**. *(Further crafting details to be delineated.)*
 > currency** and a **smith crafting/modification loop** that consumes Aether + dropped mana
 > materials. Not yet built — flagged for when the details land.
 
+### The political shape of the Scramble (canon, Dara)
+
+> New canon from Dara. Fills in *who* is scrambling for mana and *why the world feels dangerous*
+> outside the player's own pocket of it — the background pressure the story sits inside.
+
+Gaia is **vast** — powerful governments, powerful individuals, and powerful creatures all share it.
+As mana's presence has grown stronger over the 5,000 years since the Convergence, mortal society has
+climbed back up through **tribes → societies → nations**, and now the largest nations have hardened
+into **empires**. It is a **mad dash across the planet** to acquire mana — power in its most raw
+form — and different powers are at different points in that race: some only recently started
+harvesting it as it's grown more abundant; others have been **quietly hoarding it for generations,
+some for nearly a millennium.**
+
+**Two empires are presently at war**, and the fallout is not contained to them — there will be
+**collateral damage across Gaia**. Beneath and around that war move **rogue groups, mercenaries,
+pirates, and every other kind of party thirsty for power** — and that's before counting the
+**monsters** that inhabit the world in their own right. (Empire names and the specifics of the war
+are **not yet known** — to be uncovered as the story unfolds, per the same pattern as the Five
+Deities.)
+
 ## Where the playable story stands now
 
 The game is an early vertical slice set in **Aurelion**:
@@ -143,6 +163,19 @@ The game is an early vertical slice set in **Aurelion**:
 - **Greenvale** (Lv 1–6) — temperate farmland and forest beset by bandits; boss the Bandit
   Kingpin/Brute.
 - **The Duskmarsh** and its dungeon **The Drowned Vault** (Lv 7–10) — boss the Cave Troll.
+
+### Greenvale — where the heroes' story begins (canon, Dara)
+
+Against that vast, empire-scale backdrop, **Greenvale is a small, isolated pocket of the world** —
+far removed from governments and powerful figures, its very existence almost unknown outside its own
+borders. It is near this quiet shire that **ancient ruins have recently been unearthed**, with a
+**high concentration of mana emanating from within them**. This is where our heroes' journey starts.
+
+> **Design flag (gameplay — agent lane, to reconcile later):** the ruins are a new geography/plot
+> hook, not yet placed in Greenvale's built zone data or Areas (`data/zones.ts`) — the "Bandit
+> Warren" dungeon and Bandit Kingpin arc are the current playable content. What the ruins actually
+> *are* (a POI, a future dungeon, the seed of a later story beat) is Dara's to define when he's
+> ready; flagged here so the level-design/world-building pipeline knows to reconcile toward it.
 
 The grand systems above — Soul Burn, Ascension, Harmonic Ascension, the Archon path, and the
 Sundering endgame — are **canon but not yet built**. The POC is the first slice of a far larger

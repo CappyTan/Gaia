@@ -35,7 +35,7 @@ between them. The map uses a numbered key (1–25): verbatim region name — *ep
 
 | # | Region | Epithet | Biome / notes |
 |---|---|---|---|
-| 1 | **Greenvale** | The Shirelands | Temperate farmland/forest. **Game zone 1 (Lv 1–6).** |
+| 1 | **Greenvale** | The Shirelands | Temperate farmland/forest. **Game zone 1 (Lv 1–6).** Isolated, near-unknown to the outside world; site of newly unearthed **ancient ruins** with a high mana concentration — the heroes' starting hook ([`lore-summary.md`](lore-summary.md#greenvale--where-the-heroes-story-begins-canon-dara)). |
 | 2 | **Silverwood** | Ancient Forest | Old-growth forest. |
 | 3 | **Goldmeadow Plains** | The Breadbasket | Open grassland & farms. |
 | 4 | **Storm Coast** | Seafarer's Rest | Rocky storm-battered coast & harbor. |
