@@ -6,7 +6,7 @@ import { cap } from "../core/rng";
 import { ATTUNEMENTS, EQUIP_SLOTS } from "../types";
 import { SKILLS } from "../data/skills";
 import { rarityIx } from "../data/rarity";
-import { className } from "../data/classes";
+import { classTitle } from "../data/classes";
 import { ATT } from "../data/attunements";
 import { PRIMARY_STATS, STAT_TIERS } from "../data/statScaling";
 import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
@@ -52,7 +52,7 @@ export const UI = {
         <div class="pm-spr">${body ? `<img src="${body}" alt="">` : `<span class="spr">${m.spr}</span>`}</div>
         <div class="pm-stat">
           <div class="pm-name">${m.name}${m.alive ? "" : ` <span class="r-rare" style="font-size:11px">fallen</span>`}</div>
-          <div class="pm-line">Lv ${m.level} · <span style="color:${col}">${className(m.att, arch)}</span></div>
+          <div class="pm-line">Lv ${m.level} · <span style="color:${col}">${classTitle(m.att, arch, m.mna[m.att])}</span></div>
           <div class="pm-line"><span style="color:${col}">${m.att}</span> · MNA ${m.mna[m.att]}${m.mna[m.att] >= 100 ? " ⭐" : ""}</div>
           <div class="pm-line">HP <b>${Math.max(0, m.hp)}</b> / ${m.maxhp}</div>
         </div></div>`;
@@ -113,7 +113,7 @@ export const UI = {
       const v3 = hasSpec(m.att, m.cls)
         ? ` <button class="btn gold" style="padding:3px 8px;font-size:11px;min-height:0" onclick="UI.openClassPicker('${m.id}')">Choose abilities ▸</button>` : "";
       h += `<div class="card" style="text-align:left;margin:6px 0">
-        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${className(m.att, arch)}</span> <span class="pill">${m.att} MNA ${m.mna[m.att]}</span>${v3}`;
+        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${classTitle(m.att, arch, m.mna[m.att])}</span> <span class="pill">${m.att} MNA ${m.mna[m.att]}</span>${v3}`;
       const kit = m.skills.map((k) => ({ k, s: SKILLS[k] })).filter((x) => x.s).sort((a, b) => a.s.mnaReq - b.s.mnaReq);
       kit.forEach(({ k, s }) => {
         const ok = m.mna[s.att] >= s.mnaReq;
@@ -250,10 +250,10 @@ export const UI = {
       if (st.confirm && reclass) {
         action = `<div class="card" style="border-color:var(--legendary);margin-top:8px;text-align:left">
           <b class="r-legendary">Change class?</b>
-          <div class="small" style="margin:4px 0">Equipping <b>${it.name}</b> reclasses ${m.name} to <b>${className(preview.att, preview.cls)}</b> — a different Attunement and ability kit.</div>
+          <div class="small" style="margin:4px 0">Equipping <b>${it.name}</b> reclasses ${m.name} to <b>${classTitle(preview.att, preview.cls, m.mna[preview.att])}</b> — a different Attunement and ability kit.</div>
           <div class="row" style="justify-content:flex-start"><button class="btn gold" onclick="UI.eqConfirm()">Yes, change class</button><button class="btn" onclick="UI.eqPick(${st.pick})">Cancel</button></div></div>`;
       } else {
-        const note = reclass ? ` <span class="r-legendary" style="font-size:11px">→ ${className(preview.att, preview.cls)}</span>` : "";
+        const note = reclass ? ` <span class="r-legendary" style="font-size:11px">→ ${classTitle(preview.att, preview.cls, m.mna[preview.att])}</span>` : "";
         action = `<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn gold" onclick="UI.eqConfirm()">Equip${note}</button></div>`;
       }
     }
@@ -375,7 +375,7 @@ export const UI = {
     if (!m) return;
     const arch = m.equip.weapon?.cls || m.cls;
     const tree = m.att, cur = m.mna[tree];
-    let h = `<h2 class="title-gold">${className(tree, arch)}</h2>`;
+    let h = `<h2 class="title-gold">${classTitle(tree, arch, cur)}</h2>`;
     h += `<div class="small">${m.spr} ${m.name} · ${tree} tree · MNA <b>${cur}</b>${cur >= 100 ? ` · <span class="r-legendary">ARCHON</span>` : ""}</div>`;
     h += `<div class="small" style="opacity:.7;margin-bottom:4px">Raise ${tree} MNA (level points + ${tree} gear) to unlock these.</div><div class="scroll">`;
     const kit = m.skills.map((k) => SKILLS[k]).sort((a, b) => a.mnaReq - b.mnaReq);
@@ -433,10 +433,10 @@ export const UI = {
         ...ATTUNEMENTS.map((a) => stat(`${a} MNA`, m.mna[a], c.mna[a])),
       ].filter(Boolean).join(" · ");
       const reclass = it.slot === "weapon" && (c.att !== m.att || c.cls !== m.cls)
-        ? ` <span class="r-legendary" style="font-size:11px">→ ${className(c.att, c.cls)}</span>` : "";
+        ? ` <span class="r-legendary" style="font-size:11px">→ ${classTitle(c.att, c.cls, m.mna[c.att])}</span>` : "";
       const replaces = m.equip[it.slot] ? `<span class="small" style="opacity:.6"> (replaces ${m.equip[it.slot]!.name})</span>` : "";
       h += `<div class="card" style="margin:6px 0;text-align:left">
-        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${m.cls}</span>${reclass}${replaces}
+        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${classTitle(m.att, m.cls, m.mna[m.att])}</span>${reclass}${replaces}
         ${score ? `<div class="small" style="margin-top:4px;font-weight:bold">${score}</div>` : ""}
         <div class="small" style="margin-top:4px">${deltas || "no stat change"}</div>
         <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.doEquipFromBag('${m.id}',${invIdx})">Equip on ${m.name}</button></div>

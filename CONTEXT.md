@@ -224,6 +224,16 @@ sets the class flair. Swapping weapons swaps class (and its ability kit). This s
 POC's fixed-class framing (ADR 0003) for the full game.
 _Avoid_: treating a hero's class as fixed — it's weapon-driven.
 
+**Weapon Discipline / Archon Title** (canon, [ADR 0023](docs/adr/0023-weapon-discipline-archon-title.md)):
+The 45 class names above ("Starbreaker", "Sunblade", …) are **Archon Titles** — earned only at
+**Archon Type I** (100 MNA in that Attunement). Below that, a hero is known by their universal
+**Weapon Discipline** title instead: "{Attunement} {Discipline}" (e.g. **Sol Duelist**, **Umbraxian
+Spellblade** — UMBRAXIS is the one irregular adjective). Display-only: `data/classes.ts`'
+`classTitle()` computes it; `className()` stays the canonical/reference Archon name for class
+browsers and tooling. Mechanics (MNA gating, the 52-slot kit) are unaffected.
+_Avoid_: showing a live hero's Archon Title before they've actually hit 100 MNA in that Attunement —
+use `classTitle`, not `className`, for any in-game display of a specific character.
+
 **Sixth Deity** (canon, per REQUIEM lore):
 A being or state beyond the five-faction (five-Attunement) framework, reached via the Archon
 Type III path. No roster class attains it — "what lies beyond the game." Deliberately
