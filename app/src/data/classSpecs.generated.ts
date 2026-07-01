@@ -8,6 +8,7 @@ import type { ClassSpec } from "./classSpec";
 export const GENERATED_SPECS: ClassSpec[] = [
   {
     att: "ANIMA", archetype: "Dual Daggers", name: "Symbiote Hunter",
+    lanes: { A: "Contagion", B: "Parasite", C: "Hunter's Bond" },
     abilities: [
     { name: "Twinfang Venom", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two quick venom-slick cuts; each can seed a stack of Infestation.", status: "poison", gen: "minor", cooldown: "none" },
     { name: "Spore Cut", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A fast double cut; applies Infestation, building the Opening.", status: "poison", gen: "moderate", cooldown: "short" },
@@ -65,6 +66,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Dual Pistols", name: "Sporecaster",
+    lanes: { A: "Spore Volley", B: "Mutagen Round", C: "Hive Field" },
     abilities: [
     { name: "Double-Tap Spores", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two quick spore-slick rounds from the twin barrels; each can seed a stack of Infestation.", status: "poison", gen: "minor", cooldown: "none" },
     { name: "Sporeshot", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A fast double round; applies Infestation, building the Opening.", status: "poison", gen: "moderate", cooldown: "short" },
@@ -122,6 +124,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Dual Swords", name: "Pulse Arbiter",
+    lanes: { A: "Adaptblade", B: "Mutagen", C: "Symbiont Form" },
     abilities: [
     { name: "Pulse Cut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two quick adaptive cuts; each can seed a stack of Infestation.", status: "poison", gen: "minor", cooldown: "none" },
     { name: "Carving Strain", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A precise double cut; sharpens your next crit (Seed)", gen: "moderate", cooldown: "short" },
@@ -179,6 +182,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Hammer", name: "Lifekeeper",
+    lanes: { A: "Lifequake", B: "Bloodfeast", C: "Wildgrowth" },
     abilities: [
     { name: "Heartstrike", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A heavy maul blow that pulses a little life back to you.", gen: "minor", cooldown: "none" },
     { name: "Quakeheal", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "Ground-slam: deal damage and heal the party a little.", gen: "moderate", cooldown: "short" },
@@ -236,6 +240,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Rifle", name: "Genewarden",
+    lanes: { A: "Gene Shot", B: "Mark of the Strain", C: "Adaptive Watch" },
     abilities: [
     { name: "Splicing Shot", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A quick precise round that nicks one foe and slips a wisp of Infestation into the wound.", status: "poison", gen: "minor", cooldown: "none" },
     { name: "Gene Round", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "An aimed shot that injects a stack of Infestation and plants a Seed in the target (the Opening)", status: "poison", gen: "moderate", cooldown: "short" },
@@ -293,6 +298,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Spellblade", name: "Biomancer",
+    lanes: { A: "Thornblade", B: "Biomancy", C: "Mutation" },
     abilities: [
     { name: "Runefang", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A single imbued cut from the living blade; nicks the foe and slips a wisp of Infestation into the wound.", status: "poison", gen: "minor", cooldown: "none" },
     { name: "Seeding Cut", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "An imbued strike that injects a stack of Infestation and plants a Seed (the Opening)", status: "poison", gen: "moderate", cooldown: "short" },
@@ -350,6 +356,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Staff", name: "Genesis Sage",
+    lanes: { A: "Wellspring", B: "Genesis", C: "Flourish" },
     abilities: [
     { name: "Mote", tier: "auto", milestone: 0, type: "mag", target: "enemy", effect: "Fling a mote of raw life-energy.", gen: "minor", cooldown: "none" },
     { name: "Mend", tier: "special", lane: "A", milestone: 5, type: "heal", target: "ally", effect: "Heal an ally.", gen: "moderate", cooldown: "short" },
@@ -407,6 +414,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Sword & Shield", name: "Soul-Bound Aegis",
+    lanes: { A: "Guardian", B: "Thornwild", C: "Symbiote" },
     abilities: [
     { name: "Graft", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A shield strike that grafts a seed of life, feeding the pool.", gen: "minor", cooldown: "none" },
     { name: "Summon Warden", tier: "special", lane: "A", milestone: 5, type: "buff", target: "self", effect: "Conjure a Guardian beast that taunts and body-blocks.", gen: "moderate", cooldown: "medium" },
@@ -464,6 +472,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "ANIMA", archetype: "Two-Handed Sword", name: "Apex Dominion",
+    lanes: { A: "Reaping Arc", B: "Apex Growth", C: "Dominion's Reach" },
     abilities: [
     { name: "Rending Sweep", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A slow wide arc of the living blade; a glancing hit on the front foe that leaves a wisp of Infestation.", status: "slow", gen: "minor", cooldown: "none" },
     { name: "Spore Cleave", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A wide opening arc across the line; seeds a stack of Infestation on each foe it touches.", status: "poison", gen: "moderate", cooldown: "short" },
@@ -521,6 +530,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Dual Daggers", name: "Velestra",
+    lanes: { A: "Hoarfang", B: "Stillblade", C: "Shatterpoint" },
     abilities: [
     { name: "Quickfrost", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two darting crystalline cuts (twin-strike); the second lays a touch of Stasis.", status: "decay", gen: "minor", cooldown: "none" },
     { name: "Flickerfrost", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "Two fast cuts (twin-strike), each laying light Stasis — the flood begins.", status: "decay", gen: "moderate", cooldown: "short" },
@@ -578,6 +588,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Dual Pistols", name: "Cryovex",
+    lanes: { A: "Frost Volley", B: "Cryo Shot", C: "Coldsnap" },
     abilities: [
     { name: "Coldshot", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A quick double-tap of frost rounds (two shots); the second leaves a wisp of Chill.", status: "chill", gen: "minor", cooldown: "none" },
     { name: "Spray of Frost", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A sweeping double-tap volley across the line; lays light Stasis on every foe it catches — the freeze begins.", status: "decay", gen: "moderate", cooldown: "short" },
@@ -635,6 +646,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Dual Swords", name: "Rimewalker",
+    lanes: { A: "Glasscutter", B: "Frostward", C: "Hoarwarden" },
     abilities: [
     { name: "Glassglide Cut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two flowing crystalline cuts (two crit rolls); the second leaves a wisp of Chill.", status: "chill", gen: "minor", cooldown: "none" },
     { name: "Glint Cut", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A crit-leaning cut; bonus crit chance vs a Chilled/Frozen target.", gen: "moderate", cooldown: "short" },
@@ -692,6 +704,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Hammer", name: "Equilibrium Ascendant",
+    lanes: { A: "Stillgrave", B: "Stillbreaker", C: "Equilibrium Warden" },
     abilities: [
     { name: "Tolling Blow", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A slow, heavy maul swing.", status: "slow", gen: "minor", cooldown: "none" },
     { name: "Grave Weight", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "Heavy strike; applies Stasis.", status: "decay", gen: "moderate", cooldown: "short" },
@@ -749,6 +762,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Rifle", name: "Terminus",
+    lanes: { A: "Killshot", B: "Cold Mark", C: "Zero Point" },
     abilities: [
     { name: "Coldbore Shot", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A single aimed crystalline round down the scope; the muzzle leaves a wisp of Chill on the target.", status: "chill", gen: "minor", cooldown: "none" },
     { name: "Sighting Frost", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A settled aimed round; bonus damage vs a Chilled/Frozen target, and a touch lower the lower its HP — finding the range.", gen: "moderate", cooldown: "short" },
@@ -806,6 +820,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Spellblade", name: "Lattice Executioner",
+    lanes: { A: "Rimeblade", B: "Lattice Casting", C: "Execution" },
     abilities: [
     { name: "Runecut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A single rune-imbued cut; the cold etched on the edge leaves a wisp of Chill on the target.", status: "chill", gen: "minor", cooldown: "none" },
     { name: "Etched Strike", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A rune-charged cut that lays light Stasis; bonus damage vs a Chilled foe.", status: "decay", gen: "moderate", cooldown: "short" },
@@ -863,6 +878,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Staff", name: "Null Absolutionist",
+    lanes: { A: "Silence", B: "Heat Sink", C: "Unmaking" },
     abilities: [
     { name: "Null Bolt", tier: "auto", milestone: 0, type: "mag", target: "enemy", effect: "A bolt of nothing that saps a little energy.", status: "drain", gen: "minor", cooldown: "none" },
     { name: "Hush", tier: "special", lane: "A", milestone: 5, type: "util", target: "enemy", effect: "Briefly Seal the target's abilities (silence)", gen: "moderate", cooldown: "short" },
@@ -920,6 +936,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Sword & Shield", name: "Penumbral Bastion",
+    lanes: { A: "Umbral Aegis", B: "Cold Lock", C: "Eclipse" },
     abilities: [
     { name: "Duskblow", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A heavy shield-edge strike wreathed in shadow.", gen: "minor", cooldown: "none" },
     { name: "Shadow Guard", tier: "special", lane: "A", milestone: 5, type: "buff", target: "self", effect: "Raise a shroud of shadow: brief damage reduction + draw aggro.", gen: "moderate", cooldown: "short" },
@@ -977,6 +994,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "NOX", archetype: "Two-Handed Sword", name: "Worldender",
+    lanes: { A: "Wintercleave", B: "Glacier's Reach", C: "Worldbreak" },
     abilities: [
     { name: "Worldcleaver", tier: "auto", milestone: 0, type: "phys", target: "allEnemies", effect: "One slow, sweeping greatsword arc that rakes the front of the line; the trailing edge leaves a wisp of Chill.", status: "slow", gen: "minor", cooldown: "none" },
     { name: "Riming Sweep", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A wide arc across the line; lays light Stasis on every foe it catches — the freeze begins.", status: "decay", gen: "moderate", cooldown: "short" },
@@ -1034,6 +1052,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Dual Daggers", name: "The Anomaly",
+    lanes: { A: "Amplitude", B: "Probability Storm", C: "Collapse" },
     abilities: [
     { name: "Twin Measurement", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two rapid daggerfalls — two independent crit rolls; each hit adds a sliver of observation toward Superposition.", gen: "minor", cooldown: "none" },
     { name: "Probable Edge", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A quick cut that nudges your crit amplitude up for your next strike.", gen: "moderate", cooldown: "short" },
@@ -1091,6 +1110,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Dual Pistols", name: "Entropic Echo",
+    lanes: { A: "Echo Fire", B: "Decohere Round", C: "Doomshot" },
     abilities: [
     { name: "Twin Report", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A paired pistol crack — two independent crit rolls; each round leaves a faint echo, seeding a sliver of observation toward Superposition.", gen: "minor", cooldown: "none" },
     { name: "Caromfire", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A round that ricochets to a second nearby foe; each bounce rolls crit independently and seeds observation.", gen: "moderate", cooldown: "short" },
@@ -1148,6 +1168,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Dual Swords", name: "Phasewalker",
+    lanes: { A: "Phase Edge", B: "Afterimage", C: "Riposte Paradox" },
     abilities: [
     { name: "Phase Slip", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two blink-quick cuts from a half-step out of place; each adds a sliver of observation toward Superposition.", gen: "minor", cooldown: "none" },
     { name: "Measured Cut", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A clean blink-in strike that nudges your crit amplitude up for your next blow.", gen: "moderate", cooldown: "short" },
@@ -1205,6 +1226,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Hammer", name: "Causality Arbiter",
+    lanes: { A: "Verdict", B: "Doomsmith", C: "Tempo" },
     abilities: [
     { name: "Tick", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A metronomic maul blow, steady as a clock.", gen: "minor", cooldown: "none" },
     { name: "Called Shot", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A strike with a high crit chance.", gen: "moderate", cooldown: "short" },
@@ -1262,6 +1284,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Rifle", name: "Observer Prime",
+    lanes: { A: "Collapse Shot", B: "Doom Mark", C: "First Observation" },
     abilities: [
     { name: "Sighting Shot", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A steady aimed round from range; each shot reads the target a little more, adding a sliver of observation toward Superposition on it.", gen: "minor", cooldown: "none" },
     { name: "Settle the Sights", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "Take a beat in the scope, then fire; nudges your crit amplitude up on this target for your next shot.", gen: "moderate", cooldown: "short" },
@@ -1319,6 +1342,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Spellblade", name: "Quantum Exarch",
+    lanes: { A: "Phaseblade", B: "Quantum Casting", C: "Eigenblade" },
     abilities: [
     { name: "Runed Observation", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two imbued cuts from a half-step out of phase; each is a measurement — a crit roll that adds a sliver of observation toward Superposition on the target.", gen: "minor", cooldown: "none" },
     { name: "Observing Cut", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A clean imbued strike that nudges your crit amplitude up for your next blow and seeds light observation.", gen: "moderate", cooldown: "short" },
@@ -1376,6 +1400,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Staff", name: "Chronosage",
+    lanes: { A: "Tempo", B: "Fortune", C: "Foresight" },
     abilities: [
     { name: "Flux", tier: "auto", milestone: 0, type: "mag", target: "enemy", effect: "A flicker of unstable probability.", gen: "minor", cooldown: "none" },
     { name: "Hasten", tier: "special", lane: "A", milestone: 5, type: "buff", target: "ally", effect: "Speed an ally's attack-bar.", gen: "moderate", cooldown: "short" },
@@ -1433,6 +1458,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Sword & Shield", name: "Paradox Bastion",
+    lanes: { A: "Blurguard", B: "Wardshift", C: "Decoherence" },
     abilities: [
     { name: "Sample", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A measured shield-jab that samples the state and feeds the pool.", gen: "minor", cooldown: "none" },
     { name: "Blink Guard", tier: "special", lane: "A", milestone: 5, type: "buff", target: "self", effect: "Gain brief Evasion and draw aggro.", gen: "moderate", cooldown: "short" },
@@ -1490,6 +1516,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "QUANTA", archetype: "Two-Handed Sword", name: "Timeline Breaker",
+    lanes: { A: "Sweeping Collapse", B: "Momentum", C: "Event Reach" },
     abilities: [
     { name: "Metronome Arc", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A slow, heavy sweep that lands on the front of the line; each arc adds a sliver of observation, seeding Superposition across the foes it grazes.", status: "slow", gen: "minor", cooldown: "none" },
     { name: "Superposed Sweep", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A wide arc across the line; each foe struck is nudged into Superposition (observation builds toward a Collapse)", gen: "moderate", cooldown: "short" },
@@ -1547,6 +1574,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Dual Daggers", name: "Eclipsedancer",
+    lanes: { A: "Sundancer", B: "Eclipse", C: "Wildfire" },
     abilities: [
     { name: "Twinlight Cut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two flickering blade-strikes (twin-strike: two crit rolls), each searing on a light Burn.", status: "burn", gen: "minor", cooldown: "none" },
     { name: "Sun Rake", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "Two fast radiant cuts; builds Overheat (the Opening)", gen: "moderate", cooldown: "short" },
@@ -1604,6 +1632,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Dual Pistols", name: "Gunslinger Solaris",
+    lanes: { A: "Fan Fire", B: "Trick Shot", C: "Quickdraw" },
     abilities: [
     { name: "Twin Barrels", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Fire both sidearms at once — two rounds, two crit rolls, each kindling a wisp of heat (Overheat) on the foe it strikes.", gen: "minor", cooldown: "none" },
     { name: "Searing Volley", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A quick fanned spray across the line; rakes a light Burn onto the foes it tags (the Opening)", status: "burn", gen: "moderate", cooldown: "short" },
@@ -1661,6 +1690,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Dual Swords", name: "Sunblade",
+    lanes: { A: "Solar Edge", B: "Sunflare", C: "Riposte" },
     abilities: [
     { name: "Sunblade Flourish", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two flowing radiant cuts (two crit rolls), each kindling a wisp of heat (builds Overheat)", gen: "minor", cooldown: "none" },
     { name: "Solflare Cut", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A quick crit-leaning cut; builds Overheat on the target (the Opening)", gen: "moderate", cooldown: "short" },
@@ -1718,6 +1748,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Hammer", name: "Solar Arbiter",
+    lanes: { A: "Seismic", B: "Sunder", C: "Pyroclasm" },
     abilities: [
     { name: "Emberfall", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A heavy radiant maul swing, trailing sparks.", gen: "minor", cooldown: "none" },
     { name: "Tremor", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A ground-slam shockwave that hits nearby foes.", gen: "moderate", cooldown: "short" },
@@ -1775,6 +1806,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Rifle", name: "Photon Vanguard",
+    lanes: { A: "Photon Lance", B: "Sunmark", C: "Overwatch" },
     abilities: [
     { name: "Photon Pulse", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A quick uncharged pulse of light down the barrel — a single precise tap that kindles a wisp of heat (Overheat) on the target.", gen: "minor", cooldown: "none" },
     { name: "Beam Tap", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A short charged beam at one target; builds Overheat (begins the charge)", gen: "moderate", cooldown: "short" },
@@ -1832,6 +1864,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Spellblade", name: "Starforge Knight",
+    lanes: { A: "Forgeblade", B: "Solar Casting", C: "Starforge" },
     abilities: [
     { name: "Runebrand Cut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "An imbued radiant cut — the solar rune on the blade bites in, kindling a wisp of heat (Overheat) on the foe it strikes.", gen: "minor", cooldown: "none" },
     { name: "Forgestrike", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A quick imbued cut that forges Overheat into the target (the Opening); banks a little SOL.", gen: "moderate", cooldown: "short" },
@@ -1889,6 +1922,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Staff", name: "Heliomancer",
+    lanes: { A: "Conflagration", B: "Solar Lance", C: "Corona" },
     abilities: [
     { name: "Sunbolt", tier: "auto", milestone: 0, type: "mag", target: "enemy", effect: "A small bolt of light.", gen: "minor", cooldown: "none" },
     { name: "Firebolt", tier: "special", lane: "A", milestone: 5, type: "mag", target: "enemy", effect: "A flaming bolt; applies Burn.", status: "burn", gen: "moderate", cooldown: "short" },
@@ -1946,6 +1980,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Sword & Shield", name: "Dawnwarden",
+    lanes: { A: "Aggressor", B: "Bastion Stacks", C: "Riposte" },
     abilities: [
     { name: "Kindle", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A quick shield-edge bash that kindles the pool.", gen: "minor", cooldown: "none" },
     { name: "Shield Bash", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "Bash with the shield; brief Blind.", status: "blind", gen: "moderate", cooldown: "short" },
@@ -2003,6 +2038,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "SOL", archetype: "Two-Handed Sword", name: "Starbreaker",
+    lanes: { A: "Suncleave", B: "Solar Wind", C: "Starfall" },
     abilities: [
     { name: "Sunsweep", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A single wide radiant arc across the enemy line, kindling a wisp of heat (Overheat) on each foe it grazes.", gen: "minor", cooldown: "none" },
     { name: "Daycleave", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A fast radiant sweep across the line; rakes a light Burn onto the foes it cuts (the Opening)", status: "burn", gen: "moderate", cooldown: "short" },
@@ -2060,6 +2096,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Dual Daggers", name: "The Lagrangian",
+    lanes: { A: "Siphon", B: "Lagrange Point", C: "Singularity" },
     abilities: [
     { name: "Twinned Cut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two quick gravity-edged cuts — twin-strike, two Drain checks.", status: "drain", gen: "minor", cooldown: "none" },
     { name: "Vein-Tap", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A cut that Drains a sliver of HP to you.", status: "drain", gen: "moderate", cooldown: "short" },
@@ -2117,6 +2154,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Dual Pistols", name: "Orbitalist",
+    lanes: { A: "Orbital Volley", B: "Drain Round", C: "Anchor Shot" },
     abilities: [
     { name: "Twin Tap", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two gravity-curved rounds in quick succession — twin-shot, two Drain checks.", status: "drain", gen: "minor", cooldown: "none" },
     { name: "Curveshot", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A curving spray that bends inward as it cuts the line, dragging stragglers a step toward the kill-box.", gen: "moderate", cooldown: "short" },
@@ -2174,6 +2212,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Dual Swords", name: "Abyssal Vector",
+    lanes: { A: "Redirect", B: "Gravity Edge", C: "Event Blade" },
     abilities: [
     { name: "Counterpoise", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "Two measured gravity-weighted cuts, blades kept balanced to guard between.", gen: "minor", cooldown: "none" },
     { name: "Turnblade", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A parrying cut: the foe's force is bent back, dealing bonus reflected damage if it had struck at you.", gen: "moderate", cooldown: "short" },
@@ -2231,6 +2270,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Hammer", name: "Graviton Warden",
+    lanes: { A: "Singularity Slam", B: "Crush", C: "Mass" },
     abilities: [
     { name: "Downforce", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A maul slam that drops with crushing weight.", gen: "minor", cooldown: "none" },
     { name: "Gravity Slam", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A slam whose shockwave drags nearby foes inward.", gen: "moderate", cooldown: "short" },
@@ -2288,6 +2328,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Rifle", name: "Astrolancer",
+    lanes: { A: "Gravity Lance", B: "Lance Mark", C: "Orbit Hold" },
     abilities: [
     { name: "Drawn Bead", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A steadied single round drawn down the gravity line; a sliver of weight Drains back to you.", status: "drain", gen: "minor", cooldown: "none" },
     { name: "Sighting Lance", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A quick aimed round that pierces a step down the line and lightly Anchors what it hits.", gen: "moderate", cooldown: "short" },
@@ -2345,6 +2386,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Spellblade", name: "Voidstar Exarch",
+    lanes: { A: "Voidblade", B: "Gravity Casting", C: "Eventblade" },
     abilities: [
     { name: "Voidmark Cut", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A single rune-imbued cut; the gravity etched on the edge pulls a sliver of life back to you (a wisp of Drain)", status: "drain", gen: "minor", cooldown: "none" },
     { name: "Leeching Edge", tier: "special", lane: "A", milestone: 5, type: "phys", target: "enemy", effect: "A rune-charged cut that Drains a sliver of HP to you.", status: "drain", gen: "moderate", cooldown: "short" },
@@ -2402,6 +2444,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Staff", name: "The Singularitan",
+    lanes: { A: "Gravity Wells", B: "Collapse", C: "Voidwell" },
     abilities: [
     { name: "Graviton", tier: "auto", milestone: 0, type: "mag", target: "enemy", effect: "A bolt of condensed gravity.", gen: "minor", cooldown: "none" },
     { name: "Set Well", tier: "special", lane: "A", milestone: 5, type: "util", target: "allEnemies", effect: "Place a gravity well that pulls nearby foes toward it.", gen: "moderate", cooldown: "short" },
@@ -2459,6 +2502,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Sword & Shield", name: "Tidal Sovereign",
+    lanes: { A: "Event Horizon", B: "Gravity Well", C: "Accretion" },
     abilities: [
     { name: "Tidebreak", tier: "auto", milestone: 0, type: "phys", target: "enemy", effect: "A ponderous shield slam drawing on your mass.", gen: "minor", cooldown: "none" },
     { name: "Harden", tier: "special", lane: "A", milestone: 5, type: "buff", target: "self", effect: "Set your stance: gain damage reduction (absorb)", gen: "moderate", cooldown: "short" },
@@ -2516,6 +2560,7 @@ export const GENERATED_SPECS: ClassSpec[] = [
   },
   {
     att: "UMBRAXIS", archetype: "Two-Handed Sword", name: "Singularity Reaver",
+    lanes: { A: "Reaving Pull", B: "Crushing Arc", C: "Event Horizon" },
     abilities: [
     { name: "Reaver's Swing", tier: "auto", milestone: 0, type: "phys", target: "allEnemies", effect: "A slow, heavy gravity-weighted arc that grazes the enemy line.", status: "slow", gen: "minor", cooldown: "none" },
     { name: "Gathering Sweep", tier: "special", lane: "A", milestone: 5, type: "phys", target: "allEnemies", effect: "A wide arc that drags the line a step inward as it cuts, pulling stragglers toward the sweep.", gen: "moderate", cooldown: "short" },
