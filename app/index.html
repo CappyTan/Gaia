@@ -188,10 +188,12 @@
   #affinityChain .ac-arrow{font-size:10px; color:var(--dim); opacity:.65; flex:0 0 auto;}
   @media (max-width:430px){ #affinityChain{gap:2px;} #affinityChain .ac-node{font-size:9px; padding:2px 3px;} #affinityChain .ac-beats{display:none;} }
   /* Party-shared Resource pools (ADR 0019) — high-contrast chips so the values read clearly in battle. */
-  #affinityChain .res-pools{display:flex; gap:8px; justify-content:center; align-items:center; margin-top:5px; flex-wrap:wrap; pointer-events:none;}
-  #affinityChain .res-pools .res-pool{font-size:12px; line-height:1; padding:3px 8px; border-radius:6px; background:#0a0a12; border:1px solid #ffffff2e; font-weight:700;}
-  #affinityChain .res-pools .res-pool b{font-size:10px; letter-spacing:.3px;}
-  #affinityChain .res-pools .res-pool .res-val{color:#fff;}
+  /* Party-shared Resource pools now live at the top of the roster panel, above the party HP bars. */
+  #resStrip{display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap; padding-bottom:5px; margin-bottom:2px; border-bottom:1px solid var(--line); pointer-events:none;}
+  #resStrip:empty{display:none;}
+  #resStrip .res-pool{font-size:12px; line-height:1; padding:3px 8px; border-radius:6px; background:#0a0a12; border:1px solid #ffffff2e; font-weight:700;}
+  #resStrip .res-pool b{font-size:10px; letter-spacing:.3px;}
+  #resStrip .res-pool .res-val{color:#fff;}
   #battleField{position:absolute; top:0; left:0; right:0; height:70%; overflow:hidden;}
   #battleBg{position:absolute; inset:0;}
   /* combatants stand on the lower "ground" band — clear of the sky, bottom-anchored so a lone
@@ -279,7 +281,8 @@
   .cmd:disabled{opacity:.55; cursor:default;}
   .cmd .cost.low{color:#e87a7a;}
   .cmd .cost{float:right; font-size:11px; color:var(--mp);}
-  #rosterPanel{flex:1 1 0; min-width:0; border-right:1px solid var(--line); display:flex; flex-direction:column; justify-content:flex-end; padding:6px 8px; gap:4px; overflow-y:auto;}
+  #rosterPanel{flex:1 1 0; min-width:0; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:6px 8px; gap:5px; overflow-y:auto;}
+  #rosterRows{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; justify-content:flex-end; gap:4px;}
   .prow{display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; font-size:12px;}
   .prow.turn{background:rgba(244,185,66,.12); outline:1px solid var(--gold);}
   .prow.downed{opacity:.4;}
@@ -571,7 +574,7 @@
     </div>
     <div id="battleUi">
       <div id="cmdPanel"><div class="who" id="cmdWho"></div><div id="cmdList"></div></div>
-      <div id="rosterPanel"></div>
+      <div id="rosterPanel"><div id="resStrip" aria-label="party resource pools"></div><div id="rosterRows"></div></div>
       <div id="log" aria-label="battle log"></div>
     </div>
   </div>

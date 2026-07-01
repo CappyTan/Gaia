@@ -715,12 +715,14 @@ export const Battle = {
     const ring = '<span class="ac-beats">beats</span>' + RING.map((a) =>
       `<span class="ac-node${live.has(a) ? " live" : ""}" style="color:${ATT[a].color}" title="${a}">${ABBR[a]}</span>`
     ).join('<span class="ac-arrow">▸</span>') + '<span class="ac-arrow">↺</span>';
-    // Party-shared Resource pools (ADR 0019) — a compact per-Attunement strip under the affinity ring.
-    // High-contrast chips (white value + attunement-coloured label) so the pools read clearly in battle.
-    const pools = RING.map((a) =>
+    host.innerHTML = ring;
+    // Party-shared Resource pools (ADR 0019) now live in the lower-right window, ABOVE the party HP bars
+    // (Dara) — a compact per-Attunement strip. High-contrast chips (white value + attunement-coloured
+    // label) so the pools read clearly, out of the way of the battlefield up top.
+    const rs = $("#resStrip");
+    if (rs) rs.innerHTML = RING.map((a) =>
       `<span class="res-pool" title="${a} Resource"><b style="color:${ATT[a].color}">${ABBR[a]}</b> <span class="res-val">${Game.resources[a]}</span></span>`
     ).join("");
-    host.innerHTML = ring + `<div class="res-pools">${pools}</div>`;
   },
   // RECONCILE in place rather than rebuilding (Dara's attack flicker): a full innerHTML wipe re-created
   // every sprite <img> on each re-render, flashing a blank frame at the start/end of the lunge. We keep
@@ -791,6 +793,11 @@ export const Battle = {
         if (cur) cur.replaceWith(d); else col.appendChild(d);
       }
     });
+    // Prune stale hero dolls: a party rebuilt in the Roster picker uses different member ids (hero0…)
+    // than the defaults (dawnguard…), and #partyZone persists across rebuilds — so without a prune the
+    // old dolls linger and stack up (the "10 heroes on screen" bug). Keep only current members.
+    const ids = new Set(Game.party.map((m) => m.id));
+    z.querySelectorAll<HTMLElement>(".pchar").forEach((n) => { if (!ids.has(n.dataset.mid ?? "")) n.remove(); });
   },
   renderBars(): void {
     const ez = $("#enemyZone")!.children;
@@ -808,7 +815,7 @@ export const Battle = {
     return [...Game.party].sort((a, b) => rank(a) - rank(b));
   },
   renderRoster(barsOnly?: boolean): void {
-    const p = $("#rosterPanel")!;
+    const p = $("#rosterRows")!;
     if (!barsOnly || p.children.length !== Game.party.length) {
       p.innerHTML = "";
       this.rosterOrder().forEach((m) => {

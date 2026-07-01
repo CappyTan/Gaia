@@ -31,7 +31,7 @@ function member(over: Partial<Member> = {}): Member {
 
 function stage(): void {
   document.body.innerHTML = `<div id="stage"><div id="enemyZone"></div><div id="partyZone"></div>
-    <div id="rosterPanel"></div><div id="log"></div><div id="affinityChain"></div></div>`;
+    <div id="rosterPanel"><div id="resStrip"></div><div id="rosterRows"></div></div><div id="log"></div><div id="affinityChain"></div></div>`;
 }
 
 const enemySpr = () => document.querySelector("#enemyZone .enemy")?.firstElementChild ?? null;

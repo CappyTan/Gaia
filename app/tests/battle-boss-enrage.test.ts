@@ -41,7 +41,7 @@ function hero(atk: number): Member {
 function stage(): void {
   document.body.innerHTML = `<div id="battleBg"></div><div id="stage">
     <div id="enemyZone"></div><div id="partyZone"></div>
-    <div id="rosterPanel"></div><div id="log"></div><div id="affinityChain"></div>
+    <div id="rosterPanel"><div id="resStrip"></div><div id="rosterRows"></div></div><div id="log"></div><div id="affinityChain"></div>
     <div id="cmdPanel"><div id="cmdWho"></div><div id="cmdList"></div></div></div>`;
 }
 
