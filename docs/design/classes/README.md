@@ -37,6 +37,11 @@ replaced by the ultimate choice.
 
 ## The two progression axes (Model B)
 
+> 🟡 **Draft direction under exploration (not in effect):** [ADR 0022](../../adr/0022-stable-of-45-recruited-roster.md)
+> brainstorms replacing fluid weapon-reclass with a **stable of 45 fixed-class, recruited named heroes**.
+> It's a *pending* proposal — the model below (Class = equipped weapon) remains current canon until Dara
+> decides.
+
 There is **one master progression axis — MNA** — **dominantly from gear**, with a small level-derived
 floor ([ADR 0021](../../adr/0021-mna-from-gear-level-floor.md)).
 
