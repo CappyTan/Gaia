@@ -70,6 +70,10 @@ Convergence, the war, and the vanishing is lost to them.
 are perceived as deities, and the five-faction framing — Archons, the Sixth Deity — descends from
 them.)*
 
+**Naming (confirmed, Dara 2026-07-01):** in the mortal/common tongue, this war-and-Sundering is known
+as **the Great War** — the scholarly "the Convergence" and the folk "the Great War" name the same
+event.
+
 ## The Sundering — the broken heart of the world
 
 The cataclysm above left **five divine scars** in the southeast — the only Attunement-themed
@@ -171,11 +175,11 @@ far removed from governments and powerful figures, its very existence almost unk
 borders. It is near this quiet shire that **ancient ruins have recently been unearthed**, with a
 **high concentration of mana emanating from within them**. This is where our heroes' journey starts.
 
-> **Design flag (gameplay — agent lane, to reconcile later):** the ruins are a new geography/plot
-> hook, not yet placed in Greenvale's built zone data or Areas (`data/zones.ts`) — the "Bandit
-> Warren" dungeon and Bandit Kingpin arc are the current playable content. What the ruins actually
-> *are* (a POI, a future dungeon, the seed of a later story beat) is Dara's to define when he's
-> ready; flagged here so the level-design/world-building pipeline knows to reconcile toward it.
+> **Design flag (gameplay — agent lane, to reconcile later):** the ruins are **not a dungeon yet, but
+> will likely become one later** (Dara, 2026-07-01) — not yet placed in Greenvale's built zone data
+> or Areas (`data/zones.ts`); the "Bandit Warren" dungeon and Bandit Kingpin arc remain the current
+> playable content. Flagged here so the level-design/world-building pipeline picks this up as a
+> future Greenvale dungeon/POI when Dara's ready to build it — no other detail is prescribed yet.
 
 The grand systems above — Soul Burn, Ascension, Harmonic Ascension, the Archon path, and the
 Sundering endgame — are **canon but not yet built**. The POC is the first slice of a far larger
