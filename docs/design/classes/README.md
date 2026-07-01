@@ -22,6 +22,12 @@ A class = one **Attunement** × one **Weapon Archetype** (5 × 9 = 45). The scaf
 kit is greenfield. Character level caps at **100** (progression beyond 100 is future scope and is
 **gear-gated**, not built now).
 
+> **Naming ([ADR 0023](../../adr/0023-weapon-discipline-archon-title.md)):** the 45 names in this
+> doc's file titles (Sunblade, Starbreaker, …) are the class's **Archon Title** — earned in-game only
+> at Archon Type I (100 MNA), not a starting identity. Below that, a live hero displays their
+> universal **Weapon Discipline** instead ("Sol Duelist"). This is a display-layer rule on top of the
+> spec, not a change to the spec/kit design below.
+
 ## The 52 authored entries per class
 
 | Tier | Count | Grouping | Milestone (MNA threshold) | You end with |

@@ -14,6 +14,7 @@ import { gain, spend, carryPools, turnGain } from "../systems/resources";
 import { autoGenFor } from "../systems/classKit";
 import { RESOURCE } from "../data/resources";
 import { ATT, RING } from "../data/attunements";
+import { classTitle } from "../data/classes";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
@@ -138,7 +139,7 @@ export const Battle = {
   showCommands(m: Member): void {
     if (!this.active) return; // never paint the command menu after the battle has resolved (stuck-battle guard)
     this.setCmdWide(false);
-    $("#cmdWho")!.textContent = `${m.name}  ·  ${m.cls}`;
+    $("#cmdWho")!.textContent = `${m.name}  ·  ${classTitle(m.att, m.cls, m.mna[m.att])}`;
     const list = $("#cmdList")!; list.innerHTML = "";
     const mk = (label: string, cost: number, fn: () => void, dis?: boolean) => {
       const b = el("button", "cmd", `${label}${cost ? `<span class="cost">${cost} MP</span>` : ""}`) as HTMLButtonElement;

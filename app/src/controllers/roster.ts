@@ -8,7 +8,7 @@ import type { Attunement, MemberDef } from "../types";
 import { ATTUNEMENTS } from "../types";
 import { ATT } from "../data/attunements";
 import { ARCHETYPES, ARCHETYPE_KEYS, buildDef, PARTY_DEFS } from "../data/party";
-import { className } from "../data/classes";
+import { classTitle } from "../data/classes";
 import { classBody } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Screens } from "./screens";
@@ -44,7 +44,7 @@ export const Roster = {
     return `<div class="rcard" style="border-color:${col}44">
       <div class="rbody">${body ? `<img src="${body}" alt="">` : `<div class="spr">🧝</div>`}</div>
       <div class="rinfo">
-        <div class="rname">${s.name} <span class="rcls" style="color:${col}">${className(s.att, s.cls)}</span></div>
+        <div class="rname">${s.name} <span class="rcls" style="color:${col}">${classTitle(s.att, s.cls, 0)}</span></div>
         <div class="rpick"><button class="rb" onclick="Roster.cycle(${i},'att',-1)">◀</button><b style="color:${col};flex:1;text-align:center">${s.att}</b><button class="rb" onclick="Roster.cycle(${i},'att',1)">▶</button></div>
         <div class="rpick"><button class="rb" onclick="Roster.cycle(${i},'cls',-1)">◀</button><span style="flex:1;text-align:center">${s.cls} · <span class="rrole">${role}</span></span><button class="rb" onclick="Roster.cycle(${i},'cls',1)">▶</button></div>
       </div></div>`;

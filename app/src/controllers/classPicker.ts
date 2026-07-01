@@ -13,6 +13,7 @@ import type { Member } from "../types";
 import { choiceSlots, reached, choose, pickedAt, activeKit, fullyPicked, type Picks, type ChoiceSlot } from "../systems/choice";
 import { genAbility } from "../systems/classGen";
 import { HELIOMANCER, SLICE_SPECS, specFor } from "../data/classSpecs";
+import { classTitle } from "../data/classes";
 import { recalc } from "../systems/progression";
 import { ATT } from "../data/attunements";
 import { clamp } from "../core/rng";
@@ -133,6 +134,10 @@ export const ClassPicker = {
            <span class="ll lC"><b class="lane-C">C</b> ${L.C}</span></div>`
       : "";
     const who = bound ? ` <span class="pill">${this.member!.spr} ${this.member!.name}</span>` : "";
+    // Bound to a live hero: below Archon Type I they're known by their Weapon Discipline, not the
+    // Archon Title this spec is named for (ADR 0023). Standalone preview mode is a class BROWSER
+    // (not a specific hero's state), so it always shows the true/canonical spec name.
+    const headline = bound ? classTitle(this.spec.att, this.spec.archetype, this.mna) : this.spec.name;
     const intro = bound
       ? `Choose this hero's abilities. Picks at milestones beyond their current ${this.spec.att} MNA are <i>banked</i> (dormant until they reach it). Confirm to apply.`
       : `${this.spec.att} × ${this.spec.archetype} — the 3-lane choice system. Pick at each milestone your MNA has reached; picks above your MNA go <i>dormant</i> (banked, inactive).`;
@@ -141,7 +146,7 @@ export const ClassPicker = {
       : `<button class="btn gold" onclick="ClassPicker.close()">Close</button>`;
 
     Overlay.show(`<div class="cpx">${CP_STYLE}
-      <h2 class="title-gold cptitle" style="color:${col}">${this.spec.name}${who}</h2>
+      <h2 class="title-gold cptitle" style="color:${col}">${headline}${who}</h2>
       <div class="small cpintro">${intro}</div>
       ${legend}
       <div class="row cpbar">
