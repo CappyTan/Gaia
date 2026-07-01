@@ -38,7 +38,23 @@ interface Entry {
   type: string; target: string; effect: string; status?: string;
   gen?: string; cost?: string; cooldown?: string;
 }
-interface Spec { att: string; archetype: string; name: string; abilities: Entry[]; }
+interface Spec { att: string; archetype: string; name: string; lanes?: { A: string; B: string; C: string }; abilities: Entry[]; }
+
+// The three build-path NAMES, from the spec's `### Lanes` table (rows: `| **A · Name** … |`). Scoped to
+// that section so ability lines (also `**A · Name**`) aren't mistaken for lane names. Undefined if the
+// spec has no parseable A/B/C trio (the picker then falls back to bare A/B/C labels).
+function parseLanes(text: string): { A: string; B: string; C: string } | undefined {
+  let inLanes = false;
+  const out: Record<string, string> = {};
+  for (const ln of text.split("\n")) {
+    if (/^#{2,4}\s+.*\blanes?\b/i.test(ln)) { inLanes = true; continue; }
+    if (inLanes && /^#{1,4}\s/.test(ln)) break; // next header ends the Lanes section
+    if (!inLanes) continue;
+    const m = /\*\*([A-C])\s*·\s*([^*|]+?)\*\*/.exec(ln); // first bolded "X · Name" cell in the row
+    if (m && !out[m[1]]) out[m[1]] = m[2].trim();
+  }
+  return out.A && out.B && out.C ? { A: out.A, B: out.B, C: out.C } : undefined;
+}
 
 // ── status derivation ───────────────────────────────────────────────────────────────────────────
 // Ordered keyword → catalog status (ADR 0016). Only catalog statuses can be applied by the engine, so
@@ -199,7 +215,8 @@ function parseSpec(file: string, text: string): Spec {
   const ultType = physN > dmg.length - physN ? "phys" : "mag";
   for (const a of abilities) if (a.tier === "ultimate") a.type = ultType;
 
-  return { att, archetype, name, abilities };
+  const lanes = parseLanes(text);
+  return { att, archetype, name, ...(lanes ? { lanes } : {}), abilities };
 }
 
 // ── emit ───────────────────────────────────────────────────────────────────────────────────────
@@ -215,7 +232,8 @@ function emitEntry(e: Entry): string {
   return `    { ${parts.join(", ")} },`;
 }
 function emitSpec(s: Spec): string {
-  return `  {\n    att: ${q(s.att)}, archetype: ${q(s.archetype)}, name: ${q(s.name)},\n    abilities: [\n${s.abilities.map(emitEntry).join("\n")}\n    ],\n  },`;
+  const lanes = s.lanes ? `\n    lanes: { A: ${q(s.lanes.A)}, B: ${q(s.lanes.B)}, C: ${q(s.lanes.C)} },` : "";
+  return `  {\n    att: ${q(s.att)}, archetype: ${q(s.archetype)}, name: ${q(s.name)},${lanes}\n    abilities: [\n${s.abilities.map(emitEntry).join("\n")}\n    ],\n  },`;
 }
 
 // A class spec is "<attunement>-<archetype>.md" — match the attunement prefix so README, *-family.md,

@@ -124,6 +124,14 @@ export const ClassPicker = {
     const kit = activeKit(this.spec, this.picks, this.mna)
       .map((a) => { const g = genAbility(a); const tag = g.resourceCost ? ` −${g.resourceCost}` : g.resourceGen ? ` +${g.resourceGen}` : ""; return `<span class="kchip l${laneOf(a)}" title="${a.effect}">${a.name}${tag}</span>`; })
       .join(" ");
+    const L = this.spec.lanes;
+    const legend = L
+      ? `<div class="paths-h">The three paths — pick abilities along these lanes</div>
+         <div class="lanes-legend">
+           <span class="ll lA"><b class="lane-A">A</b> ${L.A}</span>
+           <span class="ll lB"><b class="lane-B">B</b> ${L.B}</span>
+           <span class="ll lC"><b class="lane-C">C</b> ${L.C}</span></div>`
+      : "";
     const who = bound ? ` <span class="pill">${this.member!.spr} ${this.member!.name}</span>` : "";
     const intro = bound
       ? `Choose this hero's abilities. Picks at milestones beyond their current ${this.spec.att} MNA are <i>banked</i> (dormant until they reach it). Confirm to apply.`
@@ -135,6 +143,7 @@ export const ClassPicker = {
     Overlay.show(`<div class="cpx">${CP_STYLE}
       <h2 class="title-gold cptitle" style="color:${col}">${this.spec.name}${who}</h2>
       <div class="small cpintro">${intro}</div>
+      ${legend}
       <div class="row cpbar">
         <span class="small">Total ${this.spec.att} MNA: <b style="color:${col}">${this.mna}</b></span>
         <button class="btn" onclick="ClassPicker.setMna(${this.mna - 10})">−10</button>
@@ -154,6 +163,11 @@ const CP_STYLE = `<style>
 .cpx{--A:#f4b942;--B:#ef7a4a;--C:#5fc6d6;--N:#ffd877;--gen:#8fd17a;--cost:#ef6b6b;--line:#3a2e12;--panel:#1b1509;--panel2:#241c0d;--dim:#b8a87f;--ink:#f3e9d2;text-align:left}
 .cpx .cptitle{margin:0 0 2px}
 .cpx .cpintro{margin-bottom:6px}
+.cpx .paths-h{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:6px 0 4px;font-weight:600}
+.cpx .lanes-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.cpx .ll{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;font-weight:600;color:var(--ink)}
+.cpx .ll.lA{border-left:3px solid var(--A)} .cpx .ll.lB{border-left:3px solid var(--B)} .cpx .ll.lC{border-left:3px solid var(--C)}
+.cpx .ll b{margin-right:6px;font-weight:800}
 .cpx .cpbar{margin:6px 0;align-items:center;flex-wrap:wrap;gap:4px}
 .cpx .cpscroll{max-height:52vh;overflow:auto;text-align:left;padding-right:4px}
 .cpx .tier-h{font-size:12px;text-transform:uppercase;letter-spacing:1.4px;color:var(--N);font-weight:700;margin:16px 0 2px;border-bottom:1px solid var(--line);padding-bottom:4px}

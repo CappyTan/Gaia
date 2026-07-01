@@ -36,5 +36,6 @@ export interface ClassSpec {
   att: Attunement;
   archetype: string;
   name: string; // the class name (e.g. "Heliomancer")
+  lanes?: { A: string; B: string; C: string }; // the three build-path names (from the spec's ### Lanes table)
   abilities: AbilityEntry[];
 }
