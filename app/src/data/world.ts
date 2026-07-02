@@ -904,7 +904,10 @@ export function polyCentroid(poly: Polygon): Point {
 
 // The placement table for the three BUILT zones. Each `(wx,wy)` is computed so the authored grid
 // (w×h from its ZoneLayout) is centered on the zone polygon's shoelace centroid:
-//   greenvale  (64×24) centroid ≈ (159, 74)  → wx,wy = (127, 62)   rect [127,62)..[191,86)
+//   greenvale  (64×40) centroid ≈ (159, 74)  → wx,wy = (127, 54)   rect [127,54)..[191,94)
+//     (wave3b: the shire grew 24→40 rows; wy moved 62→54 in lockstep with the +8 local-y shift of the
+//      original content, so every pre-existing feature keeps its EXACT world tile — spawn (129,74),
+//      Warren mouth (162,82) — and the gorge's west-arm geography (x≥192) stays clear of the core.)
 //   silverwood (60×24) centroid ≈ (300, 70)  → wx,wy = (270, 58)   rect [270,58)..[330,82)  (RESHAPED A0)
 //   duskmarsh  (56×22) centroid ≈ (176, 151) → wx,wy = (148, 140)  rect [148,140)..[204,162)
 // (Hard-coded — pure data the engine reads at startup — but derived exactly by `polyCentroid` above;
@@ -919,7 +922,7 @@ export function polyCentroid(poly: Polygon): Point {
 //   whisperhills (52×22) centroid ≈ (386.8,271.9) → (361, 261)  rect [361,261)..[413,283)
 //   sunbridge    (60×24) centroid ≈ (304.9,290.0) → (275, 278)  rect [275,278)..[335,302)
 export const WORLD_PLACEMENT: Record<string, ZonePlacement> = {
-  greenvale: { wx: 127, wy: 62, scale: 1 },
+  greenvale: { wx: 127, wy: 54, scale: 1 },
   silverwood: { wx: 270, wy: 58, scale: 1 },
   duskmarsh: { wx: 148, wy: 140, scale: 1 },
   goldmeadow: { wx: 269, wy: 137, scale: 1 },
@@ -1038,6 +1041,13 @@ export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[
   const halo = (p: Pt) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = p.x + dx, yy = p.y + dy; if (inB(xx, yy) && grid[yy][xx] === "tree") grid[yy][xx] = "grass"; } };
   L.chests.forEach((c) => { halo(c); carve(c.x, c.y, "chest"); });
   if (L.lair) { halo(L.lair); carve(L.lair.x, L.lair.y, "lair"); }
+  // SECOND-DUNGEON ENTRANCE (wave3b — the Ancient Ruins): a walkable "ruins" mouth, halo'd + a flood
+  // target like the lair. Unguarded — stepping onto it descends into `zone.dungeon2`.
+  if (L.ruins) { halo(L.ruins); carve(L.ruins.x, L.ruins.y, "ruins"); }
+  // GATHERING NODES (crafting slice): walkable resource tiles, stamped like the ruins entrance. The
+  // grid is pure, so every node restamps — the controller re-applies the run's gathered state over
+  // the rebuilt grid (enterBigMap/returnToOverworld), exactly as it does for looted chests.
+  if (L.nodes) for (const n of L.nodes) { halo(n); carve(n.x, n.y, n.kind); }
   // POIs (the INHABITED world): each sits on walkable ground (halo'd) as its own special tile kind.
   if (L.pois) for (const p of L.pois) { halo(p); carve(p.x, p.y, p.kind); }
   halo(L.mouth); grid[L.mouth.y][L.mouth.x] = miniDefeated ? "mouth" : "miniboss";
@@ -1050,7 +1060,8 @@ export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[
   if (village) { halo(village); grid[village.y][village.x] = "village"; }
   // ANTI-SOFT-LOCK: the mouth, every chest/lair, the hub marker, AND every crossing/POI must stay reachable
   // from spawn — anything a river/cliff walls off gets a punch-through corridor (terrain frames, not severs).
-  const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair); if (village) targets.push(village);
+  const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair); if (L.ruins) targets.push(L.ruins); if (village) targets.push(village);
+  if (L.nodes) targets.push(...L.nodes.map((n) => ({ x: n.x, y: n.y })));
   if (L.bridges) targets.push(...L.bridges);
   if (L.fords) targets.push(...L.fords);
   if (L.pois) targets.push(...L.pois.map((p) => ({ x: p.x, y: p.y })));

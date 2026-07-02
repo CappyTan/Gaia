@@ -10,6 +10,9 @@ import { abpFromGear, substatBaseline } from "./stats";
 // Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
 // Attunement until the manual allocator ships — see mna-progression.md).
 export const MNA_PER_LEVEL = 1;
+// Heroes start at level 10 (Dara): those levels' MNA banks into their own tree so the 5/10 MNA
+// milestones are open on day one — one special + one signature pickable right out of the gate.
+export const START_LEVEL = 10;
 
 /** Output-scaling bonus from an MNA total: up to +60% at 200 MNA (REQUIEM mana mechanic). */
 export const mnaBonus = (mna: number): number => 0.6 * Math.max(0, Math.min(1, mna / 200));

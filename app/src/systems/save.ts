@@ -21,6 +21,8 @@ import { SETTLEMENTS } from "../data/towns";
 import { hasSpec } from "./classKit";
 import { AFFIXES } from "../data/items";
 import { HELD_ITEMS } from "../data/heldItems";
+import { MATERIALS } from "../data/materials";
+import { CONSUMABLES } from "../data/consumables";
 import { RARITY } from "../data/rarity";
 
 // ── envelope ───────────────────────────────────────────────────────────────────────────────
@@ -107,6 +109,12 @@ export interface SavedRun {
   // absent / out-of-range on an old or single-floor save → floor 0 (back-compatible, no schema bump).
   // Only meaningful when `enteredDungeon`; ignored otherwise.
   dungeonFloor?: number;
+  // WHICH DUNGEON the save is inside (wave3b — a zone can carry a SECOND descend target, the Ancient
+  // Ruins): "second" when saved inside `zone.dungeon2`, else "main"/absent. OPTIONAL + degrade-never-
+  // throw — absent on an old save → "main" (the only dungeon that existed). Only meaningful when
+  // `enteredDungeon`; the controller's dungeonDef() also falls back to main if the zone lost its
+  // second dungeon across a deploy (the floor index is then clamped as usual).
+  activeDungeon?: string;
   // MULTI-FLOOR: which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten this visit,
   // by floor index ("0".."N" → true). Persisted so a resume past a beaten gate keeps the stairs live
   // (no surprise re-fight / no being stranded past a gate the state thinks is closed). OPTIONAL +
@@ -128,6 +136,18 @@ export interface SavedRun {
   // string[]. OPTIONAL + degrade-never-throw — absent on an old save = none held, EXCEPT the controller
   // re-seeds a key item whose cap the save already owns (a Greenvale-beaten save shows the raft). No bump.
   heldItems?: string[];
+  // QUEST LOG — per-quest {accepted,kills,turnedIn}. OPTIONAL + degrade-never-throw: absent on an old
+  // save = an empty log (quests simply re-offerable from their givers). No version bump needed.
+  quests?: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>;
+  // CRAFTING MATERIALS + CONSUMABLES (the crafting slice) — two stackable {id → count} records.
+  // OPTIONAL + degrade-never-throw (the quests pattern): absent on an old save = empty stacks; ids no
+  // longer in the registries are dropped on load (a removed material can't linger). No version bump.
+  materials?: Record<string, number>;
+  consumables?: Record<string, number>;
+  // GATHERED NODES (crafting slice): per-zone keys ("<zoneId>:nd:<x>,<y>") → gathered, so a gathered
+  // node stays spent across a reload (no infinite-material exploit — the openedChests pattern).
+  // OPTIONAL + degrade-never-throw — absent on an old save = nothing gathered. No version bump.
+  gatheredNodes?: Record<string, boolean>;
   // WAYFINDING PROGRESS (ADR 0011): the run's known/entered regions, two zone-id string[]s. Drives the
   // derived Objective + the continent overview-map reveal. OPTIONAL + degrade-never-throw — absent on an
   // old save = empty progress (cosmetic/wayfinding only; gates nothing, so no soft-lock risk). No bump.
@@ -171,10 +191,16 @@ export interface RunSnapshot {
   poisCleared: Record<string, boolean>;
   openedChests: Record<string, boolean>;
   dungeonFloor: number;
+  /** Which dungeon the run is inside (wave3b): "second" = the zone's dungeon2 (the Ancient Ruins). Optional — defaults "main". */
+  activeDungeon?: "main" | "second";
   dungeonMiniCleared: Record<number, boolean>;
   mouthCleared: Record<string, boolean>;
   ownedCaps: string[];
   heldItems: string[];
+  quests?: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>;
+  materials?: Record<string, number>;    // crafting material stacks (the slice); optional — defaults empty
+  consumables?: Record<string, number>;  // crafted consumable stacks (the slice); optional — defaults empty
+  gatheredNodes?: Record<string, boolean>; // gathered gathering-nodes (the slice); optional — defaults empty
   progress: { known: string[]; entered: string[] };
   resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019)
 }
@@ -205,10 +231,15 @@ export interface LoadedRun {
   poisCleared: Record<string, boolean>; // cleared/spent POIs (per-zone keys); empty on an old save
   openedChests: Record<string, boolean>; // looted chests (per-context keys); empty on an old save
   dungeonFloor: number;      // which multi-floor dungeon floor to resume on (0 if not / single-floor)
+  activeDungeon: "main" | "second"; // which dungeon to rebuild on a mid-dungeon resume (wave3b); "main" on old saves
   dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
   mouthCleared: Record<string, boolean>; // zones whose OVERWORLD mouth guard was beaten (per zone id); old saves seed from the global miniBossDefeated
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   heldItems: string[];       // held quest/key item ids (e.g. ["raft"]); empty on an old save (the controller re-seeds a key item whose cap is already owned)
+  quests: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>; // quest log; empty on an old save
+  materials: Record<string, number>;     // crafting material stacks; empty on an old save (unknown ids dropped)
+  consumables: Record<string, number>;   // crafted consumable stacks; empty on an old save (unknown ids dropped)
+  gatheredNodes: Record<string, boolean>; // gathered gathering-nodes (per-zone keys); empty on an old save
   progress: { known: string[]; entered: string[] }; // wayfinding known/entered regions (ADR 0011); empty on an old save (cosmetic — gates nothing)
   resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019); empty (zero) on an old save
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
@@ -289,10 +320,15 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     poisCleared: { ...s.poisCleared },
     openedChests: { ...s.openedChests },
     dungeonFloor: s.dungeonFloor,
+    activeDungeon: s.activeDungeon ?? "main",
     dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
     mouthCleared: { ...s.mouthCleared },
     ownedCaps: [...s.ownedCaps],
     heldItems: [...s.heldItems],
+    quests: JSON.parse(JSON.stringify(s.quests ?? {})),
+    materials: { ...(s.materials ?? {}) },
+    consumables: { ...(s.consumables ?? {}) },
+    gatheredNodes: { ...(s.gatheredNodes ?? {}) },
     progress: { known: [...s.progress.known], entered: [...s.progress.entered] },
     resources: { ...s.resources },
   };
@@ -420,6 +456,25 @@ function reviveOpenedChests(v: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   if (!v || typeof v !== "object") return out;
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string") out[k] = true;
+  return out;
+}
+
+/** Sanitize the persisted gathered-node map (crafting slice): a plain {string→true} dict; anything else → empty (never throws). */
+function reviveGatheredNodes(v: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string") out[k] = true;
+  return out;
+}
+
+/** Sanitize a persisted stack record (crafting slice): keep only KNOWN registry ids with a finite
+ *  positive count (floored) — a removed material/consumable is dropped, junk never throws. Mirrors
+ *  reviveHeldItems' known-id filter for the stackable records. */
+function reviveCounts(v: unknown, known: (id: string) => boolean): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>))
+    if (typeof k === "string" && known(k) && typeof val === "number" && isFinite(val) && val > 0) out[k] = Math.floor(val);
   return out;
 }
 
@@ -575,6 +630,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // MULTI-FLOOR — the saved dungeon floor (clamped ≥0; clamped to the zone's floor count by the
     // controller on resume). Reset to 0 if the zone changed under us. Degrade-never-throw.
     dungeonFloor: resetPos ? 0 : Math.max(0, Math.floor(r.dungeonFloor || 0)),
+    // WHICH DUNGEON (wave3b): "second" only for a live mid-dungeon2 save; anything else (old saves,
+    // junk, a reset position) degrades to "main". The controller's dungeonDef() re-guards against a
+    // zone that lost its second dungeon.
+    activeDungeon: !resetPos && r.enteredDungeon && r.activeDungeon === "second" ? "second" : "main",
     dungeonMiniCleared: resetPos ? {} : reviveFloorFlags(r.dungeonMiniCleared),
     // PER-ZONE MOUTH-CLEARED — sanitized {zoneId→true}. BACK-COMPAT (no soft-lock): an old save with no
     // field but the legacy global `miniBossDefeated` set seeds its current zone (so a Greenvale-beaten save
@@ -591,6 +650,14 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // held set, continueRun's cap→item re-seed self-heals it on the next load (the raft reappears from the
     // still-owned cap), so the cap — the thing that prevents a soft-lock — is never lost.
     heldItems: resetPos ? [] : reviveHeldItems(r.heldItems),
+    quests: r.quests ?? {}, // quest log — empty on an old save (degrade-never-throw)
+    // CRAFTING STACKS (the slice) — sanitized to known registry ids with positive counts (a removed
+    // material/consumable is dropped, never crashes). Not tied to position — a vanished zone doesn't
+    // strand the pouch. Empty on an old save.
+    materials: reviveCounts(r.materials, (id) => !!MATERIALS[id]),
+    consumables: reviveCounts(r.consumables, (id) => !!CONSUMABLES[id]),
+    // GATHERED NODES — sanitized {key→true} like openedChests; empty on an old save.
+    gatheredNodes: reviveGatheredNodes(r.gatheredNodes),
     // WAYFINDING PROGRESS (ADR 0011) — sanitized known/entered region ids. Cosmetic (gates nothing), so an
     // old save with no field loads empty; reset when the zone changed under us (the run restarts elsewhere,
     // and syncZoneFromWorld re-marks the landing zone entered on the first step).

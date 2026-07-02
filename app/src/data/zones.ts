@@ -49,6 +49,14 @@ export interface ZoneLayout {
   chests: Pt[];
   /** Optional points of interest: e.g. a rare-monster lair the player can stumble into. */
   lair?: Pt;
+  /**
+   * Optional SECOND-DUNGEON ENTRANCE (wave3b — the Greenvale Ancient Ruins): the overworld tile the
+   * player steps onto to descend into the zone's `dungeon2` (stamped as the walkable "ruins" kind,
+   * halo'd + a flood target like `lair`). Author it OFF the critical path — it is unguarded (no
+   * mini-boss gate; the harder interior IS the gate). A zone with `ruins` MUST declare `dungeon2`
+   * (validate.ts enforces the pairing).
+   */
+  ruins?: Pt;
   /** Scatter density for cosmetic bush/rock on open ground (0–1). Default ~0.06. */
   scatter?: number;
   /**
@@ -94,7 +102,21 @@ export interface ZoneLayout {
    * required route (they sit ON walkable ground). Pure data — the controller wires the triggers.
    */
   pois?: Poi[];
+  /**
+   * GATHERING NODES (crafting slice — docs/design/crafting-schema.md §Gathering nodes). WoW-style
+   * walkable resource tiles: stepping onto one GATHERS it (materials into Game.materials, rolled by
+   * systems/crafting off the data/materials yield tables), consumes it for the run, and persists like
+   * an opened chest (Field.gatheredNodes). Stamped by buildAuthoredGrid + genOverworld exactly like
+   * `ruins`/POIs (halo'd, a flood target — never blocks a route). Author them by kind near the terrain
+   * they read as: ore by crags/cliff lines, roots by tree lines, blooms by water/meadow.
+   */
+  nodes?: GatherNode[];
 }
+
+/** A gathering-node tile kind (draw + yield tables key off it — see data/materials.GATHER_NODES). */
+export type NodeKind = "node-ore" | "node-root" | "node-bloom";
+/** An authored gathering node: a walkable, once-per-run resource tile. */
+export interface GatherNode { x: number; y: number; kind: NodeKind; }
 
 /** A point of interest / encampment (the INHABITED-world layer). `kind` drives its `move()` effect. */
 export type PoiKind = "shrine" | "camp" | "landmark" | "signpost";
@@ -165,6 +187,38 @@ export interface DungeonLayout {
    * boss + chests + this tile, so a beaten mini always opens onto reachable stairs.
    */
   miniboss?: Pt;
+  /**
+   * THE SEALED TERMINUS (wave3b — the Ancient Ruins' deepest floor). A walkable landmark tile carved
+   * on the LAST floor INSTEAD of a boss: stepping onto it shows a flavor overlay (something ancient
+   * waits behind it — content for later), never a fight. When the last floor carries `seal`,
+   * genDungeon carves it (halo'd, a flood target) and does NOT carve a "boss" tile — set `boss` to
+   * the same coords so every boss-reading consumer (progress(), topology egress) points at the seal.
+   */
+  seal?: Pt;
+}
+
+/**
+ * A zone's dungeon definition (extracted so a zone can carry a SECOND one — wave3b). The main
+ * `Zone.dungeon` is unchanged in shape; `dungeon2` (the Ancient Ruins) additionally carries its own
+ * harder `bands` + an `ilvlBonus` loot edge, and is entered via the overworld `layout.ruins` tile.
+ */
+export interface ZoneDungeon {
+  name: string;
+  env: string;
+  layout: DungeonLayout;
+  floors?: DungeonLayout[];
+  floorMini?: string;
+  /**
+   * Optional dungeon-SCOPED encounter table (defaults to the zone's overworld `bands` when absent —
+   * the main dungeons keep sharing the zone spine). The Ruins use a hotter cast than the overworld.
+   */
+  bands?: EncounterBand[];
+  /**
+   * Flat ITEM-LEVEL EDGE this dungeon's chests roll over the zone's overworld chest curve (added to
+   * both the rarity-band level and the ilvl in Field.openChest). The Ruins' +3 is the "harder place,
+   * better loot" promise; enemy drops get their edge from the hotter cast's higher levels.
+   */
+  ilvlBonus?: number;
 }
 
 export interface Zone {
@@ -189,7 +243,14 @@ export interface Zone {
    * the `boss` finale. `floorMini` is the enemy key the in-dungeon mini-boss fights (a placeholder
    * for the encounter-designer to author).
    */
-  dungeon: { name: string; env: string; layout: DungeonLayout; floors?: DungeonLayout[]; floorMini?: string };
+  dungeon: ZoneDungeon;
+  /**
+   * Optional SECOND dungeon (wave3b — the Greenvale Ancient Ruins): a separate descend target entered
+   * through the zone's `layout.ruins` overworld tile (unguarded, off the critical path). Same
+   * multi-floor machinery as `dungeon`; its own `bands`/`ilvlBonus` make it the harder, richer
+   * optional delve. `Field.activeDungeon` resolves which of the two a descent runs.
+   */
+  dungeon2?: ZoneDungeon;
   /** Bespoke layout consumed by `controllers/field.genMap` (ADR 0006). */
   layout: ZoneLayout;
   /**
@@ -274,84 +335,144 @@ export const ENCOUNTERS: EncounterBand[] = [
 // the grid's east edge: the player walks off the core east and dead-ends at the impassable gorge CHASM
 // ARM (world x192, reaching into Greenvale's edge), the Elder-Oak of Silverwood looming across it. The
 // Bandit Warren is now a KEYLESS beginner trial (loot only, no raft) on a SOUTH branch off the staging
-// green (mouth local (35,20) → world (162,82)). The raft is found further SOUTH, in the Duskmarsh's
+// green (mouth local (35,28) → world (162,82)). The raft is found further SOUTH, in the Duskmarsh's
 // Drowned Vault (battle.ts grants the "gorge" cap on that boss). Beat: pushed east → hit the chasm
 // (stuck), Oak across it → the open way is SOUTH → through the Duskmarsh, clear the Drowned Vault → raft
 // → return → cross east to Silverwood. The boss tile/gateWallX stay legacy (the dungeon is its own grid).
+// THE BIG SHIRE (wave3b — Greenvale grew ~1.67×). The authored grid is now 64×40 (was 64×24): the
+// original open mesh is UNCHANGED but sits 8 rows lower in the grid (every legacy local y is +8), and
+// the WORLD_PLACEMENT wy moved 62→54 in lockstep — so every pre-existing feature keeps its EXACT world
+// tile (spawn world (129,74), Warren mouth world (162,82), Hogger world (154,82) — the gorge geography,
+// the rim beat, and every persisted key survive untouched). The new space is two fresh bands:
+//   • THE NORTH DOWNS (local y1–7): a NW bluebell hollow (chest) and, NE of it, the RUINS DELL — the
+//     newly unearthed ANCIENT RUINS excavation (`ruins` entrance → `dungeon2`, lore-summary's starting
+//     hook), linked by a downs trail and climbing paths off the orchard/thicket (a full north loop).
+//   • THE SOUTH FENS (local y32–38): a south pasture and a brookside fen (chest), looped back up to the
+//     meadow and the grove — the Hearthbrook now runs on SOUTH through the fen (a third crossing, forded).
 const GREENVALE_LAYOUT: ZoneLayout = {
-  w: 64, h: 24, spawn: { x: 2, y: 12 }, gate: { x: 40, y: 20 }, gateWallX: 40, boss: { x: 60, y: 11 },
+  w: 64, h: 40, spawn: { x: 2, y: 20 }, gate: { x: 40, y: 18 }, gateWallX: 40, boss: { x: 60, y: 11 },
   // The OVERWORLD MOUTH is now DECOUPLED from the legacy combined-grid gate (ADR 0008 new model): the
   // live big map stamps the mouth at `mouth`, the legacy combined-grid scaffolding still uses gate/gateWallX
-  // at x=40 (its wall gap rides `gate.y`). RELOCATED SOUTH off the spawn→gorge path (was (40,12) → world
-  // (167,74), met before the gorge). Now world (162,82) — a south branch, so the gorge is met first.
-  mouth: { x: 35, y: 20 }, // the Bandit-Warren mouth (the Brigadier guards it) — SOUTH branch, off the east route
+  // at x=40 (its wall gap rides `gate.y` — kept on the east-flow row y18 so the legacy stamp still connects
+  // both sides: (39,18) is the staging road's end, (41,18) abuts the rebased warren's deep cache).
+  // RELOCATED SOUTH off the spawn→gorge path. World (162,82) — a south branch, so the gorge is met first.
+  mouth: { x: 35, y: 28 }, // the Bandit-Warren mouth (the Brigadier guards it) — SOUTH branch, off the east route
   fieldRects: [
-    { x: 1, y: 10, w: 7, h: 6 },    // spawn green (the village road mouth)
-    { x: 10, y: 8, w: 7, h: 8 },    // WEST HUB — the first crossroads, three roads leave it
-    { x: 12, y: 2, w: 8, h: 5 },    // north orchard (chest)
-    { x: 11, y: 17, w: 9, h: 5 },   // south meadow (chest)
-    { x: 24, y: 8, w: 8, h: 8 },    // CENTRAL HUB — the three roads rejoin here
-    { x: 24, y: 2, w: 8, h: 5 },    // NE thicket (chest, on the north ridge)
-    { x: 23, y: 17, w: 9, h: 5 },   // the hidden grove (Hogger's lair, off the south loop)
-    { x: 34, y: 8, w: 5, h: 5 },    // east staging green — the eastward main flow continues to the GORGE RIM
-    { x: 32, y: 16, w: 7, h: 7 },   // SE WARREN-APPROACH hollow — the south branch down to the relocated mouth
+    { x: 1, y: 18, w: 7, h: 6 },    // spawn green (the village road mouth)
+    { x: 10, y: 16, w: 7, h: 8 },   // WEST HUB — the first crossroads, three roads leave it
+    { x: 12, y: 10, w: 8, h: 5 },   // north orchard (chest)
+    { x: 11, y: 25, w: 9, h: 5 },   // south meadow (chest)
+    { x: 24, y: 16, w: 8, h: 8 },   // CENTRAL HUB — the three roads rejoin here
+    { x: 24, y: 10, w: 8, h: 5 },   // NE thicket (chest, on the north ridge)
+    { x: 23, y: 25, w: 9, h: 5 },   // the hidden grove (Hogger's lair, off the south loop)
+    { x: 34, y: 16, w: 5, h: 5 },   // east staging green — the eastward main flow continues to the GORGE RIM
+    { x: 32, y: 24, w: 7, h: 7 },   // SE WARREN-APPROACH hollow — the south branch down to the relocated mouth
+    // THE NORTH DOWNS (new space):
+    { x: 10, y: 2, w: 8, h: 5 },    // NW bluebell hollow (chest) — a quiet high pocket off the orchard climb
+    { x: 27, y: 2, w: 9, h: 5 },    // the RUINS DELL — the unearthed excavation; the Ancient Ruins mouth
+    // THE SOUTH FENS (new space):
+    { x: 8, y: 33, w: 9, h: 5 },    // south pasture — open grazing below the meadow (landmark)
+    { x: 22, y: 33, w: 10, h: 5 },  // brookside fen (chest) — where the Hearthbrook runs out of the shire
   ],
   fieldPaths: [
-    [{ x: 5, y: 12 }, { x: 13, y: 12 }],                                   // spawn → west hub
-    [{ x: 13, y: 10 }, { x: 15, y: 4 }, { x: 27, y: 4 }, { x: 27, y: 9 }], // NORTH road: hub → orchard → NE thicket → central
-    [{ x: 16, y: 12 }, { x: 24, y: 12 }],                                  // MIDDLE road: hub → central (fast, exposed)
-    [{ x: 13, y: 14 }, { x: 15, y: 19 }, { x: 27, y: 19 }, { x: 27, y: 15 }], // SOUTH road: hub → meadow → grove → central
-    // EAST MAIN FLOW → the GORGE RIM. central → staging green → the east lookout (the put-in signpost row
-    // y10), where the player walks off the core into open continent and meets the impassable chasm.
-    [{ x: 31, y: 11 }, { x: 36, y: 10 }, { x: 39, y: 10 }],
+    [{ x: 5, y: 20 }, { x: 13, y: 20 }],                                   // spawn → west hub
+    [{ x: 13, y: 18 }, { x: 15, y: 12 }, { x: 27, y: 12 }, { x: 27, y: 17 }], // NORTH road: hub → orchard → NE thicket → central
+    [{ x: 16, y: 20 }, { x: 24, y: 20 }],                                  // MIDDLE road: hub → central (fast, exposed)
+    [{ x: 13, y: 22 }, { x: 15, y: 27 }, { x: 27, y: 27 }, { x: 27, y: 23 }], // SOUTH road: hub → meadow → grove → central
+    // EAST MAIN FLOW → the GORGE RIM. central → staging green → the east lookout, where the player walks
+    // off the core into open continent and meets the impassable chasm.
+    [{ x: 31, y: 19 }, { x: 36, y: 18 }, { x: 39, y: 18 }],
     // THE SOUTH BRANCH → the Warren mouth (discovered as "the other way" once the gorge blocks the east).
-    [{ x: 36, y: 12 }, { x: 36, y: 17 }, { x: 35, y: 19 }],                // staging → Warren-approach hollow → the mouth
-    [{ x: 31, y: 19 }, { x: 33, y: 19 }],                                  // grove ↔ Warren-approach (a back way in / loop)
-    [{ x: 16, y: 4 }, { x: 16, y: 9 }],   // cross-link: orchard ↔ west hub
-    [{ x: 15, y: 17 }, { x: 15, y: 15 }], // cross-link: meadow ↔ west hub
-    [{ x: 27, y: 6 }, { x: 27, y: 9 }],   // cross-link: NE thicket ↔ central hub
+    [{ x: 36, y: 20 }, { x: 36, y: 25 }, { x: 35, y: 27 }],                // staging → Warren-approach hollow → the mouth
+    [{ x: 31, y: 27 }, { x: 33, y: 27 }],                                  // grove ↔ Warren-approach (a back way in / loop)
+    [{ x: 16, y: 12 }, { x: 16, y: 17 }], // cross-link: orchard ↔ west hub
+    [{ x: 15, y: 25 }, { x: 15, y: 23 }], // cross-link: meadow ↔ west hub
+    [{ x: 27, y: 14 }, { x: 27, y: 17 }], // cross-link: NE thicket ↔ central hub
+    // THE NORTH DOWNS loop: orchard ↑ hollow, the downs trail east, and the dell ↓ NE thicket — so the
+    // high band is a circuit (climb either end, walk the crest, come down the other).
+    [{ x: 13, y: 10 }, { x: 13, y: 5 }],  // orchard ↑ NW bluebell hollow (the west climb)
+    [{ x: 17, y: 4 }, { x: 27, y: 4 }],   // the DOWNS TRAIL: hollow → the ruins dell (the crest walk)
+    [{ x: 31, y: 6 }, { x: 31, y: 11 }],  // ruins dell ↓ NE thicket (the east climb)
+    // THE SOUTH FENS loop: meadow ↓ pasture, the fen walk east (forded over the brook), grove ↓ fen.
+    [{ x: 12, y: 29 }, { x: 12, y: 33 }], // meadow ↓ south pasture (the west drop)
+    [{ x: 16, y: 35 }, { x: 22, y: 35 }], // the FEN WALK: pasture → brookside fen (crosses the brook — ford)
+    [{ x: 26, y: 29 }, { x: 26, y: 33 }], // grove ↓ brookside fen (the east drop)
   ],
   dunRects: [], dunPaths: [], // dungeon MOVED to dungeon.layout (GREENVALE_DUNGEON) — ADR 0008 Stage 2
   chests: [
-    { x: 15, y: 3 },   // orchard (north road)
-    { x: 14, y: 20 },  // meadow (south road)
-    { x: 27, y: 3 },   // NE thicket (north ridge crest, off the safe road)
+    { x: 15, y: 11 },  // orchard (north road)
+    { x: 14, y: 28 },  // meadow (south road)
+    { x: 27, y: 11 },  // NE thicket (north ridge crest, off the safe road)
+    { x: 12, y: 3 },   // NW bluebell hollow (the north downs — new space, off the crest walk)
+    { x: 24, y: 34 },  // brookside fen (the south fens — new space, past the third ford)
   ],
-  lair: { x: 27, y: 20 }, // Hogger, deep in the southern grove off the south loop
+  lair: { x: 27, y: 28 }, // Hogger, deep in the southern grove off the south loop
   scatter: 0.06,
   // THE HEARTHBROOK: a winding river that runs SOUTH down the x=20 gap, CROSSING the routes it meets so
-  // it SHAPES them. Its main reach (y 8–20) cuts clean across the fast MIDDLE road (y=12) and the SOUTH
-  // road (y=19) — both severed unless you take the crossing — while a short oxbow jogs east (x=21, y14–16)
-  // so it snakes rather than running ruler-straight. The NORTH loop (y≈4) stays clear, so it is the dry
-  // way round: the river forces a real choice (bridge / ford / detour north), never a soft-lock — every
-  // crossing is a walkable flood target and the north road is always open.
+  // it SHAPES them. Its main reach (y 16–28) cuts clean across the fast MIDDLE road (y=20) and the SOUTH
+  // road (y=27) — both severed unless you take the crossing — while a short oxbow jogs east (x=21, y22–24)
+  // so it snakes rather than running ruler-straight. The NORTH loop (y≈12) stays clear, so it is the dry
+  // way round. wave3b: the brook now RUNS ON SOUTH through the fen band (y28–36), severing the fen walk
+  // (y=35) — a third crossing (ford) carries it. Never a soft-lock — every crossing is a walkable flood
+  // target and the north road is always open.
   rivers: [
-    { x: 20, y: 8, w: 1, h: 12 },  // main reach: crosses the MIDDLE road (y12, bridged) AND the SOUTH road (y19, forded)
-    { x: 21, y: 14, w: 1, h: 3 },  // oxbow: the river jogs east mid-course so it winds, not runs straight
+    { x: 20, y: 16, w: 1, h: 12 }, // main reach: crosses the MIDDLE road (y20, bridged) AND the SOUTH road (y27, forded)
+    { x: 21, y: 22, w: 1, h: 3 },  // oxbow: the river jogs east mid-course so it winds, not runs straight
+    { x: 20, y: 28, w: 1, h: 9 },  // the FEN REACH (new): the brook runs on south, crossing the fen walk (y35, forded)
   ],
   // CLIFFS: the rocky northern shoulder walls the north-road↔central gap (funnels the north approach),
-  // plus a small SE outcrop edging the grove. Both pinch, never sever (loops route around; flood repairs).
+  // a small SE outcrop edging the grove, and (new) the DELL SHOULDER — a crag line under the ruins dell
+  // so the north downs read as high ground. All pinch, never sever (loops route around; flood repairs).
   cliffs: [
-    { x: 18, y: 6, w: 5, h: 1 },   // the northern ridge shoulder (between the north road and the hub)
-    { x: 30, y: 16, w: 2, h: 2 },  // SE rocky outcrop edging the hidden grove
+    { x: 18, y: 14, w: 5, h: 1 },  // the northern ridge shoulder (between the north road and the hub)
+    { x: 30, y: 24, w: 2, h: 2 },  // SE rocky outcrop edging the hidden grove
+    { x: 20, y: 7, w: 6, h: 1 },   // the DELL SHOULDER (new): the crag under the excavation's high ground
   ],
   // CROSSINGS over the Hearthbrook — each sits on a road the river SEVERS, so it carries that crossing:
-  // the BRIDGE is the only way the middle road gets across; the FORD reconnects the south meadow↔grove loop.
-  bridges: [{ x: 20, y: 12 }],     // the middle road's only crossing (river severs y=12 here)
-  fords: [{ x: 20, y: 19 }],       // the south road's crossing — reconnects the meadow↔grove loop the river cuts
+  // the BRIDGE is the only way the middle road gets across; the FORDS reconnect the south loop + the fen walk.
+  bridges: [{ x: 20, y: 20 }],     // the middle road's only crossing (river severs y=20 here)
+  fords: [
+    { x: 20, y: 27 },  // the south road's crossing — reconnects the meadow↔grove loop the river cuts
+    { x: 20, y: 35 },  // the fen walk's crossing (new) — reconnects the pasture↔fen loop the fen reach cuts
+  ],
   // POIs — the INHABITED shire, all OFF the main flow (discoveries):
   pois: [
-    { x: 18, y: 4, kind: "shrine", name: "Wayside Shrine" },                                 // orchard — heal
-    { x: 16, y: 18, kind: "camp", name: "Bandit Camp", pack: ["gbandit", "gbandit", "kobold"] }, // south meadow — optional fight
-    { x: 30, y: 4, kind: "landmark", name: "The Standing Stones", note: "Moss-furred stones older than the shire — they hum faintly at dusk." }, // north ridge crest
+    { x: 18, y: 12, kind: "shrine", name: "Wayside Shrine" },                                 // orchard — heal
+    { x: 16, y: 26, kind: "camp", name: "Bandit Camp", pack: ["gbandit", "gbandit", "kobold"] }, // south meadow — optional fight
+    { x: 30, y: 12, kind: "landmark", name: "The Standing Stones", note: "Moss-furred stones older than the shire — they hum faintly at dusk." }, // north ridge crest
     // WEST FORK SIGN — now points the Warren south (the gate left the east road).
-    { x: 12, y: 13, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the bandit warren lies southeast." }, // west fork
+    { x: 12, y: 21, kind: "signpost", name: "Crossroads Sign", note: "Orchard road north · Meadow road south · the bandit warren lies southeast." }, // west fork
+    // THE NORTH DOWNS + SOUTH FENS (new space):
+    { x: 28, y: 4, kind: "signpost", name: "Excavation Sign", note: "DIG SITE — by order of Hearthford. The unearthed halls below are not safe. The mana down there hums in your teeth." }, // the ruins dell
+    { x: 11, y: 35, kind: "landmark", name: "The Sunken Milestone", note: "A leaning milestone half-swallowed by the fen — the road it once marked is long under the water." }, // south pasture
     // NOTE: the Sunless-Gorge put-in signpost is NO LONGER a core-bound POI here. The authored grid ends
     // ~world x190, but the chasm's west face / put-in sits at world ~x206,y72 — so a grid-bound sign read
     // "the road ends at a sheer chasm" ~16–40 tiles short, before the chasm was even in view. It is now an
     // OPEN-CONTINENT RIM PROP rendered at the real rim tile (world ≈205,72) by field.ts (drawGorgeRimProps),
     // beside the gorge band the draw path already special-cases — so the "push east → hit the wall → see the
     // Elder-Oak across it" beat lands where the wall actually is.
+  ],
+  // THE ANCIENT RUINS mouth (wave3b): the unearthed entrance in the ruins dell — steps down into
+  // GREENVALE_RUINS (`dungeon2`). Unguarded; the hotter interior is the gate. World (159,58).
+  ruins: { x: 32, y: 4 },
+  // GATHERING NODES (crafting slice): ten resource tiles scattered OFF the roads so foraging is a
+  // reason to leave the path — ORE hugs the crag/cliff lines, ROOTS hug the tree lines (orchard /
+  // grove / downs), BLOOMS sit by the Hearthbrook and the meadows. Each is walked onto once per run
+  // (persisted like a chest), halo'd + flood-repaired so none can be walled off.
+  nodes: [
+    // Ore Veins ⛏️ — along the rocky shoulders:
+    { x: 18, y: 13, kind: "node-ore" },  // orchard edge, against the northern ridge shoulder (cliff y14)
+    { x: 23, y: 13, kind: "node-ore" },  // the ridge's east toe, between orchard and NE thicket
+    { x: 21, y: 6, kind: "node-ore" },   // the dell shoulder crag (under the excavation's high ground)
+    { x: 31, y: 26, kind: "node-ore" },  // the SE rocky outcrop edging the hidden grove
+    // Ancient Roots 🌿 — along the old tree lines:
+    { x: 13, y: 12, kind: "node-root" }, // the orchard's west tree line
+    { x: 25, y: 27, kind: "node-root" }, // the hidden grove's old-growth floor
+    { x: 16, y: 3, kind: "node-root" },  // the NW bluebell hollow's wood edge (the north downs)
+    // Spirit Blooms ✨ — by water and open meadow:
+    { x: 19, y: 21, kind: "node-bloom" }, // the Hearthbrook's west bank, below the bridge
+    { x: 13, y: 27, kind: "node-bloom" }, // the south meadow, off the camp
+    { x: 23, y: 36, kind: "node-bloom" }, // the brookside fen, past the third ford
   ],
 };
 
@@ -375,17 +496,18 @@ export type GreenvaleAreaId =
 
 interface GreenvaleAreaRegion { area: GreenvaleAreaId; rects: Rect[]; }
 
-// Authored over the overworld portion x∈[0,40), matching the layout's roads: the NORTH orchard road
-// (orchard clearing + NE thicket, y<9, from x≈9 east) is Orchard Ridge; the SOUTH meadow road
-// (y≥16, from x≈9 east) is Bandit Fields; the hidden grove pocket (SE) is small so it WINS over
-// Fields; the WEST spawn lobe near the entrance is Hearthford Commons; the CENTRAL hub band + the
-// EAST run-up to the dungeon mouth are the Warren Approach.
+// Authored over the overworld portion x∈[0,40) of the ENLARGED 64×40 grid (wave3b), matching the
+// layout's roads: the NORTH band (the new downs + the orchard road + NE thicket + the ruins dell,
+// y<17, from x≈9 east) is Orchard Ridge; the SOUTH band (meadow road + the new fens, y≥24) is Bandit
+// Fields; the hidden grove pocket (SE) is small so it WINS over Fields; the WEST spawn lobe near the
+// entrance is Hearthford Commons; the CENTRAL hub band + the EAST run-up to the dungeon mouth are the
+// Warren Approach.
 export const GREENVALE_AREAS: GreenvaleAreaRegion[] = [
-  { area: "gv-commons", rects: [{ x: 0, y: 0, w: 10, h: 24 }] },            // WEST spawn lobe (the entrance + west hub)
-  { area: "gv-orchard", rects: [{ x: 9, y: 0, w: 25, h: 9 }] },            // NORTH orchard road band
-  { area: "gv-fields", rects: [{ x: 9, y: 16, w: 25, h: 8 }] },           // SOUTH meadow road band
-  { area: "gv-grove", rects: [{ x: 22, y: 16, w: 11, h: 8 }] },           // SE grove pocket (FINEST — wins over Fields)
-  { area: "gv-warren-approach", rects: [{ x: 9, y: 9, w: 55, h: 7 }, { x: 34, y: 0, w: 30, h: 24 }] }, // central hub + EAST lobe to the mouth
+  { area: "gv-commons", rects: [{ x: 0, y: 0, w: 10, h: 40 }] },            // WEST spawn lobe (the entrance + west hub)
+  { area: "gv-orchard", rects: [{ x: 9, y: 0, w: 25, h: 17 }] },           // NORTH band: the downs + orchard road + ruins dell
+  { area: "gv-fields", rects: [{ x: 9, y: 24, w: 25, h: 16 }] },          // SOUTH band: meadow road + the fens
+  { area: "gv-grove", rects: [{ x: 22, y: 24, w: 11, h: 8 }] },           // SE grove pocket (FINEST — wins over Fields)
+  { area: "gv-warren-approach", rects: [{ x: 9, y: 17, w: 55, h: 7 }, { x: 34, y: 0, w: 30, h: 40 }] }, // central hub + EAST lobe to the mouth
 ];
 
 /**
@@ -582,6 +704,131 @@ const WARREN_B3: DungeonLayout = {
 // every `dungeon.layout` reader/test relies on; a single-floor dungeon is just a 1-element stack).
 const GREENVALE_DUNGEON: DungeonLayout = WARREN_B1;
 const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
+
+// ── THE ANCIENT RUINS — Greenvale's SECOND dungeon (wave3b, the lore-summary starting hook) ─────────
+// "Newly unearthed ancient ruins near Greenvale with a high concentration of mana emanating from
+// within." Three descending floors under the north-downs excavation (`layout.ruins` → `dungeon2`),
+// deliberately OPTIONAL and deliberately HOT: no mouth guard — the interior itself is the gate.
+//   • THE THREAT CURVE: its own `bands` (below) run the harder END of the Greenvale cast (Bloated
+//     Slime / Raider / Mage) into EARLY-SILVERWOOD stock (Direwolf L7, Thornling L7, Sylvan Archer /
+//     Gloom Wisp L8) — things drawn down from the old wood by the mana bloom. With the dungeon depth
+//     bump (+floor climb) that's an effective ~L5–11 delve against an ~L1–4 shire: a place a fresh
+//     party BACKS OUT of and returns to. Flagged for balance-tuner (first-pass numbers).
+//   • THE LOOT PROMISE: `ilvlBonus: 3` — every Ruins chest rolls +3 over the Greenvale overworld chest
+//     curve (both rarity-band level and ilvl), and the hotter cast's higher enemy levels give drops
+//     the same edge. Harder place, visibly better loot.
+//   • NO BOSS: the deepest floor ends at THE SEALED DOOR (`seal`) — a graven door no force will open,
+//     the mana thickest before it. Something ancient waits behind it; content for later (Dara's hook).
+//   • REST POLICY (ADR 0010): ONE partial node in the whole delve — a MANA WELL on floor 2 ("mana",
+//     35% MP, no HP — the inverse of the Warren hearth: the ruins bleed magic, not bandages). Floors 1
+//     and 3 carry none, so the delve never refills.
+// Floor identity: A1 is the UNEARTHED GALLERIES (a fresh dig fanning into old halls), A2 the FLOODED
+// ARCHIVE (a drowned library looped around the mana well), A3 the SEALED DEEP (twin vaults funneling
+// onto the door). No floor minibosses — the ruins are keyless all the way down.
+const RUINS_ENCOUNTERS: EncounterBand[] = [
+  // THE DIG MOUTH: the meanest of the shire cast holds the top halls — plus the first direwolf.
+  { at: 0.0, sets: [["slimebig", "kobolde"], ["gmage", "gbandit"], ["kobolde", "kobolde"], ["dwolf"]] },
+  // OLD-WOOD BLEED-IN: Silverwood stock stalks the middle halls alongside the shire's worst.
+  { at: 0.3, sets: [["dwolf", "kobolde"], ["thornling", "gmage"], ["dwolf", "dwolf"], ["slimebig", "gmage", "kobolde"]] },
+  // THE DROWNED ARCHIVE: archers + wisps behind bruisers — real pack shapes, L7-8 stock.
+  { at: 0.55, sets: [["thornling", "dwolf"], ["sylvanarcher", "kobolde"], ["gloomwisp", "gbandit", "gbandit"], ["dwolf", "dwolf", "thornling"]] },
+  // BEFORE THE DOOR: the deep watch — caster-led mixes at the mana bloom's heart.
+  { at: 0.75, sets: [["gloomwisp", "thornling"], ["sylvanarcher", "dwolf", "dwolf"], ["thornling", "thornling", "gloomwisp"], ["sylvanarcher", "gloomwisp", "dwolf"]] },
+];
+// THE MANA WELL (ADR 0010, the one rest in the delve): raw mana wells out of the old stone — it
+// restores SPIRIT, never flesh (the mirror of the Warren's mend-only hearth).
+const RUINS_WELL: Reprieve = {
+  kind: "mana", amount: 0.35, name: "A Mana Well",
+  blurb: "Raw mana beads out of the graven stone and hangs in the air like dew. Your casters breathe it in — some magic returns — but it knits no wounds, and the fallen still need a town to revive.",
+};
+// A1 — THE UNEARTHED GALLERIES (24×22): the dig mouth opens into a west hall that fans NORTH and SOUTH
+// around old galleries (a chest each), the two arcs rejoining at an east ROTUNDA where the excavated
+// stair drops deeper. A cross-link knits the galleries — a circuit, not an out-and-back. No rest.
+const RUINS_A1: DungeonLayout = {
+  w: 24, h: 22, entry: { x: 1, y: 10 }, gate: { x: 1, y: 10 }, boss: { x: 20, y: 10 }, // boss unused (no finale here)
+  stairsDown: { x: 20, y: 10 }, // the excavated stair — down to the archive
+  rooms: [
+    { x: 2, y: 8, w: 5, h: 6 },    // the dig hall (west entry)
+    { x: 9, y: 2, w: 6, h: 5 },    // north gallery (chest)
+    { x: 9, y: 15, w: 6, h: 5 },   // south gallery (chest)
+    { x: 17, y: 8, w: 5, h: 6 },   // the east rotunda (the descent)
+  ],
+  paths: [
+    [{ x: 1, y: 10 }, { x: 4, y: 10 }],                          // mouth → dig hall
+    [{ x: 4, y: 9 }, { x: 11, y: 4 }, { x: 18, y: 9 }],          // north arc: hall → north gallery → rotunda
+    [{ x: 4, y: 12 }, { x: 11, y: 17 }, { x: 18, y: 12 }],       // south arc: hall → south gallery → rotunda (the LOOP)
+    [{ x: 11, y: 6 }, { x: 11, y: 15 }],                         // gallery cross-link (a second loop)
+  ],
+  chests: [
+    { x: 11, y: 3 },   // north gallery
+    { x: 11, y: 18 },  // south gallery
+  ],
+  scatter: 0.07,
+};
+// A2 — THE FLOODED ARCHIVE (26×22): a drowned library. The landing forks into a north ARCHIVE row and
+// a south CISTERN, both looped onto a central WELL CHAMBER (the delve's ONE rest — the mana well) and
+// converging on the east stair antechamber; a dead-end NE RELIQUARY nook hides the richest mid-chest.
+const RUINS_A2: DungeonLayout = {
+  w: 26, h: 22, entry: { x: 1, y: 11 }, gate: { x: 1, y: 11 }, boss: { x: 22, y: 11 }, // boss unused
+  stairsDown: { x: 22, y: 11 }, // down to the sealed deep
+  rooms: [
+    { x: 2, y: 9, w: 5, h: 6 },    // up-stair landing
+    { x: 9, y: 3, w: 7, h: 5 },    // the north archive (chest)
+    { x: 9, y: 14, w: 7, h: 5 },   // the south cistern (chest)
+    { x: 12, y: 9, w: 5, h: 4 },   // the WELL CHAMBER (the mana-well rest)
+    { x: 19, y: 9, w: 5, h: 6 },   // east stair antechamber (the descent)
+    { x: 20, y: 3, w: 4, h: 4 },   // NE reliquary nook (dead-end — the richest mid-delve chest)
+  ],
+  paths: [
+    [{ x: 1, y: 11 }, { x: 4, y: 11 }],                          // up-stair → landing
+    [{ x: 4, y: 10 }, { x: 11, y: 5 }, { x: 20, y: 10 }],        // north route: landing → archive → antechamber
+    [{ x: 4, y: 13 }, { x: 11, y: 16 }, { x: 20, y: 13 }],       // south route: landing → cistern → antechamber (the LOOP)
+    [{ x: 6, y: 11 }, { x: 12, y: 11 }, { x: 19, y: 11 }],       // central spine THROUGH the well chamber (a third route)
+    [{ x: 12, y: 7 }, { x: 12, y: 9 }],                          // archive ↔ well chamber (cross-link)
+    [{ x: 21, y: 9 }, { x: 21, y: 7 }],                          // antechamber → reliquary nook (spur)
+  ],
+  chests: [
+    { x: 21, y: 4 },   // NE reliquary nook (the mid-delve prize)
+    { x: 11, y: 4 },   // north archive
+    { x: 11, y: 17 },  // south cistern
+  ],
+  rests: [{ x: 14, y: 10 }], // the MANA WELL — the delve's one (partial, mana-only) breather
+  reprieve: RUINS_WELL,
+  scatter: 0.08,
+};
+// A3 — THE SEALED DEEP (26×20): twin vaults (a chest each) loop around the center and FUNNEL onto the
+// antechamber before THE SEALED DOOR — the terminus. The richest chest sits at the door's foot; the
+// door itself is a walkable landmark (`seal`) that will not open. No rest, no boss — not yet.
+const RUINS_A3: DungeonLayout = {
+  w: 26, h: 20, entry: { x: 1, y: 10 }, gate: { x: 1, y: 10 }, boss: { x: 22, y: 10 }, // boss == the seal tile (no fight — see `seal`)
+  seal: { x: 22, y: 10 }, // THE SEALED DOOR — something ancient waits behind it (content for later)
+  rooms: [
+    { x: 2, y: 8, w: 5, h: 5 },    // up-stair landing
+    { x: 9, y: 3, w: 6, h: 5 },    // north vault (chest)
+    { x: 9, y: 12, w: 6, h: 5 },   // south vault (chest)
+    { x: 16, y: 7, w: 4, h: 7 },   // the funnel antechamber (the loops rejoin)
+    { x: 20, y: 7, w: 4, h: 7 },   // the DOOR CHAMBER (the seal + the deep hoard)
+  ],
+  paths: [
+    [{ x: 1, y: 10 }, { x: 4, y: 10 }],                          // up-stair → landing
+    [{ x: 4, y: 9 }, { x: 11, y: 5 }, { x: 17, y: 9 }],          // north route: landing → north vault → antechamber
+    [{ x: 4, y: 11 }, { x: 11, y: 14 }, { x: 17, y: 12 }],       // south route: landing → south vault → antechamber (the LOOP)
+    [{ x: 11, y: 7 }, { x: 11, y: 12 }],                         // vault cross-link (a second loop)
+    [{ x: 18, y: 10 }, { x: 22, y: 10 }],                        // antechamber → the sealed door
+  ],
+  chests: [
+    { x: 21, y: 12 },  // the deep hoard, at the sealed door's foot (the delve's richest)
+    { x: 11, y: 4 },   // north vault
+    { x: 11, y: 15 },  // south vault
+  ],
+  scatter: 0.08,
+};
+// The Ancient Ruins = the 3-floor stack. Same single-floor contract as the Warren: layout == floors[0].
+const GREENVALE_RUINS: ZoneDungeon = {
+  name: "The Ancient Ruins", env: "crypt", // sliced crypt tileset + battle backdrop read "old graven stone" until bespoke art lands
+  layout: RUINS_A1, floors: [RUINS_A1, RUINS_A2, RUINS_A3],
+  bands: RUINS_ENCOUNTERS, ilvlBonus: 3,
+};
 
 // ── Silverwood, the Ancient Forest + the Sunless Grove (OVERWORLD OVERHAUL — anti-reskin, A) ──
 // Region #2 of Aurelion, REBUILT to read DEEP and DESCENDING (overworld-design §2-§6) — emphatically
@@ -1603,7 +1850,8 @@ const SUNBRIDGE_DUNGEON: DungeonLayout = {
 //   Adjacency (8-way, reciprocal):
 //     Greenvale  —E →  Silverwood     Silverwood —W →  Greenvale
 //     Silverwood —S →  Duskmarsh      Duskmarsh  —N →  Silverwood
-//     Greenvale  —SE→  Duskmarsh      Duskmarsh  —NW→  Greenvale   (corner-touch only)
+//     Greenvale  —E →  Duskmarsh      Duskmarsh  —W →  Greenvale   (a real shared edge since the
+//                                                                    wave3b 64×40 Greenvale rect)
 //
 // FLAGS FOR DARA (geography the atlas leaves open — §4 G6/G7):
 //   • Silverwood-EAST-of-Greenvale and Duskmarsh-SOUTH-of-Silverwood are agent inferences (the atlas
@@ -1670,10 +1918,12 @@ export const WORLD_REGIONS: WorldRegion[] = [
   {
     id: "greenvale", origin: { wx: 0, wy: 0 },
     edges: [
-      // East edge (world-x = 0+64 = 64) meets Silverwood's west edge over the full shared height.
+      // East edge (world-x = 0+64 = 64) meets Silverwood's west edge over Silverwood's height.
       { dir: "E", to: "silverwood", border: { axis: "x", at: 64, from: 0, to: 24 }, cross: { wx: 64, wy: 12 } },
-      // SE diagonal: Greenvale's SE corner (64,24) is the Duskmarsh's NW corner — corner-touch only.
-      { dir: "SE", to: "duskmarsh", border: { axis: "x", at: 64, from: 24, to: 24 } },
+      // East edge ALSO meets the Duskmarsh over y[24,40) — wave3b grew Greenvale's rect to 64×40, so
+      // the old SE corner-touch is now a real shared edge in this legacy engine-grid frame. (Geography
+      // authority is the world.ts polygons; this rect skeleton just has to stay self-consistent.)
+      { dir: "E", to: "duskmarsh", border: { axis: "x", at: 64, from: 24, to: 40 } },
     ],
   },
   {
@@ -1688,10 +1938,10 @@ export const WORLD_REGIONS: WorldRegion[] = [
   {
     id: "duskmarsh", origin: { wx: 64, wy: 24 },
     edges: [
-      // North edge (world-y = 24) meets Silverwood's south edge (reciprocal of Silverwood —S→).
+      // North edge (world-y = 24) meets Silverwood's south edge (reciprocal of Silverwood —S—).
       { dir: "N", to: "silverwood", border: { axis: "y", at: 24, from: 64, to: 120 }, cross: { wx: 88, wy: 24 } },
-      // NW diagonal: the Duskmarsh's NW corner (64,24) is Greenvale's SE corner — corner-touch only.
-      { dir: "NW", to: "greenvale", border: { axis: "x", at: 64, from: 24, to: 24 } },
+      // West edge (world-x = 64) meets Greenvale's grown east edge over y[24,40) (reciprocal, wave3b).
+      { dir: "W", to: "greenvale", border: { axis: "x", at: 64, from: 24, to: 40 } },
       // East edge (world-x = 64+56 = 120) meets Goldmeadow's west edge (the journey presses on E into
       // the plains). Shared y-overlap = the Duskmarsh's full height (the shorter rect): [24,46).
       { dir: "E", to: "goldmeadow", border: { axis: "x", at: 120, from: 24, to: 46 }, cross: { wx: 120, wy: 35 } },
@@ -1859,7 +2109,7 @@ export const WORLD_SETTLEMENT_NOTE = {
 // zone's boss wins the run.
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
-    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "lieutenant" }, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
+    envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "lieutenant" }, dungeon2: GREENVALE_RUINS, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
   // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
   // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
   // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to

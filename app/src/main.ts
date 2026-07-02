@@ -43,11 +43,19 @@ window.addEventListener("keydown", (e) => {
   }
   if (Overlay.isOn()) return;
   const k = e.key.toLowerCase();
-  if (k === "arrowup" || k === "w") { Field.move(0, -1); e.preventDefault(); }
-  else if (k === "arrowdown" || k === "s") { Field.move(0, 1); e.preventDefault(); }
-  else if (k === "arrowleft" || k === "a") { Field.move(-1, 0); e.preventDefault(); }
-  else if (k === "arrowright" || k === "d") { Field.move(1, 0); e.preventDefault(); }
+  // HELD movement: hold() records the direction; the field's animation loop paces one step per glide
+  // for continuous, fluid travel (OS key-repeat events are absorbed by hold() while a glide runs).
+  if (k === "arrowup" || k === "w") { Field.hold(0, -1); e.preventDefault(); }
+  else if (k === "arrowdown" || k === "s") { Field.hold(0, 1); e.preventDefault(); }
+  else if (k === "arrowleft" || k === "a") { Field.hold(-1, 0); e.preventDefault(); }
+  else if (k === "arrowright" || k === "d") { Field.hold(1, 0); e.preventDefault(); }
 });
+// Releasing any movement key stops held travel (fires on every screen so a hold can't go stale).
+window.addEventListener("keyup", (e) => {
+  const k = e.key.toLowerCase();
+  if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(k)) Field.release();
+});
+window.addEventListener("blur", () => Field.release());
 
 // Tap/click the dialogue box to advance/close it (touch-friendly; iOS-Safari safe).
 $("#dialogue")?.addEventListener("click", () => Dialogue.advance());

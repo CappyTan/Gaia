@@ -8,11 +8,17 @@ import { ri, pick } from "../core/rng";
 import { PARTY_DEFS } from "../data/party";
 import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
-import { makeMember, recalc } from "../systems/progression";
+import { START_LEVEL, makeMember, recalc } from "../systems/progression";
 import { starterWeapon, rollItemAtLevel, itemScore } from "../systems/loot";
 import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
+import { rarityIx } from "../data/rarity";
+import { QUESTS } from "../data/quests";
+import { emptyQuests, questForTown, accept, ready, turnIn, noteKills, questList, type QuestLog } from "../systems/quests";
+import { MATERIALS } from "../data/materials";
+import { CONSUMABLES } from "../data/consumables";
+import { emptyCounts, hasMaterials, craftConsumable, healLowestAlly, type Counts } from "../systems/crafting";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
 import { reviveProgress } from "../systems/progress";
@@ -50,6 +56,12 @@ export const Game = {
   // consumables, by id. Distinct from `inventory` (equippable loot). A key item with a `grantsCap`
   // confers that traversal capability — owning the raft is what opens the Sunless Gorge.
   heldItems: emptyItems() as OwnedItems,
+  quests: emptyQuests() as QuestLog,
+  // CRAFTING (the slice — docs/design/crafting-schema.md): stackable MATERIAL counts (battle drops +
+  // gathering nodes) and crafted CONSUMABLE counts, both {id → n}. Persisted as optional
+  // degrade-never-throw save fields (the quests pattern); reset on a fresh run.
+  materials: emptyCounts() as Counts,
+  consumables: emptyCounts() as Counts,
   steps: 0,
   encountersWon: 0,
   bossDefeated: false,
@@ -85,12 +97,15 @@ export const Game = {
   // Begin a fresh run with a specific party composition (from the Roster picker or default).
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
-    this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
+    this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.quests = emptyQuests(); this.materials = emptyCounts(); this.consumables = emptyCounts(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
     this.testMode = false; this.testReturn = null; // a real run is NEVER in test mode (ADR 0017) — enforce the invariant at the one entry point
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
+    // Heroes begin at level 10 with those levels' MNA banked in their own tree (Dara) — the 5/10 MNA
+    // milestones are open immediately (one special + one signature pickable from the first minute).
+    this.party.forEach((m) => { m.level = START_LEVEL; m.mnaAlloc[m.att] += START_LEVEL - 1; });
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
     // weapon (which sets the class) would default to SOL and silently re-class the whole party.
     this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +3 MNA starter weapon
@@ -153,6 +168,8 @@ export const Game = {
       openedChests: Field.openedChests,
       // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
       dungeonFloor: Field.dungeonFloor,
+      // WHICH dungeon we're inside (wave3b) — so a save deep in the Ancient Ruins resumes the Ruins, not the Warren.
+      activeDungeon: Field.activeDungeon,
       dungeonMiniCleared: Field.dungeonMiniCleared,
       // PER-ZONE OVERWORLD MOUTH-CLEARED (Silverwood Overhaul fix) — which zones' dungeon-mouth guard is
       // beaten, by zone id; persisted so the right zones' mouths stay open across a reload (not a global).
@@ -163,6 +180,12 @@ export const Game = {
       // HELD ITEMS (quest/key items) — persisted as a plain string[] of ids; restored into the run's Set
       // and reconciled with owned caps on resume (continueRun).
       heldItems: [...this.heldItems],
+      quests: this.quests,
+      // CRAFTING (the slice) — material/consumable stacks + the gathered-node record, all optional
+      // degrade-never-throw fields (the quests pattern; a gathered node stays spent like a chest).
+      materials: this.materials,
+      consumables: this.consumables,
+      gatheredNodes: Field.gatheredNodes,
       // WAYFINDING PROGRESS (ADR 0011) — the run's known/entered regions as two string[]s; restored into
       // Field.progress (Sets) on resume so the continent overview map re-reveals the right regions.
       progress: { known: [...Field.wayfinding.known], entered: [...Field.wayfinding.entered] },
@@ -193,6 +216,8 @@ export const Game = {
     // but predates the inventory gets the key item that confers it (so the raft shows in the Items tab for
     // a Greenvale-beaten save). applyItemCaps below re-grants caps from items (the item→cap link on load).
     this.heldItems = new Set(r.heldItems);
+    this.quests = r.quests ?? emptyQuests();
+    this.materials = r.materials; this.consumables = r.consumables; // crafting stacks (empty on an old save)
     for (const [id, def] of Object.entries(HELD_ITEMS))
       if (def.grantsCap && r.ownedCaps.includes(def.grantsCap)) this.heldItems.add(id);
     this.continueAfterBattle = null; this._inMerchant = false;
@@ -210,6 +235,9 @@ export const Game = {
     // grid rebuild below) — genOverworld/genDungeon + the big-map authored-grid re-apply consult it, so a
     // looted chest stays opened (carved as path) across the reload (no infinite-loot exploit).
     Field.openedChests = { ...r.openedChests };
+    // Restore gathered-node state on the same footing (crafting slice) — a gathered node stays plain
+    // ground across the reload (no infinite-material exploit).
+    Field.gatheredNodes = { ...r.gatheredNodes };
     // Restore owned traversal caps (Silverwood Overhaul, D2) BEFORE the grid rebuild below — bigPassable +
     // the chunk realizer consult Field.ownedCaps, so the gorge re-opens (or stays locked) correctly on
     // resume. An old save that beat Greenvale already had "gorge" granted in deserialize (no soft-lock).
@@ -234,6 +262,10 @@ export const Game = {
       Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
     } else {
       Field.enteredDungeon = r.enteredDungeon;
+      // WHICH DUNGEON (wave3b): restore BEFORE the genDungeon calls below — dungeonDef()/dungeonFloors()
+      // read it, so a save made deep in the Ancient Ruins rebuilds the Ruins (dungeonDef falls back to
+      // the main dungeon if the zone no longer carries a second one).
+      Field.activeDungeon = r.activeDungeon;
       // MULTI-FLOOR: restore the beaten-gate state BEFORE genDungeon below (it reads dungeonMiniCleared
       // to decide whether each floor's lieutenant still stands), so a resume past a beaten gate keeps
       // the stairs live. Set even when not in a dungeon (harmless; cleared on the next fresh descent).
@@ -397,6 +429,65 @@ export const Game = {
   // The Inn — a small fee fully restores HP/MP for every living hero (Dara: resting now costs a bit).
   // Scales with the highest party level so it stays meaningful but affordable as you grow.
   restCost(): number { return 8 * this.party.reduce((n, m) => Math.max(n, m.level), 1); },
+
+  // ── QUESTS (Dara: sequential town bounty chains, big rewards, non-repeatable) ────────────────────
+  // A town giver's quest business — called from Field.talkTo BEFORE small talk. Returns false when
+  // this npc has no quest business (the caller falls through to normal dialogue).
+  openQuestTalk(townId: string, npcId: string): boolean {
+    const def = questForTown(this.quests, townId);
+    if (!def || def.giver !== npcId) return false;
+    const p = this.quests[def.id];
+    // Kingpin edge: the boss is a one-time fight — if he's already fallen when the bounty is offered,
+    // the giver honors the deed (auto-credit) instead of asking for an impossible re-kill.
+    if (def.id === "gv-kingpin" && this.bossDefeated && Field.zone().id === "greenvale" && !(p?.turnedIn))
+      this.quests[def.id] = { accepted: true, kills: def.kill.count, turnedIn: false };
+    if (ready(this.quests, def)) {
+      Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small" style="text-align:left">${def.doneLine}</p>
+        <div class="card" style="text-align:left"><b class="title-gold">Reward</b><div class="small" style="margin-top:4px">◈ ${def.reward.aether} Aether · a ${def.reward.gearRarity} treasure</div></div>
+        <div class="row"><button class="btn gold" onclick="Game.turnInQuest('${def.id}')">Claim the bounty</button></div>`);
+      return true;
+    }
+    if (this.quests[def.id]?.accepted) {
+      const k = this.quests[def.id].kills;
+      Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small">${k}/${def.kill.count} ${def.kill.label} down. Come back when it's done.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide()">On it</button></div>`);
+      return true;
+    }
+    Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small" style="text-align:left">${def.brief}</p>
+      <div class="card" style="text-align:left"><b class="title-gold">Bounty</b><div class="small" style="margin-top:4px">Slay <b>${def.kill.count} ${def.kill.label}</b> → ◈ ${def.reward.aether} Aether + a ${def.reward.gearRarity} treasure</div></div>
+      <div class="row"><button class="btn gold" onclick="Game.acceptQuest('${def.id}')">Accept</button><button class="btn" onclick="Overlay.hide()">Not yet</button></div>`);
+    return true;
+  },
+  acceptQuest(id: string): void { accept(this.quests, id); this.saveNow(); Overlay.hide(); Field.hint(); },
+  turnInQuest(id: string): void {
+    const def = QUESTS[id];
+    if (!def || !ready(this.quests, def)) { Overlay.hide(); return; }
+    turnIn(this.quests, id);
+    this.gold += def.reward.aether;
+    // the gear reward: a guaranteed-tier roll (floorMin — ADR 0015 source mods) at the quest's ilvl
+    const it = rollItemAtLevel(def.reward.gearIlvl, undefined, def.reward.gearIlvl, undefined, { floorMin: rarityIx(def.reward.gearRarity) });
+    this.inventory.push(it);
+    this.saveNow();
+    Overlay.show(`<h2 class="title-gold">Bounty claimed!</h2>
+      <div class="spoils-head"><span class="spoil-pill aether"><b>+◈ ${def.reward.aether}</b> Aether</span></div>
+      ${itemHtml(it)}
+      ${def.next ? `<p class="small">Bram sizes you up — he has more work.</p>` : ""}
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+  },
+  // The quest log (More sheet): every chain quest with live progress.
+  openQuestLog(): void {
+    const rows = questList(this.quests).map(({ def, p, locked }) => {
+      const state = p?.turnedIn ? `<span class="r-rare">✓ complete</span>`
+        : locked && !p?.accepted ? `<span class="small" style="opacity:.55">🔒 locked</span>`
+        : p?.accepted ? `<b>${p.kills}/${def.kill.count}</b> ${def.kill.label}`
+        : `<span class="small" style="opacity:.8">see ${def.town === "hearthford" ? "Watchman Bram" : "the giver"} in ${def.town}</span>`;
+      return `<div class="card" style="text-align:left;margin:6px 0${locked && !p?.accepted && !p?.turnedIn ? ";opacity:.55" : ""}">
+        <b class="title-gold">${def.name}</b> · ${state}
+        <div class="small" style="opacity:.85;margin-top:3px">Slay ${def.kill.count} ${def.kill.label} → ◈ ${def.reward.aether} + ${def.reward.gearRarity} gear</div></div>`;
+    }).join("");
+    Overlay.show(`<h2 class="title-gold">Quests</h2><div class="scroll">${rows || '<p class="small">No quests yet — talk to the townsfolk.</p>'}</div>
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Close</button></div>`);
+  },
   openInn(): void {
     const fullHp = this.party.every((m) => !m.alive || (m.hp >= m.maxhp && m.mp >= m.maxmp));
     const hpSum = this.party.reduce((n, m) => n + Math.max(0, m.hp), 0), maxSum = this.party.reduce((n, m) => n + m.maxhp, 0);
@@ -455,15 +546,59 @@ export const Game = {
     m.alive = true; m.hp = m.maxhp; m.mp = m.maxmp;
     this.openRevive(); // refresh the shrine list
   },
-  // Smith STUB — visibly present, clearly a placeholder. Per Dara (#35) this becomes a Diablo-style
-  // affix REROLL (spend Mana Dust/Shard/Core by item rarity to reroll one affix), not forging.
+  // The Smith — the crafting-schema's "Blacksmith" station (the slice: consumable CRAFTING from
+  // gathered materials + a small Aether fee). Forge/upgrade/temper + the affix reroll are the staged
+  // later slices (crafting-schema §Staging 2–3) and stay flagged below.
   openSmith(): void {
+    const rows = Object.values(CONSUMABLES).map((d) => {
+      const have = this.consumables[d.id] ?? 0;
+      const needs = Object.entries(d.recipe).map(([id, n]) => {
+        const m = MATERIALS[id], got = this.materials[id] ?? 0;
+        return `<span style="color:${got >= n ? "#aef0a0" : "#e8888c"}">${m?.icon ?? ""} ${m?.name ?? id} ${got}/${n}</span>`;
+      }).join(" · ");
+      const can = hasMaterials(this.materials, d.recipe) && this.gold >= d.fee;
+      return `<div class="card" style="text-align:left;margin:6px 0">
+        <b class="title-gold">${d.icon} ${d.name}</b>${have ? ` <span class="pill">×${have} in bag</span>` : ""}
+        <p class="small" style="margin-top:4px">${d.blurb}</p>
+        <div class="small" style="margin-top:4px">${needs}</div>
+        <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${can ? " gold" : ""}" ${can ? "" : "disabled"} onclick="Game.craftConsumable('${d.id}')">Craft · ◈ ${d.fee}</button></div>
+      </div>`;
+    }).join("");
     Overlay.show(`<h2 class="title-gold">🔨 The Smith</h2>
+      <div class="small">"Bring me the shire's makings." Aether: <b>◈ ${this.gold}</b> — gather materials from nodes and fallen foes, and the forge turns them useful.</div>
+      <div class="tag" style="margin-top:8px">Craft</div>
+      <div class="scroll" style="max-height:38vh">${rows}</div>
       <div class="card" style="text-align:left;margin:8px 0">
         <b class="r-legendary">Coming soon</b>
-        <p class="small" style="margin-top:6px">Reroll a single affix on a piece of gear — Diablo-style — by spending Mana Dust, Mana Shard, and Mana Core gathered from enemies. The forge isn't open yet.</p>
+        <p class="small" style="margin-top:6px">Forging gear, salvage, and a Diablo-style affix reroll — the deeper forge isn't open yet.</p>
       </div>
       <div class="row"><button class="btn gold" onclick="Game.backToTown()">◂ Back to town</button></div>`);
+  },
+  // Craft one consumable at the smith: charge the Aether fee, consume the recipe (pure
+  // systems/crafting), bank the item, re-render the forge. No-op if materials/fee don't cover it.
+  craftConsumable(id: string): void {
+    const def = CONSUMABLES[id];
+    if (!def || this.gold < def.fee || !hasMaterials(this.materials, def.recipe)) return;
+    if (!craftConsumable(this.materials, this.consumables, def)) return;
+    this.gold -= def.fee;
+    this.saveNow();
+    this.openSmith();
+  },
+  // Use a consumable OUT of battle (from the Bag): the Health Tonic mends the most wounded living
+  // ally. Returns the feedback line for the Bag to show, or null if nothing was used (nobody hurt /
+  // none held). In-battle use is a later slice.
+  useConsumable(id: string): string | null {
+    const def = CONSUMABLES[id];
+    if (!def || (this.consumables[id] ?? 0) <= 0) return null;
+    if (def.effect.kind === "heal") {
+      const res = healLowestAlly(this.party, def.effect.pct);
+      if (!res) return null; // full-health party — don't waste the draught
+      this.consumables[id] -= 1;
+      if (this.consumables[id] <= 0) delete this.consumables[id];
+      this.saveNow();
+      return `${def.icon} ${res.target.name} drinks the ${def.name} — +${res.healed} HP.`;
+    }
+    return null;
   },
   // ── VAULT / STASH: a persistent bank kept BETWEEN runs (localStorage). Deposit loot to keep it
   //    safe and withdraw later. (The Aether crafting economy will plug into stored mana materials

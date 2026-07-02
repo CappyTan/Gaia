@@ -12,11 +12,16 @@
 // The controller imports this set from here for its move()/draw dispatch (one source of truth).
 export const POI_KINDS = new Set(["shrine", "camp", "landmark", "signpost"]);
 
+// GATHERING-NODE tile kinds (crafting slice) — walkable resource tiles (ore vein / ancient root /
+// spirit bloom), drawn as captioned landmarks like POIs. Same one-source-of-truth contract: the
+// controller imports this set for its move()/draw dispatch.
+export const NODE_KINDS = new Set(["node-ore", "node-root", "node-bloom"]);
+
 type Ctx = CanvasRenderingContext2D;
 type Tiles = Record<string, HTMLImageElement>;
 
 // The kinds that draw an OBJECT on top of the biome ground (so the ground choice ignores the cell kind).
-const OBJ_KINDS = new Set(["chest", "miniboss", "boss", "lair", "mouth", "village"]);
+const OBJ_KINDS = new Set(["chest", "miniboss", "boss", "lair", "mouth", "village", "ruins"]);
 
 // D4 SOLID raised object (tree/rock/cliff/decorative bush): a soft drop-shadow on the floor at the tile's
 // foot, offset bottom-right (the cast of a top-left light). Call BEFORE the object sprite so the sprite
@@ -111,9 +116,10 @@ export function drawMouthLabel(c: Ctx, sx: number, sy: number, t: number, dungeo
   c.restore();
 }
 
-/** The kind emoji placeholder for a POI tile (until art lands). */
+/** The kind emoji placeholder for a POI / gathering-node tile (until art lands). */
 export function poiEmoji(kind: string): string {
-  return kind === "shrine" ? "⛩️" : kind === "camp" ? "⛺" : kind === "signpost" ? "🪧" : "🗿";
+  return kind === "shrine" ? "⛩️" : kind === "camp" ? "⛺" : kind === "signpost" ? "🪧"
+    : kind === "node-ore" ? "⛏️" : kind === "node-root" ? "🌿" : kind === "node-bloom" ? "✨" : "🗿";
 }
 
 // POI / encampment tile (the INHABITED world): a kind emoji (placeholder until art lands) + a gold
@@ -143,6 +149,30 @@ export function drawStairs(c: Ctx, obj: (img: HTMLImageElement | undefined, emoj
   c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
   const txt = up ? "Up" : "Down", ly = sy + t * 1.0;
   c.strokeText(txt, sx + t / 2, ly); c.fillText(txt, sx + t / 2, ly);
+  c.restore();
+}
+
+// THE SEALED DOOR (wave3b — the Ancient Ruins' bossless terminus): a shut, graven door on the deepest
+// floor. Draws the supplied door sprite (the dungeon set's entrance, dimmed — it does NOT open) or a
+// door glyph, ringed by a cold halo + a gold "SEALED" caption — clearly a landmark, not an exit.
+export function drawSealedDoor(c: Ctx, img: HTMLImageElement | undefined, sx: number, sy: number, t: number): void {
+  c.save();
+  // a cold, faint ring (the mana bloom) — deliberately NOT the warm mouth halo (this door won't open).
+  const cx = sx + t / 2, cy = sy + t / 2;
+  const halo = c.createRadialGradient(cx, cy, t * 0.1, cx, cy, t * 1.0);
+  halo.addColorStop(0, "rgba(150,190,255,.30)"); halo.addColorStop(1, "rgba(150,190,255,0)");
+  c.fillStyle = halo; c.beginPath(); c.arc(cx, cy, t, 0, Math.PI * 2); c.fill();
+  if (img) {
+    c.globalAlpha = 0.8; // dimmed — shut, not enterable
+    const h = t * 1.4, w = h * (img.width / img.height);
+    c.drawImage(img, cx - w / 2, sy + t * 0.95 - h, w, h);
+    c.globalAlpha = 1;
+  } else { c.font = `${t * 0.8}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("🚪", cx, cy); }
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.font = `bold ${Math.max(9, t * 0.24)}px system-ui`;
+  c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+  const ly = sy + t * 1.02;
+  c.strokeText("SEALED", cx, ly); c.fillText("SEALED", cx, ly);
   c.restore();
 }
 
@@ -195,7 +225,7 @@ export function drawMob(c: Ctx, img: HTMLImageElement, sx: number, sy: number, t
 // *-ground2 alternate by the cached variant) and a flat-colour fallback. Pure mapping (the sprite table
 // `T` is passed in only to choose the *2 alternate when present). No regionAt on the frame path.
 export function bigGround(T: Tiles, biome: string, kind: string, variant: number): { ground: string; flat: string } {
-  const isObj = OBJ_KINDS.has(kind) || POI_KINDS.has(kind);
+  const isObj = OBJ_KINDS.has(kind) || POI_KINDS.has(kind) || NODE_KINDS.has(kind);
   const alt = (base: string) => (variant && T[base + "2"] ? base + "2" : base);
   if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
   if (kind === "cliff") return { ground: "cliff", flat: "#2b2f37" };

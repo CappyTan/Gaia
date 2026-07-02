@@ -29,6 +29,10 @@ import { Music } from "../audio/music";
 import { Telemetry } from "../telemetry/telemetry";
 import { BattleLog } from "../telemetry/battleLog";
 import { gearScore } from "../systems/gearScore";
+import { noteKills } from "../systems/quests";
+import { QUESTS } from "../data/quests";
+import { rollBattleMaterials, addCounts, type Counts } from "../systems/crafting";
+import { MATERIALS } from "../data/materials";
 import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
@@ -56,13 +60,21 @@ export const Battle = {
   _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean; mirror: boolean }[],
   _animHasImpact: false,   // true while resolving an animatedStrike whose anim supplies its own impact
   _enter: false,           // true for the first ~1s of a battle: nodes built now get the .enter sweep-in
+  // BATTLE ATMOSPHERE (#battleFx canvas): per-environment weather so the arena is never static —
+  // wind-streaks + pollen on open ground, drifting leaves in forest, rain in the mire, rising embers
+  // underground — plus GLINTS that sparkle across the backdrop's water band where the painted bg has
+  // water. Self-stopping RAF loop (pauses when the battle screen hides); reduced-motion skips it.
+  _fxRaf: 0,
+  _fxLast: 0,
+  _fxParts: [] as { x: number; y: number; vx: number; vy: number; r: number; p: number; life: number }[],
+  _fxStyle: "",
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = "", eliteChance = 0.22): void {
     // FF-style encounter transition: white shock-flashes over the field, iris to black while the screen
     // swaps beneath (everything below runs synchronously under the cover), iris-open onto the battle.
     // Pure overlay — combat timing untouched; reduced-motion collapses it to an instant cut.
     const sw = $("#battleSwirl");
-    if (sw) { sw.classList.remove("go"); void sw.offsetWidth; sw.classList.add("go"); setTimeout(() => sw.classList.remove("go"), 820); }
+    if (sw) { sw.classList.remove("go"); void sw.offsetWidth; sw.classList.add("go"); setTimeout(() => sw.classList.remove("go"), 860); }
     this._enter = true; setTimeout(() => { this._enter = false; }, 1000); // entrance-sweep window
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
@@ -86,6 +98,7 @@ export const Battle = {
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
+    this.ensureFx();
     this.lockInput(700); // swallow taps bleeding over from the field D-pad as the screen swaps in
     const lead = this.enemies.find((e) => e.boss) || this.enemies[0];
     this.log(isBoss ? `${lead.name} blocks the path!` : "Enemies ambush the party!");
@@ -613,6 +626,12 @@ export const Battle = {
       if (e.rare) { drops.push(drop()); drops.push(drop()); drops.push(drop()); } // treasure-monster hoard (epic+)
     }
     Game.gold += gold;
+    // MATERIAL DROPS (crafting slice): each fallen foe sheds 0–2 crafting materials from its family
+    // pool (pure roll — systems/crafting off data/materials); banked straight into the run's stacks.
+    const matDrops = rollBattleMaterials(this.enemies.map((e) => e.key));
+    addCounts(Game.materials, matDrops);
+    // QUESTS: every fallen enemy counts toward accepted kill-bounties (pure log op — systems/quests).
+    const questsDone = noteKills(Game.quests, this.enemies.filter((e) => !e.alive).map((e) => e.key));
     const leveled = grantXp(Game.party, xp);
     if (leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach((d) => { Game.inventory.push(d); Telemetry.drop(d.rarity); });
@@ -634,13 +653,24 @@ export const Battle = {
       : () => Screens.show("field");
     if (Game.testMode && Game.testReturn) Game.continueAfterBattle = Game.testReturn; // Test Loop (ADR 0017): victory routes to the loop menu, not the field/zone flow
     Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007). (early-returns under testMode)
-    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
+    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem, questsDone, matDrops), 500);
   },
-  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {
-    let h = `<h2 class="title-gold">Victory</h2>
-      <div class="spoils-head"><span class="spoil-pill"><b>+${xp}</b> XP</span><span class="spoil-pill aether"><b>+◈ ${gold}</b> Aether</span></div>`;
+  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null, questsDone: string[] = [], matDrops: Counts = {}): void {
+    // FANFARE: a burst-in VICTORY banner over slow-turning golden rays; XP/Aether count up; loot
+    // cards cascade in. All CSS/DOM — the numbers land at their true values even if animation is off.
+    let h = `<div class="vict"><div class="vict-rays"></div><div class="vict-title">VICTORY</div></div>
+      <div class="spoils-head"><span class="spoil-pill"><b id="victXp">+${xp}</b> XP</span><span class="spoil-pill aether"><b id="victGold">+◈ ${gold}</b> Aether</span></div>`;
+    // MATERIAL PILLS (crafting slice): the crafting materials the fallen shed, already banked above.
+    const matPills = Object.entries(matDrops)
+      .map(([id, n]) => { const m = MATERIALS[id]; return m ? `<span class="spoil-pill"><b>${m.icon} ${m.name}</b> ×${n}</span>` : ""; })
+      .join("");
+    if (matPills) h += `<div class="spoils-head" style="margin-top:4px">${matPills}</div>`;
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
+    for (const qid of questsDone) {
+      const q = QUESTS[qid];
+      if (q) h += `<div class="card" style="background:#182615;border-color:#6fce6f;text-align:left"><b style="color:#8fe08f">✓ Quest complete — ${q.name}</b><div class="small" style="margin-top:3px">Return to ${q.town === "hearthford" ? "Watchman Bram in Hearthford" : q.town} to claim ◈ ${q.reward.aether} + ${q.reward.gearRarity} gear.</div></div>`;
+    }
     if (gotItem) h += `<div class="card" style="background:#161226;border-color:var(--gold);text-align:left">
       <div class="psec" style="margin:0 0 2px">Key Item</div>
       <b class="title-gold">${gotItem.icon} ${gotItem.name}</b>
@@ -658,7 +688,7 @@ export const Battle = {
       h += "</div>";
     }
     if (drops.length) {
-      h += `<div class="tag">Loot</div><div class="scroll">`;
+      h += `<div class="tag">Loot</div><div class="scroll vict-loot">`;
       drops.forEach((d) => { h += itemHtml(d); });
       h += "</div>";
     } else h += `<p class="small">No loot this time.</p>`;
@@ -667,6 +697,93 @@ export const Battle = {
     h += wasFinal ? `<button class="btn gold" onclick="UI.close()">Finish</button>` : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
     h += `</div><div class="small" style="margin-top:8px">Victory jingle: <a class="link" onclick="Music.cycleStyle('victory')">${cap(Music.styleByState.victory)} ▸</a></div>`;
     Overlay.show(h);
+    // Count the XP/Aether up from 0 over ~0.9s (pure flourish — the DOM above already holds the real
+    // totals, so a mid-animation close/re-render can never show a wrong number for long).
+    const countUp = (id: string, target: number, fmt: (n: number) => string): void => {
+      const elx = document.getElementById(id); if (!elx || target <= 0) return;
+      const t0 = performance.now(), dur = 900;
+      const step = (): void => {
+        const k = Math.min(1, (performance.now() - t0) / dur), eased = 1 - (1 - k) * (1 - k) * (1 - k);
+        elx.textContent = fmt(Math.round(target * eased));
+        if (k < 1 && document.getElementById(id)) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    countUp("victXp", xp, (n) => `+${n}`);
+    countUp("victGold", gold, (n) => `+◈ ${n}`);
+  },
+
+  /* ---- battle atmosphere (weather + water glints) ---- */
+  fxStyleFor(env: string): { kind: string; glint: [number, number] | null } {
+    if (env === "mire") return { kind: "rain", glint: [0.5, 0.64] };
+    if (env === "forest") return { kind: "leaves", glint: null };
+    if (["hollow", "warren", "vault", "seacave", "smuggden", "crypt", "stronghold", "keepvault", "citadel", "granary"].includes(env)) return { kind: "embers", glint: null };
+    return { kind: "wind", glint: env === "plains" ? [0.23, 0.33] : null }; // plains bg has the lake band
+  },
+  ensureFx(): void {
+    if (this._fxRaf || typeof requestAnimationFrame === "undefined") return;
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = $("#battleFx") as HTMLCanvasElement | null; if (!cv) return;
+    const tick = (): void => {
+      this._fxRaf = 0;
+      const scr = document.getElementById("battleScreen");
+      if (!scr || !scr.classList.contains("on") || document.hidden) { this._fxParts = []; this._fxStyle = ""; return; } // self-stop
+      const now = performance.now();
+      if (now - this._fxLast >= 32) { this._fxLast = now; this.stepFx(cv, now); }
+      this._fxRaf = requestAnimationFrame(tick);
+    };
+    this._fxRaf = requestAnimationFrame(tick);
+  },
+  stepFx(cv: HTMLCanvasElement, now: number): void {
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const { kind, glint } = this.fxStyleFor(this.env);
+    if (kind !== this._fxStyle) { // (re)seed on env change
+      this._fxStyle = kind;
+      const n = kind === "rain" ? 70 : kind === "leaves" ? 26 : kind === "embers" ? 22 : 30;
+      this._fxParts = Array.from({ length: n + (glint ? 10 : 0) }, (_, i) => {
+        const isGlint = glint ? i >= n : false;
+        const m = { x: Math.random() * w, y: Math.random() * h, vx: 0, vy: 0, r: 0, p: Math.random() * Math.PI * 2, life: isGlint ? Math.random() : -1 };
+        if (isGlint && glint) { m.y = h * (glint[0] + Math.random() * (glint[1] - glint[0])); m.r = 1.4 + Math.random() * 1.4; }
+        else if (kind === "rain") { m.vx = -60 - Math.random() * 40; m.vy = 420 + Math.random() * 180; m.r = 7 + Math.random() * 6; }
+        else if (kind === "leaves") { m.vx = 22 + Math.random() * 26; m.vy = 26 + Math.random() * 22; m.r = 2 + Math.random() * 2; }
+        else if (kind === "embers") { m.vx = (Math.random() - 0.5) * 12; m.vy = -(16 + Math.random() * 22); m.r = 1 + Math.random() * 1.4; }
+        else { m.vx = 90 + Math.random() * 80; m.vy = (Math.random() - 0.5) * 8; m.r = 1 + Math.random() * 1.2; }
+        return m;
+      });
+    }
+    const c = cv.getContext("2d")!; c.clearRect(0, 0, w, h);
+    const dt = 0.033;
+    for (const m of this._fxParts) {
+      if (m.life >= 0) { // water glint: pulse in place, respawn along the band when the pulse dies
+        m.life += dt * 0.55;
+        if (m.life >= 1) { m.life = 0; m.x = Math.random() * w; }
+        const a = Math.sin(m.life * Math.PI) * 0.55;
+        c.strokeStyle = `rgba(235,248,255,${a.toFixed(3)})`; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(m.x - m.r * 2, m.y); c.lineTo(m.x + m.r * 2, m.y); c.moveTo(m.x, m.y - m.r); c.lineTo(m.x, m.y + m.r); c.stroke();
+        continue;
+      }
+      m.x += m.vx * dt; m.y += m.vy * dt;
+      if (m.x > w + 20) m.x = -10; if (m.x < -20) m.x = w + 10;
+      if (m.y > h + 20) m.y = -10; if (m.y < -20) m.y = h + 10;
+      if (this._fxStyle === "rain") {
+        c.strokeStyle = "rgba(190,215,235,.34)"; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(m.x, m.y); c.lineTo(m.x + m.vx * 0.03, m.y + m.vy * 0.03); c.stroke();
+      } else if (this._fxStyle === "leaves") {
+        const rot = now / 600 + m.p;
+        c.fillStyle = "rgba(150,190,110,.5)";
+        c.save(); c.translate(m.x, m.y); c.rotate(rot); c.fillRect(-m.r, -m.r * 0.45, m.r * 2, m.r * 0.9); c.restore();
+      } else if (this._fxStyle === "embers") {
+        const tw = 0.4 + 0.4 * Math.sin(now / 300 + m.p);
+        c.fillStyle = `rgba(255,160,70,${tw.toFixed(3)})`;
+        c.beginPath(); c.arc(m.x, m.y, m.r, 0, Math.PI * 2); c.fill();
+      } else { // wind: faint fast streaks + a slow pollen shimmer
+        const a = 0.05 + 0.05 * Math.sin(now / 500 + m.p);
+        c.strokeStyle = `rgba(255,244,220,${a.toFixed(3)})`; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(m.x, m.y); c.lineTo(m.x - 14 - m.r * 6, m.y + 1); c.stroke();
+      }
+    }
   },
 
   /* ---- rendering ---- */
@@ -747,16 +864,24 @@ export const Battle = {
       const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
       const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : "") + (this._enter ? " enter" : "");
       const art = e.art || e.key;
+      const hpPct = pct(e.hp, e.maxhp);
+      const ename = `<div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>`;
+      // HP bar carries a red GHOST layer under the green fill: on damage the green snaps, the ghost
+      // drains down after it (CSS transition) — the classic "here's what that hit cost" read.
       const bar = `<div class="ebar">
-        <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
-        <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
+        ${ename}
+        <div class="bar hp"><i class="ghost" style="width:${hpPct}%"></i><i style="width:${hpPct}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       const cur = reuse ? (z.children[i] as HTMLElement) : null;
       if (cur && cur.dataset.art === art) {
-        // same creature, same art → keep the sprite, refresh only flags + the bar block.
+        // same creature, same art → keep the sprite; update the bar SURGICALLY (not an outerHTML swap)
+        // so the ghost layer persists across renders and its catch-up drain actually animates.
         if (cur.className !== cls) cur.className = cls;
-        const ebar = cur.querySelector(".ebar");
-        if (ebar) ebar.outerHTML = bar;
+        const en = cur.querySelector(".ename"); if (en) en.outerHTML = ename;
+        const hpG = cur.querySelector<HTMLElement>(".bar.hp > i:not(.ghost)"); if (hpG) hpG.style.width = hpPct + "%";
+        const gh = cur.querySelector<HTMLElement>(".bar.hp > i.ghost"); if (gh) gh.style.width = hpPct + "%";
+        const btxt = cur.querySelector(".bar.hp .bartxt"); if (btxt) btxt.textContent = `${Math.max(0, e.hp)}/${e.maxhp}`;
+        const atb = cur.querySelector<HTMLElement>(".bar.atb > i"); if (atb) atb.style.width = e.atb + "%";
         cur.onclick = targetable && e.alive ? () => this.targetClicked(e) : null;
       } else {
         const d = el("div", cls);
@@ -826,14 +951,17 @@ export const Battle = {
   },
   renderRoster(barsOnly?: boolean): void {
     const p = $("#rosterRows")!;
-    if (!barsOnly || p.children.length !== Game.party.length) {
+    // Build once, then ALWAYS reconcile in place — a rebuild would recreate the HP bars and reset the
+    // red ghost layer, killing its catch-up drain animation mid-fight.
+    if (p.children.length !== Game.party.length) {
       p.innerHTML = "";
       this.rosterOrder().forEach((m) => {
+        const w = pct(m.hp, m.maxhp);
         const row = el("div", "prow" + (m === this.current ? " turn" : "") + (m.alive ? "" : " downed"));
         row.dataset.id = m.id;
         row.innerHTML = `<div class="pn" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div>
         <div class="bars">
-          <div class="bar hp"><i style="width:${pct(m.hp, m.maxhp)}%"></i><span class="bartxt">${Math.max(0, m.hp)}/${m.maxhp}</span></div>
+          <div class="bar hp"><i class="ghost" style="width:${w}%"></i><i style="width:${w}%"></i><span class="bartxt">${Math.max(0, m.hp)}/${m.maxhp}</span></div>
           <div class="bar atb"><i style="width:${m.atb}%"></i></div>
         </div>`;
         p.appendChild(row);
@@ -844,9 +972,16 @@ export const Battle = {
       const m = Game.party.find((x) => x.id === (row as HTMLElement).dataset.id);
       if (!m) return;
       row.classList.toggle("turn", m === this.current);
-      const bars = row.querySelectorAll<HTMLElement>(".bar > i");
-      if (bars[0]) { bars[0].style.width = pct(m.hp, m.maxhp) + "%"; row.querySelector(".bar.hp .bartxt")!.textContent = `${Math.max(0, m.hp)}/${m.maxhp}`; }
-      if (bars[1]) bars[1].style.width = m.atb + "%"; // [hp, atb] — the MP bar was removed (Battle 2.0 uses cooldowns + Resource pools)
+      row.classList.toggle("downed", !m.alive);
+      if (!barsOnly) {
+        const pn = row.querySelector<HTMLElement>(".pn");
+        if (pn) { pn.style.color = m.alive ? ATT[m.att].color : "#666"; pn.innerHTML = `${m.name}${statusBadges(m)}`; }
+      }
+      const w = pct(m.hp, m.maxhp) + "%";
+      const hpG = row.querySelector<HTMLElement>(".bar.hp > i:not(.ghost)");
+      if (hpG) { hpG.style.width = w; row.querySelector(".bar.hp .bartxt")!.textContent = `${Math.max(0, m.hp)}/${m.maxhp}`; }
+      const gh = row.querySelector<HTMLElement>(".bar.hp > i.ghost"); if (gh) gh.style.width = w;
+      const atb = row.querySelector<HTMLElement>(".bar.atb > i"); if (atb) atb.style.width = m.atb + "%";
     });
   },
   // The battle log lives in the right column of the lower window: a scrollable history (capped),

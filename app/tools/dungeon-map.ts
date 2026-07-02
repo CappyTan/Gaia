@@ -43,4 +43,17 @@ for (const zi of zoneIdxs) {
     const t = floorTopology(D, { zone: z.dungeon.name, floorIndex: fi, floorCount: floors.length });
     console.log("\n" + renderTopology(t));
   });
+  // SECOND DUNGEON (wave3b — the Ancient Ruins): a zone may carry a second descend target; dump its
+  // floors too so the level-design agents can grade it. Its bossless last floor's egress is the seal
+  // (authored as `boss` == `seal`, so the analyzer's egress read holds).
+  if (z.dungeon2) {
+    const d2 = z.dungeon2;
+    const floors2 = d2.floors && d2.floors.length ? d2.floors : [d2.layout];
+    console.log(`\n████ ${z.name}  (zone ${zi} · "${z.id}") — ${d2.name} (dungeon2) · ${floors2.length} floor(s) ████`);
+    floors2.forEach((D, fi) => {
+      if (onlyFloor != null && fi !== onlyFloor) return;
+      const t = floorTopology(D, { zone: d2.name, floorIndex: fi, floorCount: floors2.length });
+      console.log("\n" + renderTopology(t));
+    });
+  }
 }

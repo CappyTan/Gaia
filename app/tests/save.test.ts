@@ -110,6 +110,27 @@ describe("save round-trip", () => {
     expect(r.resources).toEqual({ SOL: 30, NOX: 12, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 });
   });
 
+  it("persists the crafting stacks + gathered nodes (the crafting slice), degrading unknown ids", () => {
+    const { snapshot } = makeRun();
+    snapshot.materials = { "iron-scrap": 3, "lifebloom-seed": 1, "gone-material": 5 }; // one removed id
+    snapshot.consumables = { "health-tonic": 2, "gone-tonic": 1 };
+    snapshot.gatheredNodes = { "greenvale:nd:18,13": true };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.materials).toEqual({ "iron-scrap": 3, "lifebloom-seed": 1 }); // unknown id dropped, never throws
+    expect(r.consumables).toEqual({ "health-tonic": 2 });
+    expect(r.gatheredNodes).toEqual({ "greenvale:nd:18,13": true });
+  });
+
+  it("an old save with no crafting fields loads to empty stacks (degrade-never-throw)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete env.run.materials; delete env.run.consumables; delete env.run.gatheredNodes;
+    const r = deserialize(env)!;
+    expect(r.materials).toEqual({});
+    expect(r.consumables).toEqual({});
+    expect(r.gatheredNodes).toEqual({});
+  });
+
   it("persists a member's V3 choice picks + the Resource pools (ADR 0019/0020)", () => {
     const { snapshot } = makeRun();
     snapshot.party[0].picks = { "special@5": ["Firebolt"], "signature@10": ["Ignition"] };
@@ -488,13 +509,14 @@ describe("world coords (schema v2, Stage 2C seamless big-map)", () => {
     delete (env.run as any).wx; delete (env.run as any).wy; delete (env.run as any).bigMap;
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
-    // greenvale placement is (127,62); spawn-relative (12,7) → world (139,69). Migration sets bigMap
-    // false (v1 had no big map → resume discrete), but wx/wy are derived for forward-compat.
+    // greenvale placement is (127,54) (wave3b: the 64×40 shire); local (12,7) → world (139,61).
+    // Migration sets bigMap false (v1 had no big map → resume discrete), but wx/wy are derived for
+    // forward-compat.
     expect(r.bigMap).toBe(false);
     // the migration wrote wx/wy onto the envelope run; deserialize zeroes them only because bigMap is
     // false — so we verify the migration math on the raw migrated run instead.
     expect((env.run as any).wx).toBe(127 + 12);
-    expect((env.run as any).wy).toBe(62 + 7);
+    expect((env.run as any).wy).toBe(54 + 7);
     expect(r.party.length).toBe(2);          // degrade-never-throw: party intact
   });
 

@@ -3,10 +3,11 @@
 // `systems/mapgen` (pure, RNG-injected); the canvas DRAW primitives are `ui/fieldRender` (pure, ctx+data
 // in); the encounter composition is `systems/encounter`. See ADR 0012 for the god-module split.
 
+import type { Item } from "../types";
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type Zone, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type ZoneDungeon, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId, type NodeKind } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
@@ -14,7 +15,9 @@ import {
 import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
 import { genCombined, genOverworld, genDungeon, FIELD_WALLS, type GenResult, type ClearedState } from "../systems/mapgen";
 import * as FR from "../ui/fieldRender";
-import { POI_KINDS } from "../ui/fieldRender";
+import { POI_KINDS, NODE_KINDS } from "../ui/fieldRender";
+import { MATERIALS, GATHER_NODES } from "../data/materials";
+import { gatherNode, addCounts } from "../systems/crafting";
 import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
@@ -142,6 +145,7 @@ export const Field = {
   wayfinding: emptyProgress() as Progress,
   poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
   openedChests: {} as Record<string, boolean>, // chest key (overworld "<zoneId>:ow:<x>,<y>" / dungeon "<zoneId>:d<floor>:<x>,<y>") → looted; PERSISTED in the save (per-RUN, like poisCleared)
+  gatheredNodes: {} as Record<string, boolean>, // gathering-node key ("<zoneId>:nd:<x>,<y>") → gathered; PERSISTED in the save (per-RUN, like openedChests — crafting slice)
   pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
   ENC_MIN: 10, ENC_MAX: 15, // steps between random fights (Dara: ~5 felt too frequent → 10-15)
   zoneIndex: 0,
@@ -157,6 +161,12 @@ export const Field = {
   // Which floor of a multi-floor dungeon (the Bandit Warren) the player is on (0 = B1). 0 for the 9
   // single-floor dungeons (their `dungeon.floors` is absent → a 1-element stack). PERSISTED in the save.
   dungeonFloor: 0,
+  // WHICH dungeon a descent runs (wave3b — the second descend target). A zone can now carry TWO
+  // dungeons: the main `zone.dungeon` (entered via the guarded `mouth`) and an optional `zone.dungeon2`
+  // (the Ancient Ruins, entered via the unguarded `ruins` tile). Resolved AT DESCEND TIME and read by
+  // every this-dungeon accessor through dungeonDef()/dungeonFloors(). PERSISTED in the save (so a
+  // resume mid-Ruins rebuilds the Ruins, not the Warren); "main" outside a dungeon / on a fresh run.
+  activeDungeon: "main" as "main" | "second",
   // Which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten, by floor index. A floor
   // with no `miniboss` is implicitly open; a beaten mini turns that floor's stairs live. Reset on a fresh
   // descent into the dungeon; PERSISTED so a resume mid-dungeon keeps a beaten gate open.
@@ -208,7 +218,7 @@ export const Field = {
   // SMOOTH-STEP GLIDE (presentation only): logic stays discrete — px/py (or wx/wy) snap immediately for
   // collision/encounters/POIs; only the camera + drawn walker glide between tiles (~115ms, eased), with
   // a small foot-bob. A held direction chains glides from the current visual position so motion flows.
-  _glide: null as null | { fx: number; fy: number; t0: number; ms: number },
+  _glide: null as null | { fx: number; fy: number; t0: number; ms: number; lin: boolean },
   // AMBIENT LOOP (the living world): one shared RAF loop drives glides at full rate and ambient life
   // (water shimmer, drifting motes) at ~30fps while the field screen is visible. Self-stops when the
   // field hides or the tab backgrounds; any draw() restarts it. Skipped under prefers-reduced-motion.
@@ -218,6 +228,7 @@ export const Field = {
   _moteStyle: "",
   _moteLast: 0,
   _atmo: "",
+  _held: null as null | [number, number], // held walk direction (d-pad press / key held) — loop-paced
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
   // Stage 2C: the big map is CONTINENT-WIDE — every built zone's authored blueprint is realized into
   // the one 960×640 world, the open continent bridging them (G22). `authoredGrids` maps a built zone
@@ -333,11 +344,31 @@ export const Field = {
   // zone's mouth at once). The single read every mouth-gating site goes through, so they stay in lockstep.
   miniClearedFor(zoneId: string): boolean { return !!this.mouthCleared[zoneId]; },
   // ── MULTI-FLOOR helpers (ADR 0008 Stage 3) ──────────────────────────────────────────────────
-  // The floor stack for a zone's dungeon: its authored `floors` if multi-floor, else a 1-element stack
-  // of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
+  // The ACTIVE dungeon definition (wave3b): the zone's second dungeon (the Ancient Ruins) when a
+  // `ruins` descent is live, else the main dungeon. Defensive: a zone without a `dungeon2` always
+  // resolves main, so a stale "second" flag can never dereference nothing.
+  dungeonDef(zoneIndex?: number): ZoneDungeon {
+    const z = ZONES[zoneIndex ?? this.zoneIndex];
+    return (this.activeDungeon === "second" && z.dungeon2) || z.dungeon;
+  },
+  // The PERSISTENCE NAMESPACE for the current dungeon's chest/rest keys: the plain zone id for the
+  // main dungeon (back-compat with every existing save key), "<zoneId>:ruins" for the second — so a
+  // Ruins floor-1 chest can never collide with a Warren floor-1 chest at the same x,y.
+  dungeonKeyZone(zoneIndex?: number): string {
+    const zid = ZONES[zoneIndex ?? this.zoneIndex].id;
+    return this.activeDungeon === "second" ? zid + ":ruins" : zid;
+  },
+  // The floor stack for the ACTIVE dungeon: its authored `floors` if multi-floor, else a 1-element
+  // stack of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
   dungeonFloors(zoneIndex?: number): DungeonLayout[] {
-    const d = ZONES[zoneIndex ?? this.zoneIndex].dungeon;
+    const d = this.dungeonDef(zoneIndex);
     return d.floors && d.floors.length ? d.floors : [d.layout];
+  },
+  // Whether the ACTIVE dungeon ends at the bossless SEALED DOOR (the Ancient Ruins) — drives the hint/
+  // overlay copy that would otherwise name a boss.
+  dungeonSealed(): boolean {
+    const fl = this.dungeonFloors();
+    return !!fl[fl.length - 1]?.seal;
   },
   // The DungeonLayout the player currently stands on (the current floor). Falls back to floor 0.
   curFloor(): DungeonLayout {
@@ -372,7 +403,7 @@ export const Field = {
   // east of the gate on the combined grid (px > gate.x).
   inDungeon(): boolean { return this.usesNewModel() ? this.mode === "dungeon" : this.px > this.gate.x; },
   envFor(p: number): string {
-    if (this.inDungeon()) return this.zone().dungeon.env;
+    if (this.inDungeon()) return this.dungeonDef().env;
     const e = this.zone().envs;
     return e[clamp(Math.floor(p * 4), 0, e.length - 1)];
   },
@@ -382,8 +413,10 @@ export const Field = {
     this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
     this.zoneIndex = 0;
     this.enteredDungeon = false;
+    this.activeDungeon = "main"; // fresh run — no second-dungeon descent live (a resume restores it AFTER init())
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
+    this.gatheredNodes = {}; // fresh run — every gathering node stands (PER-RUN, like openedChests; a resume restores the saved set AFTER init())
     this.ownedCaps = new Set(); // fresh run — no traversal caps owned (the gorge stays locked until the Warren falls; a resume restores the set AFTER init())
     this.wayfinding = emptyProgress(); // fresh run — nothing known/entered yet (a resume restores it AFTER init())
     this.mouthCleared = {}; // fresh run — every zone's overworld mouth guard stands (a resume restores the saved set AFTER init())
@@ -434,6 +467,7 @@ export const Field = {
   // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
   loadZone(i: number): void {
     this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false; this.enteredDungeon = false;
+    this.activeDungeon = "main"; // a fresh zone entry starts on the surface — no second-dungeon descent live
     const zid = ZONES[i]?.id; if (zid) delete this.mouthCleared[zid]; // a fresh entry → this zone's mouth guard stands again
     this.resize(); this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
@@ -486,6 +520,7 @@ export const Field = {
       miniCleared: !!opts.miniCleared,
       floorMiniBeaten: !!opts.floorMiniBeaten,
       restSpent: (p) => !!this.poisCleared[this.poiKey(zoneId + ":d" + this.dungeonFloor, p.x, p.y)],
+      nodeGathered: (p) => !!this.gatheredNodes[this.nodeKey(zoneId, p.x, p.y)],
     };
   },
   // Assign a mapgen GenResult onto the controller's run state (grid + spawn/anchors). Behaviour-preserving:
@@ -527,7 +562,9 @@ export const Field = {
     this.dungeonFloor = clamp(floorIdx, 0, floors.length - 1);
     const last = this.dungeonFloor >= floors.length - 1;
     const D = floors[this.dungeonFloor];
-    const dunZid = ZONES[zoneIndex]?.id ?? this.zone().id;
+    // Keys are namespaced by the ACTIVE dungeon (dungeonKeyZone) so Ruins chests/rests persist apart
+    // from the Warren's (same zone, overlapping floor numbers + coords).
+    const dunZid = this.dungeonKeyZone(zoneIndex);
     const cleared = this.clearedFor(dunZid, this.dungeonFloor, { floorMiniBeaten: !!this.dungeonMiniCleared[this.dungeonFloor] });
     this.applyGen(genDungeon(D, last, cleared));
   },
@@ -543,6 +580,9 @@ export const Field = {
   chestKey(zoneId: string, ctx: "ow" | number, x: number, y: number): string {
     return zoneId + ":" + (ctx === "ow" ? "ow" : "d" + ctx) + ":" + x + "," + y;
   },
+  // A per-zone GATHERING-NODE key ("<zoneId>:nd:<x>,<y>") so a gathered node stays spent across a
+  // reload without colliding with the POI/chest namespaces (crafting slice). Mirrors chestKey.
+  nodeKey(zoneId: string, x: number, y: number): string { return zoneId + ":nd:" + x + "," + y; },
 
   // ── TOWN ── Enter a walkable settlement by id (ADR 0006). Called via Game.openTown(id).
   // Service buildings are walk-in POIs; NPCs are walked up to and talked to; the gate leaves.
@@ -632,6 +672,8 @@ export const Field = {
       if (!this.miniClearedFor(this.zone().id)) { this.startMiniBoss(); return; }
     }
     if (cell === "mouth") { this.descend(); return; }        // step onto the cleared mouth → into the dungeon
+    if (cell === "ruins") { this.descend("second"); return; } // the Ancient Ruins entrance (unguarded) → into dungeon2
+    if (cell === "seal") { this.touchSeal(); return; }       // the Ruins' sealed terminus — flavor, never opens
     if (cell === "stairsdown") { if (this.stairsOpen()) this.descendFloor(); return; } // descend a floor
     if (cell === "stairsup") { this.ascendFloor(); return; } // climb a floor (or out on floor 0)
     if (cell === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
@@ -639,6 +681,7 @@ export const Field = {
     if (cell === "rest") { this.restAt(nx, ny); return; }     // a dungeon campfire (breather full-heal, once)
     if (cell === "rubble") { this.collapseAt(nx, ny); return; } // the Warren collapse: one-way drop shortcut
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
+    if (NODE_KINDS.has(cell)) { this.gatherAt(nx, ny); return; } // ore vein / ancient root / spirit bloom (crafting slice)
     if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
     if (!this.usesNewModel() && this.inDungeon() && !this.enteredDungeon) {
@@ -677,9 +720,12 @@ export const Field = {
     }
     this.draw?.(); this.hint?.();
   },
-  // Step onto the cleared mouth → build the dungeon grid (floor 0), drop into it, show the "you descend"
-  // beat. A FRESH descent from the overworld resets the per-floor mini-gate state (re-cleared per visit).
-  descend(): void {
+  // Step onto the cleared mouth (or the Ruins entrance) → build the dungeon grid (floor 0), drop into
+  // it, show the "you descend" beat. `which` resolves the descend TARGET (wave3b): "main" = the zone's
+  // guarded dungeon, "second" = its unguarded Ancient Ruins (`zone.dungeon2`). A FRESH descent from the
+  // overworld resets the per-floor mini-gate state (re-cleared per visit).
+  descend(which: "main" | "second" = "main"): void {
+    this.activeDungeon = which === "second" && this.zone().dungeon2 ? "second" : "main";
     this.enteredDungeon = true;
     this.dungeonMiniCleared = {}; // fresh run of the dungeon — re-fight each floor's gating lieutenant
     this.pendingFloorMini = -1;   // defensive: no floor-mini fight is in flight on a fresh descent
@@ -687,11 +733,19 @@ export const Field = {
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
-    const z = this.zone();
+    const z = this.zone(), dd = this.dungeonDef();
     // Swap to the zone's dedicated dungeon cue if it has one (else keep the overworld cue, as before).
     const dm = Music.forDungeon(z.id);
     if (dm && dm !== this.bigMusic) { this.bigMusic = dm; Music.play(dm); Music._renderStyleLabels?.(); }
-    Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+    const body = this.activeDungeon === "second"
+      ? `You climb down into the unearthed halls. The mana here hangs thick enough to taste — and what prowls these ruins is far stronger than the shire above.`
+      : `You descend into the dungeon. The enemies here are stronger — but so is their hoard.`;
+    Overlay.show(`<h2 class="title-gold">${dd.name}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+  },
+  // THE SEALED DOOR (wave3b — the Ancient Ruins' bossless terminus): a walkable landmark that will not
+  // open. Pure flavor beat — never consumed, never a fight; what waits behind it is content for later.
+  touchSeal(): void {
+    Overlay.show(`<h2 class="title-gold">The Sealed Door</h2><p class="small">A great door of no stone you know, graven edge to edge with a five-pointed ring. The mana runs so thick here the air hums against your teeth — and it is seeping from BEHIND the door. No key fits it. No force you command so much as marks it. Whatever the ancients shut away down here… it is still waiting.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Step back</button></div>`);
   },
   // MULTI-FLOOR: step onto the (open) stairs-down → build the NEXT floor at its entry. Carries the
   // beaten-gate state across floors (per-visit), autosaves the new floor so a resume restores it.
@@ -702,12 +756,14 @@ export const Field = {
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
-    const z = this.zone();
+    const z = this.zone(), dd = this.dungeonDef();
     const last = this.isLastFloor();
     const body = last
-      ? `You descend the last stair — the hideout opens into the ${ENEMIES[z.boss].name}'s hall.`
-      : `You descend deeper into ${z.dungeon.name}. The dens run hotter the lower you go.`;
-    Overlay.show(`<h2 class="title-gold">${z.dungeon.name} · B${this.dungeonFloor + 1}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+      ? (this.dungeonSealed()
+        ? `You descend the last stair — and the mana thickens like deep water. Something down here is sealed away.`
+        : `You descend the last stair — the hideout opens into the ${ENEMIES[z.boss].name}'s hall.`)
+      : `You descend deeper into ${dd.name}. The ${this.activeDungeon === "second" ? "halls run older and hotter" : "dens run hotter"} the lower you go.`;
+    Overlay.show(`<h2 class="title-gold">${dd.name} · B${this.dungeonFloor + 1}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
   // MULTI-FLOOR: step onto the up-stair on a deeper floor → climb back to the PREVIOUS floor, landing
   // on that floor's stairs-down (so you arrive where you descended). On floor 0 the up-stair IS the
@@ -734,10 +790,15 @@ export const Field = {
     // dismissing the spoils/“Warren falls” overlays reveals the finished battle screen and strands the
     // player (the reported stuck-after-loot bug). Show the field before rebuilding the grid.
     Screens.show("field");
+    // The EXIT tile: the guarded mouth for the main dungeon, the `ruins` entrance for the second —
+    // leaving a dungeon always returns you to the tile you descended through. Read BEFORE the
+    // activeDungeon reset below.
+    const exit = this.activeDungeon === "second" ? (this.zone().layout.ruins ?? this.mouth) : this.mouth;
+    this.activeDungeon = "main"; // back on the surface — the next descent resolves its own target
     if (this.bigMap) {
       this.mode = "overworld"; this.enteredDungeon = false; // back on the seamless surface
       const pl = placementOf(this.bigZone)!;
-      this.wx = pl.wx + this.mouth.x; this.wy = pl.wy + this.mouth.y; // step back out onto the mouth's world tile
+      this.wx = pl.wx + exit.x; this.wy = pl.wy + exit.y; // step back out onto the entrance's world tile
       this.realizeAround();
       this.syncZoneFromWorld();
       this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
@@ -746,7 +807,7 @@ export const Field = {
       return;
     }
     this.resize(); this.genOverworld(this.zone().id); // mode="overworld", px/py at spawn
-    this.px = this.mouth.x; this.py = this.mouth.y;    // step back out onto the mouth, not the far spawn
+    this.px = exit.x; this.py = exit.y;    // step back out onto the entrance, not the far spawn
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
@@ -809,6 +870,10 @@ export const Field = {
       // path) across a reload, so the realizer can't re-spawn it (chest coords are the zone's authored locals).
       for (const c of z?.layout.chests ?? [])
         if (this.openedChests[this.chestKey(id, "ow", c.x, c.y)] && this.authoredGrids[id][c.y]) this.authoredGrids[id][c.y][c.x] = "path";
+      // Re-apply persisted gathered-node state the same way (crafting slice): a gathered node stays
+      // plain ground across a reload, so the realizer can't re-spawn it.
+      for (const n of z?.layout.nodes ?? [])
+        if (this.gatheredNodes[this.nodeKey(id, n.x, n.y)] && this.authoredGrids[id][n.y]) this.authoredGrids[id][n.y][n.x] = "grass";
     }
     const z = ZONES.find((zz) => zz.id === start) ?? ZONES[0];
     const pl = placementOf(start)!, L = z.layout;
@@ -983,9 +1048,11 @@ export const Field = {
     // and strand the Sunless Grove (the seamless-map soft-lock this overhaul fixes).
     if (cell.kind === "miniboss" && !this.miniClearedFor(this.zone().id)) { this.startMiniBoss(); return; }
     if (cell.kind === "mouth") { this.descend(); return; }
+    if (cell.kind === "ruins") { this.descend("second"); return; } // the Ancient Ruins entrance (unguarded) → dungeon2
     if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
+    if (NODE_KINDS.has(cell.kind)) { this.gatherBigNode(nx, ny); return; } // ore vein / ancient root / spirit bloom (crafting slice)
     if (POI_KINDS.has(cell.kind)) { this.touchBigPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // D3 USE-FEEDBACK: the FIRST step onto a now-unlocked gorge crossing fires a one-time callout (reuses
     // the pickup-callout overlay style). The crossing stays walkable — this never blocks the step.
@@ -1011,7 +1078,7 @@ export const Field = {
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
-    Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+    this.chestReveal(it);
   },
   // The rare-monster den in big-map space (Hogger): consume it, then start the solo rare fight.
   enterBigLair(wx: number, wy: number): void {
@@ -1021,6 +1088,44 @@ export const Field = {
     this.draw(); this.hint();
     if (!key) return;
     Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
+  },
+
+  // ── GATHERING NODES (crafting slice) ──────────────────────────────────────────────────────────
+  // Stepping onto a node GATHERS it: roll its yield (pure systems/crafting off the data/materials
+  // tables), bank the materials on the run, consume the tile for the run (persisted like a looted
+  // chest — gatheredNodes), and show what came loose. Discrete path (px/py grid).
+  gatherAt(x: number, y: number): void {
+    const kind = this.map[y][x] as NodeKind;
+    this.map[y][x] = "grass";
+    this.gatheredNodes[this.nodeKey(this.zone().id, x, y)] = true;
+    this.finishGather(kind);
+  },
+  // Big-map path: consume the realized cell + the authored blueprint cell (so a chunk re-realize
+  // can't re-spawn it), keyed by the node's AUTHORED zone-local coords — mirrors openBigChest.
+  gatherBigNode(wx: number, wy: number): void {
+    const kind = this.cellAt(wx, wy).kind as NodeKind;
+    this.cellAt(wx, wy).kind = "grass";
+    const a = authoredAt(wx, wy);
+    if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "grass";
+    if (a) this.gatheredNodes[this.nodeKey(a.zoneId, a.lx, a.ly)] = true;
+    this.finishGather(kind);
+  },
+  // Shared gather resolution: roll → bank → autosave → the "what you got" overlay (material pills).
+  finishGather(kind: NodeKind): void {
+    const node = GATHER_NODES[kind];
+    if (!node) return;
+    const gains = gatherNode(kind);
+    addCounts(Game.materials, gains);
+    Game.saveNow?.(); // persist the gathered-node record + the new materials (mirrors the chest path)
+    this.draw(); this.hint();
+    const pills = Object.entries(gains)
+      .map(([id, n]) => { const m = MATERIALS[id]; return m ? `<span class="spoil-pill"><b>${m.icon} ${m.name}</b> ×${n}</span>` : ""; })
+      .join("");
+    Overlay.show(`<h2 class="title-gold">${node.icon} ${node.name}</h2>
+      <p class="small">${node.blurb}</p>
+      <div class="spoils-head">${pills}</div>
+      <div class="small" style="opacity:.7">Materials go to your Bag — craft with them at a town smith.</div>
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
 
   // Walking onto a town POI tile opens its service (Game owns the run-state actions).
@@ -1036,6 +1141,8 @@ export const Field = {
   // Talk to an NPC: open the lightweight (non-blocking) dialogue box; advancing redraws so the
   // little "talking" marker over the NPC clears when the conversation ends.
   talkTo(npc: TownNPC): void {
+    // QUEST GIVER: quest business (offer / progress / turn-in) takes precedence over small talk.
+    if (this.town && Game.openQuestTalk(this.town.id, npc.id)) return;
     Dialogue.open(npc.name, npc.spr, npc.lines, () => { this.draw(); this.hint(); });
     this.draw(); this.hint();
   },
@@ -1045,7 +1152,9 @@ export const Field = {
   // same pool, only the COMPOSITION shifts.
   rollEncounter(): void {
     const enc = rollEncounter({
-      bands: this.zone().bands,
+      // A dungeon may carry its OWN encounter table (wave3b — the Ancient Ruins' hotter cast); the
+      // main dungeons omit `bands` and keep sharing the zone spine, exactly as before.
+      bands: (this.inDungeon() ? this.dungeonDef().bands : undefined) ?? this.zone().bands,
       progress: this.progress(),
       inDungeon: this.inDungeon(),
       dungeonFloor: this.dungeonFloor,
@@ -1148,7 +1257,7 @@ export const Field = {
   // the mouth) cleared. Falls back to the zone mini if no floorMini key is authored.
   startFloorMini(): void {
     const z = this.zone();
-    const key = z.dungeon.floorMini || z.mini;
+    const key = this.dungeonDef().floorMini || z.mini; // the ACTIVE dungeon's lieutenant (the Ruins author none)
     this.pendingFloorMini = this.dungeonFloor;
     // depth runs hotter the deeper the floor (mirrors the dungeon depth bump), capped at 1.
     const fl = this.dungeonFloors().length;
@@ -1172,16 +1281,51 @@ export const Field = {
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
     // PERSIST the loot: key by context so a Continue (which regenerates the grid from layout data) carves
-    // this cell as path instead of re-spawning the chest. Dungeon chests are floor-scoped; overworld chests
+    // this cell as path instead of re-spawning the chest. Dungeon chests are floor-scoped AND namespaced
+    // by the ACTIVE dungeon (dungeonKeyZone — the Ruins can't collide with the Warren); overworld chests
     // use the "ow" context. (poiKey-style per-zone disambiguation against x,y collisions across zones/floors.)
-    const zid = this.zone().id;
-    this.openedChests[this.chestKey(zid, this.mode === "dungeon" ? this.dungeonFloor : "ow", x, y)] = true;
-    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // a higher item level deeper in
-    const it = rollItemAtLevel(CHEST_LEVEL(this.zoneIndex, this.progress()), undefined, ilvl, undefined, DROP_MODS.chest); // level-banded rarity (+treat ceiling), EQUAL across classes (Dara)
+    const inDun = this.mode === "dungeon";
+    const zid = inDun ? this.dungeonKeyZone() : this.zone().id;
+    this.openedChests[this.chestKey(zid, inDun ? this.dungeonFloor : "ow", x, y)] = true;
+    // ILVL EDGE (wave3b): the active dungeon's `ilvlBonus` lifts BOTH the rarity-band level and the
+    // ilvl over the zone's overworld chest curve — the Ruins' +3 "harder place, better loot" promise.
+    const bonus = inDun ? (this.dungeonDef().ilvlBonus ?? 0) : 0;
+    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4) + bonus; // a higher item level deeper in
+    const it = rollItemAtLevel(CHEST_LEVEL(this.zoneIndex, this.progress()) + bonus, undefined, ilvl, undefined, DROP_MODS.chest); // level-banded rarity (+treat ceiling), EQUAL across classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
-    Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+    this.chestReveal(it);
+  },
+  // CINEMATIC CHEST REVEAL (Dara: "almost like a slot machine"): the chest rattles while a slot window
+  // spins through teaser names in random rarity colours, decelerating tick by tick — then bursts open
+  // and the REAL drop pops in. The item is already banked in the inventory before this plays, so
+  // closing early can never lose loot. Reduced-motion (or a missing overlay) skips straight to the card.
+  chestReveal(it: Item): void {
+    const reveal = `<div id="chestReveal" style="display:none">${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div></div>`;
+    const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`); return; }
+    Overlay.show(`<h2 class="title-gold">Treasure!</h2>
+      <div class="chest-cin rolling"><div class="chest-box">📦</div><div class="chest-slot" id="chestSlot">…</div></div>${reveal}`);
+    const TEASE = ["Worn Blade", "Iron Helm", "Silver Ring", "Oaken Staff", "Leather Gloves", "Traveler's Boots", "Aether Trinket", "Mystic Charm", "Steel Cuirass", "Hunter's Bow"];
+    const COLS = ["#9aa0a6", "#6fce6f", "#5aa2e8", "#b06fe8", "#f4a442", "#ef6a6a"];
+    let delay = 55;
+    const tick = (): void => {
+      const slot = document.getElementById("chestSlot");
+      if (!slot) return; // overlay closed early — the loot is already in the bag
+      if (delay > 340) { // land: burst the box open and pop the real card in
+        const cin = slot.closest(".chest-cin");
+        if (cin) { cin.classList.remove("rolling"); cin.classList.add("open"); }
+        slot.textContent = "";
+        const r = document.getElementById("chestReveal"); if (r) { r.style.display = ""; r.classList.add("burst"); }
+        return;
+      }
+      slot.textContent = TEASE[Math.floor(Math.random() * TEASE.length)];
+      (slot as HTMLElement).style.color = COLS[Math.floor(Math.random() * COLS.length)];
+      delay *= 1.22;
+      setTimeout(tick, delay);
+    };
+    setTimeout(tick, delay);
   },
   // DUNGEON REST NODE (skill §1 breather, ADR 0010): a rest tile that applies THIS dungeon's TAILORED
   // reprieve ONCE per visit, then spends (reverts to floor). Deliberately partial + themed — never a full
@@ -1190,7 +1334,7 @@ export const Field = {
   // at the same x,y can't collide). A spent fire is already carved as floor by genDungeon, so this only
   // fires on a live one. If a layout authored a rest with NO reprieve (a content bug), it's a no-op beat.
   restAt(x: number, y: number): void {
-    const key = this.poiKey(this.zone().id + ":d" + this.dungeonFloor, x, y);
+    const key = this.poiKey(this.dungeonKeyZone() + ":d" + this.dungeonFloor, x, y);
     this.poisCleared[key] = true;
     this.map[y][x] = "path";
     const rep = this.curFloor().reprieve;
@@ -1247,13 +1391,18 @@ export const Field = {
     let msg: string;
     if (this.inDungeon()) {
       // MULTI-FLOOR cues: name the floor lieutenant / the stairs down on intermediate floors; the boss
-      // on the finale floor. Single-floor dungeons keep the original "deep in / boss ahead" read.
+      // on the finale floor. Single-floor dungeons keep the original "deep in / boss ahead" read. The
+      // active-dungeon name (dungeonDef — the Warren OR the Ancient Ruins) drives every line; a SEALED
+      // (bossless) dungeon points at the door instead of a boss.
+      const dd = this.dungeonDef();
       const multi = this.dungeonFloors().length > 1;
       if (multi && !this.isLastFloor()) {
         if (this.curFloor().miniboss && !this.stairsOpen()) msg = `A bandit lieutenant blocks the stairs down — cut him down to descend.`;
-        else msg = `Find the stairs down — ${z.dungeon.name} runs deeper still.`;
+        else msg = `Find the stairs down — ${dd.name} runs deeper still.`;
+      } else if (this.dungeonSealed()) {
+        msg = p > 0.88 ? `The sealed door stands at the heart of ${dd.name} — nothing you carry will open it.` : `Deep in ${dd.name} — the mana thickens, and the halls run hot.`;
       } else {
-        msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+        msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${dd.name}.` : `Deep in ${dd.name} — stronger foes, richer loot.`;
       }
     }
     else if (!this.miniClearedFor(z.id) && p >= 0.38) msg = `A ${miniNm} guards the mouth of ${z.dungeon.name}.`;
@@ -1274,7 +1423,7 @@ export const Field = {
     // so crossing its sub-spaces reads as moving through real places, not one flat zone. Cheap — already
     // sampled for music on the per-step path. Falls back to the zone name off the big map / in a dungeon.
     const area = this.bigMapActive() ? regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name : undefined;
-    const lead = this.inDungeon() ? z.dungeon.name : name;
+    const lead = this.inDungeon() ? this.dungeonDef().name : name;
     const floorTag = this.inDungeon() && this.dungeonFloors().length > 1 ? `B${this.dungeonFloor + 1} · ` : "";
     const sub = this.inDungeon()
       ? `${floorTag}${Game.encountersWon} cleared`
@@ -1487,6 +1636,17 @@ export const Field = {
           c.fillRect(sx, sy, t, t);
         }
       }
+      // MACRO VARIATION: two offset 4×4-tile patch grids lay soft warm-light / cool-shade washes over
+      // the ground plane (stable hash — no shimmer), so identical ground sprites stop reading as a
+      // repeating wallpaper. Staggered grids overlap into 3 tint levels with broken, organic borders.
+      if (!FIELD_WALLS.has(cell.kind) && cell.kind !== "uncharted") {
+        const mA = ((((wx >> 2) * 40503) ^ ((wy >> 2) * 91507)) >>> 0) % 9;
+        const mB = (((((wx + 2) >> 2) * 63689) ^ (((wy + 2) >> 2) * 378551)) >>> 0) % 9;
+        if (mA === 0) { c.fillStyle = "rgba(255,240,200,.045)"; c.fillRect(sx, sy, t, t); }
+        else if (mA === 1) { c.fillStyle = "rgba(15,28,12,.05)"; c.fillRect(sx, sy, t, t); }
+        if (mB === 0) { c.fillStyle = "rgba(255,236,190,.035)"; c.fillRect(sx, sy, t, t); }
+        else if (mB === 1) { c.fillStyle = "rgba(12,24,14,.04)"; c.fillRect(sx, sy, t, t); }
+      }
       // EDGE AO: contact shading where a floor tile meets a raised solid — grounds the tree walls /
       // cliffs (D4) to the floor plane and kills the flat grid read. Recessed kinds own their edges (D5).
       if (!FIELD_WALLS.has(cell.kind) && cell.kind !== "water" && cell.kind !== "river" && cell.kind !== "gorge") {
@@ -1505,8 +1665,15 @@ export const Field = {
       const tall = (img: HTMLImageElement | undefined, emoji: string, sc = 1.45, shadow = 0.34) => {
         FR.castShadow(c, sx, sy, t, 0.34, shadow);
         if (img) {
-          const h = t * sc, w = h * (img.width / img.height), ay = sy + t * 0.86 - h;
-          c.drawImage(img, sx + t / 2 - w / 2, ay, w, h);
+          // DE-REPETITION JITTER: a stable per-tile hash varies each solid's scale (±12%), position
+          // (±10% tile) and mirroring, so a mass of the same sprite reads as an organic thicket rather
+          // than a wallpaper grid — the single loudest "prototype tiling" cue.
+          const tj = ((wx * 73856093) ^ (wy * 19349663)) >>> 0;
+          const js = 1 + ((tj % 7) - 3) * 0.04;
+          const jx = (((tj >> 3) % 5) - 2) * t * 0.05, jy = (((tj >> 6) % 3) - 1) * t * 0.03;
+          const h = t * sc * js, w = h * (img.width / img.height), ax = sx + t / 2 + jx, ay = sy + t * 0.86 - h + jy;
+          if (((tj >> 9) & 1) === 1) { c.save(); c.translate(ax, 0); c.scale(-1, 1); c.drawImage(img, -w / 2, ay, w, h); c.restore(); }
+          else c.drawImage(img, ax - w / 2, ay, w, h);
         } else {
           c.font = `${t * sc}px serif`; c.textBaseline = "alphabetic";
           c.fillText(emoji, sx + t / 2, sy + t * 0.9); c.textBaseline = "middle"; c.font = `${t * 0.82}px serif`;
@@ -1516,6 +1683,12 @@ export const Field = {
       if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
       else if (cell.kind === "lair") obj(T.lair, "🕳️", 0.85);
       else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); FR.drawMouthLabel(c, sx, sy, t, this.zone().dungeon.name, this.mouthOptional(this.zone().id)); }
+      else if (cell.kind === "ruins") { // the Ancient Ruins entrance (wave3b): its own tileset's door + a captioned (optional) label
+        const zid = authoredAt(wx, wy)?.zoneId;
+        const d2 = (zid ? ZONES.find((zz) => zz.id === zid) : this.zone())?.dungeon2;
+        obj(T[`${d2?.env ?? "crypt"}-entrance`], "🏛️", 0.95);
+        FR.drawMouthLabel(c, sx, sy, t, d2?.name ?? "Ancient Ruins", true);
+      }
       else if (cell.kind === "village") {
         obj(T["town-inn"], "🏘️", 0.95);
         const zid = authoredAt(wx, wy)?.zoneId, hub = zid ? ZONES.find((z) => z.id === zid)?.hub : undefined;
@@ -1531,6 +1704,7 @@ export const Field = {
         FR.drawMouthLabel(c, sx, sy, t, this.zone().dungeon.name, this.mouthOptional(this.zone().id), true);
       }
       else if (POI_KINDS.has(cell.kind)) FR.drawPoiCell(c, T, cell.kind, this.poiNameAt(wx, wy, true), sx, sy, t); // captioned landmark
+      else if (NODE_KINDS.has(cell.kind)) FR.drawPoiCell(c, T, cell.kind, GATHER_NODES[cell.kind as NodeKind]?.name ?? "", sx, sy, t); // captioned gathering node (crafting slice)
       else if (cell.kind === "cliff") { if (T.cliff) FR.castShadow(c, sx, sy, t, 0.34, 0.32); else FR.drawCliffFace(c, sx, sy, t); } // D4 RAISED face
       else if (cell.kind === "river") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy), now); // D5 RECESSED watercourse (over flat OR sprite)
       else if (cell.kind === "gorge" && !T.gorge) {
@@ -1620,9 +1794,21 @@ export const Field = {
     if (!this.canvas || typeof requestAnimationFrame === "undefined") return;
     if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const from = this.glidePos(ox, oy); // chain: start where the eye currently is, not the old tile
-    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115 };
+    // Held travel glides LINEARLY (uniform speed tile-to-tile — no per-step deceleration stutter);
+    // a single tap keeps the soft ease-out landing.
+    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115, lin: !!this._held };
     this.ensureLoop();
   },
+  // HELD-DIRECTION WALKING (d-pad pointerdown / key held): record the direction and let the animation
+  // loop chain one step per finished glide — continuous fluid travel instead of key-repeat stutter.
+  // While a glide is live, repeat calls are absorbed (the loop paces the steps); with the loop
+  // unavailable (reduced-motion), each call steps directly, preserving the old behavior.
+  hold(dx: number, dy: number): void {
+    this._held = [dx, dy];
+    if (!this._glide) this.move(dx, dy);
+    this.ensureLoop();
+  },
+  release(): void { this._held = null; },
   // The shared field animation loop: full-rate frames while a glide is live, ~30fps ambient otherwise
   // (water shimmer + motes). Self-stopping: exits when the field screen hides / tab backgrounds; any
   // draw() while visible restarts it, so returning from battle or a menu resumes the living world.
@@ -1635,6 +1821,11 @@ export const Field = {
       if (!scr || !scr.classList.contains("on") || document.hidden) return; // self-stop
       const now = performance.now();
       if (this._glide && now - this._glide.t0 >= this._glide.ms) this._glide = null;
+      // held travel: chain the next step the moment the current glide lands (a dialog/overlay stops it)
+      if (!this._glide && this._held) {
+        if (Overlay.isOn() || Dialogue.isOn()) this._held = null;
+        else this.move(this._held[0], this._held[1]);
+      }
       if (this._glide || now - this._loopLast >= 32) { this._loopLast = now; this.draw(); }
       this._loopRaf = requestAnimationFrame(tick);
     };
@@ -1713,7 +1904,7 @@ export const Field = {
     const g = this._glide;
     if (!g || Math.abs(tx - g.fx) > 2 || Math.abs(ty - g.fy) > 2) return { x: tx, y: ty, k: 0 };
     const k = Math.min(1, (performance.now() - g.t0) / g.ms);
-    const e = 1 - (1 - k) * (1 - k); // ease-out: brisk start, soft landing
+    const e = g.lin ? k : 1 - (1 - k) * (1 - k); // held: linear (uniform speed) · tap: ease-out landing
     return { x: g.fx + (tx - g.fx) * e, y: g.fy + (ty - g.fy) * e, k };
   },
 
@@ -1753,7 +1944,9 @@ export const Field = {
         if (this.townMode) { this.drawTownCell(c, T, cell, mx, my, sx, sy, t); continue; }
         // dungeon dressing: NEW model = the whole grid is the dungeon (mode); LEGACY = east of the gate.
         const inDun = this.usesNewModel() ? this.mode === "dungeon" : mx > this.gate.x;
-        const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
+        // Inside a dungeon the ACTIVE dungeon's env picks the tileset (wave3b — the Ruins dress as
+        // their own set, not the zone's main one; for main dungeons env == DUNGEON_SETS[zoneIndex]).
+        const dset = inDun ? this.dungeonDef().env : (DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0]);
         const mire = !inDun && this.isMire(); // grim overworld dressing (Duskmarsh)
         const grove = !inDun && this.isForest(); // dense old-growth dressing (Silverwood)
         // ADR 0009 exemplar: in AREA-NATIVE Greenvale the overworld ground is dressed PER-AREA, so the
@@ -1761,7 +1954,7 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell);
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "ruins" || cell === "seal" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell) || NODE_KINDS.has(cell);
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
@@ -1845,6 +2038,12 @@ export const Field = {
         if (cell === "chest") { if (inDun) FR.drawTreasureMark(c, sx, sy, t); obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); } // glint behind, chest sprite on top
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
+        else if (cell === "ruins") { // the Ancient Ruins entrance (wave3b) — step in to descend into dungeon2
+          const d2 = this.zone().dungeon2;
+          obj(T[`${d2?.env ?? "crypt"}-entrance`], "🏛️", 0.95);
+          FR.drawMouthLabel(c, sx, sy, t, d2?.name ?? "Ancient Ruins", true);
+        }
+        else if (cell === "seal") FR.drawSealedDoor(c, T[`${dset}-entrance`], sx, sy, t); // the Ruins' sealed terminus (wave3b)
         else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town
           obj(T["town-inn"], "🏘️", 0.95);
           const nm = this.zone().hub ? settlement(this.zone().hub!).name : "Town";
@@ -1862,6 +2061,7 @@ export const Field = {
         else if (cell === "rest") obj(T[`${dset}-rest`], "🔥", 0.8);   // dungeon breather campfire (placeholder emoji — sprite flagged for art-integrator)
         else if (cell === "rubble") obj(T[`${dset}-rubble`], "🕳️", 0.85); // the Warren collapse drop (placeholder emoji — sprite flagged for art-integrator)
         else if (POI_KINDS.has(cell)) FR.drawPoiCell(c, T, cell, this.poiNameAt(mx, my, false), sx, sy, t); // captioned landmark/camp/shrine/sign
+        else if (NODE_KINDS.has(cell)) FR.drawPoiCell(c, T, cell, GATHER_NODES[cell as NodeKind]?.name ?? "", sx, sy, t); // captioned gathering node (crafting slice)
         else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
         else if (cell === "river" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
         else if (cell === "tree") {
