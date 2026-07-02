@@ -10,10 +10,15 @@ import { genAbility } from "../src/systems/classGen";
 import { turnGain } from "../src/systems/resources";
 import { makeMember, recalc } from "../src/systems/progression";
 import { buildDef } from "../src/data/party";
+import type { Item } from "../src/types";
+
+// ADR 0021: MNA comes from GEAR — a pinned attuned trinket is the test's MNA well (no banked points).
+const solWell = (v: number): Item =>
+  ({ slot: "trinket", cls: "", att: "SOL", rarity: "common", rIx: 0, ilvl: 0, name: "Test Well", implicit: {}, mna: { SOL: v }, affixes: [] });
 
 const heliomancer = () => {
   const m = makeMember(buildDef("h", "Solas", "SOL", "Staff", "back"));
-  m.mnaAlloc.SOL = 100; // a fully-realised SOL well so every milestone is reached
+  m.equip.trinket = solWell(100); // a fully-realised SOL well so every milestone is reached
   return m;
 };
 
@@ -117,7 +122,7 @@ describe("progression — recalc resolves the V3 kit from picks (no legacy fallb
 
   it("picks above the member's MNA go dormant (only Attack/Defend remain)", () => {
     const m = heliomancer();
-    m.mnaAlloc.SOL = 4; // below the @5 milestone
+    m.equip.trinket = solWell(4); // below the @5 milestone
     m.picks = { "special@5": ["Firebolt"] };
     recalc([m]);
     expect(m.skills).toEqual([]);

@@ -227,27 +227,40 @@
   #battleBg::after{content:""; position:absolute; inset:0; pointer-events:none;
     background:radial-gradient(120% 92% at 50% 32%, transparent 52%, rgba(0,0,0,.44) 100%),
                linear-gradient(to top, rgba(5,5,11,.6), transparent 24%);}
-  /* combatants stand on the lower "ground" band — clear of the sky, bottom-anchored so a lone
-     enemy/boss isn't floating mid-air (Dara's note) */
-  /* enemies share the heroes' vertical band and are CENTRED in it, so enemy + hero sprites line up
-     vertically across the field (Dara) */
-  #enemyZone{position:absolute; left:9%; top:18%; bottom:5%; width:44%; display:flex; flex-direction:column; justify-content:center; gap:6px;}
-  /* heroes occupy the same grounded band but in a tidy, evenly-spaced formation (Dara: "more
-     organized and harmonious") — front line forward (left), back line behind (right), staggered up */
-  #partyZone{position:absolute; right:3%; top:18%; bottom:5%; width:40%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:stretch;}
-  .pcol{position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; flex:1; min-height:0;}
-  /* back line sits behind the front but renders at the SAME size as the front (Dara: all heroes
-     the same size); a touch of opacity keeps a sense of depth without shrinking them */
-  .pcol.back{opacity:.9;}
+  /* ── ground-plane stage (part 2): combatants stand on a real FLOOR. Both zones bottom-anchor
+     their fighters and lay them along a subtly receding plane — the nearest rank sits lowest and
+     toward its side's bottom corner at full size; farther ranks step up toward the field's centre
+     (the vanishing point) and shrink slightly (--near feeds each sprite's size). Depth is pure CSS
+     on the same reconciled DOM: an enemy's rank = its nth-last-child slot (bottom = nearest). */
+  #enemyZone{position:absolute; left:7%; top:16%; bottom:7%; width:46%; display:flex; flex-direction:column; justify-content:flex-end; gap:7px;}
+  .enemy{--near:1;}
+  .enemy:nth-last-child(2){margin-left:6%;  --near:.93;}
+  .enemy:nth-last-child(3){margin-left:12%; --near:.87;}
+  .enemy:nth-last-child(4){margin-left:17%; --near:.82;}
+  .enemy:nth-last-child(5){margin-left:21%; --near:.78;}
+  /* heroes mirror it on the right: both ranks bottom-anchored; the back rank stands higher on the
+     floor (farther), a touch smaller, behind the front — front line forward (left), back right */
+  #partyZone{position:absolute; right:3%; top:16%; bottom:7%; width:40%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:stretch;}
+  .pcol{position:relative; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; gap:10px; flex:1; min-height:0;}
+  .pcol.front{z-index:1;}
+  .pcol.back{opacity:.92; transform:translateY(-30px) scale(.9); transform-origin:bottom right;}
+  /* within a rank, higher = farther: ease upper fighters toward the field's centre (a receding file) */
+  .pcol .pchar:nth-last-child(2){margin-right:16px;}
+  .pcol .pchar:nth-last-child(3){margin-right:32px;}
   .pcol-cap{position:absolute; top:-2px; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); opacity:.7;}
   .pcol.front .pcol-cap{left:2px;} .pcol.back .pcol-cap{right:2px;}
   .enemy{position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; transition:transform .1s;}
-  .enemy .spr{font-size:34px; filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
+  .enemy .spr{font-size:calc(34px * var(--near,1)); filter:drop-shadow(0 3px 4px #000); width:54px; text-align:center;}
   /* crisp dark rim + slight punch so foreground sprites read against the painterly bg (Dara's
-     "lack contrast / maybe outlines" note) — a doubled tight shadow builds the outline */
-  .enemy .spr-img{width:72px; height:78px; object-fit:contain; image-rendering:auto;
+     "lack contrast / maybe outlines" note) — a doubled tight shadow builds the outline.
+     Sizes derive from --near (the ground-plane rank) so farther enemies read smaller. */
+  .enemy .spr-img{width:calc(72px * var(--near,1)); height:calc(78px * var(--near,1)); object-fit:contain; image-rendering:auto;
     filter:contrast(1.06) saturate(1.05) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 1px 1px #000) drop-shadow(0 5px 6px rgba(0,0,0,.7));}
-  .enemy .ebar{flex:0 0 auto; width:110px; min-width:0;}  /* short HP bar (Dara: ~60% shorter) */
+  .enemy .ebar{flex:0 0 auto; width:110px; min-width:0; transition:opacity .35s ease;}  /* short HP bar (Dara: ~60% shorter) */
+  /* enemy turn: the HP/ATB block yields the stage to the action — bars fade out while the enemy acts
+     (its announce bubble takes their place) and fade back once the action resolves (endTurn clears
+     .acting). Opacity only: the surgical bar updates (HP ghost catch-up) keep running underneath. */
+  .enemy.acting .ebar{opacity:0;}
   .enemy.dead{opacity:.18; filter:grayscale(1);}
   .enemy.targetable{border-radius:8px; animation:targetpulse 1.1s ease-in-out infinite;}
   @keyframes targetpulse{0%,100%{box-shadow:0 0 0 2px rgba(244,185,66,.85), 0 0 14px 2px rgba(244,185,66,.22);}
@@ -259,17 +272,20 @@
   .enemy.rare .ename{color:#ffe9a8; font-weight:bold; text-shadow:0 0 10px rgba(255,210,120,.9);}
   .enemy.rare .spr-img, .enemy.rare .spr{filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 9px rgba(255,215,130,.85)) drop-shadow(0 0 16px rgba(180,120,255,.45)) drop-shadow(0 3px 5px #000); animation:pulse 1.6s ease-in-out infinite;}
   /* mini-boss / boss: render markedly larger; a lone boss centers in the zone (Dara) */
-  .enemy.miniboss .spr-img{width:135px; height:165px;}
+  .enemy.miniboss .spr-img{width:calc(135px * var(--near,1)); height:calc(165px * var(--near,1));}
   /* bosses render markedly LARGER than the hero sprites (sized to Dara's red-box reference) */
-  .enemy.boss .spr-img{width:165px; height:205px;
+  .enemy.boss .spr-img{width:calc(165px * var(--near,1)); height:calc(205px * var(--near,1));
     filter:contrast(1.08) saturate(1.06) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000) drop-shadow(0 0 14px rgba(244,151,46,.5)) drop-shadow(0 6px 8px rgba(0,0,0,.75));}
   .enemy.boss .ename, .enemy.miniboss .ename{font-size:14px; color:var(--gold2); font-weight:bold;}
-  #enemyZone.has-boss{justify-content:center; align-items:center;}
-  #enemyZone.has-boss .enemy{flex-direction:column; align-items:center; gap:4px; text-align:center;}
+  /* a lone boss stands centred at the FRONT of the floor (full size regardless of dead siblings) */
+  #enemyZone.has-boss{justify-content:flex-end; align-items:center; padding-bottom:2%;}
+  #enemyZone.has-boss .enemy{flex-direction:column; align-items:center; gap:4px; text-align:center; margin-left:0; --near:1;}
   #enemyZone.has-boss .enemy .ebar{width:80%; min-width:120px; flex:0 0 auto;}
-  /* acting enemy: brightness lift on the row + a real DASH toward the heroes on its sprite */
+  /* acting enemy: brightness lift on the row + a real DASH toward the heroes on its sprite.
+     The dash binds to the per-ACTION class (.act-strike, from Battle.ACTION_ANIM) rather than
+     .acting itself, so future sprite-sheet frame animations slot in per action via CSS alone. */
   .enemy.acting{filter:brightness(1.18);}
-  .enemy.acting .spr-img, .enemy.acting .spr{animation:enemyDash .55s ease;}
+  .enemy.act-strike .spr-img, .enemy.act-strike .spr{animation:enemyDash .55s ease;}
   @keyframes enemyDash{0%{transform:translateX(0);}35%{transform:translateX(30px) scale(1.06);}60%{transform:translateX(34px) scale(1.06);}100%{transform:translateX(0);}}
   .enemy .ename{font-size:12px;}
   .att-tag{font-size:10px; font-weight:bold; letter-spacing:.3px;}
@@ -282,14 +298,47 @@
   .doll img.dl-body, .doll img.dl-layer{position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain;
     filter:contrast(1.05) saturate(1.04) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 5px 5px rgba(0,0,0,.6));}
   .doll img.dl-wep{position:absolute; height:auto; transform-origin:center center; pointer-events:none;}
-  /* acting hero: a real DASH toward the enemy line (replaces the old in-place bob) */
-  .pchar.acting .spr, .pchar.acting .doll{animation:heroDash .5s ease;}
+  /* acting hero: a real DASH toward the enemy line (replaces the old in-place bob). Bound to the
+     per-action class (see .enemy.act-strike note) — the future frame-animation hook. */
+  .pchar.act-strike .spr, .pchar.act-strike .doll{animation:heroDash .5s ease;}
   @keyframes heroDash{0%{transform:translateX(0);}35%{transform:translateX(-30px) scale(1.07);}60%{transform:translateX(-34px) scale(1.07);}100%{transform:translateX(0);}}
   /* struck combatant: shake + a hard white hit-flash (both sides — enemies had NO hit reaction before) */
   .pchar.hurt .spr, .pchar.hurt .doll,
   .enemy.hurt .spr-img, .enemy.hurt .spr{animation:shake .25s, hitflash .25s;}
   @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
   @keyframes hitflash{0%,55%{filter:brightness(2.3) saturate(.35);}100%{filter:none;}}
+
+  /* ── ability announcement bubbles + scripted dialogue (Battle.announce / Battle.sayLine) ──
+     Rounded dark chat bubbles in the gold-on-dark language: colored border + text (the ability's
+     pick lane / the caster's Attunement), drop shadow, fade in → hold → fade out. Hero bubbles sit
+     at a fixed spot above the party side; an enemy bubble anchors over the acting enemy (inline
+     left/top from the controller); the .say-line dialogue banner centres at the top of the screen. */
+  .abubble{position:absolute; z-index:8; max-width:44%; padding:6px 12px; border-radius:10px;
+    background:rgba(12,12,20,.93); border:1.5px solid currentColor; font-size:13px; font-weight:bold;
+    letter-spacing:.4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-shadow:0 1px 2px #000; box-shadow:0 4px 12px rgba(0,0,0,.6), 0 0 12px -3px currentColor;
+    opacity:0; transition:opacity .22s ease, transform .22s ease; pointer-events:none;}
+  .abubble.hero{right:5%; top:12%; transform:translateY(6px);}
+  .abubble.hero.show{opacity:1; transform:none;}
+  .abubble.foe{transform:translate(-50%,-100%) translateY(6px);}
+  .abubble.foe.show{opacity:1; transform:translate(-50%,-100%);}
+  .say-line{position:absolute; left:50%; top:30px; z-index:9; max-width:86%; padding:7px 14px;
+    border-radius:10px; background:rgba(10,10,18,.93); border:1px solid var(--gold); color:var(--ink);
+    font-size:13px; line-height:1.35; text-align:center; text-shadow:0 1px 2px #000;
+    box-shadow:0 4px 14px rgba(0,0,0,.6), 0 0 14px -4px rgba(244,185,66,.8);
+    opacity:0; transform:translateX(-50%) translateY(-8px); transition:opacity .28s ease, transform .28s ease;
+    pointer-events:none;}
+  .say-line.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  /* VAULT PURGE PROTOCOL (wave6c): the Defense Platform's full-party laser — a screen-wide cyan
+     sweep across the battlefield (battle.ts laserSweep creates + removes the node; the per-target
+     slashes/shakes come from the normal strike FX). Pure presentation. */
+  .vault-laser{position:absolute; left:-10%; right:-10%; top:28%; height:36%; z-index:7; pointer-events:none;
+    background:linear-gradient(180deg, transparent 0%, rgba(122,224,255,0) 16%, rgba(140,232,255,.5) 44%,
+      #eaffff 50%, rgba(140,232,255,.5) 56%, rgba(122,224,255,0) 84%, transparent 100%);
+    opacity:0; transform:scaleY(.05);}
+  .vault-laser.on{animation:vaultlaser .95s ease-out forwards;}
+  @keyframes vaultlaser{0%{opacity:0; transform:scaleY(.04);} 10%{opacity:1; transform:scaleY(.3);}
+    30%{opacity:1; transform:scaleY(1);} 65%{opacity:.85; transform:scaleY(.9);} 100%{opacity:0; transform:scaleY(.1);}}
 
   /* ── battle facelift: grounded, breathing, readable (v0.209) ──
      Ground shadows anchor every combatant to the arena floor; a slow idle sway keeps the field alive
@@ -529,20 +578,38 @@
   .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
   .equip-slot button{font-size:13px; padding:8px 12px; min-height:40px;}
   .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}
-  /* Party card sections + vertical MNA allocator (Dara: tap targets + hierarchy redo) */
+  /* Party card section header (also used by battle key-item cards) */
   .psec{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); margin:12px 0 4px;}
-  .mna-pool{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px;
-    border-radius:10px; background:rgba(244,151,46,.12); border:1px solid var(--legendary); margin-bottom:4px;}
-  .mna-pool b{color:var(--gold2); font-size:15px;}
-  .mna-row{display:flex; align-items:center; gap:10px; padding:6px 8px; margin:4px 0;
-    border:1px solid var(--line); border-radius:10px; background:#16162a;}
-  .mna-name{flex:1; font-size:14px; font-weight:bold;}
-  .mna-tot{font-size:18px; font-weight:bold; min-width:30px; text-align:right; color:var(--gold2);}
-  .mna-sub{font-size:11px; color:var(--dim); min-width:54px;}
-  .mna-btn{width:44px; height:44px; flex:0 0 auto; font-size:22px; line-height:1; padding:0; border-radius:10px;}
   a.link{color:var(--gold2); cursor:pointer; text-decoration:underline;}
 
   /* ── PARTY HUB (FF-style main menu): roster list (left) + options & info (right) ── */
+  /* ── .mnx — the restyled FF-menus (wave6e): dashboard language ratified on the class picker
+     (.cpx) — hero cards with Attunement accent stripes, chip rows, uppercase section headers,
+     gold-dark gradient panels. Scoped so nothing leaks to other windows. Phone-first. ── */
+  .mnx{--line:#3a2e12; --panel:#1b1509; --panel2:#241c0d; --dim:#b8a87f; --mink:#f3e9d2; text-align:left;}
+  .mnx .mcard{background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--line);
+    border-left:3px solid var(--line); border-radius:9px; padding:9px 11px; margin:6px 0;}
+  .mnx .mcard.mhero{display:flex; gap:10px; align-items:center;}
+  .mnx .mh-body{flex:1 1 auto; min-width:0;}
+  .mnx .mname{font-weight:700; color:var(--mink); font-size:14px;}
+  .mnx .mchips{display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;}
+  .mnx .mchip{font-size:10.5px; padding:1px 7px; border-radius:20px; border:1px solid var(--line);
+    color:var(--dim); white-space:nowrap;}
+  .mnx .mchip b{color:var(--mink);}
+  .mnx .mh-hp{display:flex; align-items:center; gap:8px; margin-top:7px;}
+  .mnx .mbar{flex:1 1 auto; height:8px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden;}
+  .mnx .mbar > i{display:block; height:100%; background:linear-gradient(var(--hp),var(--hpb));}
+  .mnx .mbar.low > i{background:linear-gradient(#e25a5a,#8f1f1f);}
+  .mnx .mh-hpv{font-size:11px; color:var(--dim); flex:0 0 auto;}
+  .mnx .msec{font-size:11px; text-transform:uppercase; letter-spacing:1.3px; color:var(--gold2);
+    font-weight:700; border-bottom:1px solid var(--line); padding-bottom:4px; margin:14px 0 4px;}
+  .mnx .msub{font-size:12px; color:var(--dim); margin:4px 0 8px; line-height:1.4;}
+  .mnx .mroster{flex:2 1 240px; min-width:0; max-height:56vh;}
+  .mnx .minfo{background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:9px 11px; margin-top:8px; font-size:12px;}
+  .mnx .minfo-k{font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--dim);}
+  .mnx .mrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .mnx .mh-top{display:flex; align-items:center; gap:8px; justify-content:space-between;}
+  .mnx .pm-opt{min-height:44px;}
   .pm-hub{display:flex; gap:10px; text-align:left; align-items:stretch; flex-wrap:wrap;}
   .pm-roster{flex:1 1 320px; min-width:0; display:flex; flex-direction:column; gap:0; max-height:62vh;
     border:1px solid var(--line); border-radius:12px; background:linear-gradient(#14142400,#0e0e18); padding:4px 8px;}

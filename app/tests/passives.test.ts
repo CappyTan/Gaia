@@ -7,6 +7,7 @@ import { activePassives } from "../src/systems/classKit";
 import { makeMember, recalc } from "../src/systems/progression";
 import { buildDef } from "../src/data/party";
 import { zeroSubs } from "../src/types";
+import type { Item } from "../src/types";
 import type { AbilityEntry } from "../src/data/classSpec";
 
 const pas = (effect: string): AbilityEntry =>
@@ -49,9 +50,12 @@ describe("passives — prose → Subs bonus (first-pass)", () => {
 
 describe("passives — recalc integration (gated to a re-encoded class with picks)", () => {
   // A SOL Staff hero (Heliomancer is re-encoded) at full MNA so the @30 passive set is reached.
+  // ADR 0021: MNA comes from GEAR — a pinned attuned trinket is the test's MNA well (no banked points).
+  const solWell = (v: number): Item =>
+    ({ slot: "trinket", cls: "", att: "SOL", rarity: "common", rIx: 0, ilvl: 0, name: "Test Well", implicit: {}, mna: { SOL: v }, affixes: [] });
   const heliomancer = () => {
     const m = makeMember(buildDef("h", "Solas", "SOL", "Staff", "back"));
-    m.mnaAlloc.SOL = 100;
+    m.equip.trinket = solWell(100);
     return m;
   };
 

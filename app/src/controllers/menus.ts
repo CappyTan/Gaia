@@ -1,7 +1,12 @@
 // Party / inventory / equip screens, and the universal overlay-close that prevents the
 // post-battle Bag/Party menus from soft-locking the run.
+//
+// VISUAL LANGUAGE (wave6e): these menus follow the dashboard style Dara ratified on the class
+// picker (.cpx) — card-per-hero with Attunement accent stripes, chip rows, uppercase letterspaced
+// section headers, the gold-dark gradient panel family. Everything is scoped under `.mnx`
+// (index.html) so nothing leaks to other windows. Phone-first: ≥40px touch targets.
 
-import type { Attunement, Item, Member, Skill, Slot } from "../types";
+import type { Item, Member, Skill, Slot } from "../types";
 import { cap } from "../core/rng";
 import { ATTUNEMENTS, EQUIP_SLOTS } from "../types";
 import { SKILLS } from "../data/skills";
@@ -9,7 +14,7 @@ import { rarityIx } from "../data/rarity";
 import { classTitle } from "../data/classes";
 import { ATT } from "../data/attunements";
 import { PRIMARY_STATS, STAT_TIERS } from "../data/statScaling";
-import { recalc, xpForLevel, skillUnlocked, unlockedSkills, mnaBonus } from "../systems/progression";
+import { recalc, mnaBonus, mnaFloor } from "../systems/progression";
 import { hasSpec } from "../systems/classKit";
 import { ClassPicker } from "./classPicker";
 import { itemScore } from "../systems/loot";
@@ -18,14 +23,21 @@ import { substats } from "../systems/stats";
 import { HELD_ITEMS, type HeldKind, type HeldItemDef } from "../data/heldItems";
 import { MATERIALS } from "../data/materials";
 import { CONSUMABLES } from "../data/consumables";
-import { itemHtml, classBody } from "../ui/render";
+import { itemHtml, classBody, pct } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Game, sellPriceOf } from "./game";
 import { Field } from "./field";
 
-const respecCost = (m: Member): number => 20 + m.level * 5;
 const TARGET_LABEL: Record<string, string> = { enemy: "one enemy", allEnemies: "all enemies", ally: "one ally", allAllies: "whole party", self: "self" };
 const skillKind = (s: Skill): string => (s.ult ? "ULTIMATE" : s.type === "phys" ? "Physical" : s.type === "mag" ? "Magic" : s.type === "heal" ? "Heal" : s.type === "buff" ? "Buff" : "Utility");
+// One .mnx chip — the small bordered tag used across the restyled menus.
+const chip = (inner: string, style = ""): string => `<span class="mchip"${style ? ` style="${style}"` : ""}>${inner}</span>`;
+// Read-only derived-MNA chip (ADR 0021): total = floor(level/5) in the active tree + gear. There is
+// no allocator any more — this is a read-out, with the breakdown so the sourcing stays legible.
+const mnaChip = (m: Member): string => {
+  const tot = m.mna[m.att], lvl = mnaFloor(m.level), gear = Math.max(0, tot - lvl);
+  return chip(`<span style="color:${ATT[m.att].color}">${m.att}</span> MNA <b>${tot}</b>${tot >= 100 ? " ⭐" : ""} · ${lvl} lvl + ${gear} gear`);
+};
 
 export const UI = {
   // Universal overlay close. Outside post-battle it just hides; after a victory it fires
@@ -36,8 +48,8 @@ export const UI = {
     Overlay.hide();
     if (Game.continueAfterBattle) { const fn = Game.continueAfterBattle; Game.continueAfterBattle = null; fn(); }
   },
-  // ── PARTY HUB (FF-style main menu): a left roster list (sprite · name · Lv · class · attunement ·
-  //    MNA · HP · MP) and a right column of sub-menu options, with location + Aether pinned bottom-right.
+  // ── PARTY HUB (FF-style main menu): a left roster of hero CARDS (sprite · name · Lv/class/MNA
+  //    chips · HP bar) and a right column of sub-menu options, with location + Aether pinned bottom-right.
   openParty(): void { Overlay.show(this.partyHubHtml(), true); },
   // Where the party currently is, for the hub's info box.
   location(): string {
@@ -50,32 +62,32 @@ export const UI = {
       const arch = m.equip.weapon?.cls || m.cls;
       const col = ATT[m.att].color;
       const body = classBody(m.att, arch) || "";
-      return `<div class="pm-mem">
+      const hpPct = pct(Math.max(0, m.hp), m.maxhp);
+      return `<div class="mcard mhero" style="border-left-color:${col}">
         <div class="pm-spr">${body ? `<img src="${body}" alt="">` : `<span class="spr">${m.spr}</span>`}</div>
-        <div class="pm-stat">
-          <div class="pm-name">${m.name}${m.alive ? "" : ` <span class="r-rare" style="font-size:11px">fallen</span>`}</div>
-          <div class="pm-line">Lv ${m.level} · <span style="color:${col}">${classTitle(m.att, arch, m.mna[m.att])}</span></div>
-          <div class="pm-line"><span style="color:${col}">${m.att}</span> · MNA ${m.mna[m.att]}${m.mna[m.att] >= 100 ? " ⭐" : ""}</div>
-          <div class="pm-line">HP <b>${Math.max(0, m.hp)}</b> / ${m.maxhp}</div>
+        <div class="mh-body">
+          <div class="mname">${m.name}${m.alive ? "" : ` <span style="color:var(--artifact);font-size:11px">✝ fallen</span>`}</div>
+          <div class="mchips">${chip(`Lv <b>${m.level}</b>`)}${chip(`<span style="color:${col}">${classTitle(m.att, arch, m.mna[m.att])}</span>`)}${mnaChip(m)}</div>
+          <div class="mh-hp"><div class="mbar${hpPct <= 30 ? " low" : ""}"><i style="width:${hpPct}%"></i></div><span class="mh-hpv">HP <b style="color:var(--mink)">${Math.max(0, m.hp)}</b> / ${m.maxhp}</span></div>
         </div></div>`;
     }).join("");
     const opts: [string, string][] = [
       ["Items", "UI.partyItems()"], ["Abilities", "UI.partyAbilities()"], ["Status &amp; Equipment", "UI.partyEquipment()"],
-      ["Mana", "UI.partyMana()"], ["Formation", "UI.partyFormation()"],
+      ["Formation", "UI.partyFormation()"],
     ];
     const menu = opts.map(([label, fn]) => `<button class="btn pm-opt" onclick="${fn}">${label}</button>`).join("");
-    return `<h2 class="title-gold" style="margin-bottom:6px">Party</h2>
-      <div class="pm-hub">
-        <div class="pm-roster scroll">${roster}</div>
+    return `<div class="mnx"><h2 class="title-gold">Party</h2>
+      <div class="pm-hub" style="margin-top:8px">
+        <div class="mroster scroll">${roster}</div>
         <div class="pm-side">
           <div class="pm-menu">${menu}</div>
-          <div class="pm-info">
-            <div><span class="pm-info-k">Location</span><br><b class="title-gold">${this.location()}</b></div>
-            <div style="margin-top:8px"><span class="pm-info-k">Aether</span><br><b class="title-gold">◈ ${Game.gold}</b></div>
+          <div class="minfo">
+            <div><span class="minfo-k">Location</span><br><b class="title-gold">${this.location()}</b></div>
+            <div style="margin-top:8px"><span class="minfo-k">Aether</span><br><b class="title-gold">◈ ${Game.gold}</b></div>
           </div>
         </div>
       </div>
-      <div class="row"><button class="btn gold" onclick="UI.close()">Close</button></div>`;
+      <div class="row" style="margin-top:8px"><button class="btn gold" onclick="UI.close()">Close</button></div></div>`;
   },
 
   // ── ITEMS — the held-item inventory (quest/key items + consumables), distinct from the loot Bag.
@@ -84,51 +96,54 @@ export const UI = {
     const held = [...Game.heldItems].map((id) => HELD_ITEMS[id]).filter((d): d is HeldItemDef => !!d);
     const section = (kind: HeldKind, title: string, empty: string): string => {
       const items = held.filter((d) => d.kind === kind);
-      let s = `<div class="psec">${title}</div>`;
-      if (!items.length) return s + `<p class="small" style="opacity:.7;margin:4px 0 8px">${empty}</p>`;
+      let s = `<div class="msec">${title}</div>`;
+      if (!items.length) return s + `<div class="msub">${empty}</div>`;
       items.forEach((d) => {
-        // a demoted "Opens: …" line tells the player WHAT a traversal key item is for (not just flavor).
-        const opens = d.opens ? `<div class="tag" style="margin-top:6px">Opens: ${d.opens}</div>` : "";
-        s += `<div class="card" style="text-align:left;margin:6px 0">
+        // a demoted "Opens: …" chip tells the player WHAT a traversal key item is for (not just flavor).
+        const opens = d.opens ? `<div class="mchips">${chip(`Opens: ${d.opens}`)}</div>` : "";
+        s += `<div class="mcard">
           <b class="title-gold">${d.icon} ${d.name}</b>
-          <p class="small" style="margin-top:6px">${d.blurb}</p>${opens}</div>`;
+          <div class="msub" style="margin:6px 0 0">${d.blurb}</div>${opens}</div>`;
       });
       return s;
     };
-    Overlay.show(`<h2 class="title-gold">Items</h2>
-      <div class="scroll">
+    Overlay.show(`<div class="mnx"><h2 class="title-gold">Items</h2>
+      <div class="scroll" style="margin-top:4px">
         ${section("key", "Quest Items", "None yet — quest and traversal items appear here as you explore.")}
         ${section("consumable", "Consumables", "None yet — potions and antidotes will gather here.")}
       </div>
-      <div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`);
+      <div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openParty()">◂ Party</button></div></div>`);
   },
 
   // ── ABILITIES: every hero's kit by MNA threshold (unlocked vs locked); heal abilities can be cast
   //    here to mend the LIVING party out of battle (spends MP). ──────────────────────────────────
   partyAbilities(): void {
-    let h = `<h2 class="title-gold">Abilities</h2>
-      <div class="small" style="opacity:.78">Raise a hero's Attunement MNA to unlock abilities. A 🟢 heal can be cast here to mend the party out of battle (spends MP).</div>
+    let h = `<div class="mnx"><h2 class="title-gold">Abilities</h2>
+      <div class="msub">Raise a hero's Attunement MNA (level floor + gear) to unlock abilities. A 🟢 heal can be cast here to mend the party out of battle (spends MP).</div>
       <div class="scroll">`;
     Game.party.forEach((m) => {
       const arch = m.equip.weapon?.cls || m.cls;
+      const col = ATT[m.att].color;
       // Re-encoded classes (ADR 0020) drive their kit through the 3-lane choice picker; offer it here.
       const v3 = hasSpec(m.att, m.cls)
-        ? ` <button class="btn gold" style="padding:3px 8px;font-size:11px;min-height:0" onclick="UI.openClassPicker('${m.id}')">Choose abilities ▸</button>` : "";
-      h += `<div class="card" style="text-align:left;margin:6px 0">
-        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${classTitle(m.att, arch, m.mna[m.att])}</span> <span class="pill">${m.att} MNA ${m.mna[m.att]}</span>${v3}`;
+        ? `<button class="btn gold sm" onclick="UI.openClassPicker('${m.id}')">Choose abilities ▸</button>` : "";
+      h += `<div class="mcard" style="border-left-color:${col}">
+        <div class="mh-top"><b class="mname" style="color:${col}">${m.spr} ${m.name}</b>${v3}</div>
+        <div class="mchips">${chip(classTitle(m.att, arch, m.mna[m.att]))}${mnaChip(m)}</div>`;
       const kit = m.skills.map((k) => ({ k, s: SKILLS[k] })).filter((x) => x.s).sort((a, b) => a.s.mnaReq - b.s.mnaReq);
       kit.forEach(({ k, s }) => {
         const ok = m.mna[s.att] >= s.mnaReq;
         const canHeal = ok && s.type === "heal" && m.alive && m.mp >= s.mp;
-        const useBtn = canHeal ? ` <button class="btn gold" style="padding:3px 8px;font-size:11px;min-height:0" onclick="UI.useHeal('${m.id}','${k}')">Cast · ${s.mp} MP</button>` : "";
-        const gate = ok ? "" : ` <span class="small">needs ${s.mnaReq - m.mna[s.att]} more ${s.att}</span>`;
-        h += `<div class="pm-ab${ok ? "" : " locked"}">
+        const useBtn = canHeal ? `<button class="btn gold sm" onclick="UI.useHeal('${m.id}','${k}')">Cast · ${s.mp} MP</button>` : "";
+        const gate = ok ? "" : `<span class="small">needs ${s.mnaReq - m.mna[s.att]} more ${s.att}</span>`;
+        h += `<div class="mrow${ok ? "" : " locked"}">
           <span class="${ok ? (s.ult ? "r-legendary" : "r-uncommon") : ""}">${s.type === "heal" ? "🟢 " : ok ? "✓ " : "🔒 "}${s.name}</span>
-          <span class="pill">${s.att} ${s.mnaReq}</span>${gate}${useBtn}</div>`;
+          ${chip(`${s.att} ${s.mnaReq}`)}${gate}${useBtn}</div>`;
       });
+      if (!kit.length) h += `<div class="msub" style="margin:6px 0 0">No abilities picked yet — Choose abilities to build the kit.</div>`;
       h += `</div>`;
     });
-    h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`;
+    h += `</div><div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openParty()">◂ Party</button></div></div>`;
     Overlay.show(h);
   },
   // Open the 3-lane choice picker bound to a hero (ADR 0020) — for a re-encoded class, this is where the
@@ -186,25 +201,25 @@ export const UI = {
   renderEquip(): void {
     const st = this._eq, m = this.eqMember();
     if (!st || !m) return;
-    const tabs = Game.party.map((p) => `<button class="btn${p.id === m.id ? " gold" : ""}" style="padding:6px 10px;font-size:12px" onclick="UI.partyEquipment('${p.id}')">${p.spr} ${p.name.split(" ")[0]}</button>`).join("");
+    const tabs = Game.party.map((p) => `<button class="btn sm${p.id === m.id ? " gold" : ""}" onclick="UI.partyEquipment('${p.id}')">${p.spr} ${p.name.split(" ")[0]}</button>`).join("");
     const left = st.slot == null ? this.eqGearList(m) : this.eqSlotList(m, st.slot, st.pick);
     const preview = st.pick >= 0 && Game.inventory[st.pick] ? this._equipPreview(m, Game.inventory[st.pick]) : null;
-    Overlay.show(`<h2 class="title-gold">Status &amp; Equipment</h2>
-      <div class="row" style="gap:6px;justify-content:space-between;align-items:flex-start">
+    Overlay.show(`<div class="mnx"><h2 class="title-gold">Status &amp; Equipment</h2>
+      <div class="row" style="gap:6px;justify-content:space-between;align-items:flex-start;margin-top:6px">
         <div class="row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start;flex:1;min-width:0">${tabs}</div>
-        <button class="btn gold" style="padding:6px 12px;font-size:12px;flex:0 0 auto" onclick="UI.openInventory()">Bag ▸</button>
+        <button class="btn gold sm" style="flex:0 0 auto" onclick="UI.openInventory()">Bag ▸</button>
       </div>
       <div class="pm-eq">
         <div class="pm-eq-gear scroll">${left}</div>
         ${this.eqTotalsHtml(m, preview)}
       </div>
-      <div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`, true);
+      <div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openParty()">◂ Party</button></div></div>`, true);
   },
   // LEFT — the gear paper-doll (each slot opens its bag list in place).
   eqGearList(m: Member): string {
     return EQUIP_SLOTS.map((slot) => {
       const it = m.equip[slot];
-      const btn = `<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="btn" style="padding:6px 12px;font-size:12px" onclick="UI.eqOpenSlot('${slot}')">${it ? "Swap" : "Equip"} ${slot} ▸</button></div>`;
+      const btn = `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn sm" onclick="UI.eqOpenSlot('${slot}')">${it ? "Swap" : "Equip"} ${slot} ▸</button></div>`;
       return it ? itemHtml(it, btn) : `<div class="item" style="opacity:.7"><span class="tag">${slot}</span> — empty —${btn}</div>`;
     }).join("");
   },
@@ -213,14 +228,14 @@ export const UI = {
     // ANY weapon is equippable — a weapon of another Archetype/Attunement reclasses the hero (confirmed
     // before it's applied). So the list isn't filtered to the current class.
     const usable = Game.inventory.filter((it) => it.slot === slot);
-    let h = `<div class="row" style="justify-content:space-between;align-items:center"><b class="title-gold">Choose ${cap(slot)}</b><button class="btn" style="padding:4px 10px;font-size:12px" onclick="UI.eqCloseSlot()">◂ Gear</button></div>`;
-    h += `<div class="small" style="margin:2px 0 6px;opacity:.8">Equipped: ${m.equip[slot] ? `<span class="r-${m.equip[slot]!.rarity}">${m.equip[slot]!.name}</span>` : "none"} — tap an item to preview, then Equip.${slot === "weapon" ? " A different weapon type changes this hero's class." : ""}</div>`;
-    if (!usable.length) return h + `<p class="small">No ${slot}s in your bag.</p>`;
+    let h = `<div class="mh-top"><b class="title-gold">Choose ${cap(slot)}</b><button class="btn sm" onclick="UI.eqCloseSlot()">◂ Gear</button></div>`;
+    h += `<div class="msub" style="margin:4px 0 6px">Equipped: ${m.equip[slot] ? `<span class="r-${m.equip[slot]!.rarity}">${m.equip[slot]!.name}</span>` : "none"} — tap an item to preview, then Equip.${slot === "weapon" ? " A different weapon type changes this hero's class." : ""}</div>`;
+    if (!usable.length) return h + `<div class="msub">No ${slot}s in your bag.</div>`;
     usable.sort((a, b) => itemScore(b) - itemScore(a)).forEach((it) => {
       const idx = Game.inventory.indexOf(it);
       const sel = idx === pick;
-      const btn = `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn${sel ? " gold" : ""}" onclick="UI.eqPick(${idx})">${sel ? "✓ Selected" : "Preview"}</button></div>`;
-      h += `<div style="${sel ? "outline:2px solid var(--gold);border-radius:8px" : ""}">${itemHtml(it, btn)}</div>`;
+      const btn = `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn sm${sel ? " gold" : ""}" onclick="UI.eqPick(${idx})">${sel ? "✓ Selected" : "Preview"}</button></div>`;
+      h += `<div style="${sel ? "outline:2px solid #f4b942;border-radius:10px" : ""}">${itemHtml(it, btn)}</div>`;
     });
     return h;
   },
@@ -233,7 +248,7 @@ export const UI = {
     const gline = (k: string, a: number, b?: number) => `<span><span class="gs-k">${k}</span><b>${num(a, b)}</b></span>`;
     const score = `<div class="gscore">${gline("Offense", gs.offense, pg?.offense)}${gline("Defense", gs.defense, pg?.defense)}${gline("Overall", gs.overall, pg?.overall)}</div>`;
     const row = (label: string, a: number, b: number | null | undefined, unit = "") => `<span class="st-row"><span class="st-name">${label}</span><span class="st-val">${num(a, b, unit)}</span></span>`;
-    const toggle = `<div class="row" style="justify-content:flex-start;margin:8px 0 2px"><button class="btn" style="padding:4px 10px;font-size:12px" onclick="UI.eqToggleView()">${st.view === "primary" ? "Secondary Stats ▸" : "◂ Primary Stats"}</button></div>`;
+    const toggle = `<div class="row" style="justify-content:flex-start;margin:8px 0 2px"><button class="btn sm" onclick="UI.eqToggleView()">${st.view === "primary" ? "Secondary Stats ▸" : "◂ Primary Stats"}</button></div>`;
     let body: string;
     if (st.view === "primary") {
       const p = m.prim!, pp = preview?.prim;
@@ -250,70 +265,48 @@ export const UI = {
       const it = Game.inventory[st.pick];
       const reclass = st.slot === "weapon" && (preview.att !== m.att || preview.cls !== m.cls);
       if (st.confirm && reclass) {
-        action = `<div class="card" style="border-color:var(--legendary);margin-top:8px;text-align:left">
+        action = `<div class="mcard" style="border-left-color:var(--legendary);margin-top:8px">
           <b class="r-legendary">Change class?</b>
-          <div class="small" style="margin:4px 0">Equipping <b>${it.name}</b> reclasses ${m.name} to <b>${classTitle(preview.att, preview.cls, m.mna[preview.att])}</b> — a different Attunement and ability kit.</div>
+          <div class="msub" style="margin:4px 0">Equipping <b>${it.name}</b> reclasses ${m.name} to <b>${classTitle(preview.att, preview.cls, m.mna[preview.att])}</b> — a different Attunement and ability kit.</div>
           <div class="row" style="justify-content:flex-start"><button class="btn gold" onclick="UI.eqConfirm()">Yes, change class</button><button class="btn" onclick="UI.eqPick(${st.pick})">Cancel</button></div></div>`;
       } else {
         const note = reclass ? ` <span class="r-legendary" style="font-size:11px">→ ${classTitle(preview.att, preview.cls, m.mna[preview.att])}</span>` : "";
         action = `<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn gold" onclick="UI.eqConfirm()">Equip${note}</button></div>`;
       }
     }
-    const mnaLine = ATTUNEMENTS.filter((a) => m.mna[a] > 0).map((a) => `<span style="color:${ATT[a].color}">${a} ${m.mna[a]}</span>`).join(" · ") || "—";
-    const scaling = `<div class="psec">Mana Scaling · <span style="color:${ATT[m.att].color}">${m.att}</span></div>
-      <div class="small" style="opacity:.55;margin-bottom:3px">How well ${m.name}'s abilities scale from each stat (S best → D minimal).</div>
+    // MNA is READ-ONLY (ADR 0021): the derived level floor + per-piece gear grants — no allocator.
+    const mnaChips = ATTUNEMENTS.filter((a) => m.mna[a] > 0)
+      .map((a) => chip(`<span style="color:${ATT[a].color}">${a}</span> <b>${m.mna[a]}</b>`)).join("") || `<span class="small">—</span>`;
+    const scaling = `<div class="msec">Mana Scaling · <span style="color:${ATT[m.att].color}">${m.att}</span></div>
+      <div class="msub" style="margin:0 0 5px">How well ${m.name}'s abilities scale from each stat (S best → D minimal).</div>
       <div class="statier">${PRIMARY_STATS.map((s) => { const t = STAT_TIERS[m.att][s]; return `<span class="st-row"><span class="st-name">${s}</span><span class="st-tier st-${t}">${t}</span></span>`; }).join("")}</div>`;
-    return `<div class="card pm-eq-tot" style="text-align:left">
+    return `<div class="mcard pm-eq-tot" style="border-left-color:${ATT[m.att].color};margin:0">
       <b class="title-gold">${m.name}${preview ? " — preview" : ""}</b>
       ${score}
-      <div class="small" style="opacity:.55;margin-top:2px">Higher is better · Overall = Offense + Defense</div>
+      <div class="msub" style="margin:4px 0 0">Higher is better · Overall = Offense + Defense</div>
       ${toggle}${body}${action}
-      <div class="psec">+MNA</div><div class="small">${mnaLine}</div>
+      <div class="msec">MNA · ${mnaFloor(m.level)} lvl floor + gear</div><div class="mchips" style="margin-top:2px">${mnaChips}</div>
       ${scaling}
     </div>`;
-  },
-
-  // ── MANA: MNA auto-assigns into each hero's own tree as they level; here you can REDISTRIBUTE it
-  //    across Attunements (− to free a point, + to place it) or respec. (full-width thumb rows). ─────
-  partyMana(): void {
-    let h = `<h2 class="title-gold">Mana (MNA)</h2>
-      <div class="small" style="opacity:.78">MNA is assigned automatically into each hero's own Attunement as they level — raising it unlocks & powers their abilities (reach 100 for Archon). Use − / + below to move points to another tree if you want a different build.</div>
-      <div class="scroll">`;
-    Game.party.forEach((m) => {
-      const showTree = (a: typeof ATTUNEMENTS[number]) => m.mna[a] > 0 || m.mnaPoints > 0 || a === m.att;
-      const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
-      const pool = m.mnaPoints;
-      const poolBar = `<div class="mna-pool"><span>${m.spr} ${m.name} · MNA points</span>${pool > 0 ? `<b class="r-legendary">${pool} free to place</b>` : `<span class="small">all assigned</span>`}</div>`;
-      const rows = ATTUNEMENTS.filter(showTree).map((a) => {
-        const tot = m.mna[a], fromGear = tot - m.mnaAlloc[a];
-        const dec = m.mnaAlloc[a] > 0 ? `<button class="btn mna-btn" onclick="UI.deallocMna('${m.id}','${a}')" aria-label="remove ${a}">−</button>` : "";
-        const inc = pool > 0 ? `<button class="btn gold mna-btn" onclick="UI.allocMna('${m.id}','${a}')" aria-label="add ${a}">+</button>` : "";
-        return `<div class="mna-row" style="border-color:${ATT[a].color}55">
-          <span class="mna-name" style="color:${ATT[a].color}">${a}${tot >= 100 ? " ⭐" : ""}</span>
-          <span class="mna-tot">${tot}</span><span class="mna-sub">${m.mnaAlloc[a]} lvl + ${fromGear} gear</span>${dec}${inc}</div>`;
-      }).join("");
-      h += `<div class="card" style="text-align:left;margin:6px 0">${poolBar}${rows}
-        ${spent > 0 ? `<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="btn" style="min-height:40px" onclick="UI.respec('${m.id}')">Respec all · ◈ ${respecCost(m)}</button></div>` : ""}</div>`;
-    });
-    h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`;
-    Overlay.show(h);
   },
 
   // ── FORMATION: assign each hero Front/Back; the line stays a 3×2 or 2×3 (min 2, max 3 in front). ─
   partyFormation(note = ""): void {
     const front = Game.party.filter((m) => m.row !== "back").length;
-    let h = `<h2 class="title-gold">Formation</h2>
-      <div class="small" style="opacity:.8">The FRONT row is struck first and shields the BACK row (casters/ranged). Keep a 3×2 (3 front) or 2×3 (2 front) line.</div>
-      <div class="card" style="text-align:left;margin:8px 0"><b class="title-gold">${front} Front / ${5 - front} Back &nbsp;·&nbsp; ${front}×${5 - front}</b>${note ? `<div class="small" style="color:#e8b27a;margin-top:4px">${note}</div>` : ""}</div>
+    let h = `<div class="mnx"><h2 class="title-gold">Formation</h2>
+      <div class="msub">The FRONT row is struck first and shields the BACK row (casters/ranged). Keep a 3×2 (3 front) or 2×3 (2 front) line.</div>
+      <div class="mcard"><div class="mh-top"><b class="title-gold">${front} Front / ${5 - front} Back</b>${chip(`${front}×${5 - front} line`)}</div>${note ? `<div class="msub" style="color:#e8b27a;margin:5px 0 0">${note}</div>` : ""}</div>
       <div class="scroll">`;
     Game.party.forEach((m) => {
       const isFront = m.row !== "back";
-      h += `<div class="pm-form">
-        <span><b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${m.role}</span></span>
-        <span style="display:flex;gap:4px"><button class="btn${isFront ? " gold" : ""}" style="padding:6px 12px" onclick="UI.setRow('${m.id}','front')">Front</button><button class="btn${!isFront ? " gold" : ""}" style="padding:6px 12px" onclick="UI.setRow('${m.id}','back')">Back</button></span>
+      const col = ATT[m.att].color;
+      h += `<div class="mcard mhero" style="border-left-color:${col}">
+        <div class="mh-body"><span class="mname" style="color:${col}">${m.spr} ${m.name}</span>
+          <div class="mchips">${chip(m.role)}${chip(isFront ? "Front line" : "Back line")}</div></div>
+        <span style="display:flex;gap:6px;flex:0 0 auto"><button class="btn sm${isFront ? " gold" : ""}" onclick="UI.setRow('${m.id}','front')">Front</button><button class="btn sm${!isFront ? " gold" : ""}" onclick="UI.setRow('${m.id}','back')">Back</button></span>
       </div>`;
     });
-    h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button></div>`;
+    h += `</div><div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openParty()">◂ Party</button></div></div>`;
     Overlay.show(h);
   },
   setRow(memberId: string, row: "front" | "back"): void {
@@ -331,68 +324,28 @@ export const UI = {
     this.partyEquipment(memberId);
     this.eqOpenSlot(slot);
   },
-  // Re-render the Mana screen but KEEP the scroll position (so rapid +/- clicks don't jump to the
-  // top — Dara). Overlay.show replaces the markup, so we snapshot/restore the scroller's scrollTop.
-  reopenManaKeepScroll(): void {
-    const top = document.querySelector<HTMLElement>("#overlayInner .scroll")?.scrollTop ?? 0;
-    this.partyMana();
-    const sc = document.querySelector<HTMLElement>("#overlayInner .scroll");
-    if (sc) sc.scrollTop = top;
-  },
-  // Spend one earned MNA point into an Attunement tree (manual allocation).
-  allocMna(memberId: string, att: Attunement): void {
-    const m = Game.party.find((x) => x.id === memberId);
-    if (!m || m.mnaPoints <= 0) return;
-    m.mnaAlloc[att] += 1;
-    m.mnaPoints -= 1;
-    recalc(Game.party);
-    this.reopenManaKeepScroll();
-  },
-  // Take one point back out of a tree (free undo for a mis-tap; whole-tree respec still costs gold).
-  deallocMna(memberId: string, att: Attunement): void {
-    const m = Game.party.find((x) => x.id === memberId);
-    if (!m || m.mnaAlloc[att] <= 0) return;
-    m.mnaAlloc[att] -= 1;
-    m.mnaPoints += 1;
-    recalc(Game.party);
-    this.reopenManaKeepScroll();
-  },
-  // Refund all allocated points (back to the spend pool) for a gold fee.
-  respec(memberId: string): void {
-    const m = Game.party.find((x) => x.id === memberId);
-    if (!m) return;
-    const spent = ATTUNEMENTS.reduce((n, a) => n + m.mnaAlloc[a], 0);
-    if (spent <= 0) return;
-    const cost = respecCost(m);
-    if (Game.gold < cost) return;
-    Game.gold -= cost;
-    m.mnaPoints += spent;
-    ATTUNEMENTS.forEach((a) => (m.mnaAlloc[a] = 0));
-    recalc(Game.party);
-    this.openParty();
-  },
   // Skill-tree visualizer: the hero's kit laid out by MNA threshold, with what each does.
   skillTree(memberId: string): void {
     const m = Game.party.find((x) => x.id === memberId);
     if (!m) return;
     const arch = m.equip.weapon?.cls || m.cls;
-    const tree = m.att, cur = m.mna[tree];
-    let h = `<h2 class="title-gold">${classTitle(tree, arch, cur)}</h2>`;
-    h += `<div class="small">${m.spr} ${m.name} · ${tree} tree · MNA <b>${cur}</b>${cur >= 100 ? ` · <span class="r-legendary">ARCHON</span>` : ""}</div>`;
-    h += `<div class="small" style="opacity:.7;margin-bottom:4px">Raise ${tree} MNA (level points + ${tree} gear) to unlock these.</div><div class="scroll">`;
+    const tree = m.att, cur = m.mna[tree], col = ATT[tree].color;
+    let h = `<div class="mnx"><h2 class="title-gold">${classTitle(tree, arch, cur)}</h2>`;
+    h += `<div class="mchips">${chip(`${m.spr} ${m.name}`)}${chip(`<span style="color:${col}">${tree}</span> tree`)}${chip(`MNA <b>${cur}</b>`)}${cur >= 100 ? chip(`<span class="r-legendary">ARCHON</span>`) : ""}</div>`;
+    h += `<div class="msub" style="margin-top:6px">Raise ${tree} MNA (level floor + ${tree} gear) to unlock these.</div><div class="scroll">`;
     const kit = m.skills.map((k) => SKILLS[k]).sort((a, b) => a.mnaReq - b.mnaReq);
     kit.forEach((s) => {
       const ok = cur >= s.mnaReq;
       const gate = ok ? `<span class="r-uncommon">✓ unlocked</span>` : `<span class="small">needs ${s.mnaReq} ${tree} (${s.mnaReq - cur} more)</span>`;
       // locked: dim the header/gate row only — keep the description readable so players can
       // plan toward what they haven't unlocked yet.
-      h += `<div class="card" style="margin:6px 0;text-align:left;border-color:${ok ? (s.ult ? "var(--legendary)" : "var(--gold)") : "var(--line)"}">
-        <div style="${ok ? "" : "opacity:.6"}"><b class="${ok ? (s.ult ? "r-legendary" : "r-uncommon") : ""}">${s.name}</b>${s.ult ? " ★" : ""} <span class="pill">${tree} ${s.mnaReq}</span> ${gate}</div>
-        <div class="tag" style="margin:2px 0">${skillKind(s)} · ${TARGET_LABEL[s.target] ?? s.target}${s.mp ? ` · ${s.mp} MP` : " · free"}</div>
-        <div class="small" style="color:var(--ink)">${s.desc}</div>
+      h += `<div class="mcard" style="border-left-color:${ok ? (s.ult ? "var(--legendary)" : "#f4b942") : "#3a2e12"}">
+        <div style="${ok ? "" : "opacity:.6"}"><b class="${ok ? (s.ult ? "r-legendary" : "r-uncommon") : ""}">${s.name}</b>${s.ult ? " ★" : ""} ${chip(`${tree} ${s.mnaReq}`)} ${gate}</div>
+        <div class="mchips">${chip(skillKind(s))}${chip(TARGET_LABEL[s.target] ?? s.target)}${chip(s.mp ? `${s.mp} MP` : "free")}</div>
+        <div class="small" style="color:var(--mink);margin-top:5px">${s.desc}</div>
       </div>`;
     });
-    h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button><button class="btn gold" onclick="UI.close()">Close</button></div>`;
+    h += `</div><div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openParty()">◂ Party</button><button class="btn gold" onclick="UI.close()">Close</button></div></div>`;
     Overlay.show(h);
   },
   // Transient one-render feedback line for the Bag (set by useConsumable, cleared on render).
@@ -406,35 +359,35 @@ export const UI = {
   openInventory(): void {
     const selling = Game._inMerchant; // the merchant buys loot off you while you're shopping
     const note = this._bagNote; this._bagNote = "";
-    let h = `<h2 class="title-gold">Bag</h2><div class="small">${Game.inventory.length} items · ◈ ${Game.gold} Aether${selling ? " · sell unwanted loot to the merchant" : ""}</div><div class="scroll">`;
+    let h = `<div class="mnx"><h2 class="title-gold">Bag</h2>
+      <div class="mchips">${chip(`<b>${Game.inventory.length}</b> items`)}${chip(`◈ <b>${Game.gold}</b> Aether`)}${selling ? chip("selling to the merchant") : ""}</div>
+      <div class="scroll" style="margin-top:4px">`;
     // ── CONSUMABLES (crafting slice): crafted at a town smith, usable here out of battle. ──
     const cons = Object.entries(Game.consumables).filter(([id, n]) => n > 0 && CONSUMABLES[id]);
     if (note) h += `<div class="small" style="color:#aef0a0;margin:4px 0">${note}</div>`;
     if (cons.length) {
-      h += `<div class="tag">Consumables</div>`;
+      h += `<div class="msec">Consumables</div>`;
       cons.forEach(([id, n]) => {
         const d = CONSUMABLES[id]!;
-        h += `<div class="card" style="text-align:left;margin:6px 0">
-          <b class="title-gold">${d.icon} ${d.name}</b> <span class="pill">×${n}</span>
-          <p class="small" style="margin-top:4px">${d.blurb}</p>
-          <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.useConsumable('${id}')">Use</button></div>
-        </div>`;
+        h += `<div class="mcard">
+          <div class="mh-top"><b class="title-gold">${d.icon} ${d.name}</b>${chip(`×${n}`)}<button class="btn gold sm" onclick="UI.useConsumable('${id}')">Use</button></div>
+          <div class="msub" style="margin:4px 0 0">${d.blurb}</div></div>`;
       });
     }
     // ── MATERIALS (crafting slice): read-only counts — spent at the smith, never equipped. ──
     const mats = Object.entries(Game.materials).filter(([id, n]) => n > 0 && MATERIALS[id]);
     if (mats.length) {
-      h += `<div class="tag">Materials</div><div class="small" style="opacity:.75">Gathered from nodes and fallen foes — craft with them at a town smith.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${mats.map(([id, n]) => `<span class="pill">${MATERIALS[id]!.icon} ${MATERIALS[id]!.name} ×${n}</span>`).join("")}</div>`;
+      h += `<div class="msec">Materials</div><div class="msub">Gathered from nodes and fallen foes — craft with them at a town smith.</div>
+        <div class="mchips">${mats.map(([id, n]) => chip(`${MATERIALS[id]!.icon} ${MATERIALS[id]!.name} <b>×${n}</b>`)).join("")}</div>`;
     }
-    if (cons.length || mats.length) h += `<div class="tag">Gear</div>`;
-    if (Game.inventory.length === 0) h += `<p class="small">Empty. Win fights to find loot.</p>`;
+    if (cons.length || mats.length) h += `<div class="msec">Gear</div>`;
+    if (Game.inventory.length === 0) h += `<div class="msub">Empty. Win fights to find loot.</div>`;
     Game.inventory.slice().sort((a, b) => rarityIx(b.rarity) - rarityIx(a.rarity)).forEach((it) => {
       const idx = Game.inventory.indexOf(it);
-      const sell = selling ? ` <button class="btn" onclick="Game.sellItem(${idx})">Sell · ◈ ${sellPriceOf(it)}</button>` : "";
-      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.equipChooser(${idx})">Equip ▸</button>${sell}</div>`);
+      const sell = selling ? ` <button class="btn sm" onclick="Game.sellItem(${idx})">Sell · ◈ ${sellPriceOf(it)}</button>` : "";
+      h += itemHtml(it, `<div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold sm" onclick="UI.equipChooser(${idx})">Equip ▸</button>${sell}</div>`);
     });
-    h += `</div><div class="row">${selling ? `<button class="btn gold" onclick="Game.renderMerchant()">◂ Shop</button>` : ""}<button class="btn" onclick="UI.openParty()">To Party</button><button class="btn${selling ? "" : " gold"}" onclick="UI.close()">Close</button></div>`;
+    h += `</div><div class="row" style="margin-top:8px">${selling ? `<button class="btn gold" onclick="Game.renderMerchant()">◂ Shop</button>` : ""}<button class="btn" onclick="UI.openParty()">To Party</button><button class="btn${selling ? "" : " gold"}" onclick="UI.close()">Close</button></div></div>`;
     Overlay.show(h);
   },
 
@@ -448,11 +401,12 @@ export const UI = {
   equipChooser(invIdx: number): void {
     const it = Game.inventory[invIdx];
     if (!it) { this.openInventory(); return; }
-    let h = `<h2 class="title-gold">Equip</h2>${itemHtml(it)}<div class="small" style="margin-top:4px">Choose a hero — arrows show stat changes:</div><div class="scroll">`;
+    let h = `<div class="mnx"><h2 class="title-gold">Equip</h2>${itemHtml(it)}<div class="msub" style="margin-top:4px">Choose a hero — arrows show stat changes:</div><div class="scroll">`;
     const stat = (label: string, cur: number, nxt: number) =>
       cur === nxt ? "" : `<span style="color:${nxt > cur ? "#aef0a0" : "#e8888c"}">${label} ${cur}→${nxt}${nxt > cur ? "↑" : "↓"}</span>`;
     Game.party.forEach((m) => {
       const c = this._equipPreview(m, it);
+      const col = ATT[m.att].color;
       const gNow = gearScore(m), gNext = gearScore(c);
       const score = [
         stat("Offense", gNow.offense, gNext.offense), stat("Defense", gNow.defense, gNext.defense),
@@ -466,15 +420,16 @@ export const UI = {
       ].filter(Boolean).join(" · ");
       const reclass = it.slot === "weapon" && (c.att !== m.att || c.cls !== m.cls)
         ? ` <span class="r-legendary" style="font-size:11px">→ ${classTitle(c.att, c.cls, m.mna[c.att])}</span>` : "";
-      const replaces = m.equip[it.slot] ? `<span class="small" style="opacity:.6"> (replaces ${m.equip[it.slot]!.name})</span>` : "";
-      h += `<div class="card" style="margin:6px 0;text-align:left">
-        <b style="color:${ATT[m.att].color}">${m.spr} ${m.name}</b> <span class="pill">${classTitle(m.att, m.cls, m.mna[m.att])}</span>${reclass}${replaces}
-        ${score ? `<div class="small" style="margin-top:4px;font-weight:bold">${score}</div>` : ""}
+      const replaces = m.equip[it.slot] ? `<span class="small" style="opacity:.7"> (replaces ${m.equip[it.slot]!.name})</span>` : "";
+      h += `<div class="mcard" style="border-left-color:${col}">
+        <div class="mname" style="color:${col}">${m.spr} ${m.name}</div>
+        <div class="mchips">${chip(classTitle(m.att, m.cls, m.mna[m.att]))}${reclass}${replaces}</div>
+        ${score ? `<div class="small" style="margin-top:5px;font-weight:bold">${score}</div>` : ""}
         <div class="small" style="margin-top:4px">${deltas || "no stat change"}</div>
-        <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.doEquipFromBag('${m.id}',${invIdx})">Equip on ${m.name}</button></div>
+        <div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn gold" onclick="UI.doEquipFromBag('${m.id}',${invIdx})">Equip on ${m.name}</button></div>
       </div>`;
     });
-    h += `</div><div class="row"><button class="btn" onclick="UI.openInventory()">◂ Bag</button></div>`;
+    h += `</div><div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openInventory()">◂ Bag</button></div></div>`;
     Overlay.show(h);
   },
   doEquipFromBag(memberId: string, invIdx: number): void {

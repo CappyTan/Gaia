@@ -195,6 +195,20 @@ export interface DungeonLayout {
    * the same coords so every boss-reading consumer (progress(), topology egress) points at the seal.
    */
   seal?: Pt;
+  /**
+   * THE CHASM (wave6c — the Sealed Deep finale): impassable VOID rects stamped over the carved grid
+   * (after rooms/paths/scatter, before the feature tiles — genDungeon). A recessed drop, not a wall:
+   * drawn as black depth with rock rims (controllers/field.drawChasm), and a flood barrier exactly
+   * like tree/water (FIELD_WALLS carries "chasm"). Crossable ONLY on the authored `bridge`.
+   */
+  chasm?: Rect[];
+  /**
+   * THE BRIDGE (wave6c): the narrow causeway tiles carved WALKABLE over the chasm ("bridge" kind,
+   * deliberately un-halo'd so the span stays one tile wide). The dramatic final approach to the
+   * sealed gate — and in the Ruins each STEP on it risks the Warmech ambush (controllers/field.move
+   * → systems/encounter.rollBridgeAmbush). Author it as the ONLY route across the void.
+   */
+  bridge?: Pt[];
 }
 
 /**
@@ -293,7 +307,7 @@ export const ENCOUNTERS: EncounterBand[] = [
   // The MAGE arrives — taught behind a single screen of fodder before it stacks into nastier mixes.
   { at: 0.54, sets: [["gmage", "kobold"], ["kobolde", "gbandit", "kobold"], ["gbandit", "gmage", "kobold"], ["slimebig", "kobolde", "kobold"]] },
   // DEEP WARREN / pre-Kingpin: the meanest combos — caster behind a bandit wall, and a 4-pack den swarm.
-  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gbandit", "gmage", "kobold"]] },
+  { at: 0.72, sets: [["kobolde", "gmage", "kobold"], ["slimebig", "gmage", "kobold"], ["gbandit", "kobolde", "gbandit"], ["gbandit", "gmage", "kobold"]] },
 ];
 
 // ── Greenvale overworld + Bandit Warren (greenfield, OPEN-WORLD rework — Dara 2026-06-20) ─────
@@ -530,7 +544,7 @@ export function greenvaleAreaAt(px: number, py: number): GreenvaleAreaId | undef
   return best;
 }
 
-// ── THE BANDIT WARREN — Gaia's FIRST MULTI-FLOOR dungeon (ADR 0008 Stage 3, Lv 1-6) ─────────────
+// ── THE BANDIT WARREN — Gaia's FIRST MULTI-FLOOR dungeon (ADR 0008 Stage 3, ~Lv 9-13 effective) ──
 // A descending bandit hideout in THREE floors (B1 → B2 → the Kingpin's hall). Each floor is its OWN
 // DungeonLayout on its own grid; the player descends a floor's `stairsDown` (gated by a floor
 // `miniboss` where one stands) to the next floor's `entry`, and climbs the `entry`/up-stair back. The
@@ -709,11 +723,12 @@ const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 // "Newly unearthed ancient ruins near Greenvale with a high concentration of mana emanating from
 // within." Three descending floors under the north-downs excavation (`layout.ruins` → `dungeon2`),
 // deliberately OPTIONAL and deliberately HOT: no mouth guard — the interior itself is the gate.
-//   • THE THREAT CURVE: its own `bands` (below) run the harder END of the Greenvale cast (Bloated
-//     Slime / Raider / Mage) into EARLY-SILVERWOOD stock (Direwolf L7, Thornling L7, Sylvan Archer /
-//     Gloom Wisp L8) — things drawn down from the old wood by the mana bloom. With the dungeon depth
-//     bump (+floor climb) that's an effective ~L5–11 delve against an ~L1–4 shire: a place a fresh
-//     party BACKS OUT of and returns to. Flagged for balance-tuner (first-pass numbers).
+//   • THE THREAT CURVE (v0.212 re-center — heroes start L10): its own `bands` (below) run the harder
+//     END of the Greenvale cast (Bloated Slime / Raider / Mage, L10) into SILVERWOOD stock
+//     (Direwolf/Thornling L11, Sylvan Archer / Gloom Wisp L12, a Barkhide Brute L13 in the deep) —
+//     things drawn down from the old wood by the mana bloom. With the dungeon depth bump (+floor
+//     climb) that's an effective ~L11–16 delve against an ~L8–10 shire: a place a fresh party BACKS
+//     OUT of and returns to. Tuned via balance-sim.
 //   • THE LOOT PROMISE: `ilvlBonus: 3` — every Ruins chest rolls +3 over the Greenvale overworld chest
 //     curve (both rarity-band level and ilvl), and the hotter cast's higher enemy levels give drops
 //     the same edge. Harder place, visibly better loot.
@@ -724,16 +739,17 @@ const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 //     and 3 carry none, so the delve never refills.
 // Floor identity: A1 is the UNEARTHED GALLERIES (a fresh dig fanning into old halls), A2 the FLOODED
 // ARCHIVE (a drowned library looped around the mana well), A3 the SEALED DEEP (twin vaults funneling
-// onto the door). No floor minibosses — the ruins are keyless all the way down.
+// onto THE LONG BRIDGE over the chasm, and the sealed gate beyond it — wave6c). No floor minibosses —
+// the ruins are keyless all the way down; the gate's guardian is a warned, optional setpiece.
 const RUINS_ENCOUNTERS: EncounterBand[] = [
-  // THE DIG MOUTH: the meanest of the shire cast holds the top halls — plus the first direwolf.
-  { at: 0.0, sets: [["slimebig", "kobolde"], ["gmage", "gbandit"], ["kobolde", "kobolde"], ["dwolf"]] },
+  // THE DIG MOUTH: the meanest of the shire cast holds the top halls — plus the first direwolves.
+  { at: 0.0, sets: [["slimebig", "kobolde"], ["gmage", "dwolf"], ["kobolde", "kobolde"], ["dwolf"]] },
   // OLD-WOOD BLEED-IN: Silverwood stock stalks the middle halls alongside the shire's worst.
   { at: 0.3, sets: [["dwolf", "kobolde"], ["thornling", "gmage"], ["dwolf", "dwolf"], ["slimebig", "gmage", "kobolde"]] },
-  // THE DROWNED ARCHIVE: archers + wisps behind bruisers — real pack shapes, L7-8 stock.
-  { at: 0.55, sets: [["thornling", "dwolf"], ["sylvanarcher", "kobolde"], ["gloomwisp", "gbandit", "gbandit"], ["dwolf", "dwolf", "thornling"]] },
-  // BEFORE THE DOOR: the deep watch — caster-led mixes at the mana bloom's heart.
-  { at: 0.75, sets: [["gloomwisp", "thornling"], ["sylvanarcher", "dwolf", "dwolf"], ["thornling", "thornling", "gloomwisp"], ["sylvanarcher", "gloomwisp", "dwolf"]] },
+  // THE DROWNED ARCHIVE: archers + wisps behind bruisers — real pack shapes, old-wood stock.
+  { at: 0.55, sets: [["thornling", "dwolf"], ["sylvanarcher", "gloomwisp"], ["gloomwisp", "dwolf", "thornling"], ["dwolf", "dwolf", "thornling"]] },
+  // BEFORE THE DOOR: the deep watch — caster-led, brute-anchored mixes at the mana bloom's heart.
+  { at: 0.75, sets: [["gloomwisp", "thornling"], ["sylvanarcher", "dwolf", "barkbrute"], ["barkbrute", "thornling", "gloomwisp"], ["sylvanarcher", "gloomwisp", "barkbrute"]] },
 ];
 // THE MANA WELL (ADR 0010, the one rest in the delve): raw mana wells out of the old stone — it
 // restores SPIRIT, never flesh (the mirror of the Warren's mend-only hearth).
@@ -796,28 +812,39 @@ const RUINS_A2: DungeonLayout = {
   reprieve: RUINS_WELL,
   scatter: 0.08,
 };
-// A3 — THE SEALED DEEP (26×20): twin vaults (a chest each) loop around the center and FUNNEL onto the
-// antechamber before THE SEALED DOOR — the terminus. The richest chest sits at the door's foot; the
-// door itself is a walkable landmark (`seal`) that will not open. No rest, no boss — not yet.
+// A3 — THE SEALED DEEP (34×20, wave6c finale rework): twin vaults (a chest each) loop around the
+// center and FUNNEL onto a bridgehead antechamber — and then the floor simply ENDS. A vast CHASM
+// swallows the eastern half of the deep, and the only way on is THE LONG BRIDGE: a dead-straight,
+// one-tile causeway of ancient stone, eleven tiles over the void, to a lone PLATFORM carrying THE
+// SEALED GATE — a towering graven arch that will not open (walkable `seal`; its guardian, Defense
+// Platform V.04 - #13, is wired in controllers/field.touchSeal). Each STEP on the bridge risks the
+// Warmech ambush (systems/encounter.rollBridgeAmbush). The richest chest sits at the gate's foot,
+// across the void — reward past the dread. No rest, no zone boss.
 const RUINS_A3: DungeonLayout = {
-  w: 26, h: 20, entry: { x: 1, y: 10 }, gate: { x: 1, y: 10 }, boss: { x: 22, y: 10 }, // boss == the seal tile (no fight — see `seal`)
-  seal: { x: 22, y: 10 }, // THE SEALED DOOR — something ancient waits behind it (content for later)
+  w: 34, h: 20, entry: { x: 1, y: 10 }, gate: { x: 1, y: 10 }, boss: { x: 31, y: 10 }, // boss == the seal tile (no zone-boss fight — see `seal`)
+  seal: { x: 31, y: 10 }, // THE SEALED GATE — something ancient waits behind it (content for later)
   rooms: [
     { x: 2, y: 8, w: 5, h: 5 },    // up-stair landing
     { x: 9, y: 3, w: 6, h: 5 },    // north vault (chest)
     { x: 9, y: 12, w: 6, h: 5 },   // south vault (chest)
-    { x: 16, y: 7, w: 4, h: 7 },   // the funnel antechamber (the loops rejoin)
-    { x: 20, y: 7, w: 4, h: 7 },   // the DOOR CHAMBER (the seal + the deep hoard)
+    { x: 15, y: 7, w: 4, h: 7 },   // the funnel antechamber — the BRIDGEHEAD (the loops rejoin)
+    { x: 30, y: 7, w: 3, h: 7 },   // the GATE PLATFORM across the void (the seal + the deep hoard)
   ],
   paths: [
     [{ x: 1, y: 10 }, { x: 4, y: 10 }],                          // up-stair → landing
-    [{ x: 4, y: 9 }, { x: 11, y: 5 }, { x: 17, y: 9 }],          // north route: landing → north vault → antechamber
-    [{ x: 4, y: 11 }, { x: 11, y: 14 }, { x: 17, y: 12 }],       // south route: landing → south vault → antechamber (the LOOP)
+    [{ x: 4, y: 9 }, { x: 11, y: 5 }, { x: 16, y: 9 }],          // north route: landing → north vault → bridgehead
+    [{ x: 4, y: 11 }, { x: 11, y: 14 }, { x: 16, y: 12 }],       // south route: landing → south vault → bridgehead (the LOOP)
     [{ x: 11, y: 7 }, { x: 11, y: 12 }],                         // vault cross-link (a second loop)
-    [{ x: 18, y: 10 }, { x: 22, y: 10 }],                        // antechamber → the sealed door
+  ],
+  // THE VOID: everything east of the bridgehead falls away (x19..29, full interior height).
+  chasm: [{ x: 19, y: 1, w: 11, h: 18 }],
+  // THE LONG BRIDGE: a dead-straight 11-tile causeway on the entry row — the only way across.
+  bridge: [
+    { x: 19, y: 10 }, { x: 20, y: 10 }, { x: 21, y: 10 }, { x: 22, y: 10 }, { x: 23, y: 10 },
+    { x: 24, y: 10 }, { x: 25, y: 10 }, { x: 26, y: 10 }, { x: 27, y: 10 }, { x: 28, y: 10 }, { x: 29, y: 10 },
   ],
   chests: [
-    { x: 21, y: 12 },  // the deep hoard, at the sealed door's foot (the delve's richest)
+    { x: 31, y: 12 },  // the deep hoard, at the sealed gate's foot (the delve's richest — across the void)
     { x: 11, y: 4 },   // north vault
     { x: 11, y: 15 },  // south vault
   ],
@@ -1088,7 +1115,7 @@ const DUSKMARSH_DUNGEON: DungeonLayout = {
 };
 
 // ── Goldmeadow Plains + the occupied Windmill (OPEN-WORLD, first backlog fill — brief 2026-06-21) ─
-// Aurelion #3, "The Breadbasket": L11–15, the journey's step PAST the Duskmarsh — WIDE, BRIGHT and
+// Aurelion #3, "The Breadbasket": trash L12–14 (v0.212), the journey's step PAST the Duskmarsh — WIDE, BRIGHT and
 // EXPOSED after the marsh's pinch (the brief's "nowhere to hide"). NOT a west→east spine: it's an
 // open PLAINS MESH of broad wheat commons joined by farm tracks that LOOP and rejoin. Spawn feeds a
 // WEST WHEAT COMMONS hub; THREE farm tracks run east to a CENTRAL CROSSROADS hub — a NORTH track
@@ -2110,7 +2137,7 @@ export const WORLD_SETTLEMENT_NOTE = {
 export const ZONES: Zone[] = [
   { id: "greenvale", name: "Greenvale", mini: "brigand", miniAdds: ["gbandit", "gbandit"], boss: "kingpin",
     envs: ["plains", "forest", "desert", "mountains"], dungeon: { name: "The Bandit Warren", env: "warren", layout: GREENVALE_DUNGEON, floors: GREENVALE_FLOORS, floorMini: "lieutenant" }, dungeon2: GREENVALE_RUINS, bands: ENCOUNTERS, layout: GREENVALE_LAYOUT, hub: "hearthford", hubs: ["hearthford"] },
-  // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (Lv 7–9) ──
+  // ── ZONE 2 (index 1): Silverwood, the Ancient Forest (trash Lv 11–13, v0.212 re-center) ──
   // Inbound from Greenvale the player celebrates in the grand trade capital Riverhearth (the
   // triumphant breather hub) and then steps into the old forest. The Elder Treant gates the way to
   // the Sunless Grove; the Hollow King waits at its heart. Attunements stay SPREAD (Dara's
@@ -2128,7 +2155,7 @@ export const ZONES: Zone[] = [
       { at: 0.54, sets: [["gloomwisp", "sylvanarcher", "dwolf"], ["barkbrute", "dwolf", "thornling"], ["sylvanarcher", "gloomwisp", "thornling"]] },
       { at: 0.72, sets: [["barkbrute", "sylvanarcher", "dwolf"], ["spriggan", "gloomwisp", "thornling"], ["barkbrute", "spriggan", "sylvanarcher"]] },
     ] },
-  // ── ZONE 3 (index 2): The Duskmarsh → the Drowned Vault (Lv 10+) ──
+  // ── ZONE 3 (index 2): The Duskmarsh → the Drowned Vault (trash Lv 11–13) ──
   // Inbound from Silverwood, the grim marsh outpost Miregard is the Duskmarsh's doorstep (Riverhearth
   // now belongs to Silverwood's chain). `hub` stays "miregard" (the true doorstep) for back-compat.
   { id: "duskmarsh", name: "The Duskmarsh", mini: "broodmother", miniAdds: ["spider", "spider"], boss: "troll", hub: "miregard", hubs: ["miregard"],
@@ -2139,7 +2166,7 @@ export const ZONES: Zone[] = [
       { at: 0.6, sets: [["leper", "direrat", "rat"], ["bonespider", "spider", "rat"], ["rat", "rat", "leper"]] },
       { at: 0.8, sets: [["bonespider", "leper", "rat"], ["direrat", "direrat", "rat"], ["leper", "bonespider", "spider"]] },
     ] },
-  // ── ZONE 4 (index 3): Goldmeadow Plains → the occupied Windmill (Lv 11–15) ──
+  // ── ZONE 4 (index 3): Goldmeadow Plains → the occupied Windmill (trash Lv 12–14) ──
   // First BACKLOG FILL (world-builder brief 2026-06-21): the journey's step PAST the Duskmarsh into
   // Aurelion's breadbasket war-front. Inbound hub is a PLACEHOLDER ("miregard") — narrative-writer
   // assigns the real plains doorstep settlement next. dungeon env = "granary" (the audio layer already
@@ -2173,7 +2200,7 @@ export const ZONES: Zone[] = [
   // OPTIONAL regions (stormcoast/riverhearth/dawnfall/whisperhills) → small CAVE + champion guardian.
   // SPINE regions (frostpeak, sunbridge) → full dungeon + boss. sunbridge is the LAST entry (run-ender).
   //
-  // ── OPTIONAL: Storm Coast → a sea-cave (Lv 13–17) ──
+  // ── OPTIONAL: Storm Coast → a sea-cave (trash Lv 13–15) ──
   // CAST (encounter-designer, real roster): wreckers/pirates + sea-beasts. TEACH→COMBINE — open with the
   // fast cutthroat + the crab tank read clean, fold in the wrecker (rust/poison bruiser) + slinger
   // (ranged), then the brine-serpent leecher, reserving the gnarliest 4-packs for the run to the
@@ -2187,7 +2214,7 @@ export const ZONES: Zone[] = [
       { at: 0.5, sets: [["wrecker", "deckhand", "cutthroat"], ["seaserpent", "cutthroat", "shellcrab"], ["wrecker", "shellcrab", "deckhand"]] },
       { at: 0.75, sets: [["wrecker", "deckhand", "seaserpent", "cutthroat"], ["shellcrab", "wrecker", "seaserpent"], ["wrecker", "deckhand", "shellcrab", "cutthroat"]] },
     ] },
-  // ── OPTIONAL: Riverhearth outskirts → a smugglers' den (Lv 15–18); hub = the existing Riverhearth city ──
+  // ── OPTIONAL: Riverhearth outskirts → a smugglers' den (trash Lv 14–16); hub = the existing Riverhearth city ──
   // CAST: road-bandits, smugglers, river-toughs. Opens tougher than Storm Coast (higher band) — start
   // with the road-bandit + fast footpad, fold in the crossbow smuggler + river-tough wall, then the
   // den-fence leecher, reserving full 4-packs for the den mouth. Champion = the River Crime-Lord.
@@ -2199,7 +2226,7 @@ export const ZONES: Zone[] = [
       { at: 0.5, sets: [["rivertough", "smuggler", "footpad"], ["fence", "roadbandit", "footpad"], ["rivertough", "roadbandit", "smuggler"]] },
       { at: 0.75, sets: [["rivertough", "smuggler", "fence", "footpad"], ["rivertough", "roadbandit", "fence"], ["smuggler", "rivertough", "fence", "footpad"]] },
     ] },
-  // ── SPINE: Frostpeak Highlands → the Dwarven Stronghold (Lv 16–20) ──
+  // ── SPINE: Frostpeak Highlands → the Dwarven Stronghold (trash Lv 15–17) ──
   // CAST: frost beasts (ice wolves, a snow-troll) + mountain reavers + awakened dwarven stone-sentinels.
   // SPINE = full 5-band teach→combine. Open with the fast ice-wolf pack + reaver bruiser, introduce the
   // hexing frost-shade caster (behind the fodder) + the slow stone-sentinel wall, then the snow-troll
@@ -2214,7 +2241,7 @@ export const ZONES: Zone[] = [
       { at: 0.6, sets: [["snowtroll", "icewolf", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade"], ["snowtroll", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "icewolf"], ["snowtroll", "rimespine", "icewolf"]] },
       { at: 0.8, sets: [["snowtroll", "stonesentinel", "frostshade", "icewolf"], ["stonesentinel", "mtnreaver", "frostshade", "icewolf"], ["snowtroll", "stonesentinel", "mtnreaver", "frostshade"], ["snowtroll", "rimespine", "stonesentinel", "frostshade"]] },
     ] },
-  // ── OPTIONAL: Dawnfall Hold → the breached undervault (Lv 17–21) ──
+  // ── OPTIONAL: Dawnfall Hold → the breached undervault (trash Lv 16–17) ──
   // CAST: the wilds that broke the fort + the hold's fallen watch. Open with the feral frontier-beast +
   // the poison-spear broken-watch, fold in the garrison-ghoul leecher + the fallen-archer harrier, then
   // the heavy rampart-hulk wall, reserving full 4-packs for the breached undervault. Champion = the
@@ -2227,7 +2254,7 @@ export const ZONES: Zone[] = [
       { at: 0.5, sets: [["ruinhulk", "fallenarcher", "frontierbeast"], ["watchghoul", "brokenwatch", "fallenarcher"], ["ruinhulk", "brokenwatch", "frontierbeast"]] },
       { at: 0.75, sets: [["ruinhulk", "brokenwatch", "watchghoul", "fallenarcher"], ["ruinhulk", "watchghoul", "brokenwatch"], ["ruinhulk", "fallenarcher", "watchghoul", "frontierbeast"]] },
     ] },
-  // ── OPTIONAL: Whisper Hills → the crypt/reliquary (Lv 19–23) ──
+  // ── OPTIONAL: Whisper Hills → the crypt/reliquary (trash Lv 17–18) ──
   // CAST: restless spirits + corrupted monks. Open with the fast flitting wraith + the chanting
   // corrupted-monk caster (a caster-behind-fodder shape early, since the hills are eerie), fold in the
   // poison-zealot flagellant + the soul-leech revenant, then the heavy reliquary-golem wall, reserving
@@ -2241,7 +2268,7 @@ export const ZONES: Zone[] = [
       { at: 0.5, sets: [["revenant", "corruptmonk", "wraith"], ["flagellant", "revenant", "wraith"], ["reliquarygolem", "wraith", "wraith"]] },
       { at: 0.75, sets: [["reliquarygolem", "corruptmonk", "revenant", "wraith"], ["reliquarygolem", "flagellant", "corruptmonk"], ["revenant", "reliquarygolem", "flagellant", "wraith"]] },
     ] },
-  // ── SPINE FINALE: Sunbridge → the Besieged Citadel / Lighthouse (Lv 21–25). LAST IN ZONES = run-ender. ──
+  // ── SPINE FINALE: Sunbridge → the Besieged Citadel / Lighthouse (trash Lv 18–19). LAST IN ZONES = run-ender. ──
   // CAST: the besieging host + sea-raiders + something risen from the deep. SPINE FINALE = full 5-band
   // teach→combine, the steepest curve + the only band that goes to FIVE-enemy packs (the climax). Open
   // with the siege-trooper bruiser + the fast sea-raider boarder, fold in the ballista harrier + the

@@ -51,10 +51,37 @@ export function noteKills(log: QuestLog, fallenKeys: string[]): string[] {
   return completed;
 }
 
-/** Every quest the log knows about, in chain order per town — for the quest-log screen. */
-export function questList(log: QuestLog): { def: QuestDef; p: QuestProg | undefined; locked: boolean }[] {
-  const out: { def: QuestDef; p: QuestProg | undefined; locked: boolean }[] = [];
-  for (const start of Object.values(QUEST_CHAIN_START)) {
+export interface QuestRow { def: QuestDef; p: QuestProg | undefined; locked: boolean }
+/** One giver's chain, with its rolled-up state for the log screen:
+ *  "active" = something accepted/ready in it · "open" = untouched work remains · "done" = chain complete. */
+export interface QuestGroup { town: string; quests: QuestRow[]; done: number; state: "active" | "open" | "done" }
+
+/** Every chain grouped by giver scope (town/landmark), ACTIVE chains first, completed last —
+ *  within a state bucket the arc (QUEST_CHAIN_START) order holds. For the quest-log screen. */
+export function questGroups(log: QuestLog): QuestGroup[] {
+  const groups: QuestGroup[] = [];
+  for (const [town, start] of Object.entries(QUEST_CHAIN_START)) {
+    const quests: QuestRow[] = [];
+    let id: string | undefined = start, prevDone = true;
+    while (id) {
+      const def: QuestDef | undefined = QUESTS[id];
+      if (!def) break;
+      quests.push({ def, p: log[id], locked: !prevDone });
+      prevDone = !!log[id]?.turnedIn;
+      id = def.next;
+    }
+    const done = quests.filter((q) => q.p?.turnedIn).length;
+    const state = done === quests.length ? "done" : quests.some((q) => q.p?.accepted && !q.p.turnedIn) ? "active" : "open";
+    groups.push({ town, quests, done, state });
+  }
+  const rank = { active: 0, open: 1, done: 2 } as const;
+  return groups.sort((a, b) => rank[a.state] - rank[b.state]); // stable — arc order within a bucket
+}
+
+/** Every quest the log knows about, in chain order per giver (ungrouped, arc order). */
+export function questList(log: QuestLog): QuestRow[] {
+  const out: QuestRow[] = [];
+  for (const [, start] of Object.entries(QUEST_CHAIN_START)) {
     let id: string | undefined = start, prevDone = true;
     while (id) {
       const def: QuestDef | undefined = QUESTS[id];

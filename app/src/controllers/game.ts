@@ -14,8 +14,8 @@ import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
 import { rarityIx } from "../data/rarity";
-import { QUESTS } from "../data/quests";
-import { emptyQuests, questForTown, accept, ready, turnIn, noteKills, questList, type QuestLog } from "../systems/quests";
+import { QUESTS, questGiver } from "../data/quests";
+import { emptyQuests, questForTown, accept, ready, turnIn, noteKills, questGroups, type QuestLog } from "../systems/quests";
 import { MATERIALS } from "../data/materials";
 import { CONSUMABLES } from "../data/consumables";
 import { emptyCounts, hasMaterials, craftConsumable, healLowestAlly, type Counts } from "../systems/crafting";
@@ -103,12 +103,13 @@ export const Game = {
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
-    // Heroes begin at level 10 with those levels' MNA banked in their own tree (Dara) — the 5/10 MNA
-    // milestones are open immediately (one special + one signature pickable from the first minute).
-    this.party.forEach((m) => { m.level = START_LEVEL; m.mnaAlloc[m.att] += START_LEVEL - 1; });
+    // Heroes begin at level 10 (Dara). ADR 0021: MNA is DERIVED — the level floor (floor(10/5)=2)
+    // plus the starter weapon's guaranteed +8 opens the 5/10 MNA milestones immediately (one special
+    // + one signature pickable from the first minute). Nothing to bank.
+    this.party.forEach((m) => { m.level = START_LEVEL; });
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
     // weapon (which sets the class) would default to SOL and silently re-class the whole party.
-    this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +3 MNA starter weapon
+    this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +8 MNA starter weapon
     recalc(this.party);
     Field.init();          // ready zone 0 behind the village (canvas, tiles, map, encounter state)
     this.openStartVillage(); // ...but begin the run walking around the starting village
@@ -437,9 +438,9 @@ export const Game = {
     const def = questForTown(this.quests, townId);
     if (!def || def.giver !== npcId) return false;
     const p = this.quests[def.id];
-    // Kingpin edge: the boss is a one-time fight — if he's already fallen when the bounty is offered,
-    // the giver honors the deed (auto-credit) instead of asking for an impossible re-kill.
-    if (def.id === "gv-kingpin" && this.bossDefeated && Field.zone().id === "greenvale" && !(p?.turnedIn))
+    // Boss-finale edge (every chain): the zone boss is a one-time fight — if he's already fallen when
+    // the bounty is offered, the giver honors the deed (auto-credit) instead of asking for a re-kill.
+    if (def.boss && this.bossDefeated && Field.zone().id === def.zone && !(p?.turnedIn))
       this.quests[def.id] = { accepted: true, kills: def.kill.count, turnedIn: false };
     if (ready(this.quests, def)) {
       Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small" style="text-align:left">${def.doneLine}</p>
@@ -471,21 +472,32 @@ export const Game = {
     Overlay.show(`<h2 class="title-gold">Bounty claimed!</h2>
       <div class="spoils-head"><span class="spoil-pill aether"><b>+◈ ${def.reward.aether}</b> Aether</span></div>
       ${itemHtml(it)}
-      ${def.next ? `<p class="small">Bram sizes you up — he has more work.</p>` : ""}
+      ${def.next ? `<p class="small">${questGiver(def).name} sizes you up — there's more work.</p>` : ""}
       <div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
-  // The quest log (More sheet): every chain quest with live progress.
+  // The quest log (More sheet): one card per giver (town/landmark), ACTIVE chains first, completed
+  // chains + turned-in steps collapsed, the locked tail a count — scales to the full continent's
+  // ~29 quests. Untouched overworld (landmark) givers stay hidden until stumbled on.
   openQuestLog(): void {
-    const rows = questList(this.quests).map(({ def, p, locked }) => {
-      const state = p?.turnedIn ? `<span class="r-rare">✓ complete</span>`
-        : locked && !p?.accepted ? `<span class="small" style="opacity:.55">🔒 locked</span>`
-        : p?.accepted ? `<b>${p.kills}/${def.kill.count}</b> ${def.kill.label}`
-        : `<span class="small" style="opacity:.8">see ${def.town === "hearthford" ? "Watchman Bram" : "the giver"} in ${def.town}</span>`;
-      return `<div class="card" style="text-align:left;margin:6px 0${locked && !p?.accepted && !p?.turnedIn ? ";opacity:.55" : ""}">
-        <b class="title-gold">${def.name}</b> · ${state}
-        <div class="small" style="opacity:.85;margin-top:3px">Slay ${def.kill.count} ${def.kill.label} → ◈ ${def.reward.aether} + ${def.reward.gearRarity} gear</div></div>`;
+    const cards = questGroups(this.quests).filter((g) => !(g.quests[0].def.poi && g.state === "open")).map((g) => {
+      const giver = questGiver(g.quests[0].def);
+      const doneRows = g.quests.filter((q) => q.p?.turnedIn);
+      const doneLine = doneRows.length ? `<div class="small" style="opacity:.6;margin-top:4px">✓ ${doneRows.map((q) => q.def.name).join(" · ")}</div>` : "";
+      let body = "";
+      if (g.state !== "done") {
+        const cur = g.quests.find((q) => !q.p?.turnedIn)!, p = cur.p, def = cur.def;
+        const state = p?.accepted ? (p.kills >= def.kill.count ? `<span class="r-rare">✓ see ${giver.name}</span>` : `<b>${p.kills}/${def.kill.count}</b> ${def.kill.label}`)
+          : `<span class="small" style="opacity:.8">see ${giver.name}</span>`;
+        const locked = g.quests.length - g.done - 1;
+        body = `<div style="margin-top:5px"><b class="title-gold">${def.name}</b> · ${state}
+          <div class="small" style="opacity:.85">Slay ${def.kill.count} ${def.kill.label} → ◈ ${def.reward.aether} + ${def.reward.gearRarity} gear</div></div>
+          ${locked > 0 ? `<div class="small" style="opacity:.5;margin-top:3px">🔒 ${locked} more bount${locked > 1 ? "ies" : "y"} follow${locked > 1 ? "" : "s"}</div>` : ""}`;
+      }
+      return `<div class="card" style="text-align:left;margin:6px 0${g.state === "done" ? ";opacity:.6" : ""}">
+        <b style="color:var(--gold2)">${giver.where}</b> <span class="small" style="opacity:.7">· ${giver.name} · ${g.done}/${g.quests.length}${g.state === "done" ? " ✓" : ""}</span>
+        ${body}${doneLine}</div>`;
     }).join("");
-    Overlay.show(`<h2 class="title-gold">Quests</h2><div class="scroll">${rows || '<p class="small">No quests yet — talk to the townsfolk.</p>'}</div>
+    Overlay.show(`<h2 class="title-gold">Quests</h2><div class="scroll">${cards || '<p class="small">No quests yet — talk to the townsfolk.</p>'}</div>
       <div class="row"><button class="btn gold" onclick="Overlay.hide()">Close</button></div>`);
   },
   openInn(): void {

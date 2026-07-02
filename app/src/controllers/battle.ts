@@ -16,6 +16,7 @@ import { RESOURCE } from "../data/resources";
 import { ATT, RING } from "../data/attunements";
 import { classTitle } from "../data/classes";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
+import { ENEMY_SCRIPTS, newScriptState, scriptedTurn, type ScriptState, type ScriptStep } from "../systems/bossScripts";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml } from "../ui/render";
@@ -68,6 +69,24 @@ export const Battle = {
   _fxLast: 0,
   _fxParts: [] as { x: number; y: number; vx: number; vy: number; r: number; p: number; life: number }[],
   _fxStyle: "",
+  // Lane palette for ability-announcement bubbles (matches the class picker's lane colors). A skill
+  // with a pick lane tints its bubble by lane; an un-laned skill by the hero's Attunement; basics
+  // (Attack/Defend) stay warm-neutral.
+  LANE_COLOR: { A: "#f4b942", B: "#ef7a4a", C: "#5fc6d6" } as Record<string, string>,
+  LANE_NEUTRAL: "#ffd877",
+  // Scripted-dialogue queue (sayLine) — lines called in quick succession play one after another.
+  _sayQ: [] as { speaker: string; text: string; color?: string; holdMs?: number; done: () => void }[],
+  _saying: false,
+  // Per-action stage-animation hook: an acting combatant carries BOTH .acting and an act-<action>
+  // class from ACTION_ANIM, so the choreography (the dash keyframes today, sprite-sheet frames
+  // tomorrow) binds to the ACTION, not a hardcoded keyframe name. A new action slots in as a map
+  // entry + CSS; _actAnim lets the reconcile-in-place renderers re-apply the class across re-renders.
+  ACTION_ANIM: { strike: "act-strike", cast: "act-cast", guard: "act-guard" } as Record<string, string>,
+  _actAnim: new WeakMap<Unit, string>(),
+  // SCRIPTED BOSS TURNS (wave6c — systems/bossScripts): per-enemy sequencing state, keyed by the live
+  // Enemy object. makeEnemy builds fresh objects every fight, so a new battle always starts a fresh
+  // script — nothing to reset in begin().
+  _scripts: new WeakMap<Enemy, ScriptState>(),
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = "", eliteChance = 0.22): void {
     // FF-style encounter transition: white shock-flashes over the field, iris to black while the screen
@@ -96,6 +115,8 @@ export const Battle = {
       isBoss: this.isBoss, depth: dp, env: this.env,
     });
     this.awaiting = false; this.current = null; this.logLines = [];
+    this._sayQ.length = 0; // stale scripted lines never carry into a new fight (in-flight one self-cleans)
+    document.querySelectorAll("#battleField .abubble, #battleField .say-line").forEach((n) => n.remove());
     Screens.show("battle");
     this.renderBg(); this.renderAll();
     this.ensureFx();
@@ -176,7 +197,7 @@ export const Battle = {
     // members who have one (e.g. the Photon Vanguard's Orbital Cannon).
     const ult = ULTIMATES[`${m.att}:${m.cls}`];
     if (ult) { const uBtn = el("button", "cmd", "Ultimate ▸"); uBtn.onclick = () => this.showUltimate(m, ult); list.appendChild(uBtn); }
-    mk("Defend", 0, () => { m.guarding = true; this.log(`${m.name} braces.`); this.endTurn(m); });
+    mk("Defend", 0, () => { m.guarding = true; this.announce(m, "Defend", this.LANE_NEUTRAL, 900); this.log(`${m.name} braces.`); this.endTurn(m); });
     mk("Flee", 0, () => this.confirmFlee(m), this.isBoss); // confirm so a stray tap never flees
     this.lockInput(350); // stray-tap guard: ignore taps for a beat after the menu opens
   },
@@ -251,6 +272,7 @@ export const Battle = {
     if (ult.mp) m.mp = Math.max(0, m.mp - ult.mp);
     const list = $("#cmdList"); if (list) list.innerHTML = "";
     $("#cmdWho")!.textContent = `${m.name} — ${ult.name}!`;
+    this.announce(m, `★ ${ult.name}`, this.LANE_NEUTRAL, 1400);
     this.lockInput(99999); // hold input through the cutscene; cleared when the next menu opens
     const apply = () => {
       if (!this.active) return;
@@ -309,6 +331,13 @@ export const Battle = {
   resolve(actor: Unit, targets: Unit[], act: CombatAct): void {
     this.selecting = null;
     const s = act.skill;
+    // ANNOUNCE: a hero action names itself in a bubble over the party side as its choreography
+    // starts — lane-tinted where the ability declares a pick lane, Attunement-tinted otherwise,
+    // warm-neutral for a basic Attack. Held longer for a cast (~1.5s circle) than an instant strike.
+    if (actor.side === "party") {
+      const color = s ? (s.lane && this.LANE_COLOR[s.lane]) || ATT[actor.att].color : this.LANE_NEUTRAL;
+      this.announce(actor, s ? s.name : "Attack", color, s ? 1500 : 1000);
+    }
     if (actor.side === "party" && s) {
       const field = $("#battleField");
       if (field) {
@@ -501,7 +530,7 @@ export const Battle = {
       const autoGen = autoGenFor(m.att, m.cls) ?? RESOURCE.genSpecial;
       gain(Game.resources, m.att, turnGain(act?.skill, autoGen, RESOURCE.genSpecial));
     }
-    actor.atb = 0; actor.acting = false;
+    actor.atb = 0; actor.acting = false; this._actAnim.delete(actor);
     this.awaiting = false; this.current = null;
     this.renderAll();
   },
@@ -514,9 +543,28 @@ export const Battle = {
       if (!e.alive) { this.onDeath(e); if (this.checkEnd()) return; this.endTurn(e); return; }
       const party = this.livingParty();
       if (party.length === 0) { this.endTurn(e); return; }
+      // SCRIPTED TURNS (wave6c): a setpiece boss with an authored script (systems/bossScripts) plays
+      // its step INSTEAD of the free AI — the dialogue line lands first (the ATB is already held),
+      // then the step's action resolves. Turns the script returns null for fall through to the
+      // normal AI below. Pure sequencing (scriptedTurn) so the choreography is unit-testable.
+      const script = ENEMY_SCRIPTS[e.key];
+      if (script) {
+        let st = this._scripts.get(e);
+        if (!st) { st = newScriptState(); this._scripts.set(e, st); }
+        const step = scriptedTurn(script, st);
+        if (step) { this.runScriptStep(e, step); return; }
+      }
+      // Each enemy action names itself in a bubble anchored over the sprite (its HP/ATB block fades
+      // out for the turn — `.enemy.acting .ebar`). The kit is simplistic today ("Attack" for a plain
+      // hit), but named casts announce their skill: an ability's own display `name` when it declares
+      // one, else its capitalized key ("hex" → "Hex").
       let used = false;
       if (e.skills && e.skills.length && Math.random() < e.castChance) {
-        const ab = ENEMY_ABILITIES[pick(e.skills)]; if (ab) used = ab.use(e, this);
+        const key = pick(e.skills), ab = ENEMY_ABILITIES[key];
+        if (ab) {
+          used = ab.use(e, this);
+          if (used) this.announce(e, (ab as { name?: string }).name ?? cap(key), ATT[e.att].color, 800);
+        }
       }
       if (!used) {
         let target: Member;
@@ -526,9 +574,11 @@ export const Battle = {
         else target = pick(pool);
         if (taunter && Math.random() < 0.5) target = taunter;
         if (e.boss && Math.random() < 0.2) {
+          this.announce(e, "Wild Swing", ATT[e.att].color, 800);
           this.log(`${e.name} unleashes a wild swing!`);
           party.forEach((t) => this.strike(e, t, { aoe: true }));
         } else {
+          this.announce(e, "Attack", ATT[e.att].color, 800);
           this.strike(e, target, {}); // strike() logs who took how much
         }
       }
@@ -536,6 +586,62 @@ export const Battle = {
       this.renderAll();
       setTimeout(() => { if (!this.checkEnd()) this.endTurn(e); }, 380);
     });
+  },
+
+  /* ---- SCRIPTED BOSS TURNS (wave6c — the sequencing is pure systems/bossScripts; this is the
+     presentation half): play the step's dialogue line, then resolve its action. "hold" spends the
+     turn without attacking (the machine boots/aims); "nuke" fires VAULT PURGE PROTOCOL. ---- */
+  runScriptStep(e: Enemy, step: ScriptStep): void {
+    const act = () => {
+      if (!this.active) return; // the fight ended while the line played (e.g. a DoT finished it)
+      if (step.act === "nuke") { this.vaultPurge(e); return; }
+      // hold: no attack — the dread beat between the lines.
+      this.log(`${e.name} hums — dormant systems wake, one by one.`);
+      this.renderAll();
+      setTimeout(() => { if (!this.checkEnd()) this.endTurn(e); }, 420);
+    };
+    if (step.say) void this.sayLine(step.say.speaker, step.say.text, { color: step.say.color }).then(act);
+    else act();
+  },
+  // VAULT PURGE PROTOCOL — the Platform's signature: a full-party annihilation beam. An ENERGY hit
+  // (ignores physical armor; answered only by Energy Reduction / guard / wards — the far-endgame
+  // mitigation the spec demands), resolved through the normal strike() pipeline so floats, wards,
+  // BattleLog and the wipe flow all behave. POWER CALIBRATION: the Platform's L35 abp amplifier is
+  // ~×8.4 (V3 primaries-as-gear), so effective per-hit ≈ atk(≈118) × 0.65 × 8.4 (+crit/jitter)
+  // ≈ ~760 — ~2–3× a geared L10–12 hero's max HP, and above its own Wild Swing (so the signature
+  // dominates): a guaranteed wipe today, survivable only with far-endgame HP/mitigation/shields.
+  // Re-check this calibration if the enemy abp curve or the Platform's lean is ever retuned.
+  VAULT_PURGE: {
+    name: "Vault Purge Protocol", mp: 0, target: "allEnemies", att: "QUANTA", mnaReq: 0,
+    type: "phys", dmgType: "energy", power: 0.65,
+    desc: "The vault's judgement — a sweeping annihilation beam across the whole party.",
+  } as Skill,
+  vaultPurge(e: Enemy): void {
+    this.announce(e, "★ Vault Purge Protocol", "#7ae0ff", 1600);
+    this.log(`⚠ ${e.name} executes VAULT PURGE PROTOCOL!`);
+    const field = $("#battleField");
+    const fire = () => {
+      if (!this.active) return;
+      this.laserSweep();
+      this.livingParty().forEach((m) => this.strike(e, m, { skill: this.VAULT_PURGE }));
+      recalc(Game.party);
+      this.renderAll();
+      setTimeout(() => { if (!this.checkEnd()) this.endTurn(e); }, 600);
+    };
+    // charge-up: the standard casting circle under the Platform sells the power-build; the beam +
+    // per-hero crit-grade slashes/shakes land on resolution. Falls back to instant if no stage/sprite.
+    const cel = this.spriteEl(e);
+    if (field && cel) playCast(field, cel, e.att, fire); else fire();
+  },
+  // The beam itself: a screen-wide cyan sweep over the battlefield (.vault-laser, battle CSS) —
+  // pure presentation, self-removing. The per-target slashFx/shake come from strike() as usual.
+  laserSweep(): void {
+    const field = $("#battleField"); if (!field) return;
+    const beam = el("div", "vault-laser");
+    field.appendChild(beam);
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => beam.classList.add("on"));
+    else beam.classList.add("on");
+    setTimeout(() => beam.remove(), 1100);
   },
 
   /* ---- status: apply a skill's effects + tick at the start of a unit's turn (ADR 0016) ---- */
@@ -604,6 +710,10 @@ export const Battle = {
     // Test Loop (ADR 0017): close the BattleLog fight with its outcome + party-HP-remaining (no-op in real play).
     const totalHp = Game.party.reduce((s, m) => s + Math.max(0, m.hp), 0), totalMax = Game.party.reduce((s, m) => s + m.maxhp, 0) || 1;
     BattleLog.endFight(fled ? "fled" : victory ? "won" : "wipe", (totalHp / totalMax) * 100);
+    // THE GATE GUARDIAN (wave6c): capture + clear the in-flight flag on ANY outcome — a wipe/flee
+    // leaves the Platform standing to re-challenge; only a victory marks it down (below).
+    const wasGate = Field.pendingGateGuardian;
+    Field.pendingGateGuardian = false;
     if (fled) { Telemetry.encounterEnd("fled"); setTimeout(() => Screens.show("field"), 300); return; }
     if (!victory) { Telemetry.encounterEnd("wipe"); setTimeout(() => Game.gameOver(), 600); return; }
     // ----- victory: XP + gold + loot -----
@@ -636,9 +746,13 @@ export const Battle = {
     if (leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach((d) => { Game.inventory.push(d); Telemetry.drop(d.rarity); });
     const wasMini = this.enemies.some((e) => e.miniboss),
-      wasZoneBoss = this.enemies.some((e) => e.boss),
+      // The ZONE boss by IDENTITY, not just the boss flag (wave6c): setpiece guardians (the Ruins'
+      // Defense Platform) are boss-TIER (render/AI/spoils) but are nobody's zone gate — only the
+      // current zone's authored `boss` key advances the zone flow / grants the raft.
+      wasZoneBoss = this.enemies.some((e) => e.boss && e.key === Field.zone().boss),
       wasFinal = this.finalBoss;
     if (wasMini) { Game.miniBossDefeated = true; Field.onMiniDefeated(); } // open the mouth/gate (model-aware)
+    if (wasGate) Field.onGateGuardianDefeated(); // the Platform falls — persist it down (the gate stays sealed)
     // TRAVERSAL UNLOCK (lock-before-key redesign): the raft is found in the DROWNED VAULT — clearing the
     // DUSKMARSH zone boss AWARDS it as a held quest item, and owning the raft confers the "gorge" capability
     // (Game.acquireItem → applyItemCaps), opening the Sunless Gorge so you can finally cross EAST to
@@ -862,7 +976,7 @@ export const Battle = {
     const reuse = z.children.length === this.enemies.length;
     this.enemies.forEach((e, i) => {
       const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
-      const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : "") + (this._enter ? " enter" : "");
+      const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + this.actClass(e) + (e.enraged ? " enraged" : "") + (this._enter ? " enter" : "");
       const art = e.art || e.key;
       const hpPct = pct(e.hp, e.maxhp);
       const ename = `<div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>`;
@@ -911,7 +1025,7 @@ export const Battle = {
       const col = m.row === "back" ? back! : front!;
       // `.turn` marks the hero whose command menu is open ON THE BATTLEFIELD (a gold caret + lit ground
       // ring, CSS) — before, whose turn it was only showed in the lower roster panel.
-      const cls = "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : "") + (m === this.current && m.alive ? " turn" : "") + (this._enter ? " enter" : "");
+      const cls = "pchar" + (m.alive ? "" : " downed") + this.actClass(m) + (m._hurt ? " hurt" : "") + (m === this.current && m.alive ? " turn" : "") + (this._enter ? " enter" : "");
       const cur = z.querySelector<HTMLElement>(`.pchar[data-mid="${m.id}"]`);
       if (cur && cur.dataset.alive === String(m.alive)) {
         // same alive-state → keep the doll, refresh only flags + the status-badge strip.
@@ -993,15 +1107,66 @@ export const Battle = {
     l.scrollTop = l.scrollHeight; // auto-scroll to the latest
   },
 
+  /* ---- announcement & dialogue bubbles ---- */
+  // Ability-name announcement: a rounded dark chat bubble that fades in, holds for ~the action's
+  // choreography, and fades out. Hero bubbles sit at a fixed spot above the party side (top-right
+  // of the battlefield); an enemy bubble anchors just above the acting enemy's sprite (whose HP/ATB
+  // block fades out while it acts — see `.enemy.acting .ebar`). One bubble per side at a time.
+  announce(u: Unit, text: string, color: string, holdMs: number): void {
+    const field = $("#battleField"); if (!field) return;
+    const side = u.side === "party" ? "hero" : "foe";
+    field.querySelectorAll(`.abubble.${side}`).forEach((n) => n.remove());
+    const b = el("div", `abubble ${side}`, text);
+    b.style.color = color;
+    if (u.side === "enemy") {
+      const anchor = this.spriteEl(u);
+      if (!anchor) return;
+      const r = anchor.getBoundingClientRect(), f = field.getBoundingClientRect();
+      b.style.left = r.left - f.left + r.width / 2 + "px";
+      b.style.top = Math.max(30, r.top - f.top - 8) + "px";
+    }
+    field.appendChild(b);
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => b.classList.add("show"));
+    else b.classList.add("show");
+    setTimeout(() => { b.classList.remove("show"); setTimeout(() => b.remove(), 320); }, holdMs);
+  },
+  /** Scripted battle dialogue (for boss fights): shows a bubble at the TOP of the battle screen
+   *  formatted `<Speaker>: <text>` — e.g. sayLine("Defense Platform V.04 - #13", "Systems Online")
+   *  → "**Defense Platform V.04 - #13**: Systems Online" (speaker bold + colored, gold by default).
+   *  Fade in → hold (~1.6s, or opts.holdMs) → fade out. Queue-safe: lines called in quick succession
+   *  play one after another; the returned promise resolves when THIS line has fully faded out. */
+  sayLine(speaker: string, text: string, opts: { color?: string; holdMs?: number } = {}): Promise<void> {
+    return new Promise((done) => { this._sayQ.push({ speaker, text, ...opts, done }); this.pumpSay(); });
+  },
+  pumpSay(): void {
+    if (this._saying) return;
+    const q = this._sayQ.shift(); if (!q) return;
+    const host = $("#battleField") || $("#battleScreen");
+    if (!host) { q.done(); this.pumpSay(); return; } // no battle DOM (headless) — resolve and drain
+    this._saying = true;
+    const b = el("div", "say-line", `<b style="color:${q.color || "#ffd877"}">${q.speaker}</b>: ${q.text}`);
+    host.appendChild(b);
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => b.classList.add("show"));
+    else b.classList.add("show");
+    setTimeout(() => {
+      b.classList.remove("show");
+      setTimeout(() => { b.remove(); this._saying = false; q.done(); this.pumpSay(); }, 340);
+    }, 280 + (q.holdMs ?? 1600));
+  },
+
   /* ---- battle-screen feedback helpers ---- */
   // Toggle the lunge/hurt animation classes IN PLACE rather than via a full renderAll — rebuilding
   // the zone re-creates the sprite <img>s and flashed a blank frame at the start/end of each attack
   // (Dara's flicker). Sprites also carry decoding="sync" so any genuine rebuild paints flash-free.
-  markActing(u: Unit): void {
+  markActing(u: Unit, action = "strike"): void {
     u.acting = true;
+    const ac = this.ACTION_ANIM[action] || this.ACTION_ANIM.strike;
+    this._actAnim.set(u, ac);
     const n = this.unitNode(u) as HTMLElement | null | undefined;
-    if (n) n.classList.add("acting"); else this.renderAll();
+    if (n) n.classList.add("acting", ac); else this.renderAll();
   },
+  // The class fragment the reconciling renderers re-apply for an acting unit (see ACTION_ANIM).
+  actClass(u: Unit): string { return u.acting ? ` acting ${this._actAnim.get(u) || "act-strike"}` : ""; },
   markHurt(u: Unit): void {
     u._hurt = true;
     const n = this.unitNode(u) as HTMLElement | null | undefined;

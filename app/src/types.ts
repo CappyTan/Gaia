@@ -309,11 +309,14 @@ export interface Member extends Unit {
   base: Stats;
   equip: Record<Slot, Item | null>;
   skills: string[];
-  /** Player-assigned intrinsic MNA (from levels). Gear MNA is added on top in recalc. */
+  /** DEAD (ADR 0021 D4): the banked-allocation model is deleted. recalc now mirrors the DERIVED
+   *  level floor here (floor(level/5), active attunement) so the legacy Mana screen reads the truth
+   *  until its removal lands (controllers/menus.ts, owned separately). Never a source of truth. */
   mnaAlloc: MnaPools;
-  /** Effective MNA = mnaAlloc + gear (computed by recalc; also mirrored to Unit.mna). */
+  /** Effective MNA = derived level floor (floor(level/5), active attunement) + gear (ADR 0021;
+   *  computed by recalc, also mirrored to Unit.mna). */
   mna: MnaPools;
-  /** Unspent intrinsic MNA points awaiting allocation (manual allocator = Phase 2). */
+  /** DEAD (ADR 0021 D4): unspent-allocation pool; recalc forces 0. Kept only for the legacy Mana screen. */
   mnaPoints: number;
   /** V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s); see `Picks` in systems/choice
    *  (structurally `Record<string, string[]>`). Present once the player has banked picks for this class

@@ -22,8 +22,9 @@ import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS } from "../data/enemies";
+import { poiQuestScope } from "../data/quests";
 import { rollItemAtLevel } from "../systems/loot";
-import { rollEncounter, pickAreaSet } from "../systems/encounter";
+import { rollEncounter, pickAreaSet, rollBridgeAmbush } from "../systems/encounter";
 import { applyReprieve } from "../systems/reprieve";
 import { CHEST_LEVEL, DROP_MODS } from "../data/loot";
 import { itemHtml } from "../ui/render";
@@ -186,6 +187,10 @@ export const Field = {
   // The floor whose in-dungeon mini-boss fight is in flight (so battle.ts → onMiniDefeated can mark
   // THIS floor cleared, distinct from the overworld mouth guard). -1 = none / the mouth guard fight.
   pendingFloorMini: -1,
+  // THE GATE GUARDIAN fight is in flight (wave6c — the Ruins' Defense Platform, engaged at the sealed
+  // gate). Transient, mirrors pendingFloorMini: battle.ts end() reads + clears it on ANY outcome and
+  // calls onGateGuardianDefeated only on victory (the persisted "down" mark lives in poisCleared).
+  pendingGateGuardian: false,
   // TOWN: a real walkable settlement (data-driven, ADR 0006) reusing this same canvas/camera/dpad.
   // Loaded by id from data/towns.ts. No encounters; buildings are walk-in POIs; NPCs are talked to.
   townMode: false,
@@ -267,6 +272,10 @@ export const Field = {
     for (const n of ["town-cobble", "town-cobble2", "town-grass", "town-flower", "town-inn", "town-shop", "town-smith", "town-revive", "town-fountain", "town-exit", "town-tree", "town-well", "town-house", "town-stash"]) names.push(n);
     // the dungeon-boss throne/lair prop (drawn under the BOSS beacon by drawDungeonBoss)
     names.push("boss-throne");
+    // THE SEALED GATE (wave6c — the Ancient Ruins finale): the art HOOK for the grandiose gate
+    // setpiece. drawRuinsGate paints a procedural towering arch until art-integrator slices a
+    // sprite to assets/field/ruins-gate.png — then this slot takes over automatically.
+    names.push("ruins-gate");
     // Miregard marsh-outpost kinds — placeholders until sliced (see asset-gaps.md)
     for (const n of ["town-plank", "town-bog", "town-stilt", "town-deadtree", "town-lantern"]) names.push(n);
     // Riverhearth city kinds — placeholders until sliced (see asset-gaps.md)
@@ -421,6 +430,7 @@ export const Field = {
     this.wayfinding = emptyProgress(); // fresh run — nothing known/entered yet (a resume restores it AFTER init())
     this.mouthCleared = {}; // fresh run — every zone's overworld mouth guard stands (a resume restores the saved set AFTER init())
     this._gorgeCrossed = false; // the one-time "you raft across" callout hasn't fired this session yet
+    this.pendingGateGuardian = false; // fresh run — no gate-guardian fight in flight (transient, never saved)
     this.resize();
     this.loadTiles();
     this.genMap(); // sets spawn (px/py) from the zone layout
@@ -683,6 +693,10 @@ export const Field = {
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
     if (NODE_KINDS.has(cell)) { this.gatherAt(nx, ny); return; } // ore vein / ancient root / spirit bloom (crafting slice)
     if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
+    // THE WARMECH (wave6c — FF1 homage): CROSSING the Sealed Deep's causeway, each step on a dungeon
+    // bridge tile risks the ambush (low, pure roll — systems/encounter). Never consumed: a later
+    // crossing rolls again, every step. A miss falls through to the normal encounter countdown.
+    if (cell === "bridge" && this.mode === "dungeon" && rollBridgeAmbush()) { this.startBridgeAmbush(); return; }
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
     if (!this.usesNewModel() && this.inDungeon() && !this.enteredDungeon) {
       this.enteredDungeon = true;
@@ -742,10 +756,42 @@ export const Field = {
       : `You descend into the dungeon. The enemies here are stronger — but so is their hoard.`;
     Overlay.show(`<h2 class="title-gold">${dd.name}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
-  // THE SEALED DOOR (wave3b — the Ancient Ruins' bossless terminus): a walkable landmark that will not
-  // open. Pure flavor beat — never consumed, never a fight; what waits behind it is content for later.
+  // THE SEALED GATE (wave3b terminus, wave6c guardian): the walkable landmark at the bridge's end
+  // that will not open — but reaching it now WAKES its guardian, Defense Platform V.04 - #13. The
+  // first touch is an explicit warning with Engage/Withdraw (withdrawing is always safe — the gate
+  // just stays sealed); once the Platform is down (persisted in poisCleared), the gate reverts to a
+  // pure flavor beat. What waits BEHIND the gate is content for later, either way.
   touchSeal(): void {
-    Overlay.show(`<h2 class="title-gold">The Sealed Door</h2><p class="small">A great door of no stone you know, graven edge to edge with a five-pointed ring. The mana runs so thick here the air hums against your teeth — and it is seeping from BEHIND the door. No key fits it. No force you command so much as marks it. Whatever the ancients shut away down here… it is still waiting.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Step back</button></div>`);
+    if (!this.gateGuardianDown()) {
+      Overlay.show(`<h2 class="title-gold">The Sealed Gate</h2>
+        <p class="small">Across the causeway the great gate rises — graven edge to edge with a five-pointed ring, the mana seeping from BEHIND it thick enough to taste. And before it, something vast unfolds from the stone. Cold cyan light crawls up its plating, rune by rune, as dormant engines turn over for the first time in an age. Etched across the hull: <b>DEFENSE PLATFORM — VERSION .04 — UNIT 13</b>. The ancients built at least thirteen of these… and this one is waking up.</p>
+        <p class="small" style="color:#ff8a7a">⚠ This thing was built to end armies. It will not follow if you withdraw.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide();Field.engageGateGuardian()">Engage</button>
+          <button class="btn" onclick="Overlay.hide()">Withdraw</button></div>`);
+      return;
+    }
+    Overlay.show(`<h2 class="title-gold">The Sealed Gate</h2><p class="small">Unit 13 lies where it fell — a mountain of dead plating at the gate's foot, its runes dark. The gate itself is untouched: graven edge to edge with a five-pointed ring, no key to fit it, no force you command so much as marking it. The mana still seeps from BEHIND it. Whatever the ancients shut away down here… it is still waiting.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Step back</button></div>`);
+  },
+  // The persisted "the Platform is down" mark — reuses the poisCleared store (persisted per-run),
+  // namespaced under the ACTIVE dungeon (":guardian" can never collide with a POI/rest x,y key).
+  gateGuardianKey(): string { return this.dungeonKeyZone() + ":guardian"; },
+  gateGuardianDown(): boolean { return !!this.poisCleared[this.gateGuardianKey()]; },
+  // Engage the Platform: a boss-framed fight (boss music/render; flee disabled) against the scripted
+  // guardian — its three-turn opener + Vault Purge live in systems/bossScripts → controllers/battle.
+  engageGateGuardian(): void {
+    this.pendingGateGuardian = true;
+    Battle.begin(["defplatform"], this.dungeonDef().env, true, false, 0, -1, this.zone().id);
+  },
+  // The Platform falls (battle.ts, victory only): persist it down. The gate STAYS sealed — beating
+  // the guardian earns its jackpot spoils and the quiet, not the way through (content for later).
+  onGateGuardianDefeated(): void {
+    this.poisCleared[this.gateGuardianKey()] = true;
+    Game.saveNow?.();
+  },
+  // THE WARMECH ambush (wave6c): a lone rare fight at its authored level (depth 0 — L23 flat), on
+  // the Ruins' own environment. Non-boss, so a desperate party can still try to flee the bridge.
+  startBridgeAmbush(): void {
+    Battle.begin(["warmech"], this.dungeonDef().env, false, false, 0, -1, this.zone().id);
   },
   // MULTI-FLOOR: step onto the (open) stairs-down → build the NEXT floor at its entry. Carries the
   // beaten-gate state across floors (per-visit), autosaves the new floor so a resume restores it.
@@ -1228,7 +1274,12 @@ export const Field = {
       Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">Tents, a smouldering fire, and unfriendly faces — they spot you. Their hoard is yours if you take it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightCamp()">Raid the camp</button></div>`);
       return;
     }
-    // landmark / signpost — a non-blocking flavor/hint line (the tile stays; no consume).
+    // landmark / signpost — an OVERWORLD QUEST GIVER may wait here (a wayside petitioner keyed to
+    // this landmark in data/quests); quest business (offer / progress / turn-in) precedes the flavor
+    // line, exactly like Field.talkTo's town-giver hook. The tile stays, so returning turns it in.
+    const scope = poiQuestScope(zoneId, poi.name);
+    if (scope && Game.openQuestTalk(scope, "poi")) return;
+    // otherwise: a non-blocking flavor/hint line (the tile stays; no consume).
     const line = poi.note || (poi.kind === "signpost" ? "A weathered signpost points the way." : "An old landmark, heavy with the shire's memory.");
     Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">${line}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Move on</button></div>`);
   },
@@ -1400,7 +1451,7 @@ export const Field = {
         if (this.curFloor().miniboss && !this.stairsOpen()) msg = `A bandit lieutenant blocks the stairs down — cut him down to descend.`;
         else msg = `Find the stairs down — ${dd.name} runs deeper still.`;
       } else if (this.dungeonSealed()) {
-        msg = p > 0.88 ? `The sealed door stands at the heart of ${dd.name} — nothing you carry will open it.` : `Deep in ${dd.name} — the mana thickens, and the halls run hot.`;
+        msg = p > 0.88 ? `The sealed gate stands across the great causeway — and something ancient guards it.` : `Deep in ${dd.name} — the mana thickens, and the halls run hot.`;
       } else {
         msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${dd.name}.` : `Deep in ${dd.name} — stronger foes, richer loot.`;
       }
@@ -1591,6 +1642,108 @@ export const Field = {
     c.strokeText(label, sx + t / 2, ly); c.fillText(label, sx + t / 2, ly);
     c.restore();
     return true;
+  },
+
+  // ── THE SEALED DEEP finale setpieces (wave6c) — stateful draw helpers (they read this.map /
+  // this.tiles, so they live here beside drawGorgeRimProps, not in the pure ui/fieldRender). ──────
+
+  // THE CHASM: a recessed black VOID (the inverse of a raised wall — the D5 language). Deep dark
+  // fill, faint hanging depth-streaks (stable hash — no shimmer), and a pale rock LIP on every face
+  // that meets standing ground (floor, bridge, wall foot) so the drop reads as a sheer edge you walk
+  // up to — the same rim read as the Sunless Gorge.
+  drawChasm(c: CanvasRenderingContext2D, mx: number, my: number, sx: number, sy: number, t: number): void {
+    c.fillStyle = "#07070e"; c.fillRect(sx, sy, t + 1, t + 1);
+    const n = ((mx * 73856093) ^ (my * 19349663)) >>> 0;
+    if (n % 3 === 0) { // a hint of jagged depth falling away
+      c.fillStyle = "rgba(90,110,160,.06)";
+      c.fillRect(sx + t * (0.15 + ((n >> 4) % 3) * 0.28), sy, Math.max(1, t * 0.09), t);
+    }
+    const isVoid = (gx: number, gy: number) => this.map[gy]?.[gx] === "chasm";
+    const solidAt = (gx: number, gy: number) => this.map[gy]?.[gx] !== undefined && !isVoid(gx, gy);
+    const lip = Math.max(2, t * 0.14);
+    c.fillStyle = "#343c4e"; // pale rim rock
+    if (solidAt(mx, my - 1)) c.fillRect(sx, sy, t, lip);
+    if (solidAt(mx, my + 1)) c.fillRect(sx, sy + t - lip, t, lip);
+    if (solidAt(mx - 1, my)) c.fillRect(sx, sy, lip, t);
+    if (solidAt(mx + 1, my)) c.fillRect(sx + t - lip, sy, lip, t);
+    // under-rim shadow: the lip casts down into the dark so the edge reads as depth, not a border.
+    c.fillStyle = "rgba(0,0,0,.5)";
+    if (solidAt(mx, my - 1)) c.fillRect(sx, sy + lip, t, lip * 0.8);
+    if (solidAt(mx - 1, my)) c.fillRect(sx + lip, sy, lip * 0.8, t);
+  },
+  // THE LONG BRIDGE dressing: cross-slat shadows + pale stone kerbs on the void-facing edges, over
+  // the set's path ground — the narrow causeway reads deliberate, laid stone spanning the black.
+  drawBridgeRails(c: CanvasRenderingContext2D, mx: number, my: number, sx: number, sy: number, t: number): void {
+    const voidAt = (gx: number, gy: number) => this.map[gy]?.[gx] === "chasm";
+    c.fillStyle = "rgba(0,0,0,.22)"; // worn cross-slats
+    for (let i = 0; i < 3; i++) c.fillRect(sx, sy + t * (0.16 + i * 0.3), t, Math.max(1, t * 0.06));
+    const kerb = Math.max(2, t * 0.12);
+    c.fillStyle = "rgba(196,204,228,.55)"; // lit stone kerb on each void-facing edge
+    if (voidAt(mx, my - 1)) c.fillRect(sx, sy, t, kerb);
+    if (voidAt(mx, my + 1)) c.fillRect(sx, sy + t - kerb, t, kerb);
+    if (voidAt(mx - 1, my)) c.fillRect(sx, sy, kerb, t);
+    if (voidAt(mx + 1, my)) c.fillRect(sx + t - kerb, sy, kerb, t);
+  },
+  // THE SEALED GATE (wave6c — replaces the one-tile sealed door): the GRANDIOSE finale setpiece — a
+  // towering, bottom-anchored graven arch ~2.7 tiles tall with pulsing cyan runes and the
+  // five-pointed ring glowing on the shut slab, in the drawDungeonBoss tall-sprite language. ART
+  // HOOK: a sliced sprite at assets/field/ruins-gate.png (tiles["ruins-gate"], loadTiles) replaces
+  // the whole procedural monument when it lands. Buffered + drawn AFTER the tile pass (see draw()).
+  drawRuinsGate(c: CanvasRenderingContext2D, sx: number, sy: number, t: number, now: number): void {
+    const img = this.tiles["ruins-gate"];
+    const cx = sx + t / 2, foot = sy + t; // bottom-anchored on the seal tile
+    const pulse = 0.55 + 0.3 * Math.sin(now / 700);
+    c.save();
+    // the mana bloom: a cold halo swelling from the door seam (deliberately NOT the warm mouth halo)
+    const halo = c.createRadialGradient(cx, sy + t * 0.2, t * 0.2, cx, sy + t * 0.2, t * 2.3);
+    halo.addColorStop(0, `rgba(120,224,255,${(0.2 * pulse + 0.08).toFixed(3)})`);
+    halo.addColorStop(1, "rgba(120,224,255,0)");
+    c.fillStyle = halo; c.fillRect(cx - t * 2.3, sy - t * 2.1, t * 4.6, t * 3.4);
+    if (img) {
+      const h = t * 2.8, w = h * (img.width / img.height);
+      c.drawImage(img, cx - w / 2, foot - h, w, h);
+    } else {
+      // procedural monument: plinth + twin pillars + arch cap around a rune-graven shut slab
+      const gw = t * 1.9, gh = t * 2.7, x0 = cx - gw / 2, y0 = foot - gh, pw = gw * 0.22;
+      c.fillStyle = "#262c40"; c.fillRect(cx - gw * 0.62, foot - t * 0.2, gw * 1.24, t * 0.2); // plinth
+      c.fillStyle = "#2c3450"; // pillars
+      c.fillRect(x0, y0 + gh * 0.16, pw, gh * 0.84 - t * 0.2);
+      c.fillRect(x0 + gw - pw, y0 + gh * 0.16, pw, gh * 0.84 - t * 0.2);
+      c.fillStyle = "#323c5c"; c.beginPath(); // arch cap
+      c.moveTo(x0 - gw * 0.06, y0 + gh * 0.3);
+      c.quadraticCurveTo(cx, y0 - gh * 0.08, x0 + gw * 1.06, y0 + gh * 0.3);
+      c.lineTo(x0 + gw * 0.92, y0 + gh * 0.42);
+      c.quadraticCurveTo(cx, y0 + gh * 0.06, x0 + gw * 0.08, y0 + gh * 0.42);
+      c.closePath(); c.fill();
+      c.fillStyle = "#10141f"; // the shut door slab
+      c.fillRect(x0 + pw, y0 + gh * 0.34, gw - pw * 2, gh * 0.66 - t * 0.2);
+      // the five-pointed ring, glowing on the slab
+      const ry0 = y0 + gh * 0.6, rr = gw * 0.19;
+      c.strokeStyle = `rgba(120,224,255,${(0.85 * pulse).toFixed(3)})`; c.lineWidth = Math.max(1.5, t * 0.05);
+      c.beginPath(); c.arc(cx, ry0, rr, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = `rgba(160,236,255,${(0.9 * pulse).toFixed(3)})`;
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+        c.beginPath(); c.arc(cx + Math.cos(a) * rr, ry0 + Math.sin(a) * rr, Math.max(1.5, t * 0.045), 0, Math.PI * 2); c.fill();
+      }
+      // rune rows crawling the pillars + the bright door seam (the mana bleeding through)
+      c.fillStyle = `rgba(120,224,255,${(0.55 * pulse).toFixed(3)})`;
+      for (let i = 0; i < 5; i++) {
+        const ryy = y0 + gh * (0.3 + i * 0.12);
+        c.fillRect(x0 + pw * 0.3, ryy, pw * 0.4, Math.max(1, t * 0.05));
+        c.fillRect(x0 + gw - pw * 0.7, ryy, pw * 0.4, Math.max(1, t * 0.05));
+      }
+      c.fillStyle = `rgba(150,230,255,${(0.5 * pulse).toFixed(3)})`;
+      c.fillRect(cx - Math.max(1, t * 0.025), y0 + gh * 0.36, Math.max(2, t * 0.05), gh * 0.58);
+    }
+    // gold caption (the landmark read — the mouth/POI caption language). Safe below the tile: the
+    // gate is drawn after the whole tile pass, so no later row can cover it.
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `bold ${Math.max(9, t * 0.24)}px system-ui`;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.85)"; c.fillStyle = "rgba(244,210,122,.96)";
+    const ly = sy + t * 1.06;
+    c.strokeText("THE SEALED GATE", cx, ly); c.fillText("THE SEALED GATE", cx, ly);
+    c.restore();
   },
 
   // drawStairs / drawTreasureMark / drawDungeonBoss are now pure FR.* primitives (ui/fieldRender); the
@@ -1935,6 +2088,10 @@ export const Field = {
     const T = this.tiles;
     c.textAlign = "center"; c.textBaseline = "middle";
     this._townLabels.length = 0; // fresh per frame — building/NPC captions buffer here, flushed last
+    // THE SEALED GATE (wave6c): the multi-tile-tall setpiece is BUFFERED during the tile pass and
+    // drawn after it (like the town labels), so no later row/column ground tile can paint over the
+    // towering arch or its caption.
+    let gateAt: { sx: number; sy: number } | null = null;
     for (let y = 0; y < viewH + 2; y++)
       for (let x = 0; x < viewW + 2; x++) {
         const mx = camx + x, my = camy + y;
@@ -1947,6 +2104,9 @@ export const Field = {
         // Inside a dungeon the ACTIVE dungeon's env picks the tileset (wave3b — the Ruins dress as
         // their own set, not the zone's main one; for main dungeons env == DUNGEON_SETS[zoneIndex]).
         const dset = inDun ? this.dungeonDef().env : (DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0]);
+        // THE CHASM (wave6c — the Sealed Deep): a recessed VOID, not a wall — it draws its own black
+        // depth + rock rims (the D5 recessed-kind language) and skips the ground/AO/object passes.
+        if (inDun && cell === "chasm") { this.drawChasm(c, mx, my, sx, sy, t); continue; }
         const mire = !inDun && this.isMire(); // grim overworld dressing (Duskmarsh)
         const grove = !inDun && this.isForest(); // dense old-growth dressing (Silverwood)
         // ADR 0009 exemplar: in AREA-NATIVE Greenvale the overworld ground is dressed PER-AREA, so the
@@ -1964,7 +2124,9 @@ export const Field = {
         if (!inDun && (cell === "river" || cell === "cliff" || cell === "bridge" || cell === "ford")) {
           ground = cell === "river" ? (T.water ? "water" : "river") : cell;
         } else if (inDun) {
-          const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock", water: "wall" };
+          // (bridge → the set's path ground: the causeway reads as laid stone; drawBridgeRails adds
+          //  the kerbs/slats over the void below — wave6c.)
+          const dm: Record<string, string> = { grass: "floor", grass2: "floor2", path: "path", tree: "wall", bush: "rock", rock: "rock", water: "wall", bridge: "path" };
           let base = isObj ? "floor" : (dm[cell] || "floor");
           if (base === "floor" && (mx * 7 + my * 13) % 4 === 0 && T[`${dset}-floor2`]) base = "floor2";
           // ATMOSPHERE: occasionally light a ROOM-FACING wall with the set's decoration (warren torch /
@@ -2043,7 +2205,8 @@ export const Field = {
           obj(T[`${d2?.env ?? "crypt"}-entrance`], "🏛️", 0.95);
           FR.drawMouthLabel(c, sx, sy, t, d2?.name ?? "Ancient Ruins", true);
         }
-        else if (cell === "seal") FR.drawSealedDoor(c, T[`${dset}-entrance`], sx, sy, t); // the Ruins' sealed terminus (wave3b)
+        else if (cell === "seal") gateAt = { sx, sy }; // the Ruins' sealed terminus — the GRANDIOSE GATE, drawn after the tile pass (wave6c)
+        else if (cell === "bridge" && inDun) this.drawBridgeRails(c, mx, my, sx, sy, t); // the Long Bridge's kerbs/slats over the void (wave6c)
         else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town
           obj(T["town-inn"], "🏘️", 0.95);
           const nm = this.zone().hub ? settlement(this.zone().hub!).name : "Town";
@@ -2078,6 +2241,8 @@ export const Field = {
         }
         else if (cell === "rock") { if (mire && !gimg) c.fillText("🪨", sx + t / 2, sy + t / 2); else if (grove || groveArea) obj(T.mushroom, "🍄", 0.8); }
       }
+    // THE SEALED GATE setpiece (buffered above): drawn over every tile, under the player marker.
+    if (gateAt) this.drawRuinsGate(c, gateAt.sx, gateAt.sy, t, now);
     // NPCs (town only): a shadow + emoji-placeholder body + gold name caption; a "…" bubble while
     // you're mid-conversation with them. Sprite art is flagged in asset-gaps.md.
     if (this.townMode) {

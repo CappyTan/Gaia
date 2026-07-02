@@ -142,6 +142,11 @@ export function realizeFloor(D: DungeonLayout, isLast: boolean): string[][] {
   };
   for (const p of D.paths) for (let i = 1; i < p.length; i++) carveSeg(p[i - 1], p[i]);
   // (scatter skipped — bush/rock are walkable, topology-irrelevant)
+  // chasm + bridge (wave6c — the Sealed Deep): the void is a flood barrier (realized as the wall fill
+  // here — impassable is impassable), the causeway walkable over it. Replayed in genDungeon's order
+  // (after paths, before the feature tiles) so the topology sees the bridge as the only way across.
+  if (D.chasm) for (const r of D.chasm) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y, WALL);
+  if (D.bridge) for (const b of D.bridge) carve(b.x, b.y, "bridge");
   // chests (sealed authored view): halo + chest tile
   for (const c of D.chests) { halo(c); carve(c.x, c.y, "chest"); }
   // egress: boss on the last floor, else the stairs down

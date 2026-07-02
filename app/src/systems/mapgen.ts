@@ -15,9 +15,10 @@ import type { Pt, Rect, Path, Poi, ZoneLayout, DungeonLayout } from "../data/zon
 
 // Overworld/dungeon WALL kinds — impassable, and a flood-fill barrier (anti-soft-lock routes over
 // these). `tree` walls every zone's canvas + the gate chokepoint; `water` is the marsh's hard pool.
-// `cliff` (rocky mountain wall) + `river` (watercourse) also hard-block; the bridge/ford crossings +
+// `cliff` (rocky mountain wall) + `river` (watercourse) also hard-block; `chasm` is a dungeon VOID
+// (wave6c — the Sealed Deep, crossable only on its authored bridge tiles); the bridge/ford crossings +
 // the POI kinds are WALKABLE (deliberately absent here). Shared with the controller (re-exported there).
-export const FIELD_WALLS = new Set(["tree", "water", "cliff", "river"]);
+export const FIELD_WALLS = new Set(["tree", "water", "cliff", "river", "chasm"]);
 
 /** A mutable tile grid + its dimensions — the carrier the pure carve/flood helpers operate on. */
 export interface MapGrid { map: string[][]; W: number; H: number; }
@@ -259,6 +260,13 @@ export function genDungeon(D: DungeonLayout, last: boolean, cleared: ClearedStat
   const dens = D.scatter ?? 0.06;
   for (let y = 1; y < g.H - 1; y++) for (let x = 1; x < g.W - 1; x++)
     if (g.map[y][x] === "grass" && rng() < dens) g.map[y][x] = rng() < 0.6 ? "bush" : "rock";
+
+  // THE CHASM + THE BRIDGE (wave6c — the Sealed Deep finale): stamp the void rects OVER the carved
+  // grid (the drop owns its space — any room/path/scatter beneath is swallowed), then lay the narrow
+  // causeway walkable across it. Bridge tiles are deliberately UN-halo'd so the span stays one tile
+  // wide; "chasm" sits in FIELD_WALLS, so the flood + ensureReachable route across the bridge only.
+  if (D.chasm) for (const r of D.chasm) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(g, x, y, "chasm");
+  if (D.bridge) for (const b of D.bridge) carve(g, b.x, b.y, "bridge");
 
   // ALREADY-LOOTED chests on THIS floor revert to plain path so a Continue can't re-spawn a looted chest.
   const dunOpened = (c: Pt) => cleared.chestOpened(c);

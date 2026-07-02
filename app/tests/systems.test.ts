@@ -19,7 +19,12 @@ import { genSkillKey, hasSpec } from "../src/systems/classKit";
 import { defaultPicks } from "../src/systems/choice";
 import { specFor } from "../src/data/classSpecs";
 import { zeroMna, ARMOR_SLOTS, ATTUNEMENTS } from "../src/types";
-import type { Attunement, Enemy, Member } from "../src/types";
+import type { Attunement, Enemy, Item, Member } from "../src/types";
+
+// ADR 0021: MNA comes from GEAR (+ the derived floor(level/5)) — the banked allocator is gone. Tests
+// grant MNA with a pinned attuned trinket, the deterministic "MNA well".
+const mnaWell = (att: Attunement, v: number): Item =>
+  ({ slot: "trinket", cls: "", att, rarity: "common", rIx: 0, ilvl: 0, name: "Test Well", implicit: {}, mna: { [att]: v }, affixes: [] });
 
 // Build a hero on its FULL default V3 kit (lane A at every milestone) at a given own-Attunement MNA —
 // the game ships heroes with only the auto-attack until they pick, but these tests need a built kit to
@@ -27,7 +32,7 @@ import type { Attunement, Enemy, Member } from "../src/types";
 const built = (att: Attunement, cls: string, mna: number, row: "front" | "back" = "front"): Member => {
   const m = makeMember(buildDef("h", "Tester", att, cls, row));
   m.picks = defaultPicks(specFor(att, cls)!);
-  m.mnaAlloc[att] = mna;
+  if (mna > 0) m.equip.trinket = mnaWell(att, mna);
   recalc([m]);
   return m;
 };
@@ -66,13 +71,16 @@ describe("loot generation", () => {
     const artifact = makeItem("Staff", "weapon", 5, "Staff");
     expect(itemScore(artifact)).toBeGreaterThan(itemScore(common));
   });
-  it("a starter weapon is a common piece in-class with a FIXED +3 MNA in the hero's Attunement", () => {
+  it("a starter weapon is a common piece in-class with a FIXED +8 MNA in the hero's Attunement", () => {
     for (const att of ATTUNEMENTS) {
       const w = starterWeapon("Staff", att, seeded(1));
       expect(w.slot).toBe("weapon");
       expect(w.rarity).toBe("common");
       expect(w.att).toBe(att);
       expect(w.mna?.[att]).toBe(STARTER_WEAPON_MNA); // deterministic, not the random weaponMna roll
+      // ADR 0021 D3 (L10-start form): +8 + the L10 derived floor (2) = 10 → the 5-MNA special AND the
+      // 10-MNA signature milestones are both open on day one.
+      expect(STARTER_WEAPON_MNA).toBe(8);
     }
   });
   it("a boss drop is uncommon-or-better — a notch above its level band, NOT a guaranteed epic", () => {
@@ -241,7 +249,7 @@ describe("MNA gating & scaling", () => {
     const m = built("SOL", "Staff", 0); // full picks, but SOL MNA 0
     expect(skillUnlocked(m, fire)).toBe(false); // 0 < 5
     expect(m.skills).toEqual([]); // nothing reached → empty active kit
-    m.mnaAlloc.SOL = 10; recalc([m]);
+    m.equip.trinket = mnaWell("SOL", 10); recalc([m]);
     expect(skillUnlocked(m, fire)).toBe(true); // 10 ≥ 5
     expect(m.skills).toContain(genSkillKey("Firebolt")); // now in the active kit
     expect(skillUnlocked(m, ray)).toBe(false); // ult still gated at 100
@@ -260,22 +268,23 @@ describe("MNA gating & scaling", () => {
     const ult = m.skills.map((k) => SKILLS[k]).find((s) => s.ult)!;
     expect(ult.mnaReq).toBe(100);
     expect(skillUnlocked(m, ult)).toBe(true);
-    m.mnaAlloc.SOL = 99; recalc([m]);
+    m.equip.trinket = mnaWell("SOL", 99); recalc([m]);
     // at 99 MNA the @100 ultimate pick is dormant → it isn't in the active kit at all
     expect(m.skills.map((k) => SKILLS[k]).some((s) => s.ult)).toBe(false);
   });
-  it("leveling AUTO-ASSIGNS MNA into the hero's own Attunement; recalc folds it into the total", () => {
+  it("leveling grants a DERIVED MNA floor — floor(level/5) in the hero's ACTIVE Attunement (ADR 0021)", () => {
     const party = [makeMember(PARTY_DEFS[0])]; // Auren, SOL
     recalc(party);
     const m = party[0];
-    expect(m.mnaAlloc.SOL).toBe(0);
-    expect(m.mnaPoints).toBe(0);
-    const leveled = grantXp(party, xpForLevel(1) * 4); // a few levels; MNA is a fixed +1 each (no roll)
-    expect(m.mnaAlloc.SOL).toBeGreaterThan(0); // auto-assigned into the hero's own tree (no manual step)
-    expect(leveled.every((l) => l.mnaGain === 1)).toBe(true); // EVERY level reports exactly +1 MNA (not lumped)
-    expect(m.mnaPoints).toBe(0);               // nothing left sitting in an unspent pool
-    recalc(party);
-    expect(m.mna.SOL).toBe(m.mnaAlloc.SOL);    // no gear → total equals the auto-assigned allocation
+    expect(m.mna.SOL).toBe(0); // L1 → floor(1/5) = 0
+    const xpTo6 = [1, 2, 3, 4, 5].reduce((a, l) => a + xpForLevel(l), 0);
+    const leveled = grantXp(party, xpTo6); // exactly L1 → L6
+    expect(m.level).toBe(6);
+    expect(m.mna.SOL).toBe(1);                 // floor(6/5) = 1, derived (no gear, no banking)
+    // the Victory card reports +1 MNA ONLY on a 5th-level crossing; every other level reports 0
+    expect(leveled.find((l) => l.level === 5)!.mnaGain).toBe(1);
+    expect(leveled.filter((l) => l.level !== 5).every((l) => l.mnaGain === 0)).toBe(true);
+    expect(m.mnaPoints).toBe(0);               // the unspent-pool allocator is deleted (D4)
   });
   it("equipping a foreign-attunement weapon reclasses the hero (class = weapon)", () => {
     const m = built("SOL", "Dual Swords", 10); // innate SOL Dual Swords, full SOL kit
