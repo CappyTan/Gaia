@@ -7,7 +7,7 @@
 import type { Rng } from "../core/rng";
 import { ENEMIES } from "../data/enemies";
 import { ENEMY_MAT_FAMILY, FAMILY_MATS, GATHER_NODES, RARE_ESSENCE } from "../data/materials";
-import type { ConsumableDef } from "../data/consumables";
+import { CONSUMABLES, type ConsumableDef } from "../data/consumables";
 import type { NodeKind } from "../data/zones";
 
 /** A stackable id → count record (materials or consumables). */
@@ -39,6 +39,32 @@ export function rollBattleMaterials(keys: string[], rng: Rng = Math.random): Cou
     if (rng() < 0.55) addCount(out, pool[Math.floor(rng() * pool.length)]);
     if (rng() < 0.06) addCount(out, RARE_ESSENCE[ENEMIES[key]?.att ?? ""] ?? "aether-dust");
     else if (rng() < 0.15) addCount(out, pool[Math.floor(rng() * pool.length)]);
+  }
+  return out;
+}
+
+// A modest, flat chance (6%) per fallen foe to shed a ready-made consumable directly — separate from
+// (and on top of) crafting: the player doesn't have to visit a smith to occasionally find a potion.
+const CONSUMABLE_DROP_CHANCE = 0.06;
+
+/**
+ * Roll consumable drops off a fallen band, one independent roll per foe. The consumable picked is
+ * tier-appropriate to the foe's level (data-driven via `ConsumableDef.tier`, ~5 levels per tier) when
+ * any consumable in the pool is tiered; with only Health Tonic (tier 1) shipped today every roll lands
+ * on it, but a later zone adding higher-tier potions is picked up automatically with no code change.
+ * Consumables without a `tier` (or an empty tier pool at that level) fall back to a uniform pick.
+ */
+export function rollBattleConsumables(fallenKeys: string[], rng: Rng = Math.random): Counts {
+  const out: Counts = {};
+  const pool = Object.values(CONSUMABLES);
+  if (!pool.length) return out;
+  for (const key of fallenKeys) {
+    if (rng() >= CONSUMABLE_DROP_CHANCE) continue;
+    const lvl = ENEMIES[key]?.lvl ?? 1;
+    const band = Math.max(1, Math.ceil(lvl / 5)); // ~5 levels per tier, matching MATERIALS' tier bands
+    const eligible = pool.filter((d) => (d.tier ?? band) <= band);
+    const choices = eligible.length ? eligible : pool;
+    addCount(out, choices[Math.floor(rng() * choices.length)].id);
   }
   return out;
 }

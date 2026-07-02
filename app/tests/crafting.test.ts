@@ -10,8 +10,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  addCount, addCounts, rollBattleMaterials, gatherNode, hasMaterials, craftConsumable,
-  healLowestAlly, emptyCounts, type Counts,
+  addCount, addCounts, rollBattleMaterials, rollBattleConsumables, gatherNode, hasMaterials,
+  craftConsumable, healLowestAlly, emptyCounts, type Counts,
 } from "../src/systems/crafting";
 import { MATERIALS, GATHER_NODES, ENEMY_MAT_FAMILY, FAMILY_MATS } from "../src/data/materials";
 import { CONSUMABLES } from "../src/data/consumables";
@@ -56,6 +56,31 @@ describe("battle material drops (rollBattleMaterials)", () => {
     const total = Object.values(a).reduce((s, n) => s + n, 0);
     expect(total).toBeGreaterThan(0);
     expect(total).toBeLessThanOrEqual(keys.length * 2);
+  });
+});
+
+describe("battle consumable drops (rollBattleConsumables)", () => {
+  it("drops nothing on a cold roll", () => {
+    expect(rollBattleConsumables(["kobold", "gbandit"], hi)).toEqual({});
+  });
+  it("on a hot roll, sheds a real registered consumable per fallen foe", () => {
+    const out = rollBattleConsumables(["kobold", "gbandit", "hollowking"], lo);
+    expect(Object.values(out).reduce((s, n) => s + n, 0)).toBe(3); // every foe hits at rng=0
+    for (const id of Object.keys(out)) expect(CONSUMABLES[id]).toBeTruthy();
+  });
+  it("is deterministic under a seed, and stays near a modest ~4-8% per-foe rate over many rolls", () => {
+    const keys = Array(2000).fill("kobold");
+    const a = rollBattleConsumables(keys, seeded(11));
+    const b = rollBattleConsumables(keys, seeded(11));
+    expect(a).toEqual(b);
+    const total = Object.values(a).reduce((s, n) => s + n, 0);
+    expect(total).toBeGreaterThan(2000 * 0.03);
+    expect(total).toBeLessThan(2000 * 0.09);
+    for (const id of Object.keys(a)) expect(CONSUMABLES[id]).toBeTruthy();
+  });
+  it("with only Health Tonic shipped, every hit lands on it — but the lookup is tier-generic, not hardcoded", () => {
+    const out = rollBattleConsumables(Array(50).fill("hollowking"), lo);
+    expect(out).toEqual({ "health-tonic": 50 });
   });
 });
 

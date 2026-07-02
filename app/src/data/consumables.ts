@@ -18,6 +18,10 @@ export interface ConsumableDef {
   recipe: Record<string, number>;
   /** The smith's Aether (◈) crafting fee. */
   fee: number;
+  /** Tier band (1 = the Greenvale starter tier; later zones climb) — used to pick an
+   *  encounter-appropriate battle drop (systems/crafting rollBattleConsumables). Optional: consumables
+   *  without one are eligible at every tier (falls back to uniform selection). */
+  tier?: number;
 }
 
 export const CONSUMABLES: Record<string, ConsumableDef> = {
@@ -29,5 +33,6 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     effect: { kind: "heal", pct: 0.35 },
     recipe: { "lifebloom-seed": 1, "beast-sinew": 1 }, // the reconciled sheet's Health Tonic
     fee: 15,
+    tier: 1,
   },
 };

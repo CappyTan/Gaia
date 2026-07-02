@@ -59,8 +59,8 @@ function v3kit(party: Member[]): void {
   party.forEach((m) => { const sp = specFor(m.att, m.cls); if (sp) m.picks = defaultPicks(sp); });
   recalc(party);
 }
-// Mirror Game.startRun (v0.211 + ADR 0021): heroes begin at LEVEL 10 with the fixed +8-MNA starter
-// weapon IN THEIR OWN ATTUNEMENT (the derived floor(level/5) MNA floor lands in recalc).
+// Mirror Game.startRun (v0.213 + ADR 0021, amended): heroes begin at LEVEL 1 with the fixed +10-MNA
+// starter weapon IN THEIR OWN ATTUNEMENT (the derived piecewise mnaFloor lands in recalc).
 function freshParty(): Member[] {
   const p = PARTY_DEFS.map(makeMember);
   p.forEach((m) => { m.level = START_LEVEL; m.equip.weapon = starterWeapon(m.cls, m.att, rng); });

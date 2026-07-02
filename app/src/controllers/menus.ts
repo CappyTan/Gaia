@@ -32,7 +32,7 @@ const TARGET_LABEL: Record<string, string> = { enemy: "one enemy", allEnemies: "
 const skillKind = (s: Skill): string => (s.ult ? "ULTIMATE" : s.type === "phys" ? "Physical" : s.type === "mag" ? "Magic" : s.type === "heal" ? "Heal" : s.type === "buff" ? "Buff" : "Utility");
 // One .mnx chip — the small bordered tag used across the restyled menus.
 const chip = (inner: string, style = ""): string => `<span class="mchip"${style ? ` style="${style}"` : ""}>${inner}</span>`;
-// Read-only derived-MNA chip (ADR 0021): total = floor(level/5) in the active tree + gear. There is
+// Read-only derived-MNA chip (ADR 0021): total = mnaFloor(level) in the active tree + gear. There is
 // no allocator any more — this is a read-out, with the breakdown so the sourcing stays legible.
 const mnaChip = (m: Member): string => {
   const tot = m.mna[m.att], lvl = mnaFloor(m.level), gear = Math.max(0, tot - lvl);
@@ -90,8 +90,11 @@ export const UI = {
       <div class="row" style="margin-top:8px"><button class="btn gold" onclick="UI.close()">Close</button></div></div>`;
   },
 
-  // ── ITEMS — the held-item inventory (quest/key items + consumables), distinct from the loot Bag.
-  //    Key items (the raft, future keys/sigils) are held forever; consumables (none yet) will stack here.
+  // ── ITEMS — the held-item inventory (quest/key items + consumables) AND the crafting-materials
+  //    stack, distinct from the loot Bag. Key items (the raft, future keys/sigils) are held forever;
+  //    consumables (none yet as HELD_ITEMS — crafted potions live in the Bag) stack here; materials
+  //    (gathering-node/enemy-drop crafting stock, data/materials.ts) were previously only readable
+  //    read-only inside the Bag — surfaced here too so "Items" is the one-stop held-stuff screen.
   partyItems(): void {
     const held = [...Game.heldItems].map((id) => HELD_ITEMS[id]).filter((d): d is HeldItemDef => !!d);
     const section = (kind: HeldKind, title: string, empty: string): string => {
@@ -107,10 +110,18 @@ export const UI = {
       });
       return s;
     };
+    // MATERIALS (crafting slice): read-only counts — spent at a town smith, never equipped. Same
+    // mchip presentation as the Bag's materials row, kept in sync deliberately (one gather, two views).
+    const mats = Object.entries(Game.materials).filter(([id, n]) => n > 0 && MATERIALS[id]);
+    const matsSection = `<div class="msec">Materials</div>` + (mats.length
+      ? `<div class="msub">Gathered from nodes and fallen foes — craft with them at a town smith.</div>
+         <div class="mchips">${mats.map(([id, n]) => chip(`${MATERIALS[id]!.icon} ${MATERIALS[id]!.name} <b>×${n}</b>`)).join("")}</div>`
+      : `<div class="msub">None yet — gathering nodes and fallen foes shed crafting materials as you explore.</div>`);
     Overlay.show(`<div class="mnx"><h2 class="title-gold">Items</h2>
       <div class="scroll" style="margin-top:4px">
         ${section("key", "Quest Items", "None yet — quest and traversal items appear here as you explore.")}
         ${section("consumable", "Consumables", "None yet — potions and antidotes will gather here.")}
+        ${matsSection}
       </div>
       <div class="row" style="margin-top:8px"><button class="btn" onclick="UI.openParty()">◂ Party</button></div></div>`);
   },

@@ -56,7 +56,7 @@ export interface SavedMember {
   mp: number;
   alive: boolean;
   /** DEAD (ADR 0021 D5): the banked-allocation model is gone — MNA is recomputed from
-   *  floor(level/5) + gear on load. Kept OPTIONAL so old envelopes still parse; ignored (no
+   *  mnaFloor(level) + gear on load. Kept OPTIONAL so old envelopes still parse; ignored (no
    *  schema bump needed — the field just stops mattering). New saves don't write them. */
   mnaAlloc?: Record<Attunement, number>;
   mnaPoints?: number;
@@ -402,7 +402,7 @@ function reviveMember(sm: SavedMember, notes: string[]): Member | null {
   m.xp = Math.max(0, sm.xp || 0);
   m.row = sm.row === "back" ? "back" : "front";
   // ADR 0021 D5: an old save's banked mnaAlloc/mnaPoints are DISCARDED — recalc below recomputes MNA
-  // from floor(level/5) + gear (clean recompute, degrade-never-throw). A hero whose banked MNA exceeded
+  // from mnaFloor(level) + gear (clean recompute, degrade-never-throw). A hero whose banked MNA exceeded
   // the new derivation simply has picks above threshold go DORMANT (the skillUnlocked path), no crash.
   // V3 picks (ADR 0020) — restored BEFORE recalc so the choice-derived kit resolves on rebuild. A plain
   // {string→string[]} map; anything malformed is ignored (degrade-never-throw). Stale ability names (a

@@ -103,13 +103,15 @@ export const Game = {
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
-    // Heroes begin at level 10 (Dara). ADR 0021: MNA is DERIVED — the level floor (floor(10/5)=2)
-    // plus the starter weapon's guaranteed +8 opens the 5/10 MNA milestones immediately (one special
-    // + one signature pickable from the first minute). Nothing to bank.
+    // Heroes begin at level 1 (Dara, v0.213 — reverted the v0.211 level-10 start). ADR 0021 (amended):
+    // MNA is DERIVED — the piecewise level floor (mnaFloor(1)=1) plus the starter weapon's guaranteed
+    // +10 opens the 5/10 MNA milestones immediately (one special + one signature pickable from the
+    // first minute). Nothing to bank. (makeMember already defaults level to 1; set explicitly here so
+    // START_LEVEL stays the one source of truth if it ever changes again.)
     this.party.forEach((m) => { m.level = START_LEVEL; });
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
     // weapon (which sets the class) would default to SOL and silently re-class the whole party.
-    this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +8 MNA starter weapon
+    this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +10 MNA starter weapon
     recalc(this.party);
     Field.init();          // ready zone 0 behind the village (canvas, tiles, map, encounter state)
     this.openStartVillage(); // ...but begin the run walking around the starting village
