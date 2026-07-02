@@ -128,6 +128,9 @@ export interface SavedRun {
   // string[]. OPTIONAL + degrade-never-throw — absent on an old save = none held, EXCEPT the controller
   // re-seeds a key item whose cap the save already owns (a Greenvale-beaten save shows the raft). No bump.
   heldItems?: string[];
+  // QUEST LOG — per-quest {accepted,kills,turnedIn}. OPTIONAL + degrade-never-throw: absent on an old
+  // save = an empty log (quests simply re-offerable from their givers). No version bump needed.
+  quests?: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>;
   // WAYFINDING PROGRESS (ADR 0011): the run's known/entered regions, two zone-id string[]s. Drives the
   // derived Objective + the continent overview-map reveal. OPTIONAL + degrade-never-throw — absent on an
   // old save = empty progress (cosmetic/wayfinding only; gates nothing, so no soft-lock risk). No bump.
@@ -175,6 +178,7 @@ export interface RunSnapshot {
   mouthCleared: Record<string, boolean>;
   ownedCaps: string[];
   heldItems: string[];
+  quests?: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>;
   progress: { known: string[]; entered: string[] };
   resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019)
 }
@@ -209,6 +213,7 @@ export interface LoadedRun {
   mouthCleared: Record<string, boolean>; // zones whose OVERWORLD mouth guard was beaten (per zone id); old saves seed from the global miniBossDefeated
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   heldItems: string[];       // held quest/key item ids (e.g. ["raft"]); empty on an old save (the controller re-seeds a key item whose cap is already owned)
+  quests: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>; // quest log; empty on an old save
   progress: { known: string[]; entered: string[] }; // wayfinding known/entered regions (ADR 0011); empty on an old save (cosmetic — gates nothing)
   resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019); empty (zero) on an old save
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
@@ -293,6 +298,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     mouthCleared: { ...s.mouthCleared },
     ownedCaps: [...s.ownedCaps],
     heldItems: [...s.heldItems],
+    quests: JSON.parse(JSON.stringify(s.quests ?? {})),
     progress: { known: [...s.progress.known], entered: [...s.progress.entered] },
     resources: { ...s.resources },
   };
@@ -591,6 +597,7 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // held set, continueRun's cap→item re-seed self-heals it on the next load (the raft reappears from the
     // still-owned cap), so the cap — the thing that prevents a soft-lock — is never lost.
     heldItems: resetPos ? [] : reviveHeldItems(r.heldItems),
+    quests: r.quests ?? {}, // quest log — empty on an old save (degrade-never-throw)
     // WAYFINDING PROGRESS (ADR 0011) — sanitized known/entered region ids. Cosmetic (gates nothing), so an
     // old save with no field loads empty; reset when the zone changed under us (the run restarts elsewhere,
     // and syncZoneFromWorld re-marks the landing zone entered on the first step).

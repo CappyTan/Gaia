@@ -13,6 +13,9 @@ import { starterWeapon, rollItemAtLevel, itemScore } from "../systems/loot";
 import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
 import { HELD_ITEMS, type HeldItemDef } from "../data/heldItems";
+import { rarityIx } from "../data/rarity";
+import { QUESTS } from "../data/quests";
+import { emptyQuests, questForTown, accept, ready, turnIn, noteKills, questList, type QuestLog } from "../systems/quests";
 import { MERCHANT_LEVEL, DROP_MODS } from "../data/loot";
 import { Save } from "../systems/save";
 import { reviveProgress } from "../systems/progress";
@@ -50,6 +53,7 @@ export const Game = {
   // consumables, by id. Distinct from `inventory` (equippable loot). A key item with a `grantsCap`
   // confers that traversal capability — owning the raft is what opens the Sunless Gorge.
   heldItems: emptyItems() as OwnedItems,
+  quests: emptyQuests() as QuestLog,
   steps: 0,
   encountersWon: 0,
   bossDefeated: false,
@@ -85,7 +89,7 @@ export const Game = {
   // Begin a fresh run with a specific party composition (from the Roster picker or default).
   startRun(defs: MemberDef[]): void {
     this._lastDefs = defs;
-    this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.steps = 0; this.encountersWon = 0;
+    this.gold = 0; this.resources = zeroResources(); this.inventory = []; this.heldItems = emptyItems(); this.quests = emptyQuests(); this.steps = 0; this.encountersWon = 0;
     this.bossDefeated = false; this.miniBossDefeated = false; this.continueAfterBattle = null; this._inMerchant = false; this._inTown = false; this._startVillage = false;
     this.testMode = false; this.testReturn = null; // a real run is NEVER in test mode (ADR 0017) — enforce the invariant at the one entry point
     this._hubChain = []; this._hubIx = 0;
@@ -166,6 +170,7 @@ export const Game = {
       // HELD ITEMS (quest/key items) — persisted as a plain string[] of ids; restored into the run's Set
       // and reconciled with owned caps on resume (continueRun).
       heldItems: [...this.heldItems],
+      quests: this.quests,
       // WAYFINDING PROGRESS (ADR 0011) — the run's known/entered regions as two string[]s; restored into
       // Field.progress (Sets) on resume so the continent overview map re-reveals the right regions.
       progress: { known: [...Field.wayfinding.known], entered: [...Field.wayfinding.entered] },
@@ -196,6 +201,7 @@ export const Game = {
     // but predates the inventory gets the key item that confers it (so the raft shows in the Items tab for
     // a Greenvale-beaten save). applyItemCaps below re-grants caps from items (the item→cap link on load).
     this.heldItems = new Set(r.heldItems);
+    this.quests = r.quests ?? emptyQuests();
     for (const [id, def] of Object.entries(HELD_ITEMS))
       if (def.grantsCap && r.ownedCaps.includes(def.grantsCap)) this.heldItems.add(id);
     this.continueAfterBattle = null; this._inMerchant = false;
@@ -400,6 +406,65 @@ export const Game = {
   // The Inn — a small fee fully restores HP/MP for every living hero (Dara: resting now costs a bit).
   // Scales with the highest party level so it stays meaningful but affordable as you grow.
   restCost(): number { return 8 * this.party.reduce((n, m) => Math.max(n, m.level), 1); },
+
+  // ── QUESTS (Dara: sequential town bounty chains, big rewards, non-repeatable) ────────────────────
+  // A town giver's quest business — called from Field.talkTo BEFORE small talk. Returns false when
+  // this npc has no quest business (the caller falls through to normal dialogue).
+  openQuestTalk(townId: string, npcId: string): boolean {
+    const def = questForTown(this.quests, townId);
+    if (!def || def.giver !== npcId) return false;
+    const p = this.quests[def.id];
+    // Kingpin edge: the boss is a one-time fight — if he's already fallen when the bounty is offered,
+    // the giver honors the deed (auto-credit) instead of asking for an impossible re-kill.
+    if (def.id === "gv-kingpin" && this.bossDefeated && Field.zone().id === "greenvale" && !(p?.turnedIn))
+      this.quests[def.id] = { accepted: true, kills: def.kill.count, turnedIn: false };
+    if (ready(this.quests, def)) {
+      Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small" style="text-align:left">${def.doneLine}</p>
+        <div class="card" style="text-align:left"><b class="title-gold">Reward</b><div class="small" style="margin-top:4px">◈ ${def.reward.aether} Aether · a ${def.reward.gearRarity} treasure</div></div>
+        <div class="row"><button class="btn gold" onclick="Game.turnInQuest('${def.id}')">Claim the bounty</button></div>`);
+      return true;
+    }
+    if (this.quests[def.id]?.accepted) {
+      const k = this.quests[def.id].kills;
+      Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small">${k}/${def.kill.count} ${def.kill.label} down. Come back when it's done.</p>
+        <div class="row"><button class="btn gold" onclick="Overlay.hide()">On it</button></div>`);
+      return true;
+    }
+    Overlay.show(`<h2 class="title-gold">${def.name}</h2><p class="small" style="text-align:left">${def.brief}</p>
+      <div class="card" style="text-align:left"><b class="title-gold">Bounty</b><div class="small" style="margin-top:4px">Slay <b>${def.kill.count} ${def.kill.label}</b> → ◈ ${def.reward.aether} Aether + a ${def.reward.gearRarity} treasure</div></div>
+      <div class="row"><button class="btn gold" onclick="Game.acceptQuest('${def.id}')">Accept</button><button class="btn" onclick="Overlay.hide()">Not yet</button></div>`);
+    return true;
+  },
+  acceptQuest(id: string): void { accept(this.quests, id); this.saveNow(); Overlay.hide(); Field.hint(); },
+  turnInQuest(id: string): void {
+    const def = QUESTS[id];
+    if (!def || !ready(this.quests, def)) { Overlay.hide(); return; }
+    turnIn(this.quests, id);
+    this.gold += def.reward.aether;
+    // the gear reward: a guaranteed-tier roll (floorMin — ADR 0015 source mods) at the quest's ilvl
+    const it = rollItemAtLevel(def.reward.gearIlvl, undefined, def.reward.gearIlvl, undefined, { floorMin: rarityIx(def.reward.gearRarity) });
+    this.inventory.push(it);
+    this.saveNow();
+    Overlay.show(`<h2 class="title-gold">Bounty claimed!</h2>
+      <div class="spoils-head"><span class="spoil-pill aether"><b>+◈ ${def.reward.aether}</b> Aether</span></div>
+      ${itemHtml(it)}
+      ${def.next ? `<p class="small">Bram sizes you up — he has more work.</p>` : ""}
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+  },
+  // The quest log (More sheet): every chain quest with live progress.
+  openQuestLog(): void {
+    const rows = questList(this.quests).map(({ def, p, locked }) => {
+      const state = p?.turnedIn ? `<span class="r-rare">✓ complete</span>`
+        : locked && !p?.accepted ? `<span class="small" style="opacity:.55">🔒 locked</span>`
+        : p?.accepted ? `<b>${p.kills}/${def.kill.count}</b> ${def.kill.label}`
+        : `<span class="small" style="opacity:.8">see ${def.town === "hearthford" ? "Watchman Bram" : "the giver"} in ${def.town}</span>`;
+      return `<div class="card" style="text-align:left;margin:6px 0${locked && !p?.accepted && !p?.turnedIn ? ";opacity:.55" : ""}">
+        <b class="title-gold">${def.name}</b> · ${state}
+        <div class="small" style="opacity:.85;margin-top:3px">Slay ${def.kill.count} ${def.kill.label} → ◈ ${def.reward.aether} + ${def.reward.gearRarity} gear</div></div>`;
+    }).join("");
+    Overlay.show(`<h2 class="title-gold">Quests</h2><div class="scroll">${rows || '<p class="small">No quests yet — talk to the townsfolk.</p>'}</div>
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Close</button></div>`);
+  },
   openInn(): void {
     const fullHp = this.party.every((m) => !m.alive || (m.hp >= m.maxhp && m.mp >= m.maxmp));
     const hpSum = this.party.reduce((n, m) => n + Math.max(0, m.hp), 0), maxSum = this.party.reduce((n, m) => n + m.maxhp, 0);

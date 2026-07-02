@@ -29,6 +29,8 @@ import { Music } from "../audio/music";
 import { Telemetry } from "../telemetry/telemetry";
 import { BattleLog } from "../telemetry/battleLog";
 import { gearScore } from "../systems/gearScore";
+import { noteKills } from "../systems/quests";
+import { QUESTS } from "../data/quests";
 import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
@@ -622,6 +624,8 @@ export const Battle = {
       if (e.rare) { drops.push(drop()); drops.push(drop()); drops.push(drop()); } // treasure-monster hoard (epic+)
     }
     Game.gold += gold;
+    // QUESTS: every fallen enemy counts toward accepted kill-bounties (pure log op — systems/quests).
+    const questsDone = noteKills(Game.quests, this.enemies.filter((e) => !e.alive).map((e) => e.key));
     const leveled = grantXp(Game.party, xp);
     if (leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach((d) => { Game.inventory.push(d); Telemetry.drop(d.rarity); });
@@ -643,15 +647,19 @@ export const Battle = {
       : () => Screens.show("field");
     if (Game.testMode && Game.testReturn) Game.continueAfterBattle = Game.testReturn; // Test Loop (ADR 0017): victory routes to the loop menu, not the field/zone flow
     Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007). (early-returns under testMode)
-    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
+    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem, questsDone), 500);
   },
-  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {
+  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null, questsDone: string[] = []): void {
     // FANFARE: a burst-in VICTORY banner over slow-turning golden rays; XP/Aether count up; loot
     // cards cascade in. All CSS/DOM — the numbers land at their true values even if animation is off.
     let h = `<div class="vict"><div class="vict-rays"></div><div class="vict-title">VICTORY</div></div>
       <div class="spoils-head"><span class="spoil-pill"><b id="victXp">+${xp}</b> XP</span><span class="spoil-pill aether"><b id="victGold">+◈ ${gold}</b> Aether</span></div>`;
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
+    for (const qid of questsDone) {
+      const q = QUESTS[qid];
+      if (q) h += `<div class="card" style="background:#182615;border-color:#6fce6f;text-align:left"><b style="color:#8fe08f">✓ Quest complete — ${q.name}</b><div class="small" style="margin-top:3px">Return to ${q.town === "hearthford" ? "Watchman Bram in Hearthford" : q.town} to claim ◈ ${q.reward.aether} + ${q.reward.gearRarity} gear.</div></div>`;
+    }
     if (gotItem) h += `<div class="card" style="background:#161226;border-color:var(--gold);text-align:left">
       <div class="psec" style="margin:0 0 2px">Key Item</div>
       <b class="title-gold">${gotItem.icon} ${gotItem.name}</b>

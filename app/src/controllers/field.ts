@@ -1038,6 +1038,8 @@ export const Field = {
   // Talk to an NPC: open the lightweight (non-blocking) dialogue box; advancing redraws so the
   // little "talking" marker over the NPC clears when the conversation ends.
   talkTo(npc: TownNPC): void {
+    // QUEST GIVER: quest business (offer / progress / turn-in) takes precedence over small talk.
+    if (this.town && Game.openQuestTalk(this.town.id, npc.id)) return;
     Dialogue.open(npc.name, npc.spr, npc.lines, () => { this.draw(); this.hint(); });
     this.draw(); this.hint();
   },
