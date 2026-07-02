@@ -7,7 +7,7 @@ import type { Item } from "../types";
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type Zone, type ZoneDungeon, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type ZoneDungeon, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId, type NodeKind } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
@@ -15,7 +15,9 @@ import {
 import { traversalBlocks, grantCap, type OwnedCaps } from "../systems/traversal";
 import { genCombined, genOverworld, genDungeon, FIELD_WALLS, type GenResult, type ClearedState } from "../systems/mapgen";
 import * as FR from "../ui/fieldRender";
-import { POI_KINDS } from "../ui/fieldRender";
+import { POI_KINDS, NODE_KINDS } from "../ui/fieldRender";
+import { MATERIALS, GATHER_NODES } from "../data/materials";
+import { gatherNode, addCounts } from "../systems/crafting";
 import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from "../systems/progress";
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
@@ -143,6 +145,7 @@ export const Field = {
   wayfinding: emptyProgress() as Progress,
   poisCleared: {} as Record<string, boolean>, // POI key ("<zoneId>:<x>,<y>") → spent (shrine used / camp cleared); PERSISTED in the save
   openedChests: {} as Record<string, boolean>, // chest key (overworld "<zoneId>:ow:<x>,<y>" / dungeon "<zoneId>:d<floor>:<x>,<y>") → looted; PERSISTED in the save (per-RUN, like poisCleared)
+  gatheredNodes: {} as Record<string, boolean>, // gathering-node key ("<zoneId>:nd:<x>,<y>") → gathered; PERSISTED in the save (per-RUN, like openedChests — crafting slice)
   pendingPack: null as string[] | null, // the camp pack staged for fightCamp() (set by runPoi)
   ENC_MIN: 10, ENC_MAX: 15, // steps between random fights (Dara: ~5 felt too frequent → 10-15)
   zoneIndex: 0,
@@ -413,6 +416,7 @@ export const Field = {
     this.activeDungeon = "main"; // fresh run — no second-dungeon descent live (a resume restores it AFTER init())
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
+    this.gatheredNodes = {}; // fresh run — every gathering node stands (PER-RUN, like openedChests; a resume restores the saved set AFTER init())
     this.ownedCaps = new Set(); // fresh run — no traversal caps owned (the gorge stays locked until the Warren falls; a resume restores the set AFTER init())
     this.wayfinding = emptyProgress(); // fresh run — nothing known/entered yet (a resume restores it AFTER init())
     this.mouthCleared = {}; // fresh run — every zone's overworld mouth guard stands (a resume restores the saved set AFTER init())
@@ -516,6 +520,7 @@ export const Field = {
       miniCleared: !!opts.miniCleared,
       floorMiniBeaten: !!opts.floorMiniBeaten,
       restSpent: (p) => !!this.poisCleared[this.poiKey(zoneId + ":d" + this.dungeonFloor, p.x, p.y)],
+      nodeGathered: (p) => !!this.gatheredNodes[this.nodeKey(zoneId, p.x, p.y)],
     };
   },
   // Assign a mapgen GenResult onto the controller's run state (grid + spawn/anchors). Behaviour-preserving:
@@ -575,6 +580,9 @@ export const Field = {
   chestKey(zoneId: string, ctx: "ow" | number, x: number, y: number): string {
     return zoneId + ":" + (ctx === "ow" ? "ow" : "d" + ctx) + ":" + x + "," + y;
   },
+  // A per-zone GATHERING-NODE key ("<zoneId>:nd:<x>,<y>") so a gathered node stays spent across a
+  // reload without colliding with the POI/chest namespaces (crafting slice). Mirrors chestKey.
+  nodeKey(zoneId: string, x: number, y: number): string { return zoneId + ":nd:" + x + "," + y; },
 
   // ── TOWN ── Enter a walkable settlement by id (ADR 0006). Called via Game.openTown(id).
   // Service buildings are walk-in POIs; NPCs are walked up to and talked to; the gate leaves.
@@ -673,6 +681,7 @@ export const Field = {
     if (cell === "rest") { this.restAt(nx, ny); return; }     // a dungeon campfire (breather full-heal, once)
     if (cell === "rubble") { this.collapseAt(nx, ny); return; } // the Warren collapse: one-way drop shortcut
     if (cell === "lair") { this.enterLair(nx, ny); return; }  // the rare-monster den (Hogger)
+    if (NODE_KINDS.has(cell)) { this.gatherAt(nx, ny); return; } // ore vein / ancient root / spirit bloom (crafting slice)
     if (POI_KINDS.has(cell)) { this.touchPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // LEGACY model: crossing the gate the first time = entering the (combined-grid) dungeon.
     if (!this.usesNewModel() && this.inDungeon() && !this.enteredDungeon) {
@@ -861,6 +870,10 @@ export const Field = {
       // path) across a reload, so the realizer can't re-spawn it (chest coords are the zone's authored locals).
       for (const c of z?.layout.chests ?? [])
         if (this.openedChests[this.chestKey(id, "ow", c.x, c.y)] && this.authoredGrids[id][c.y]) this.authoredGrids[id][c.y][c.x] = "path";
+      // Re-apply persisted gathered-node state the same way (crafting slice): a gathered node stays
+      // plain ground across a reload, so the realizer can't re-spawn it.
+      for (const n of z?.layout.nodes ?? [])
+        if (this.gatheredNodes[this.nodeKey(id, n.x, n.y)] && this.authoredGrids[id][n.y]) this.authoredGrids[id][n.y][n.x] = "grass";
     }
     const z = ZONES.find((zz) => zz.id === start) ?? ZONES[0];
     const pl = placementOf(start)!, L = z.layout;
@@ -1039,6 +1052,7 @@ export const Field = {
     if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
+    if (NODE_KINDS.has(cell.kind)) { this.gatherBigNode(nx, ny); return; } // ore vein / ancient root / spirit bloom (crafting slice)
     if (POI_KINDS.has(cell.kind)) { this.touchBigPoi(nx, ny); return; } // shrine / camp / landmark / signpost
     // D3 USE-FEEDBACK: the FIRST step onto a now-unlocked gorge crossing fires a one-time callout (reuses
     // the pickup-callout overlay style). The crossing stays walkable — this never blocks the step.
@@ -1074,6 +1088,44 @@ export const Field = {
     this.draw(); this.hint();
     if (!key) return;
     Overlay.show(`<h2 class="title-gold">A Lair!</h2><p class="small">Something big has been denning here — and it knows you've found it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightLair('${key}')">Brace yourself</button></div>`);
+  },
+
+  // ── GATHERING NODES (crafting slice) ──────────────────────────────────────────────────────────
+  // Stepping onto a node GATHERS it: roll its yield (pure systems/crafting off the data/materials
+  // tables), bank the materials on the run, consume the tile for the run (persisted like a looted
+  // chest — gatheredNodes), and show what came loose. Discrete path (px/py grid).
+  gatherAt(x: number, y: number): void {
+    const kind = this.map[y][x] as NodeKind;
+    this.map[y][x] = "grass";
+    this.gatheredNodes[this.nodeKey(this.zone().id, x, y)] = true;
+    this.finishGather(kind);
+  },
+  // Big-map path: consume the realized cell + the authored blueprint cell (so a chunk re-realize
+  // can't re-spawn it), keyed by the node's AUTHORED zone-local coords — mirrors openBigChest.
+  gatherBigNode(wx: number, wy: number): void {
+    const kind = this.cellAt(wx, wy).kind as NodeKind;
+    this.cellAt(wx, wy).kind = "grass";
+    const a = authoredAt(wx, wy);
+    if (a && this.authoredGrids[a.zoneId]) this.authoredGrids[a.zoneId][a.ly][a.lx] = "grass";
+    if (a) this.gatheredNodes[this.nodeKey(a.zoneId, a.lx, a.ly)] = true;
+    this.finishGather(kind);
+  },
+  // Shared gather resolution: roll → bank → autosave → the "what you got" overlay (material pills).
+  finishGather(kind: NodeKind): void {
+    const node = GATHER_NODES[kind];
+    if (!node) return;
+    const gains = gatherNode(kind);
+    addCounts(Game.materials, gains);
+    Game.saveNow?.(); // persist the gathered-node record + the new materials (mirrors the chest path)
+    this.draw(); this.hint();
+    const pills = Object.entries(gains)
+      .map(([id, n]) => { const m = MATERIALS[id]; return m ? `<span class="spoil-pill"><b>${m.icon} ${m.name}</b> ×${n}</span>` : ""; })
+      .join("");
+    Overlay.show(`<h2 class="title-gold">${node.icon} ${node.name}</h2>
+      <p class="small">${node.blurb}</p>
+      <div class="spoils-head">${pills}</div>
+      <div class="small" style="opacity:.7">Materials go to your Bag — craft with them at a town smith.</div>
+      <div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
   },
 
   // Walking onto a town POI tile opens its service (Game owns the run-state actions).
@@ -1652,6 +1704,7 @@ export const Field = {
         FR.drawMouthLabel(c, sx, sy, t, this.zone().dungeon.name, this.mouthOptional(this.zone().id), true);
       }
       else if (POI_KINDS.has(cell.kind)) FR.drawPoiCell(c, T, cell.kind, this.poiNameAt(wx, wy, true), sx, sy, t); // captioned landmark
+      else if (NODE_KINDS.has(cell.kind)) FR.drawPoiCell(c, T, cell.kind, GATHER_NODES[cell.kind as NodeKind]?.name ?? "", sx, sy, t); // captioned gathering node (crafting slice)
       else if (cell.kind === "cliff") { if (T.cliff) FR.castShadow(c, sx, sy, t, 0.34, 0.32); else FR.drawCliffFace(c, sx, sy, t); } // D4 RAISED face
       else if (cell.kind === "river") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy), now); // D5 RECESSED watercourse (over flat OR sprite)
       else if (cell.kind === "gorge" && !T.gorge) {
@@ -1901,7 +1954,7 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "ruins" || cell === "seal" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell);
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "ruins" || cell === "seal" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell) || NODE_KINDS.has(cell);
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
@@ -2008,6 +2061,7 @@ export const Field = {
         else if (cell === "rest") obj(T[`${dset}-rest`], "🔥", 0.8);   // dungeon breather campfire (placeholder emoji — sprite flagged for art-integrator)
         else if (cell === "rubble") obj(T[`${dset}-rubble`], "🕳️", 0.85); // the Warren collapse drop (placeholder emoji — sprite flagged for art-integrator)
         else if (POI_KINDS.has(cell)) FR.drawPoiCell(c, T, cell, this.poiNameAt(mx, my, false), sx, sy, t); // captioned landmark/camp/shrine/sign
+        else if (NODE_KINDS.has(cell)) FR.drawPoiCell(c, T, cell, GATHER_NODES[cell as NodeKind]?.name ?? "", sx, sy, t); // captioned gathering node (crafting slice)
         else if (cell === "cliff" && !gimg) c.fillText("⛰️", sx + t / 2, sy + t / 2);
         else if (cell === "river" && !gimg) c.fillText("🌊", sx + t / 2, sy + t / 2);
         else if (cell === "tree") {

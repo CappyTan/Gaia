@@ -31,6 +31,8 @@ import { BattleLog } from "../telemetry/battleLog";
 import { gearScore } from "../systems/gearScore";
 import { noteKills } from "../systems/quests";
 import { QUESTS } from "../data/quests";
+import { rollBattleMaterials, addCounts, type Counts } from "../systems/crafting";
+import { MATERIALS } from "../data/materials";
 import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
@@ -624,6 +626,10 @@ export const Battle = {
       if (e.rare) { drops.push(drop()); drops.push(drop()); drops.push(drop()); } // treasure-monster hoard (epic+)
     }
     Game.gold += gold;
+    // MATERIAL DROPS (crafting slice): each fallen foe sheds 0–2 crafting materials from its family
+    // pool (pure roll — systems/crafting off data/materials); banked straight into the run's stacks.
+    const matDrops = rollBattleMaterials(this.enemies.map((e) => e.key));
+    addCounts(Game.materials, matDrops);
     // QUESTS: every fallen enemy counts toward accepted kill-bounties (pure log op — systems/quests).
     const questsDone = noteKills(Game.quests, this.enemies.filter((e) => !e.alive).map((e) => e.key));
     const leveled = grantXp(Game.party, xp);
@@ -647,13 +653,18 @@ export const Battle = {
       : () => Screens.show("field");
     if (Game.testMode && Game.testReturn) Game.continueAfterBattle = Game.testReturn; // Test Loop (ADR 0017): victory routes to the loop menu, not the field/zone flow
     Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007). (early-returns under testMode)
-    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem, questsDone), 500);
+    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem, questsDone, matDrops), 500);
   },
-  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null, questsDone: string[] = []): void {
+  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null, questsDone: string[] = [], matDrops: Counts = {}): void {
     // FANFARE: a burst-in VICTORY banner over slow-turning golden rays; XP/Aether count up; loot
     // cards cascade in. All CSS/DOM — the numbers land at their true values even if animation is off.
     let h = `<div class="vict"><div class="vict-rays"></div><div class="vict-title">VICTORY</div></div>
       <div class="spoils-head"><span class="spoil-pill"><b id="victXp">+${xp}</b> XP</span><span class="spoil-pill aether"><b id="victGold">+◈ ${gold}</b> Aether</span></div>`;
+    // MATERIAL PILLS (crafting slice): the crafting materials the fallen shed, already banked above.
+    const matPills = Object.entries(matDrops)
+      .map(([id, n]) => { const m = MATERIALS[id]; return m ? `<span class="spoil-pill"><b>${m.icon} ${m.name}</b> ×${n}</span>` : ""; })
+      .join("");
+    if (matPills) h += `<div class="spoils-head" style="margin-top:4px">${matPills}</div>`;
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
     for (const qid of questsDone) {

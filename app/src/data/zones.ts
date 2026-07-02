@@ -102,7 +102,21 @@ export interface ZoneLayout {
    * required route (they sit ON walkable ground). Pure data — the controller wires the triggers.
    */
   pois?: Poi[];
+  /**
+   * GATHERING NODES (crafting slice — docs/design/crafting-schema.md §Gathering nodes). WoW-style
+   * walkable resource tiles: stepping onto one GATHERS it (materials into Game.materials, rolled by
+   * systems/crafting off the data/materials yield tables), consumes it for the run, and persists like
+   * an opened chest (Field.gatheredNodes). Stamped by buildAuthoredGrid + genOverworld exactly like
+   * `ruins`/POIs (halo'd, a flood target — never blocks a route). Author them by kind near the terrain
+   * they read as: ore by crags/cliff lines, roots by tree lines, blooms by water/meadow.
+   */
+  nodes?: GatherNode[];
 }
+
+/** A gathering-node tile kind (draw + yield tables key off it — see data/materials.GATHER_NODES). */
+export type NodeKind = "node-ore" | "node-root" | "node-bloom";
+/** An authored gathering node: a walkable, once-per-run resource tile. */
+export interface GatherNode { x: number; y: number; kind: NodeKind; }
 
 /** A point of interest / encampment (the INHABITED-world layer). `kind` drives its `move()` effect. */
 export type PoiKind = "shrine" | "camp" | "landmark" | "signpost";
@@ -441,6 +455,25 @@ const GREENVALE_LAYOUT: ZoneLayout = {
   // THE ANCIENT RUINS mouth (wave3b): the unearthed entrance in the ruins dell — steps down into
   // GREENVALE_RUINS (`dungeon2`). Unguarded; the hotter interior is the gate. World (159,58).
   ruins: { x: 32, y: 4 },
+  // GATHERING NODES (crafting slice): ten resource tiles scattered OFF the roads so foraging is a
+  // reason to leave the path — ORE hugs the crag/cliff lines, ROOTS hug the tree lines (orchard /
+  // grove / downs), BLOOMS sit by the Hearthbrook and the meadows. Each is walked onto once per run
+  // (persisted like a chest), halo'd + flood-repaired so none can be walled off.
+  nodes: [
+    // Ore Veins ⛏️ — along the rocky shoulders:
+    { x: 18, y: 13, kind: "node-ore" },  // orchard edge, against the northern ridge shoulder (cliff y14)
+    { x: 23, y: 13, kind: "node-ore" },  // the ridge's east toe, between orchard and NE thicket
+    { x: 21, y: 6, kind: "node-ore" },   // the dell shoulder crag (under the excavation's high ground)
+    { x: 31, y: 26, kind: "node-ore" },  // the SE rocky outcrop edging the hidden grove
+    // Ancient Roots 🌿 — along the old tree lines:
+    { x: 13, y: 12, kind: "node-root" }, // the orchard's west tree line
+    { x: 25, y: 27, kind: "node-root" }, // the hidden grove's old-growth floor
+    { x: 16, y: 3, kind: "node-root" },  // the NW bluebell hollow's wood edge (the north downs)
+    // Spirit Blooms ✨ — by water and open meadow:
+    { x: 19, y: 21, kind: "node-bloom" }, // the Hearthbrook's west bank, below the bridge
+    { x: 13, y: 27, kind: "node-bloom" }, // the south meadow, off the camp
+    { x: 23, y: 36, kind: "node-bloom" }, // the brookside fen, past the third ford
+  ],
 };
 
 // ── Greenvale's PLAYABLE Areas (ADR 0009 exemplar — Area = finest identity, realized at play scale) ─

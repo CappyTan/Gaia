@@ -1044,6 +1044,10 @@ export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[
   // SECOND-DUNGEON ENTRANCE (wave3b — the Ancient Ruins): a walkable "ruins" mouth, halo'd + a flood
   // target like the lair. Unguarded — stepping onto it descends into `zone.dungeon2`.
   if (L.ruins) { halo(L.ruins); carve(L.ruins.x, L.ruins.y, "ruins"); }
+  // GATHERING NODES (crafting slice): walkable resource tiles, stamped like the ruins entrance. The
+  // grid is pure, so every node restamps — the controller re-applies the run's gathered state over
+  // the rebuilt grid (enterBigMap/returnToOverworld), exactly as it does for looted chests.
+  if (L.nodes) for (const n of L.nodes) { halo(n); carve(n.x, n.y, n.kind); }
   // POIs (the INHABITED world): each sits on walkable ground (halo'd) as its own special tile kind.
   if (L.pois) for (const p of L.pois) { halo(p); carve(p.x, p.y, p.kind); }
   halo(L.mouth); grid[L.mouth.y][L.mouth.x] = miniDefeated ? "mouth" : "miniboss";
@@ -1057,6 +1061,7 @@ export function buildAuthoredGrid(zoneId: string, miniDefeated = false): string[
   // ANTI-SOFT-LOCK: the mouth, every chest/lair, the hub marker, AND every crossing/POI must stay reachable
   // from spawn — anything a river/cliff walls off gets a punch-through corridor (terrain frames, not severs).
   const targets: Pt[] = [L.mouth, ...L.chests]; if (L.lair) targets.push(L.lair); if (L.ruins) targets.push(L.ruins); if (village) targets.push(village);
+  if (L.nodes) targets.push(...L.nodes.map((n) => ({ x: n.x, y: n.y })));
   if (L.bridges) targets.push(...L.bridges);
   if (L.fords) targets.push(...L.fords);
   if (L.pois) targets.push(...L.pois.map((p) => ({ x: p.x, y: p.y })));

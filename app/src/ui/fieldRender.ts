@@ -12,6 +12,11 @@
 // The controller imports this set from here for its move()/draw dispatch (one source of truth).
 export const POI_KINDS = new Set(["shrine", "camp", "landmark", "signpost"]);
 
+// GATHERING-NODE tile kinds (crafting slice) — walkable resource tiles (ore vein / ancient root /
+// spirit bloom), drawn as captioned landmarks like POIs. Same one-source-of-truth contract: the
+// controller imports this set for its move()/draw dispatch.
+export const NODE_KINDS = new Set(["node-ore", "node-root", "node-bloom"]);
+
 type Ctx = CanvasRenderingContext2D;
 type Tiles = Record<string, HTMLImageElement>;
 
@@ -111,9 +116,10 @@ export function drawMouthLabel(c: Ctx, sx: number, sy: number, t: number, dungeo
   c.restore();
 }
 
-/** The kind emoji placeholder for a POI tile (until art lands). */
+/** The kind emoji placeholder for a POI / gathering-node tile (until art lands). */
 export function poiEmoji(kind: string): string {
-  return kind === "shrine" ? "⛩️" : kind === "camp" ? "⛺" : kind === "signpost" ? "🪧" : "🗿";
+  return kind === "shrine" ? "⛩️" : kind === "camp" ? "⛺" : kind === "signpost" ? "🪧"
+    : kind === "node-ore" ? "⛏️" : kind === "node-root" ? "🌿" : kind === "node-bloom" ? "✨" : "🗿";
 }
 
 // POI / encampment tile (the INHABITED world): a kind emoji (placeholder until art lands) + a gold
@@ -219,7 +225,7 @@ export function drawMob(c: Ctx, img: HTMLImageElement, sx: number, sy: number, t
 // *-ground2 alternate by the cached variant) and a flat-colour fallback. Pure mapping (the sprite table
 // `T` is passed in only to choose the *2 alternate when present). No regionAt on the frame path.
 export function bigGround(T: Tiles, biome: string, kind: string, variant: number): { ground: string; flat: string } {
-  const isObj = OBJ_KINDS.has(kind) || POI_KINDS.has(kind);
+  const isObj = OBJ_KINDS.has(kind) || POI_KINDS.has(kind) || NODE_KINDS.has(kind);
   const alt = (base: string) => (variant && T[base + "2"] ? base + "2" : base);
   if (kind === "river") return { ground: T.water ? "water" : "river", flat: "#2f5b7a" };
   if (kind === "cliff") return { ground: "cliff", flat: "#2b2f37" };

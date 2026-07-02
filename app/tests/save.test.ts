@@ -110,6 +110,27 @@ describe("save round-trip", () => {
     expect(r.resources).toEqual({ SOL: 30, NOX: 12, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 });
   });
 
+  it("persists the crafting stacks + gathered nodes (the crafting slice), degrading unknown ids", () => {
+    const { snapshot } = makeRun();
+    snapshot.materials = { "iron-scrap": 3, "lifebloom-seed": 1, "gone-material": 5 }; // one removed id
+    snapshot.consumables = { "health-tonic": 2, "gone-tonic": 1 };
+    snapshot.gatheredNodes = { "greenvale:nd:18,13": true };
+    const r = deserialize(serialize(snapshot, "v1"))!;
+    expect(r.materials).toEqual({ "iron-scrap": 3, "lifebloom-seed": 1 }); // unknown id dropped, never throws
+    expect(r.consumables).toEqual({ "health-tonic": 2 });
+    expect(r.gatheredNodes).toEqual({ "greenvale:nd:18,13": true });
+  });
+
+  it("an old save with no crafting fields loads to empty stacks (degrade-never-throw)", () => {
+    const { snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    delete env.run.materials; delete env.run.consumables; delete env.run.gatheredNodes;
+    const r = deserialize(env)!;
+    expect(r.materials).toEqual({});
+    expect(r.consumables).toEqual({});
+    expect(r.gatheredNodes).toEqual({});
+  });
+
   it("persists a member's V3 choice picks + the Resource pools (ADR 0019/0020)", () => {
     const { snapshot } = makeRun();
     snapshot.party[0].picks = { "special@5": ["Firebolt"], "signature@10": ["Ignition"] };

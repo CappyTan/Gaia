@@ -9,6 +9,8 @@ import { ENEMIES, RARE_MONSTERS } from "./enemies";
 import { ZONES } from "./zones";
 import { RARITY } from "./rarity";
 import { BARRIERS, MAPS } from "./world";
+import { MATERIALS, GATHER_NODES, ENEMY_MAT_FAMILY, FAMILY_MATS } from "./materials";
+import { CONSUMABLES } from "./consumables";
 import { ATTUNEMENTS } from "../types";
 
 // Class kits are no longer authored here: every class is the V3 choice-system kit derived from its
@@ -69,6 +71,28 @@ export function validateContent(): string[] {
   // rarity ladder is the expected 6 rungs with non-decreasing affix counts
   if (RARITY.length !== 6) issues.push(`expected 6 rarities, got ${RARITY.length}`);
   RARITY.forEach((r, i) => { if (i && r.affixes < RARITY[i - 1].affixes) issues.push(`rarity ${r.key}: affix count drops below ${RARITY[i - 1].key}`); });
+
+  // CRAFTING (the slice): every consumable recipe ingredient, gather-node yield, and family-drop
+  // material is a real MATERIALS id; every enemy-family mapping points at a real bestiary key; every
+  // authored gathering node uses a known kind and sits inside its zone's grid. A typo'd id would
+  // silently drop a drop / brick a recipe — this net catches it at authoring time.
+  Object.values(CONSUMABLES).forEach((c) => {
+    Object.keys(c.recipe).forEach((id) => { if (!MATERIALS[id]) issues.push(`consumable ${c.id}: recipe ingredient "${id}" is not a material`); });
+    if (c.fee < 0) issues.push(`consumable ${c.id}: negative craft fee`);
+  });
+  Object.values(GATHER_NODES).forEach((n) => {
+    if (!MATERIALS[n.base]) issues.push(`gather node ${n.kind}: base yield "${n.base}" is not a material`);
+    if (!MATERIALS[n.rare]) issues.push(`gather node ${n.kind}: rare yield "${n.rare}" is not a material`);
+  });
+  // (enrage-omega identities — e.g. "kingpin-omega" — are legitimate fallen-enemy keys without a
+  // bestiary row of their own, exactly as data/quests references them.)
+  const omegaKeys = new Set(Object.values(ENEMIES).map((e) => e.enrage?.omega).filter(Boolean));
+  Object.keys(ENEMY_MAT_FAMILY).forEach((k) => { if (!ENEMIES[k] && !omegaKeys.has(k)) issues.push(`material drop family: "${k}" is not an enemy key`); });
+  Object.entries(FAMILY_MATS).forEach(([fam, ids]) => ids.forEach((id) => { if (!MATERIALS[id]) issues.push(`material family ${fam}: "${id}" is not a material`); }));
+  ZONES.forEach((z, zi) => (z.layout.nodes ?? []).forEach((n) => {
+    if (!GATHER_NODES[n.kind]) issues.push(`zone ${zi} "${z.name}": gathering node has unknown kind "${n.kind}"`);
+    if (n.x <= 0 || n.y <= 0 || n.x >= z.layout.w - 1 || n.y >= z.layout.h - 1) issues.push(`zone ${zi} "${z.name}": gathering node (${n.x},${n.y}) is out of the grid interior`);
+  }));
 
   return issues;
 }

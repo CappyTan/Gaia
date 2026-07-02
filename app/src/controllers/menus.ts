@@ -16,6 +16,8 @@ import { itemScore } from "../systems/loot";
 import { gearScore } from "../systems/gearScore";
 import { substats } from "../systems/stats";
 import { HELD_ITEMS, type HeldKind, type HeldItemDef } from "../data/heldItems";
+import { MATERIALS } from "../data/materials";
+import { CONSUMABLES } from "../data/consumables";
 import { itemHtml, classBody } from "../ui/render";
 import { Overlay } from "../ui/overlay";
 import { Game, sellPriceOf } from "./game";
@@ -393,9 +395,39 @@ export const UI = {
     h += `</div><div class="row"><button class="btn" onclick="UI.openParty()">◂ Party</button><button class="btn gold" onclick="UI.close()">Close</button></div>`;
     Overlay.show(h);
   },
+  // Transient one-render feedback line for the Bag (set by useConsumable, cleared on render).
+  _bagNote: "" as string,
+  // Use a consumable from the Bag (out of battle — Game owns the effect + counts), then re-render
+  // with the feedback line so the heal reads.
+  useConsumable(id: string): void {
+    this._bagNote = Game.useConsumable(id) ?? "";
+    this.openInventory();
+  },
   openInventory(): void {
     const selling = Game._inMerchant; // the merchant buys loot off you while you're shopping
+    const note = this._bagNote; this._bagNote = "";
     let h = `<h2 class="title-gold">Bag</h2><div class="small">${Game.inventory.length} items · ◈ ${Game.gold} Aether${selling ? " · sell unwanted loot to the merchant" : ""}</div><div class="scroll">`;
+    // ── CONSUMABLES (crafting slice): crafted at a town smith, usable here out of battle. ──
+    const cons = Object.entries(Game.consumables).filter(([id, n]) => n > 0 && CONSUMABLES[id]);
+    if (note) h += `<div class="small" style="color:#aef0a0;margin:4px 0">${note}</div>`;
+    if (cons.length) {
+      h += `<div class="tag">Consumables</div>`;
+      cons.forEach(([id, n]) => {
+        const d = CONSUMABLES[id]!;
+        h += `<div class="card" style="text-align:left;margin:6px 0">
+          <b class="title-gold">${d.icon} ${d.name}</b> <span class="pill">×${n}</span>
+          <p class="small" style="margin-top:4px">${d.blurb}</p>
+          <div class="row" style="justify-content:flex-start;margin-top:6px"><button class="btn gold" onclick="UI.useConsumable('${id}')">Use</button></div>
+        </div>`;
+      });
+    }
+    // ── MATERIALS (crafting slice): read-only counts — spent at the smith, never equipped. ──
+    const mats = Object.entries(Game.materials).filter(([id, n]) => n > 0 && MATERIALS[id]);
+    if (mats.length) {
+      h += `<div class="tag">Materials</div><div class="small" style="opacity:.75">Gathered from nodes and fallen foes — craft with them at a town smith.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${mats.map(([id, n]) => `<span class="pill">${MATERIALS[id]!.icon} ${MATERIALS[id]!.name} ×${n}</span>`).join("")}</div>`;
+    }
+    if (cons.length || mats.length) h += `<div class="tag">Gear</div>`;
     if (Game.inventory.length === 0) h += `<p class="small">Empty. Win fights to find loot.</p>`;
     Game.inventory.slice().sort((a, b) => rarityIx(b.rarity) - rarityIx(a.rarity)).forEach((it) => {
       const idx = Game.inventory.indexOf(it);

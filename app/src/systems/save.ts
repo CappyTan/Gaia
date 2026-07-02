@@ -21,6 +21,8 @@ import { SETTLEMENTS } from "../data/towns";
 import { hasSpec } from "./classKit";
 import { AFFIXES } from "../data/items";
 import { HELD_ITEMS } from "../data/heldItems";
+import { MATERIALS } from "../data/materials";
+import { CONSUMABLES } from "../data/consumables";
 import { RARITY } from "../data/rarity";
 
 // ── envelope ───────────────────────────────────────────────────────────────────────────────
@@ -137,6 +139,15 @@ export interface SavedRun {
   // QUEST LOG — per-quest {accepted,kills,turnedIn}. OPTIONAL + degrade-never-throw: absent on an old
   // save = an empty log (quests simply re-offerable from their givers). No version bump needed.
   quests?: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>;
+  // CRAFTING MATERIALS + CONSUMABLES (the crafting slice) — two stackable {id → count} records.
+  // OPTIONAL + degrade-never-throw (the quests pattern): absent on an old save = empty stacks; ids no
+  // longer in the registries are dropped on load (a removed material can't linger). No version bump.
+  materials?: Record<string, number>;
+  consumables?: Record<string, number>;
+  // GATHERED NODES (crafting slice): per-zone keys ("<zoneId>:nd:<x>,<y>") → gathered, so a gathered
+  // node stays spent across a reload (no infinite-material exploit — the openedChests pattern).
+  // OPTIONAL + degrade-never-throw — absent on an old save = nothing gathered. No version bump.
+  gatheredNodes?: Record<string, boolean>;
   // WAYFINDING PROGRESS (ADR 0011): the run's known/entered regions, two zone-id string[]s. Drives the
   // derived Objective + the continent overview-map reveal. OPTIONAL + degrade-never-throw — absent on an
   // old save = empty progress (cosmetic/wayfinding only; gates nothing, so no soft-lock risk). No bump.
@@ -187,6 +198,9 @@ export interface RunSnapshot {
   ownedCaps: string[];
   heldItems: string[];
   quests?: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>;
+  materials?: Record<string, number>;    // crafting material stacks (the slice); optional — defaults empty
+  consumables?: Record<string, number>;  // crafted consumable stacks (the slice); optional — defaults empty
+  gatheredNodes?: Record<string, boolean>; // gathered gathering-nodes (the slice); optional — defaults empty
   progress: { known: string[]; entered: string[] };
   resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019)
 }
@@ -223,6 +237,9 @@ export interface LoadedRun {
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
   heldItems: string[];       // held quest/key item ids (e.g. ["raft"]); empty on an old save (the controller re-seeds a key item whose cap is already owned)
   quests: Record<string, { accepted: boolean; kills: number; turnedIn: boolean }>; // quest log; empty on an old save
+  materials: Record<string, number>;     // crafting material stacks; empty on an old save (unknown ids dropped)
+  consumables: Record<string, number>;   // crafted consumable stacks; empty on an old save (unknown ids dropped)
+  gatheredNodes: Record<string, boolean>; // gathered gathering-nodes (per-zone keys); empty on an old save
   progress: { known: string[]; entered: string[] }; // wayfinding known/entered regions (ADR 0011); empty on an old save (cosmetic — gates nothing)
   resources: Record<Attunement, number>; // the five shared Resource pools (ADR 0019); empty (zero) on an old save
   /** Non-empty when something was dropped/reset on load — surfaced as a "resumed" notice. */
@@ -309,6 +326,9 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     ownedCaps: [...s.ownedCaps],
     heldItems: [...s.heldItems],
     quests: JSON.parse(JSON.stringify(s.quests ?? {})),
+    materials: { ...(s.materials ?? {}) },
+    consumables: { ...(s.consumables ?? {}) },
+    gatheredNodes: { ...(s.gatheredNodes ?? {}) },
     progress: { known: [...s.progress.known], entered: [...s.progress.entered] },
     resources: { ...s.resources },
   };
@@ -436,6 +456,25 @@ function reviveOpenedChests(v: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   if (!v || typeof v !== "object") return out;
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string") out[k] = true;
+  return out;
+}
+
+/** Sanitize the persisted gathered-node map (crafting slice): a plain {string→true} dict; anything else → empty (never throws). */
+function reviveGatheredNodes(v: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) if (val === true && typeof k === "string") out[k] = true;
+  return out;
+}
+
+/** Sanitize a persisted stack record (crafting slice): keep only KNOWN registry ids with a finite
+ *  positive count (floored) — a removed material/consumable is dropped, junk never throws. Mirrors
+ *  reviveHeldItems' known-id filter for the stackable records. */
+function reviveCounts(v: unknown, known: (id: string) => boolean): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>))
+    if (typeof k === "string" && known(k) && typeof val === "number" && isFinite(val) && val > 0) out[k] = Math.floor(val);
   return out;
 }
 
@@ -612,6 +651,13 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // still-owned cap), so the cap — the thing that prevents a soft-lock — is never lost.
     heldItems: resetPos ? [] : reviveHeldItems(r.heldItems),
     quests: r.quests ?? {}, // quest log — empty on an old save (degrade-never-throw)
+    // CRAFTING STACKS (the slice) — sanitized to known registry ids with positive counts (a removed
+    // material/consumable is dropped, never crashes). Not tied to position — a vanished zone doesn't
+    // strand the pouch. Empty on an old save.
+    materials: reviveCounts(r.materials, (id) => !!MATERIALS[id]),
+    consumables: reviveCounts(r.consumables, (id) => !!CONSUMABLES[id]),
+    // GATHERED NODES — sanitized {key→true} like openedChests; empty on an old save.
+    gatheredNodes: reviveGatheredNodes(r.gatheredNodes),
     // WAYFINDING PROGRESS (ADR 0011) — sanitized known/entered region ids. Cosmetic (gates nothing), so an
     // old save with no field loads empty; reset when the zone changed under us (the run restarts elsewhere,
     // and syncZoneFromWorld re-marks the landing zone entered on the first step).

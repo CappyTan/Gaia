@@ -47,6 +47,9 @@ export interface ClearedState {
   floorMiniBeaten: boolean;
   /** A dungeon REST node at (x,y) has been spent (reverts to floor). */
   restSpent(p: Pt): boolean;
+  /** A GATHERING node at (x,y) has been gathered this run (reverts to ground). OPTIONAL — absent
+   *  callers (older tests/paths) simply regenerate every node. Crafting slice. */
+  nodeGathered?(p: Pt): boolean;
 }
 
 // ── pure grid primitives (operate on a MapGrid; no `this`) ────────────────────────────────────────
@@ -216,6 +219,10 @@ export function genOverworld(z: { id: string; layout: ZoneLayout; hub?: string }
   // SECOND-DUNGEON ENTRANCE (wave3b — the Ancient Ruins): a walkable "ruins" mouth, halo'd + a flood
   // target like the lair. Unguarded — stepping onto it descends into `zone.dungeon2` (move()).
   if (L.ruins) { halo(g, L.ruins); carve(g, L.ruins.x, L.ruins.y, "ruins"); }
+  // GATHERING NODES (crafting slice): each stamps as its walkable node kind unless already gathered
+  // this run (then plain ground, mirroring the spent-POI / looted-chest handling).
+  const nodeSpent = (p: Pt) => !!cleared.nodeGathered?.(p);
+  if (L.nodes) for (const n of L.nodes) { halo(g, n); carve(g, n.x, n.y, nodeSpent(n) ? "grass" : n.kind); }
   const pois = stampPois(g, L, cleared); // POIs (the INHABITED world)
   // The mouth POI: guarded by the mini until it's beaten, then enterable.
   halo(g, mouth);
@@ -225,8 +232,9 @@ export function genOverworld(z: { id: string; layout: ZoneLayout; hub?: string }
   const village = z.hub ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
   if (village) { halo(g, village); carve(g, village.x, village.y, "village"); }
 
-  // ANTI-SOFT-LOCK: the mouth + every UNOPENED overworld chest/lair/ruins/crossing/POI + the hub marker reachable from spawn.
+  // ANTI-SOFT-LOCK: the mouth + every UNOPENED overworld chest/lair/ruins/node/crossing/POI + the hub marker reachable from spawn.
   const targets = [mouth, ...chests.filter((c) => !owOpened(c))]; if (lairAt) targets.push(lairAt); if (L.ruins) targets.push(L.ruins); if (village) targets.push(village);
+  if (L.nodes) targets.push(...L.nodes.filter((n) => !nodeSpent(n)).map((n) => ({ x: n.x, y: n.y })));
   if (L.bridges) targets.push(...L.bridges);
   if (L.fords) targets.push(...L.fords);
   targets.push(...pois.map((p) => ({ x: p.x, y: p.y })));
