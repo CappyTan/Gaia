@@ -2,7 +2,6 @@ name: Build & Deploy to GitHub Pages
 
 # Builds the Vite + TypeScript app on every push/PR (validation), and publishes dist/ to
 # GitHub Pages only for pushes to main.
-# (Touched to re-emit a build/deploy after an App-token merge that didn't trigger CI.)
 on:
   push:
     branches: [main]
@@ -14,6 +13,14 @@ on:
       - 'telemetry/**'
   pull_request:
   workflow_dispatch:
+  # Safety-net redeploy. When a PR is squash-merged via the Claude/GitHub-App token,
+  # GitHub's anti-recursion guard suppresses the resulting `push` to main — so that
+  # merge never fires the trigger above and the live site silently goes stale (this bit
+  # v0.206 and v0.209/v0.210). Human merges and manual `workflow_dispatch` still deploy
+  # immediately; this cron just guarantees main can't stay unpublished longer than the
+  # interval. This repo is public, so the periodic no-op rebuilds cost no Actions minutes.
+  schedule:
+    - cron: '17 */3 * * *' # every 3 hours (offset :17 to dodge the top-of-hour load spike)
 
 permissions:
   contents: read
