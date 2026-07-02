@@ -386,7 +386,7 @@ export const Battle = {
     });
   },
   flushAnimFloats(): void {
-    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color); if (f.univ) this.slashFx(f.u, f.att, f.crit, f.mirror); });
+    this._animFloats.forEach((f) => { this.float(f.u, f.txt, f.color, f.crit); if (f.univ) this.slashFx(f.u, f.att, f.crit, f.mirror); });
     this._animFloats = [];
   },
 
@@ -413,7 +413,7 @@ export const Battle = {
     // hero→enemy hit). Unless the skill's own animation supplies a bespoke impact layer, which overrides it.
     const mirror = actor.side === "party";
     if (silent) this._animFloats.push({ u: target, txt, color, crit, att: fxAtt, univ: !this._animHasImpact, mirror }); // deferred to impact
-    else { this.float(target, txt, color); this.slashFx(target, fxAtt, crit, mirror); }
+    else { this.float(target, txt, color, crit); this.slashFx(target, fxAtt, crit, mirror); }
     // FULL combat log line: who hit whom for how much (both directions) — the scrollable history.
     const power = s && s.sol ? "SOL" : actor.att;
     const tag = crit ? " — CRIT!" : mult > 1 ? ` (${power} surge)` : mult < 1 ? " (resisted)" : "";
@@ -777,7 +777,9 @@ export const Battle = {
     }
     Game.party.forEach((m) => {
       const col = m.row === "back" ? back! : front!;
-      const cls = "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : "");
+      // `.turn` marks the hero whose command menu is open ON THE BATTLEFIELD (a gold caret + lit ground
+      // ring, CSS) — before, whose turn it was only showed in the lower roster panel.
+      const cls = "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : "") + (m === this.current && m.alive ? " turn" : "");
       const cur = z.querySelector<HTMLElement>(`.pchar[data-mid="${m.id}"]`);
       if (cur && cur.dataset.alive === String(m.alive)) {
         // same alive-state → keep the doll, refresh only flags + the status-badge strip.
@@ -873,10 +875,10 @@ export const Battle = {
     const node = this.unitNode(u);
     return node ? (node.querySelector(".spr-img") || node.querySelector("img") || node) : node;
   },
-  float(u: Unit, txt: string, color: string): void {
+  float(u: Unit, txt: string, color: string, crit = false): void {
     const anchor = this.spriteEl(u); // damage/heal number floats above the SPRITE (Dara: not the HP bar)
     if (!anchor) return;
-    const f = el("div", "float", txt); f.style.color = color || "#fff";
+    const f = el("div", "float" + (crit ? " crit" : ""), txt); f.style.color = color || "#fff";
     const r = anchor.getBoundingClientRect(), s = $("#stage")!.getBoundingClientRect();
     f.style.left = r.left - s.left + r.width / 2 + "px";
     f.style.top = r.top - s.top + "px";
