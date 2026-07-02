@@ -578,20 +578,38 @@
   .equip-slot{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:4px 6px; border-bottom:1px solid var(--line);}
   .equip-slot button{font-size:13px; padding:8px 12px; min-height:40px;}
   .pill{font-size:11px; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim);}
-  /* Party card sections + vertical MNA allocator (Dara: tap targets + hierarchy redo) */
+  /* Party card section header (also used by battle key-item cards) */
   .psec{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); margin:12px 0 4px;}
-  .mna-pool{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px;
-    border-radius:10px; background:rgba(244,151,46,.12); border:1px solid var(--legendary); margin-bottom:4px;}
-  .mna-pool b{color:var(--gold2); font-size:15px;}
-  .mna-row{display:flex; align-items:center; gap:10px; padding:6px 8px; margin:4px 0;
-    border:1px solid var(--line); border-radius:10px; background:#16162a;}
-  .mna-name{flex:1; font-size:14px; font-weight:bold;}
-  .mna-tot{font-size:18px; font-weight:bold; min-width:30px; text-align:right; color:var(--gold2);}
-  .mna-sub{font-size:11px; color:var(--dim); min-width:54px;}
-  .mna-btn{width:44px; height:44px; flex:0 0 auto; font-size:22px; line-height:1; padding:0; border-radius:10px;}
   a.link{color:var(--gold2); cursor:pointer; text-decoration:underline;}
 
   /* ── PARTY HUB (FF-style main menu): roster list (left) + options & info (right) ── */
+  /* ── .mnx — the restyled FF-menus (wave6e): dashboard language ratified on the class picker
+     (.cpx) — hero cards with Attunement accent stripes, chip rows, uppercase section headers,
+     gold-dark gradient panels. Scoped so nothing leaks to other windows. Phone-first. ── */
+  .mnx{--line:#3a2e12; --panel:#1b1509; --panel2:#241c0d; --dim:#b8a87f; --mink:#f3e9d2; text-align:left;}
+  .mnx .mcard{background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--line);
+    border-left:3px solid var(--line); border-radius:9px; padding:9px 11px; margin:6px 0;}
+  .mnx .mcard.mhero{display:flex; gap:10px; align-items:center;}
+  .mnx .mh-body{flex:1 1 auto; min-width:0;}
+  .mnx .mname{font-weight:700; color:var(--mink); font-size:14px;}
+  .mnx .mchips{display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;}
+  .mnx .mchip{font-size:10.5px; padding:1px 7px; border-radius:20px; border:1px solid var(--line);
+    color:var(--dim); white-space:nowrap;}
+  .mnx .mchip b{color:var(--mink);}
+  .mnx .mh-hp{display:flex; align-items:center; gap:8px; margin-top:7px;}
+  .mnx .mbar{flex:1 1 auto; height:8px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden;}
+  .mnx .mbar > i{display:block; height:100%; background:linear-gradient(var(--hp),var(--hpb));}
+  .mnx .mbar.low > i{background:linear-gradient(#e25a5a,#8f1f1f);}
+  .mnx .mh-hpv{font-size:11px; color:var(--dim); flex:0 0 auto;}
+  .mnx .msec{font-size:11px; text-transform:uppercase; letter-spacing:1.3px; color:var(--gold2);
+    font-weight:700; border-bottom:1px solid var(--line); padding-bottom:4px; margin:14px 0 4px;}
+  .mnx .msub{font-size:12px; color:var(--dim); margin:4px 0 8px; line-height:1.4;}
+  .mnx .mroster{flex:2 1 240px; min-width:0; max-height:56vh;}
+  .mnx .minfo{background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:9px 11px; margin-top:8px; font-size:12px;}
+  .mnx .minfo-k{font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--dim);}
+  .mnx .mrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .mnx .mh-top{display:flex; align-items:center; gap:8px; justify-content:space-between;}
+  .mnx .pm-opt{min-height:44px;}
   .pm-hub{display:flex; gap:10px; text-align:left; align-items:stretch; flex-wrap:wrap;}
   .pm-roster{flex:1 1 320px; min-width:0; display:flex; flex-direction:column; gap:0; max-height:62vh;
     border:1px solid var(--line); border-radius:12px; background:linear-gradient(#14142400,#0e0e18); padding:4px 8px;}
