@@ -31,6 +31,13 @@ export interface EncounterCtx {
   fav?: Record<string, number>;
 }
 
+// THE WARMECH BRIDGE AMBUSH (wave6c — the Sealed Deep causeway): each STEP on a dungeon bridge tile
+// rolls this chance to wake the ancient war construct (controllers/field.move wires it). Deliberately
+// LOW — a rare terror, and never consumed: later crossings re-roll it every step.
+export const BRIDGE_AMBUSH_CHANCE = 0.04;
+/** Pure ambush roll (rng injectable for the seeded test). */
+export function rollBridgeAmbush(rng: Rng = Math.random): boolean { return rng() < BRIDGE_AMBUSH_CHANCE; }
+
 /** AREA-LEANED set choice (ADR 0009): pick a set from the depth-balanced band, weight-biased toward
  *  the Area the player stands in. weight = 1 baseline + the set's favour score, so a matching set is
  *  a few× likelier but every band set stays possible (variety + curve preserved — same band, pool). */

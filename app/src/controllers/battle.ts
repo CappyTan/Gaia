@@ -16,6 +16,7 @@ import { RESOURCE } from "../data/resources";
 import { ATT, RING } from "../data/attunements";
 import { classTitle } from "../data/classes";
 import { ENEMY_ABILITIES } from "../systems/enemyAbilities";
+import { ENEMY_SCRIPTS, newScriptState, scriptedTurn, type ScriptState, type ScriptStep } from "../systems/bossScripts";
 import { recalc, grantXp, skillUnlocked, mnaBonus, type LevelUp } from "../systems/progression";
 import { rollDrop } from "../systems/loot";
 import { enemySprite, renderDoll, statusBadges, pct, itemHtml } from "../ui/render";
@@ -82,6 +83,10 @@ export const Battle = {
   // entry + CSS; _actAnim lets the reconcile-in-place renderers re-apply the class across re-renders.
   ACTION_ANIM: { strike: "act-strike", cast: "act-cast", guard: "act-guard" } as Record<string, string>,
   _actAnim: new WeakMap<Unit, string>(),
+  // SCRIPTED BOSS TURNS (wave6c — systems/bossScripts): per-enemy sequencing state, keyed by the live
+  // Enemy object. makeEnemy builds fresh objects every fight, so a new battle always starts a fresh
+  // script — nothing to reset in begin().
+  _scripts: new WeakMap<Enemy, ScriptState>(),
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = "", eliteChance = 0.22): void {
     // FF-style encounter transition: white shock-flashes over the field, iris to black while the screen
@@ -538,6 +543,17 @@ export const Battle = {
       if (!e.alive) { this.onDeath(e); if (this.checkEnd()) return; this.endTurn(e); return; }
       const party = this.livingParty();
       if (party.length === 0) { this.endTurn(e); return; }
+      // SCRIPTED TURNS (wave6c): a setpiece boss with an authored script (systems/bossScripts) plays
+      // its step INSTEAD of the free AI — the dialogue line lands first (the ATB is already held),
+      // then the step's action resolves. Turns the script returns null for fall through to the
+      // normal AI below. Pure sequencing (scriptedTurn) so the choreography is unit-testable.
+      const script = ENEMY_SCRIPTS[e.key];
+      if (script) {
+        let st = this._scripts.get(e);
+        if (!st) { st = newScriptState(); this._scripts.set(e, st); }
+        const step = scriptedTurn(script, st);
+        if (step) { this.runScriptStep(e, step); return; }
+      }
       // Each enemy action names itself in a bubble anchored over the sprite (its HP/ATB block fades
       // out for the turn — `.enemy.acting .ebar`). The kit is simplistic today ("Attack" for a plain
       // hit), but named casts announce their skill: an ability's own display `name` when it declares
@@ -570,6 +586,62 @@ export const Battle = {
       this.renderAll();
       setTimeout(() => { if (!this.checkEnd()) this.endTurn(e); }, 380);
     });
+  },
+
+  /* ---- SCRIPTED BOSS TURNS (wave6c — the sequencing is pure systems/bossScripts; this is the
+     presentation half): play the step's dialogue line, then resolve its action. "hold" spends the
+     turn without attacking (the machine boots/aims); "nuke" fires VAULT PURGE PROTOCOL. ---- */
+  runScriptStep(e: Enemy, step: ScriptStep): void {
+    const act = () => {
+      if (!this.active) return; // the fight ended while the line played (e.g. a DoT finished it)
+      if (step.act === "nuke") { this.vaultPurge(e); return; }
+      // hold: no attack — the dread beat between the lines.
+      this.log(`${e.name} hums — dormant systems wake, one by one.`);
+      this.renderAll();
+      setTimeout(() => { if (!this.checkEnd()) this.endTurn(e); }, 420);
+    };
+    if (step.say) void this.sayLine(step.say.speaker, step.say.text, { color: step.say.color }).then(act);
+    else act();
+  },
+  // VAULT PURGE PROTOCOL — the Platform's signature: a full-party annihilation beam. An ENERGY hit
+  // (ignores physical armor; answered only by Energy Reduction / guard / wards — the far-endgame
+  // mitigation the spec demands), resolved through the normal strike() pipeline so floats, wards,
+  // BattleLog and the wipe flow all behave. POWER CALIBRATION: the Platform's L35 abp amplifier is
+  // ~×8.4 (V3 primaries-as-gear), so effective per-hit ≈ atk(≈118) × 0.65 × 8.4 (+crit/jitter)
+  // ≈ ~760 — ~2–3× a geared L10–12 hero's max HP, and above its own Wild Swing (so the signature
+  // dominates): a guaranteed wipe today, survivable only with far-endgame HP/mitigation/shields.
+  // Re-check this calibration if the enemy abp curve or the Platform's lean is ever retuned.
+  VAULT_PURGE: {
+    name: "Vault Purge Protocol", mp: 0, target: "allEnemies", att: "QUANTA", mnaReq: 0,
+    type: "phys", dmgType: "energy", power: 0.65,
+    desc: "The vault's judgement — a sweeping annihilation beam across the whole party.",
+  } as Skill,
+  vaultPurge(e: Enemy): void {
+    this.announce(e, "★ Vault Purge Protocol", "#7ae0ff", 1600);
+    this.log(`⚠ ${e.name} executes VAULT PURGE PROTOCOL!`);
+    const field = $("#battleField");
+    const fire = () => {
+      if (!this.active) return;
+      this.laserSweep();
+      this.livingParty().forEach((m) => this.strike(e, m, { skill: this.VAULT_PURGE }));
+      recalc(Game.party);
+      this.renderAll();
+      setTimeout(() => { if (!this.checkEnd()) this.endTurn(e); }, 600);
+    };
+    // charge-up: the standard casting circle under the Platform sells the power-build; the beam +
+    // per-hero crit-grade slashes/shakes land on resolution. Falls back to instant if no stage/sprite.
+    const cel = this.spriteEl(e);
+    if (field && cel) playCast(field, cel, e.att, fire); else fire();
+  },
+  // The beam itself: a screen-wide cyan sweep over the battlefield (.vault-laser, battle CSS) —
+  // pure presentation, self-removing. The per-target slashFx/shake come from strike() as usual.
+  laserSweep(): void {
+    const field = $("#battleField"); if (!field) return;
+    const beam = el("div", "vault-laser");
+    field.appendChild(beam);
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => beam.classList.add("on"));
+    else beam.classList.add("on");
+    setTimeout(() => beam.remove(), 1100);
   },
 
   /* ---- status: apply a skill's effects + tick at the start of a unit's turn (ADR 0016) ---- */
@@ -638,6 +710,10 @@ export const Battle = {
     // Test Loop (ADR 0017): close the BattleLog fight with its outcome + party-HP-remaining (no-op in real play).
     const totalHp = Game.party.reduce((s, m) => s + Math.max(0, m.hp), 0), totalMax = Game.party.reduce((s, m) => s + m.maxhp, 0) || 1;
     BattleLog.endFight(fled ? "fled" : victory ? "won" : "wipe", (totalHp / totalMax) * 100);
+    // THE GATE GUARDIAN (wave6c): capture + clear the in-flight flag on ANY outcome — a wipe/flee
+    // leaves the Platform standing to re-challenge; only a victory marks it down (below).
+    const wasGate = Field.pendingGateGuardian;
+    Field.pendingGateGuardian = false;
     if (fled) { Telemetry.encounterEnd("fled"); setTimeout(() => Screens.show("field"), 300); return; }
     if (!victory) { Telemetry.encounterEnd("wipe"); setTimeout(() => Game.gameOver(), 600); return; }
     // ----- victory: XP + gold + loot -----
@@ -670,9 +746,13 @@ export const Battle = {
     if (leveled.length) Telemetry.levelup(leveled.length);
     drops.forEach((d) => { Game.inventory.push(d); Telemetry.drop(d.rarity); });
     const wasMini = this.enemies.some((e) => e.miniboss),
-      wasZoneBoss = this.enemies.some((e) => e.boss),
+      // The ZONE boss by IDENTITY, not just the boss flag (wave6c): setpiece guardians (the Ruins'
+      // Defense Platform) are boss-TIER (render/AI/spoils) but are nobody's zone gate — only the
+      // current zone's authored `boss` key advances the zone flow / grants the raft.
+      wasZoneBoss = this.enemies.some((e) => e.boss && e.key === Field.zone().boss),
       wasFinal = this.finalBoss;
     if (wasMini) { Game.miniBossDefeated = true; Field.onMiniDefeated(); } // open the mouth/gate (model-aware)
+    if (wasGate) Field.onGateGuardianDefeated(); // the Platform falls — persist it down (the gate stays sealed)
     // TRAVERSAL UNLOCK (lock-before-key redesign): the raft is found in the DROWNED VAULT — clearing the
     // DUSKMARSH zone boss AWARDS it as a held quest item, and owning the raft confers the "gorge" capability
     // (Game.acquireItem → applyItemCaps), opening the Sunless Gorge so you can finally cross EAST to

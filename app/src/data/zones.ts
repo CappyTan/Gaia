@@ -195,6 +195,20 @@ export interface DungeonLayout {
    * the same coords so every boss-reading consumer (progress(), topology egress) points at the seal.
    */
   seal?: Pt;
+  /**
+   * THE CHASM (wave6c — the Sealed Deep finale): impassable VOID rects stamped over the carved grid
+   * (after rooms/paths/scatter, before the feature tiles — genDungeon). A recessed drop, not a wall:
+   * drawn as black depth with rock rims (controllers/field.drawChasm), and a flood barrier exactly
+   * like tree/water (FIELD_WALLS carries "chasm"). Crossable ONLY on the authored `bridge`.
+   */
+  chasm?: Rect[];
+  /**
+   * THE BRIDGE (wave6c): the narrow causeway tiles carved WALKABLE over the chasm ("bridge" kind,
+   * deliberately un-halo'd so the span stays one tile wide). The dramatic final approach to the
+   * sealed gate — and in the Ruins each STEP on it risks the Warmech ambush (controllers/field.move
+   * → systems/encounter.rollBridgeAmbush). Author it as the ONLY route across the void.
+   */
+  bridge?: Pt[];
 }
 
 /**
@@ -725,7 +739,8 @@ const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 //     and 3 carry none, so the delve never refills.
 // Floor identity: A1 is the UNEARTHED GALLERIES (a fresh dig fanning into old halls), A2 the FLOODED
 // ARCHIVE (a drowned library looped around the mana well), A3 the SEALED DEEP (twin vaults funneling
-// onto the door). No floor minibosses — the ruins are keyless all the way down.
+// onto THE LONG BRIDGE over the chasm, and the sealed gate beyond it — wave6c). No floor minibosses —
+// the ruins are keyless all the way down; the gate's guardian is a warned, optional setpiece.
 const RUINS_ENCOUNTERS: EncounterBand[] = [
   // THE DIG MOUTH: the meanest of the shire cast holds the top halls — plus the first direwolves.
   { at: 0.0, sets: [["slimebig", "kobolde"], ["gmage", "dwolf"], ["kobolde", "kobolde"], ["dwolf"]] },
@@ -797,28 +812,39 @@ const RUINS_A2: DungeonLayout = {
   reprieve: RUINS_WELL,
   scatter: 0.08,
 };
-// A3 — THE SEALED DEEP (26×20): twin vaults (a chest each) loop around the center and FUNNEL onto the
-// antechamber before THE SEALED DOOR — the terminus. The richest chest sits at the door's foot; the
-// door itself is a walkable landmark (`seal`) that will not open. No rest, no boss — not yet.
+// A3 — THE SEALED DEEP (34×20, wave6c finale rework): twin vaults (a chest each) loop around the
+// center and FUNNEL onto a bridgehead antechamber — and then the floor simply ENDS. A vast CHASM
+// swallows the eastern half of the deep, and the only way on is THE LONG BRIDGE: a dead-straight,
+// one-tile causeway of ancient stone, eleven tiles over the void, to a lone PLATFORM carrying THE
+// SEALED GATE — a towering graven arch that will not open (walkable `seal`; its guardian, Defense
+// Platform V.04 - #13, is wired in controllers/field.touchSeal). Each STEP on the bridge risks the
+// Warmech ambush (systems/encounter.rollBridgeAmbush). The richest chest sits at the gate's foot,
+// across the void — reward past the dread. No rest, no zone boss.
 const RUINS_A3: DungeonLayout = {
-  w: 26, h: 20, entry: { x: 1, y: 10 }, gate: { x: 1, y: 10 }, boss: { x: 22, y: 10 }, // boss == the seal tile (no fight — see `seal`)
-  seal: { x: 22, y: 10 }, // THE SEALED DOOR — something ancient waits behind it (content for later)
+  w: 34, h: 20, entry: { x: 1, y: 10 }, gate: { x: 1, y: 10 }, boss: { x: 31, y: 10 }, // boss == the seal tile (no zone-boss fight — see `seal`)
+  seal: { x: 31, y: 10 }, // THE SEALED GATE — something ancient waits behind it (content for later)
   rooms: [
     { x: 2, y: 8, w: 5, h: 5 },    // up-stair landing
     { x: 9, y: 3, w: 6, h: 5 },    // north vault (chest)
     { x: 9, y: 12, w: 6, h: 5 },   // south vault (chest)
-    { x: 16, y: 7, w: 4, h: 7 },   // the funnel antechamber (the loops rejoin)
-    { x: 20, y: 7, w: 4, h: 7 },   // the DOOR CHAMBER (the seal + the deep hoard)
+    { x: 15, y: 7, w: 4, h: 7 },   // the funnel antechamber — the BRIDGEHEAD (the loops rejoin)
+    { x: 30, y: 7, w: 3, h: 7 },   // the GATE PLATFORM across the void (the seal + the deep hoard)
   ],
   paths: [
     [{ x: 1, y: 10 }, { x: 4, y: 10 }],                          // up-stair → landing
-    [{ x: 4, y: 9 }, { x: 11, y: 5 }, { x: 17, y: 9 }],          // north route: landing → north vault → antechamber
-    [{ x: 4, y: 11 }, { x: 11, y: 14 }, { x: 17, y: 12 }],       // south route: landing → south vault → antechamber (the LOOP)
+    [{ x: 4, y: 9 }, { x: 11, y: 5 }, { x: 16, y: 9 }],          // north route: landing → north vault → bridgehead
+    [{ x: 4, y: 11 }, { x: 11, y: 14 }, { x: 16, y: 12 }],       // south route: landing → south vault → bridgehead (the LOOP)
     [{ x: 11, y: 7 }, { x: 11, y: 12 }],                         // vault cross-link (a second loop)
-    [{ x: 18, y: 10 }, { x: 22, y: 10 }],                        // antechamber → the sealed door
+  ],
+  // THE VOID: everything east of the bridgehead falls away (x19..29, full interior height).
+  chasm: [{ x: 19, y: 1, w: 11, h: 18 }],
+  // THE LONG BRIDGE: a dead-straight 11-tile causeway on the entry row — the only way across.
+  bridge: [
+    { x: 19, y: 10 }, { x: 20, y: 10 }, { x: 21, y: 10 }, { x: 22, y: 10 }, { x: 23, y: 10 },
+    { x: 24, y: 10 }, { x: 25, y: 10 }, { x: 26, y: 10 }, { x: 27, y: 10 }, { x: 28, y: 10 }, { x: 29, y: 10 },
   ],
   chests: [
-    { x: 21, y: 12 },  // the deep hoard, at the sealed door's foot (the delve's richest)
+    { x: 31, y: 12 },  // the deep hoard, at the sealed gate's foot (the delve's richest — across the void)
     { x: 11, y: 4 },   // north vault
     { x: 11, y: 15 },  // south vault
   ],

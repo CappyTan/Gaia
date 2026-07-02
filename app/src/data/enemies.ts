@@ -173,9 +173,14 @@ export const ENEMIES: Record<string, EnemyDef> = {
   hogger: { name: "Hogger", spr: "🐗", att: "ANIMA", lvl: 11, role: "rare", lean: { VIT: 2.2, STR: 1.2 }, xp: 1700, gold: [90, 170], ai: "basic", rare: true },
   metalslime: { name: "Metal Slime", spr: "🪙", att: "QUANTA", lvl: 10, role: "rare", lean: { DEF: 9, VIT: 0.2, SPD: 2.5 }, xp: 1400, gold: [40, 90], ai: "evasive", rare: true },
   metalbabble: { name: "Metal Babble", spr: "🪙", att: "UMBRAXIS", lvl: 12, role: "rare", lean: { DEF: 12, VIT: 0.2, SPD: 2.5 }, xp: 1900, gold: [100, 240], ai: "evasive", rare: true },
-  // Warmech (FF1 homage): an ancient war-construct — canon home is Titan Prime (future zone); for
-  // now it stalks the Duskmarsh as a genuinely dangerous, tanky, hard-hitting rare with a huge hoard.
-  warmech: { name: "Warmech", spr: "🤖", att: "QUANTA", lvl: 13, role: "rare", lean: { VIT: 3, STR: 1.6, DEF: 1.5 }, xp: 2400, gold: [220, 420], ai: "basic", rare: true },
+  // Warmech (FF1 homage — wave6c): the ancient war construct now stalks THE LONG BRIDGE in the
+  // Ancient Ruins' Sealed Deep (floor 3): each step on the causeway risks the ambush (systems/
+  // encounter.BRIDGE_AMBUSH_CHANCE, wired in controllers/field.move — never consumed, later
+  // crossings re-roll). Deliberately OUT-LEVELS the entire shipped arc (endgame trash tops at L19):
+  // a bruiser/wall hybrid lean (heavy STR+VIT+DEF, slow) that is brutally hard for the current arc
+  // but beatable by a strong late party — for a jackpot hoard (rare ⇒ the 3-drop treasure spoil +
+  // outsized XP/gold). Canon home remains Titan Prime (future zone).
+  warmech: { name: "Warmech", spr: "🤖", att: "QUANTA", lvl: 23, role: "rare", lean: { STR: 1.8, AGI: 0.5, VIT: 2.6, SPD: 0.4, DEF: 1.8 }, xp: 6200, gold: [700, 1300], ai: "basic", rare: true },
   // A fat, slow, gilded beast gorged on the golden harvest — wanders the wheat of Goldmeadow. Metal-
   // Slime/Hogger tier: huge armor + middling HP (chips for ~1 unless you crit/hit affinity), slow.
   goldsow: { name: "Gilded Sow", spr: "🐖", att: "ANIMA", lvl: 14, role: "rare", lean: { DEF: 3, VIT: 1.4, SPD: 0.4 }, xp: 2400, gold: [260, 500], ai: "basic", rare: true },
@@ -187,6 +192,21 @@ export const ENEMIES: Record<string, EnemyDef> = {
   goldenstag: { name: "Ruin Goldhart", spr: "🦌", att: "ANIMA", lvl: 17, role: "rare", lean: { DEF: 2.5, VIT: 1.5, SPD: 1.5 }, xp: 3200, gold: [360, 680], ai: "basic", rare: true }, // Dawnfall: skittish gilded ruin-beast
   reliccherub: { name: "Gilt Reliquary", spr: "🕯️", att: "SOL", lvl: 18, role: "rare", lean: { DEF: 15, VIT: 0.2, SPD: 2.5 }, xp: 3600, gold: [400, 720], ai: "evasive", rare: true }, // Whisper Hills: Metal-Babble-tier holy relic
   corsair: { name: "Treasure Corsair", spr: "🦜", att: "QUANTA", lvl: 20, role: "rare", lean: { VIT: 3, STR: 1.6 }, xp: 4800, gold: [600, 1100], ai: "basic", rare: true },          // Sunbridge: a richly-laden, dangerous corsair
+
+  // ── THE GATE GUARDIAN (wave6c — the Ancient Ruins' Sealed Deep). Defense Platform V.04 - #13: the
+  //    ancient civilization's gate-ward — version .04 of the Defense Platform line, unit THIRTEEN, so
+  //    at least a dozen more stand somewhere. A far-ENDGAME setpiece boss (~L35, +MNA-100-equivalent):
+  //    tens of thousands of HP behind a wall of DEF, with the scripted three-turn opener → VAULT PURGE
+  //    PROTOCOL full-party laser (systems/bossScripts → controllers/battle.runScriptStep). It MUST
+  //    overpower any current-arc party — only a far-endgame roster genuinely takes it on. Reached only
+  //    through an explicit Engage/Withdraw warning at the sealed gate (controllers/field.touchSeal);
+  //    never a random spawn, in no zone's encounter tables. boss:true = boss-tier render/AI/stun
+  //    immunity + boss spoils, but it is NOT any zone's authored `boss`, so the zone-advance flow
+  //    ignores it (battle.end's zone-boss identity check). Emoji placeholder — flag for art-integrator.
+  //    LEAN NOTE: at L35 the V3 primaries make the abp amplifier ENORMOUS (~×8.4 on all output), so
+  //    STR is leaned near zero — the derived basic still one-shots any current hero (~990); the
+  //    party-wide Vault Purge magnitude is calibrated in controllers/battle.VAULT_PURGE.power.
+  defplatform: { name: "Defense Platform V.04 - #13", spr: "🗼", att: "QUANTA", lvl: 35, role: "boss", lean: { STR: 0.05, AGI: 0.6, VIT: 0.3, SPD: 0.1, DEF: 2.2 }, xp: 9000, gold: [1500, 2400], ai: "boss", boss: true },
 };
 
 // Pool of ultra-rare monsters eligible to crash a random encounter, with the zone index they
@@ -196,7 +216,8 @@ export const RARE_MONSTERS: { key: string; zones: number[] }[] = [
   { key: "metalslime", zones: [0] },  // Metal Slime — Greenvale (zone 0)
   { key: "mossback", zones: [1] },    // Mossback Tortoise — Silverwood (zone 1; also its grove lair)
   { key: "metalbabble", zones: [2] }, // Metal Babble — the Drowned Vault (zone 2; rarer, richer)
-  { key: "warmech", zones: [2] },     // Warmech — Duskmarsh (zone 2; until Titan Prime exists)
+  // (Warmech is NOT in this pool — wave6c re-homed it to the Sealed Deep's bridge, where it ambushes
+  //  per-step via BRIDGE_AMBUSH_CHANCE in controllers/field.move, not via the random rare roll.)
   { key: "goldsow", zones: [3] },     // Gilded Sow — Goldmeadow (zone 3; the gilded beast in the wheat)
   // AURELION COMPLETE — one rare per new region (zone indices 4–9). Each region's named lair beast is
   // its FIRST eligible entry here (controllers/field.enterLair picks rares[0] for the den).

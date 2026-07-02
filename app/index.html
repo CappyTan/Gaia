@@ -329,6 +329,16 @@
     opacity:0; transform:translateX(-50%) translateY(-8px); transition:opacity .28s ease, transform .28s ease;
     pointer-events:none;}
   .say-line.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  /* VAULT PURGE PROTOCOL (wave6c): the Defense Platform's full-party laser — a screen-wide cyan
+     sweep across the battlefield (battle.ts laserSweep creates + removes the node; the per-target
+     slashes/shakes come from the normal strike FX). Pure presentation. */
+  .vault-laser{position:absolute; left:-10%; right:-10%; top:28%; height:36%; z-index:7; pointer-events:none;
+    background:linear-gradient(180deg, transparent 0%, rgba(122,224,255,0) 16%, rgba(140,232,255,.5) 44%,
+      #eaffff 50%, rgba(140,232,255,.5) 56%, rgba(122,224,255,0) 84%, transparent 100%);
+    opacity:0; transform:scaleY(.05);}
+  .vault-laser.on{animation:vaultlaser .95s ease-out forwards;}
+  @keyframes vaultlaser{0%{opacity:0; transform:scaleY(.04);} 10%{opacity:1; transform:scaleY(.3);}
+    30%{opacity:1; transform:scaleY(1);} 65%{opacity:.85; transform:scaleY(.9);} 100%{opacity:0; transform:scaleY(.1);}}
 
   /* ── battle facelift: grounded, breathing, readable (v0.209) ──
      Ground shadows anchor every combatant to the arena floor; a slow idle sway keeps the field alive
