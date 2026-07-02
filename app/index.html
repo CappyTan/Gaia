@@ -91,9 +91,17 @@
   #fieldScreen{background:#0c1208;}
   #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
   /* soft vignette over the canvas (under the HUD, which follows it in the DOM) — pulls the eye to the
-     player at center and gives the overworld atmospheric depth without touching the tile renderer. */
-  #fieldVignette{position:absolute; inset:0; pointer-events:none;
-    background:radial-gradient(130% 105% at 50% 44%, transparent 58%, rgba(2,6,2,.42) 100%);}
+     player at center and gives the overworld atmospheric depth without touching the tile renderer.
+     PER-BIOME COLOR GRADE: the field controller swaps an atmo-* class on #fieldScreen as you roam
+     (golden shirelands / green forest shade / cold mire murk / blue snowlight / torchlit dungeon dark),
+     layered over the base vignette. Pure CSS — zero per-frame canvas cost. */
+  #fieldVignette{--vig:radial-gradient(130% 105% at 50% 44%, transparent 58%, rgba(2,6,2,.42) 100%);
+    position:absolute; inset:0; pointer-events:none; background:var(--vig); transition:background .6s;}
+  #fieldScreen.atmo-warm   #fieldVignette{background:linear-gradient(180deg, rgba(255,196,110,.10), rgba(255,170,90,.02) 45%, transparent 65%), var(--vig);}
+  #fieldScreen.atmo-forest #fieldVignette{background:linear-gradient(180deg, rgba(70,130,70,.13), rgba(40,90,50,.04) 50%, transparent 70%), var(--vig);}
+  #fieldScreen.atmo-mire   #fieldVignette{background:linear-gradient(180deg, rgba(50,100,90,.17), rgba(30,60,55,.07) 55%, transparent 78%), radial-gradient(130% 105% at 50% 44%, transparent 48%, rgba(2,8,7,.55) 100%);}
+  #fieldScreen.atmo-snow   #fieldVignette{background:linear-gradient(180deg, rgba(160,195,255,.14), rgba(140,170,230,.05) 50%, transparent 70%), var(--vig);}
+  #fieldScreen.atmo-dun    #fieldVignette{background:radial-gradient(85% 70% at 50% 46%, rgba(255,180,90,.06), transparent 55%), radial-gradient(130% 105% at 50% 44%, transparent 40%, rgba(0,0,0,.62) 100%);}
   #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; flex-direction:column; gap:6px; align-items:stretch; pointer-events:none;}
   .hud-row{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;}
   #fieldPartyWrap{align-self:flex-start; max-width:100%;} /* its own line below the zone/controls row — flows, never overlaps */
@@ -199,7 +207,22 @@
   #resStrip .res-pool b{font-size:10px; letter-spacing:.3px;}
   #resStrip .res-pool .res-val{color:#fff;}
   #battleField{position:absolute; top:0; left:0; right:0; height:70%; overflow:hidden;}
-  #battleBg{position:absolute; inset:0;}
+  /* slow Ken-Burns drift keeps the painted arena alive (26s alternate — imperceptible, but never static) */
+  #battleBg{position:absolute; inset:0; animation:bgdrift 26s ease-in-out infinite alternate;}
+  @keyframes bgdrift{from{transform:scale(1) translateX(0);}to{transform:scale(1.06) translateX(-1.2%);}}
+  /* FF-style ENCOUNTER TRANSITION: two white shock-flashes over the field, iris-closed to black while
+     the screen swaps beneath, then an iris-open onto the battle. Pure overlay (pointer-events none) —
+     battle timing is untouched; reduced-motion collapses it to an instant cut. */
+  #battleSwirl{position:absolute; inset:0; z-index:24; pointer-events:none; display:none;}
+  #battleSwirl.go{display:block; animation:bswirl .74s ease-in forwards;}
+  @keyframes bswirl{
+    0%{background:rgba(255,255,255,0); clip-path:circle(145% at 50% 44%);}
+    9%{background:rgba(255,255,255,.9);}
+    16%{background:rgba(245,240,255,.12);}
+    24%{background:rgba(255,255,255,.75);}
+    34%{background:#05050c; clip-path:circle(145% at 50% 44%);}
+    56%{background:#05050c; clip-path:circle(145% at 50% 44%);}
+    100%{background:#05050c; clip-path:circle(0% at 50% 44%);}}
   /* battlefield depth: an edge vignette + a grounding gradient along the bottom of the arena, painted
      as battleBg's own ::after so it sits over the background art but under every combatant/UI sibling. */
   #battleBg::after{content:""; position:absolute; inset:0; pointer-events:none;
@@ -245,7 +268,10 @@
   #enemyZone.has-boss{justify-content:center; align-items:center;}
   #enemyZone.has-boss .enemy{flex-direction:column; align-items:center; gap:4px; text-align:center;}
   #enemyZone.has-boss .enemy .ebar{width:80%; min-width:120px; flex:0 0 auto;}
-  .enemy.acting{transform:translateX(10px) scale(1.05); filter:brightness(1.18);}
+  /* acting enemy: brightness lift on the row + a real DASH toward the heroes on its sprite */
+  .enemy.acting{filter:brightness(1.18);}
+  .enemy.acting .spr-img, .enemy.acting .spr{animation:enemyDash .55s ease;}
+  @keyframes enemyDash{0%{transform:translateX(0);}35%{transform:translateX(30px) scale(1.06);}60%{transform:translateX(34px) scale(1.06);}100%{transform:translateX(0);}}
   .enemy .ename{font-size:12px;}
   .att-tag{font-size:10px; font-weight:bold; letter-spacing:.3px;}
   .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
@@ -257,10 +283,14 @@
   .doll img.dl-body, .doll img.dl-layer{position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain;
     filter:contrast(1.05) saturate(1.04) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 5px 5px rgba(0,0,0,.6));}
   .doll img.dl-wep{position:absolute; height:auto; transform-origin:center center; pointer-events:none;}
-  .pchar.acting .spr, .pchar.acting .doll{animation:bob .5s ease;}
-  @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
-  .pchar.hurt .spr, .pchar.hurt .doll{animation:shake .25s;}
+  /* acting hero: a real DASH toward the enemy line (replaces the old in-place bob) */
+  .pchar.acting .spr, .pchar.acting .doll{animation:heroDash .5s ease;}
+  @keyframes heroDash{0%{transform:translateX(0);}35%{transform:translateX(-30px) scale(1.07);}60%{transform:translateX(-34px) scale(1.07);}100%{transform:translateX(0);}}
+  /* struck combatant: shake + a hard white hit-flash (both sides — enemies had NO hit reaction before) */
+  .pchar.hurt .spr, .pchar.hurt .doll,
+  .enemy.hurt .spr-img, .enemy.hurt .spr{animation:shake .25s, hitflash .25s;}
   @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
+  @keyframes hitflash{0%,55%{filter:brightness(2.3) saturate(.35);}100%{filter:none;}}
 
   /* ── battle facelift: grounded, breathing, readable (v0.209) ──
      Ground shadows anchor every combatant to the arena floor; a slow idle sway keeps the field alive
@@ -275,9 +305,20 @@
   .pchar::before{right:2px; width:58px;}
   .pchar.downed::before{opacity:.25;}
   @keyframes idlesway{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
-  .enemy:not(.champion):not(.rare):not(.enraged):not(.dead) .spr-img, .pchar .doll{animation:idlesway 3.4s ease-in-out infinite;}
+  /* :not(.acting):not(.hurt) keeps the sway selector's specificity from swallowing the dash/hit-flash */
+  .enemy:not(.champion):not(.rare):not(.enraged):not(.dead):not(.acting):not(.hurt) .spr-img,
+  .pchar:not(.acting):not(.hurt) .doll{animation:idlesway 3.4s ease-in-out infinite;}
   .enemy:nth-child(2n) .spr-img, .pchar:nth-child(2n) .doll{animation-delay:-1.7s;}
   .enemy:nth-child(3n) .spr-img{animation-delay:-2.6s;}
+  /* BATTLE ENTRANCE: combatants sweep in from their own side when the fight opens (the controller adds
+     .enter to nodes built during the first second of a battle; staggered per slot). */
+  .enemy.enter{animation:entL .45s ease backwards;}
+  .pchar.enter{animation:entR .45s ease backwards;}
+  .enemy.enter:nth-child(2){animation-delay:.07s;} .enemy.enter:nth-child(3){animation-delay:.14s;}
+  .enemy.enter:nth-child(4){animation-delay:.21s;} .enemy.enter:nth-child(5){animation-delay:.28s;}
+  .pchar.enter:nth-child(2){animation-delay:.07s;} .pchar.enter:nth-child(3){animation-delay:.14s;}
+  @keyframes entL{from{opacity:0; transform:translateX(-46px);}}
+  @keyframes entR{from{opacity:0; transform:translateX(46px);}}
   .pchar.turn::after{content:"▼"; position:absolute; top:-15px; right:23px; color:var(--gold); font-size:13px;
     text-shadow:0 0 8px rgba(244,210,122,.85); animation:caretbob 1s ease-in-out infinite; pointer-events:none; z-index:2;}
   @keyframes caretbob{50%{transform:translateY(3px);}}
@@ -619,6 +660,7 @@
   </div>
 
   <!-- OVERLAYS -->
+  <div id="battleSwirl"></div><!-- FF-style encounter transition (flash → iris) — Battle.begin() plays it -->
   <div id="overlay" class="overlay"><div id="overlayInner" class="card"></div></div>
 
 </div></div>
