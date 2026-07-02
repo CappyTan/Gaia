@@ -209,7 +209,15 @@ export const Field = {
   // collision/encounters/POIs; only the camera + drawn walker glide between tiles (~115ms, eased), with
   // a small foot-bob. A held direction chains glides from the current visual position so motion flows.
   _glide: null as null | { fx: number; fy: number; t0: number; ms: number },
-  _glideRaf: 0,
+  // AMBIENT LOOP (the living world): one shared RAF loop drives glides at full rate and ambient life
+  // (water shimmer, drifting motes) at ~30fps while the field screen is visible. Self-stops when the
+  // field hides or the tab backgrounds; any draw() restarts it. Skipped under prefers-reduced-motion.
+  _loopRaf: 0,
+  _loopLast: 0,
+  _motes: [] as { x: number; y: number; vx: number; vy: number; r: number; p: number }[],
+  _moteStyle: "",
+  _moteLast: 0,
+  _atmo: "",
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
   // Stage 2C: the big map is CONTINENT-WIDE — every built zone's authored blueprint is realized into
   // the one 960×640 world, the open continent bridging them (G22). `authoredGrids` maps a built zone
@@ -387,6 +395,8 @@ export const Field = {
     this.hint();
     this.draw();
     window.addEventListener("resize", () => { this.resize(); this.draw(); });
+    // returning to the tab restarts the ambient loop (it self-stops while hidden to save battery)
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) this.draw(); });
     this.setupPointerWalk();
   },
 
@@ -1446,6 +1456,7 @@ export const Field = {
     if (!c || !this.canvas) return;
     c.clearRect(0, 0, this.vw, this.vh);
     const viewW = Math.ceil(this.vw / t), viewH = Math.ceil(this.vh / t);
+    const now = performance.now(); // one frame clock: water shimmer + motes + glide all share it
     // fractional camera on the glide position (world coords, unclamped — the world is huge): integer
     // tile origin + sub-tile pixel offset, so the continent scrolls smoothly under the walker.
     const vp = this.glidePos(this.wx, this.wy);
@@ -1475,6 +1486,12 @@ export const Field = {
           c.fillStyle = v >= 0 ? `rgba(255,250,235,${v / 60})` : `rgba(0,0,0,${-v / 90})`; // warm lift / faint shade
           c.fillRect(sx, sy, t, t);
         }
+      }
+      // EDGE AO: contact shading where a floor tile meets a raised solid — grounds the tree walls /
+      // cliffs (D4) to the floor plane and kills the flat grid read. Recessed kinds own their edges (D5).
+      if (!FIELD_WALLS.has(cell.kind) && cell.kind !== "water" && cell.kind !== "river" && cell.kind !== "gorge") {
+        const solidW = (gx: number, gy: number): boolean => FIELD_WALLS.has(this.cellAt(gx, gy).kind);
+        FR.edgeShade(c, sx, sy, t, solidW(wx, wy - 1), solidW(wx, wy + 1), solidW(wx - 1, wy), solidW(wx + 1, wy));
       }
       // object / scatter sprites (emoji fallback) — biome-skinned.
       c.font = `${t * 0.82}px serif`;
@@ -1515,7 +1532,7 @@ export const Field = {
       }
       else if (POI_KINDS.has(cell.kind)) FR.drawPoiCell(c, T, cell.kind, this.poiNameAt(wx, wy, true), sx, sy, t); // captioned landmark
       else if (cell.kind === "cliff") { if (T.cliff) FR.castShadow(c, sx, sy, t, 0.34, 0.32); else FR.drawCliffFace(c, sx, sy, t); } // D4 RAISED face
-      else if (cell.kind === "river") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy)); // D5 RECESSED watercourse (over flat OR sprite)
+      else if (cell.kind === "river") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy), now); // D5 RECESSED watercourse (over flat OR sprite)
       else if (cell.kind === "gorge" && !T.gorge) {
         // D3 LEGIBLE GORGE (placeholder until art-integrator slices a ravine sprite — flagged in the
         // hand-back). The flat already laid the DARK chasm floor (#0f1622); add a lighter ROCKY RIM on the
@@ -1551,7 +1568,7 @@ export const Field = {
         else if (biome === "coast" || biome === "beach" || biome === "harbor") tall(T["coast-rock"], "🌴");
         else tall(gimg, "🌲");
       }
-      else if (cell.kind === "water") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy)); // D5 (over flat OR sprite)
+      else if (cell.kind === "water") FR.drawRecessedWater(c, wx, wy, sx, sy, t, (gx, gy) => this.bigWet(gx, gy), now); // D5 (over flat OR sprite)
       else if (cell.kind === "bush") {
         // D4 DECORATIVE scatter (walkable floor): a SMALL soft shadow so the prop sits on the ground — NOT
         // the full wall cast (a bush/fern is a low prop you walk past, not a wall to skirt).
@@ -1590,24 +1607,104 @@ export const Field = {
       c.drawImage(pimg, cx - pw / 2, py, pw, ph); c.shadowBlur = 0;
     } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy - bob); }
     c.restore();
+    // ambient atmosphere: biome motes over the scene + the CSS color grade, then keep the loop alive.
+    const amb = this.fieldAmbience();
+    this.drawMotes(c, amb, now);
+    this.setAtmo(amb);
+    this.ensureLoop();
   },
 
   // Begin a smooth visual glide from the tile just left. Guarded for headless/test runs (no canvas /
-  // no RAF) and honors prefers-reduced-motion (steps snap instantly, as before). The transient RAF
-  // loop runs only while a glide is live (~115ms per step), so idle frames cost nothing.
+  // no RAF) and honors prefers-reduced-motion (steps snap instantly, as before).
   glideFrom(ox: number, oy: number): void {
     if (!this.canvas || typeof requestAnimationFrame === "undefined") return;
     if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const from = this.glidePos(ox, oy); // chain: start where the eye currently is, not the old tile
     this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115 };
-    if (this._glideRaf) return; // draw loop already running
-    const loop = (): void => {
-      const g = this._glide;
-      if (g && performance.now() - g.t0 >= g.ms) this._glide = null;
-      this.draw();
-      this._glideRaf = this._glide ? requestAnimationFrame(loop) : 0;
+    this.ensureLoop();
+  },
+  // The shared field animation loop: full-rate frames while a glide is live, ~30fps ambient otherwise
+  // (water shimmer + motes). Self-stopping: exits when the field screen hides / tab backgrounds; any
+  // draw() while visible restarts it, so returning from battle or a menu resumes the living world.
+  ensureLoop(): void {
+    if (this._loopRaf || !this.canvas || typeof requestAnimationFrame === "undefined") return;
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const tick = (): void => {
+      this._loopRaf = 0;
+      const scr = typeof document !== "undefined" ? document.getElementById("fieldScreen") : null;
+      if (!scr || !scr.classList.contains("on") || document.hidden) return; // self-stop
+      const now = performance.now();
+      if (this._glide && now - this._glide.t0 >= this._glide.ms) this._glide = null;
+      if (this._glide || now - this._loopLast >= 32) { this._loopLast = now; this.draw(); }
+      this._loopRaf = requestAnimationFrame(tick);
     };
-    this._glideRaf = requestAnimationFrame(loop);
+    this._loopRaf = requestAnimationFrame(tick);
+  },
+  // The field's current AMBIENCE — drives the biome particle style + the CSS color grade. One of
+  // warm (golden shirelands) / forest (green shade) / mire (cold murk) / snow (blue chill) / dun (torchlit dark).
+  fieldAmbience(): string {
+    if (this.mode === "dungeon") return "dun";
+    if (this.townMode) return "warm";
+    if (this.bigMapActive()) {
+      const b = this.cellAt(this.wx, this.wy).biome;
+      if (b === "mire") return "mire";
+      if (b === "snow" || b === "ice" || b === "stone") return "snow";
+      if (b === "forest") return "forest";
+      return "warm";
+    }
+    if (this.isMire()) return "mire";
+    if (this.isForest()) return "forest";
+    return "warm";
+  },
+  // Swap the CSS color-grade class on #fieldScreen when the ambience changes (cheap no-op otherwise).
+  setAtmo(a: string): void {
+    if (a === this._atmo) return;
+    this._atmo = a;
+    const s = typeof document !== "undefined" ? document.getElementById("fieldScreen") : null;
+    if (!s) return;
+    ["atmo-warm", "atmo-forest", "atmo-mire", "atmo-snow", "atmo-dun"].forEach((k) => s.classList.remove(k));
+    s.classList.add("atmo-" + a);
+  },
+  // AMBIENT MOTES: a light screen-space particle pass — golden pollen on the shirelands, drifting spores
+  // under the forest, fog wisps + marsh-lights in the mire, snowfall in the cold biomes, sinking dust in
+  // dungeons. Presentation only; reseeds when the ambience changes. (Math.random is fine here — this is
+  // the presentation layer, not systems/.)
+  drawMotes(c: CanvasRenderingContext2D, style: string, now: number): void {
+    if (style !== this._moteStyle || !this._motes.length) {
+      this._moteStyle = style;
+      const count = style === "snow" ? 42 : style === "mire" ? 19 : style === "dun" ? 14 : 26;
+      this._motes = Array.from({ length: count }, (_, i) => {
+        const m = { x: Math.random() * this.vw, y: Math.random() * this.vh, vx: 0, vy: 0, r: 0, p: Math.random() * Math.PI * 2 };
+        if (style === "snow") { m.vx = 6 + Math.random() * 10; m.vy = 20 + Math.random() * 28; m.r = 1 + Math.random() * 1.6; }
+        else if (style === "mire") { const fog = i < 6; m.vx = 3 + Math.random() * 5; m.vy = fog ? 0 : -2.5; m.r = fog ? 55 + Math.random() * 70 : 1.4; }
+        else if (style === "dun") { m.vx = (Math.random() - 0.5) * 3; m.vy = 3 + Math.random() * 4; m.r = 1 + Math.random(); }
+        else if (style === "forest") { m.vx = (Math.random() - 0.5) * 5; m.vy = 5 + Math.random() * 7; m.r = 1 + Math.random() * 1.4; }
+        else { m.vx = 5 + Math.random() * 7; m.vy = -(3 + Math.random() * 5); m.r = 1 + Math.random() * 1.5; } // warm pollen
+        return m;
+      });
+      this._moteLast = now;
+    }
+    const dt = Math.min(0.1, (now - this._moteLast) / 1000); this._moteLast = now;
+    c.save();
+    for (const m of this._motes) {
+      m.x = (m.x + m.vx * dt + this.vw) % this.vw;
+      m.y = (m.y + m.vy * dt + this.vh) % this.vh;
+      const tw = 0.5 + 0.5 * Math.sin(now / 700 + m.p); // twinkle 0..1
+      if (m.r > 10) { // mire fog wisp: two concentric soft ellipses
+        c.fillStyle = "rgba(160,200,190,.035)";
+        c.beginPath(); c.ellipse(m.x, m.y, m.r, m.r * 0.42, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "rgba(170,210,200,.03)";
+        c.beginPath(); c.ellipse(m.x, m.y, m.r * 0.6, m.r * 0.26, 0, 0, Math.PI * 2); c.fill();
+        continue;
+      }
+      c.fillStyle = style === "snow" ? `rgba(235,242,255,${0.5 + 0.35 * tw})`
+        : style === "dun" ? `rgba(205,190,165,${0.14 + 0.12 * tw})`
+        : style === "mire" ? `rgba(150,230,190,${0.25 + 0.45 * tw})` // marsh-lights
+        : style === "forest" ? `rgba(190,230,170,${0.2 + 0.3 * tw})`
+        : `rgba(255,222,140,${0.22 + 0.38 * tw})`; // warm pollen
+      c.beginPath(); c.arc(m.x, m.y, m.r, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
   },
   // The walker's VISUAL grid position: fractional mid-glide, the live tile once settled. The target is
   // the caller's live coords (px/py or wx/wy) so a glide always lands on truth; a jump of >2 tiles is a
@@ -1635,6 +1732,7 @@ export const Field = {
     if (!c || !this.canvas) return;
     c.clearRect(0, 0, this.vw, this.vh);
     const viewW = Math.ceil(this.vw / t), viewH = Math.ceil(this.vh / t);
+    const now = performance.now(); // one frame clock: motes + glide share it
     // fractional camera centered on the glide position (clamped to the map), split into an integer tile
     // origin + a sub-tile pixel offset so the world scrolls smoothly under the walker between steps.
     const vp = this.glidePos(this.px, this.py);
@@ -1729,6 +1827,15 @@ export const Field = {
           else if (mire && cell !== "water") { c.fillStyle = "rgba(20,28,18,.28)"; c.fillRect(sx, sy, t, t); } // grim wash
           else if (grove || groveArea) { c.fillStyle = "rgba(8,20,8,.34)"; c.fillRect(sx, sy, t, t); } // deep, hushed canopy shade
         }
+        // EDGE AO: contact shading on floor tiles that meet a raised solid (tree mass / dungeon wall) —
+        // grounds the walls to the floor and breaks the flat tile-grid read (see fieldRender.edgeShade).
+        if (!["tree", "cliff", "water", "river"].includes(cell)) {
+          const solid = (gx: number, gy: number): boolean => {
+            const k = this.map[gy]?.[gx];
+            return k === "tree" || k === "cliff" || (inDun && (k === "bush" || k === "rock"));
+          };
+          FR.edgeShade(c, sx, sy, t, solid(mx, my - 1), solid(mx, my + 1), solid(mx - 1, my), solid(mx + 1, my));
+        }
         // overlays / object sprites (fall back to emoji if art isn't loaded)
         c.font = `${t * 0.82}px serif`;
         const obj = (img: HTMLImageElement | undefined, emoji: string, sc = 0.9) => {
@@ -1808,6 +1915,9 @@ export const Field = {
       c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy - bob);
     }
     c.restore();
+    // ambient atmosphere: biome motes over the scene (labels stay crisp — drawn after, below).
+    const amb = this.fieldAmbience();
+    this.drawMotes(c, amb, now);
     // LABEL PASS (town) — every caption drawn LAST, on top of all tiles, NPC sprites AND the player marker
     // (so nothing paints over it — the original bug), each clamped into the viewport so edge labels aren't
     // clipped. textAlign is "center": clamp center-x by half the measured width. The top clamp must clear
@@ -1825,5 +1935,7 @@ export const Field = {
         c.strokeText(L.text, x, y); c.fillText(L.text, x, y);
       }
     }
+    this.setAtmo(amb);
+    this.ensureLoop();
   },
 };

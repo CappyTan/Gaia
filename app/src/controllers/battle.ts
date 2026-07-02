@@ -55,8 +55,15 @@ export const Battle = {
   // false so the two don't stack); `mirror` flips the slash for a hero→enemy hit (see strike).
   _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean; mirror: boolean }[],
   _animHasImpact: false,   // true while resolving an animatedStrike whose anim supplies its own impact
+  _enter: false,           // true for the first ~1s of a battle: nodes built now get the .enter sweep-in
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = "", eliteChance = 0.22): void {
+    // FF-style encounter transition: white shock-flashes over the field, iris to black while the screen
+    // swaps beneath (everything below runs synchronously under the cover), iris-open onto the battle.
+    // Pure overlay — combat timing untouched; reduced-motion collapses it to an instant cut.
+    const sw = $("#battleSwirl");
+    if (sw) { sw.classList.remove("go"); void sw.offsetWidth; sw.classList.add("go"); setTimeout(() => sw.classList.remove("go"), 820); }
+    this._enter = true; setTimeout(() => { this._enter = false; }, 1000); // entrance-sweep window
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
     this.enemies = enemyKeys.map((k, i) => makeEnemy(k, i, isBoss, dp, i === champIdx, Math.random, eliteChance));
@@ -738,7 +745,7 @@ export const Battle = {
     const reuse = z.children.length === this.enemies.length;
     this.enemies.forEach((e, i) => {
       const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
-      const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : "");
+      const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : "") + (this._enter ? " enter" : "");
       const art = e.art || e.key;
       const bar = `<div class="ebar">
         <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
@@ -779,7 +786,7 @@ export const Battle = {
       const col = m.row === "back" ? back! : front!;
       // `.turn` marks the hero whose command menu is open ON THE BATTLEFIELD (a gold caret + lit ground
       // ring, CSS) — before, whose turn it was only showed in the lower roster panel.
-      const cls = "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : "") + (m === this.current && m.alive ? " turn" : "");
+      const cls = "pchar" + (m.alive ? "" : " downed") + (m.acting ? " acting" : "") + (m._hurt ? " hurt" : "") + (m === this.current && m.alive ? " turn" : "") + (this._enter ? " enter" : "");
       const cur = z.querySelector<HTMLElement>(`.pchar[data-mid="${m.id}"]`);
       if (cur && cur.dataset.alive === String(m.alive)) {
         // same alive-state → keep the doll, refresh only flags + the status-badge strip.

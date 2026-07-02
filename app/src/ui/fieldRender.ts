@@ -45,12 +45,19 @@ export function drawCliffFace(c: Ctx, sx: number, sy: number, t: number): void {
 // plane, with a lit shoreline LIP on the LAND side casting a short shadow DOWN into the water (the bank
 // reads as a drop-off), plus a faint specular ripple for life. `wet(dx,dy)` probes orthogonal neighbours
 // (controller-supplied) to find the land-side faces.
-export function drawRecessedWater(c: Ctx, wx: number, wy: number, sx: number, sy: number, t: number, wet: (gx: number, gy: number) => boolean): void {
+export function drawRecessedWater(c: Ctx, wx: number, wy: number, sx: number, sy: number, t: number, wet: (gx: number, gy: number) => boolean, now = 0): void {
   c.save();
   c.fillStyle = "rgba(10,28,46,.32)"; c.fillRect(sx, sy, t, t); // deepen + cool the surface
   const n = ((wx * 0x9e3779b1) ^ (wy * 0x85ebca77)) >>> 0;       // faint specular ripple highlight
-  c.fillStyle = "rgba(150,200,230,.16)";
-  c.fillRect(sx + t * (0.2 + (n % 3) * 0.18), sy + t * (0.3 + ((n >> 3) % 3) * 0.16), t * 0.26, Math.max(1, t * 0.06));
+  // LIVING WATER: given a clock, the glint drifts + breathes (phase-offset per tile so the whole body
+  // doesn't pulse in sync); with now=0 (tests / one-shot draws) it's the original static highlight.
+  const ph = now ? Math.sin(now / 900 + wx * 0.7 + wy * 1.3) : 0;
+  c.fillStyle = `rgba(150,200,230,${(0.13 + 0.07 * ph).toFixed(3)})`;
+  c.fillRect(sx + t * (0.2 + (n % 3) * 0.18 + ph * 0.05), sy + t * (0.3 + ((n >> 3) % 3) * 0.16), t * 0.26, Math.max(1, t * 0.06));
+  if (now) { // a counter-phase second glint low on the tile — reads as a moving surface
+    c.fillStyle = `rgba(170,215,240,${(0.05 - 0.045 * ph).toFixed(3)})`;
+    c.fillRect(sx + t * (0.55 - ph * 0.06), sy + t * 0.66, t * 0.2, Math.max(1, t * 0.05));
+  }
   const lip = Math.max(2, t * 0.16);
   const edge = (land: boolean, lx: number, ly: number, lw: number, lh: number, shx: number, shy: number, shw: number, shh: number) => {
     if (!land) return;
@@ -62,6 +69,25 @@ export function drawRecessedWater(c: Ctx, wx: number, wy: number, sx: number, sy
   edge(!wet(wx, wy + 1), sx, sy + t - lip, t, lip, sx, sy + t - lip * 1.7, t, lip * 0.7); // south bank
   edge(!wet(wx + 1, wy), sx + t - lip, sy, lip, t, sx + t - lip * 1.7, sy, lip * 0.7, t); // east bank
   c.restore();
+}
+
+// EDGE AO (ambient occlusion): soft contact shading on a FLOOR tile along each edge that meets a raised
+// solid (tree mass / wall / cliff). Grounds walls to the floor and breaks the flat tile-grid look — the
+// biggest single "not a prototype" cue a tile renderer can add. Two layered flat fills per edge fake a
+// gradient with zero per-frame gradient-object allocation (this runs every ambient frame).
+export function edgeShade(c: Ctx, sx: number, sy: number, t: number, n: boolean, s: boolean, w: boolean, e: boolean): void {
+  if (!n && !s && !w && !e) return;
+  const d = Math.max(3, t * 0.24), h = d * 0.45;
+  c.fillStyle = "rgba(0,0,0,.10)";
+  if (n) c.fillRect(sx, sy, t, d);
+  if (s) c.fillRect(sx, sy + t - d, t, d);
+  if (w) c.fillRect(sx, sy, d, t);
+  if (e) c.fillRect(sx + t - d, sy, d, t);
+  c.fillStyle = "rgba(0,0,0,.12)";
+  if (n) c.fillRect(sx, sy, t, h);
+  if (s) c.fillRect(sx, sy + t - h, t, h);
+  if (w) c.fillRect(sx, sy, h, t);
+  if (e) c.fillRect(sx + t - h, sy, h, t);
 }
 
 // The dungeon/cave MOUTH gets a gold caption (like town POIs) so the east-spine POI reads as a named
