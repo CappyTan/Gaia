@@ -22,6 +22,7 @@ import { emptyProgress, markRegionEntered, markRegionKnown, type Progress } from
 import { Music } from "../audio/music";
 import { settlement, SETTLEMENTS, TOWN_GLYPHS, TOWN_BLOCKERS, POI_OF, type Settlement, type TownNPC } from "../data/towns";
 import { ENEMIES, RARE_MONSTERS } from "../data/enemies";
+import { poiQuestScope } from "../data/quests";
 import { rollItemAtLevel } from "../systems/loot";
 import { rollEncounter, pickAreaSet } from "../systems/encounter";
 import { applyReprieve } from "../systems/reprieve";
@@ -1228,7 +1229,12 @@ export const Field = {
       Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">Tents, a smouldering fire, and unfriendly faces — they spot you. Their hoard is yours if you take it.</p><div class="row"><button class="btn gold" onclick="Overlay.hide();Field.fightCamp()">Raid the camp</button></div>`);
       return;
     }
-    // landmark / signpost — a non-blocking flavor/hint line (the tile stays; no consume).
+    // landmark / signpost — an OVERWORLD QUEST GIVER may wait here (a wayside petitioner keyed to
+    // this landmark in data/quests); quest business (offer / progress / turn-in) precedes the flavor
+    // line, exactly like Field.talkTo's town-giver hook. The tile stays, so returning turns it in.
+    const scope = poiQuestScope(zoneId, poi.name);
+    if (scope && Game.openQuestTalk(scope, "poi")) return;
+    // otherwise: a non-blocking flavor/hint line (the tile stays; no consume).
     const line = poi.note || (poi.kind === "signpost" ? "A weathered signpost points the way." : "An old landmark, heavy with the shire's memory.");
     Overlay.show(`<h2 class="title-gold">${poi.name}</h2><p class="small">${line}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Move on</button></div>`);
   },
