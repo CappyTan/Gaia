@@ -56,6 +56,14 @@ export const Battle = {
   _animFloats: [] as { u: Unit; txt: string; color: string; crit: boolean; att: Unit["att"]; univ: boolean; mirror: boolean }[],
   _animHasImpact: false,   // true while resolving an animatedStrike whose anim supplies its own impact
   _enter: false,           // true for the first ~1s of a battle: nodes built now get the .enter sweep-in
+  // BATTLE ATMOSPHERE (#battleFx canvas): per-environment weather so the arena is never static —
+  // wind-streaks + pollen on open ground, drifting leaves in forest, rain in the mire, rising embers
+  // underground — plus GLINTS that sparkle across the backdrop's water band where the painted bg has
+  // water. Self-stopping RAF loop (pauses when the battle screen hides); reduced-motion skips it.
+  _fxRaf: 0,
+  _fxLast: 0,
+  _fxParts: [] as { x: number; y: number; vx: number; vy: number; r: number; p: number; life: number }[],
+  _fxStyle: "",
 
   begin(enemyKeys: string[], env: string, isBoss: boolean, finalBoss: boolean, depth: number, champIdx = -1, zoneId = "", eliteChance = 0.22): void {
     // FF-style encounter transition: white shock-flashes over the field, iris to black while the screen
@@ -86,6 +94,7 @@ export const Battle = {
     this.awaiting = false; this.current = null; this.logLines = [];
     Screens.show("battle");
     this.renderBg(); this.renderAll();
+    this.ensureFx();
     this.lockInput(700); // swallow taps bleeding over from the field D-pad as the screen swaps in
     const lead = this.enemies.find((e) => e.boss) || this.enemies[0];
     this.log(isBoss ? `${lead.name} blocks the path!` : "Enemies ambush the party!");
@@ -683,6 +692,79 @@ export const Battle = {
     };
     countUp("victXp", xp, (n) => `+${n}`);
     countUp("victGold", gold, (n) => `+◈ ${n}`);
+  },
+
+  /* ---- battle atmosphere (weather + water glints) ---- */
+  fxStyleFor(env: string): { kind: string; glint: [number, number] | null } {
+    if (env === "mire") return { kind: "rain", glint: [0.5, 0.64] };
+    if (env === "forest") return { kind: "leaves", glint: null };
+    if (["hollow", "warren", "vault", "seacave", "smuggden", "crypt", "stronghold", "keepvault", "citadel", "granary"].includes(env)) return { kind: "embers", glint: null };
+    return { kind: "wind", glint: env === "plains" ? [0.23, 0.33] : null }; // plains bg has the lake band
+  },
+  ensureFx(): void {
+    if (this._fxRaf || typeof requestAnimationFrame === "undefined") return;
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = $("#battleFx") as HTMLCanvasElement | null; if (!cv) return;
+    const tick = (): void => {
+      this._fxRaf = 0;
+      const scr = document.getElementById("battleScreen");
+      if (!scr || !scr.classList.contains("on") || document.hidden) { this._fxParts = []; this._fxStyle = ""; return; } // self-stop
+      const now = performance.now();
+      if (now - this._fxLast >= 32) { this._fxLast = now; this.stepFx(cv, now); }
+      this._fxRaf = requestAnimationFrame(tick);
+    };
+    this._fxRaf = requestAnimationFrame(tick);
+  },
+  stepFx(cv: HTMLCanvasElement, now: number): void {
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const { kind, glint } = this.fxStyleFor(this.env);
+    if (kind !== this._fxStyle) { // (re)seed on env change
+      this._fxStyle = kind;
+      const n = kind === "rain" ? 70 : kind === "leaves" ? 26 : kind === "embers" ? 22 : 30;
+      this._fxParts = Array.from({ length: n + (glint ? 10 : 0) }, (_, i) => {
+        const isGlint = glint ? i >= n : false;
+        const m = { x: Math.random() * w, y: Math.random() * h, vx: 0, vy: 0, r: 0, p: Math.random() * Math.PI * 2, life: isGlint ? Math.random() : -1 };
+        if (isGlint && glint) { m.y = h * (glint[0] + Math.random() * (glint[1] - glint[0])); m.r = 1.4 + Math.random() * 1.4; }
+        else if (kind === "rain") { m.vx = -60 - Math.random() * 40; m.vy = 420 + Math.random() * 180; m.r = 7 + Math.random() * 6; }
+        else if (kind === "leaves") { m.vx = 22 + Math.random() * 26; m.vy = 26 + Math.random() * 22; m.r = 2 + Math.random() * 2; }
+        else if (kind === "embers") { m.vx = (Math.random() - 0.5) * 12; m.vy = -(16 + Math.random() * 22); m.r = 1 + Math.random() * 1.4; }
+        else { m.vx = 90 + Math.random() * 80; m.vy = (Math.random() - 0.5) * 8; m.r = 1 + Math.random() * 1.2; }
+        return m;
+      });
+    }
+    const c = cv.getContext("2d")!; c.clearRect(0, 0, w, h);
+    const dt = 0.033;
+    for (const m of this._fxParts) {
+      if (m.life >= 0) { // water glint: pulse in place, respawn along the band when the pulse dies
+        m.life += dt * 0.55;
+        if (m.life >= 1) { m.life = 0; m.x = Math.random() * w; }
+        const a = Math.sin(m.life * Math.PI) * 0.55;
+        c.strokeStyle = `rgba(235,248,255,${a.toFixed(3)})`; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(m.x - m.r * 2, m.y); c.lineTo(m.x + m.r * 2, m.y); c.moveTo(m.x, m.y - m.r); c.lineTo(m.x, m.y + m.r); c.stroke();
+        continue;
+      }
+      m.x += m.vx * dt; m.y += m.vy * dt;
+      if (m.x > w + 20) m.x = -10; if (m.x < -20) m.x = w + 10;
+      if (m.y > h + 20) m.y = -10; if (m.y < -20) m.y = h + 10;
+      if (this._fxStyle === "rain") {
+        c.strokeStyle = "rgba(190,215,235,.34)"; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(m.x, m.y); c.lineTo(m.x + m.vx * 0.03, m.y + m.vy * 0.03); c.stroke();
+      } else if (this._fxStyle === "leaves") {
+        const rot = now / 600 + m.p;
+        c.fillStyle = "rgba(150,190,110,.5)";
+        c.save(); c.translate(m.x, m.y); c.rotate(rot); c.fillRect(-m.r, -m.r * 0.45, m.r * 2, m.r * 0.9); c.restore();
+      } else if (this._fxStyle === "embers") {
+        const tw = 0.4 + 0.4 * Math.sin(now / 300 + m.p);
+        c.fillStyle = `rgba(255,160,70,${tw.toFixed(3)})`;
+        c.beginPath(); c.arc(m.x, m.y, m.r, 0, Math.PI * 2); c.fill();
+      } else { // wind: faint fast streaks + a slow pollen shimmer
+        const a = 0.05 + 0.05 * Math.sin(now / 500 + m.p);
+        c.strokeStyle = `rgba(255,244,220,${a.toFixed(3)})`; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(m.x, m.y); c.lineTo(m.x - 14 - m.r * 6, m.y + 1); c.stroke();
+      }
+    }
   },
 
   /* ---- rendering ---- */

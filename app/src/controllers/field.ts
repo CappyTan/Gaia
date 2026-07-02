@@ -3,6 +3,7 @@
 // `systems/mapgen` (pure, RNG-injected); the canvas DRAW primitives are `ui/fieldRender` (pure, ctx+data
 // in); the encounter composition is `systems/encounter`. See ADR 0012 for the god-module split.
 
+import type { Item } from "../types";
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri } from "../core/rng";
@@ -1012,7 +1013,7 @@ export const Field = {
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
-    Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+    this.chestReveal(it);
   },
   // The rare-monster den in big-map space (Hogger): consume it, then start the solo rare fight.
   enterBigLair(wx: number, wy: number): void {
@@ -1182,7 +1183,37 @@ export const Field = {
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
-    Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`);
+    this.chestReveal(it);
+  },
+  // CINEMATIC CHEST REVEAL (Dara: "almost like a slot machine"): the chest rattles while a slot window
+  // spins through teaser names in random rarity colours, decelerating tick by tick — then bursts open
+  // and the REAL drop pops in. The item is already banked in the inventory before this plays, so
+  // closing early can never lose loot. Reduced-motion (or a missing overlay) skips straight to the card.
+  chestReveal(it: Item): void {
+    const reveal = `<div id="chestReveal" style="display:none">${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div></div>`;
+    const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { Overlay.show(`<h2 class="title-gold">Treasure!</h2>${itemHtml(it)}<div class="row"><button class="btn gold" onclick="Overlay.hide()">Take it</button></div>`); return; }
+    Overlay.show(`<h2 class="title-gold">Treasure!</h2>
+      <div class="chest-cin rolling"><div class="chest-box">📦</div><div class="chest-slot" id="chestSlot">…</div></div>${reveal}`);
+    const TEASE = ["Worn Blade", "Iron Helm", "Silver Ring", "Oaken Staff", "Leather Gloves", "Traveler's Boots", "Aether Trinket", "Mystic Charm", "Steel Cuirass", "Hunter's Bow"];
+    const COLS = ["#9aa0a6", "#6fce6f", "#5aa2e8", "#b06fe8", "#f4a442", "#ef6a6a"];
+    let delay = 55;
+    const tick = (): void => {
+      const slot = document.getElementById("chestSlot");
+      if (!slot) return; // overlay closed early — the loot is already in the bag
+      if (delay > 340) { // land: burst the box open and pop the real card in
+        const cin = slot.closest(".chest-cin");
+        if (cin) { cin.classList.remove("rolling"); cin.classList.add("open"); }
+        slot.textContent = "";
+        const r = document.getElementById("chestReveal"); if (r) { r.style.display = ""; r.classList.add("burst"); }
+        return;
+      }
+      slot.textContent = TEASE[Math.floor(Math.random() * TEASE.length)];
+      (slot as HTMLElement).style.color = COLS[Math.floor(Math.random() * COLS.length)];
+      delay *= 1.22;
+      setTimeout(tick, delay);
+    };
+    setTimeout(tick, delay);
   },
   // DUNGEON REST NODE (skill §1 breather, ADR 0010): a rest tile that applies THIS dungeon's TAILORED
   // reprieve ONCE per visit, then spends (reverts to floor). Deliberately partial + themed — never a full
@@ -1488,6 +1519,17 @@ export const Field = {
           c.fillRect(sx, sy, t, t);
         }
       }
+      // MACRO VARIATION: two offset 4×4-tile patch grids lay soft warm-light / cool-shade washes over
+      // the ground plane (stable hash — no shimmer), so identical ground sprites stop reading as a
+      // repeating wallpaper. Staggered grids overlap into 3 tint levels with broken, organic borders.
+      if (!FIELD_WALLS.has(cell.kind) && cell.kind !== "uncharted") {
+        const mA = ((((wx >> 2) * 40503) ^ ((wy >> 2) * 91507)) >>> 0) % 9;
+        const mB = (((((wx + 2) >> 2) * 63689) ^ (((wy + 2) >> 2) * 378551)) >>> 0) % 9;
+        if (mA === 0) { c.fillStyle = "rgba(255,240,200,.045)"; c.fillRect(sx, sy, t, t); }
+        else if (mA === 1) { c.fillStyle = "rgba(15,28,12,.05)"; c.fillRect(sx, sy, t, t); }
+        if (mB === 0) { c.fillStyle = "rgba(255,236,190,.035)"; c.fillRect(sx, sy, t, t); }
+        else if (mB === 1) { c.fillStyle = "rgba(12,24,14,.04)"; c.fillRect(sx, sy, t, t); }
+      }
       // EDGE AO: contact shading where a floor tile meets a raised solid — grounds the tree walls /
       // cliffs (D4) to the floor plane and kills the flat grid read. Recessed kinds own their edges (D5).
       if (!FIELD_WALLS.has(cell.kind) && cell.kind !== "water" && cell.kind !== "river" && cell.kind !== "gorge") {
@@ -1506,8 +1548,15 @@ export const Field = {
       const tall = (img: HTMLImageElement | undefined, emoji: string, sc = 1.45, shadow = 0.34) => {
         FR.castShadow(c, sx, sy, t, 0.34, shadow);
         if (img) {
-          const h = t * sc, w = h * (img.width / img.height), ay = sy + t * 0.86 - h;
-          c.drawImage(img, sx + t / 2 - w / 2, ay, w, h);
+          // DE-REPETITION JITTER: a stable per-tile hash varies each solid's scale (±12%), position
+          // (±10% tile) and mirroring, so a mass of the same sprite reads as an organic thicket rather
+          // than a wallpaper grid — the single loudest "prototype tiling" cue.
+          const tj = ((wx * 73856093) ^ (wy * 19349663)) >>> 0;
+          const js = 1 + ((tj % 7) - 3) * 0.04;
+          const jx = (((tj >> 3) % 5) - 2) * t * 0.05, jy = (((tj >> 6) % 3) - 1) * t * 0.03;
+          const h = t * sc * js, w = h * (img.width / img.height), ax = sx + t / 2 + jx, ay = sy + t * 0.86 - h + jy;
+          if (((tj >> 9) & 1) === 1) { c.save(); c.translate(ax, 0); c.scale(-1, 1); c.drawImage(img, -w / 2, ay, w, h); c.restore(); }
+          else c.drawImage(img, ax - w / 2, ay, w, h);
         } else {
           c.font = `${t * sc}px serif`; c.textBaseline = "alphabetic";
           c.fillText(emoji, sx + t / 2, sy + t * 0.9); c.textBaseline = "middle"; c.font = `${t * 0.82}px serif`;
