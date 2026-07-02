@@ -62,7 +62,7 @@ export const Battle = {
     // swaps beneath (everything below runs synchronously under the cover), iris-open onto the battle.
     // Pure overlay — combat timing untouched; reduced-motion collapses it to an instant cut.
     const sw = $("#battleSwirl");
-    if (sw) { sw.classList.remove("go"); void sw.offsetWidth; sw.classList.add("go"); setTimeout(() => sw.classList.remove("go"), 820); }
+    if (sw) { sw.classList.remove("go"); void sw.offsetWidth; sw.classList.add("go"); setTimeout(() => sw.classList.remove("go"), 860); }
     this._enter = true; setTimeout(() => { this._enter = false; }, 1000); // entrance-sweep window
     this.active = true; this.isBoss = !!isBoss; this.finalBoss = !!finalBoss; this.env = env || "plains";
     const dp = depth || 0;
@@ -637,8 +637,10 @@ export const Battle = {
     setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem), 500);
   },
   showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null): void {
-    let h = `<h2 class="title-gold">Victory</h2>
-      <div class="spoils-head"><span class="spoil-pill"><b>+${xp}</b> XP</span><span class="spoil-pill aether"><b>+◈ ${gold}</b> Aether</span></div>`;
+    // FANFARE: a burst-in VICTORY banner over slow-turning golden rays; XP/Aether count up; loot
+    // cards cascade in. All CSS/DOM — the numbers land at their true values even if animation is off.
+    let h = `<div class="vict"><div class="vict-rays"></div><div class="vict-title">VICTORY</div></div>
+      <div class="spoils-head"><span class="spoil-pill"><b id="victXp">+${xp}</b> XP</span><span class="spoil-pill aether"><b id="victGold">+◈ ${gold}</b> Aether</span></div>`;
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
     if (gotItem) h += `<div class="card" style="background:#161226;border-color:var(--gold);text-align:left">
@@ -658,7 +660,7 @@ export const Battle = {
       h += "</div>";
     }
     if (drops.length) {
-      h += `<div class="tag">Loot</div><div class="scroll">`;
+      h += `<div class="tag">Loot</div><div class="scroll vict-loot">`;
       drops.forEach((d) => { h += itemHtml(d); });
       h += "</div>";
     } else h += `<p class="small">No loot this time.</p>`;
@@ -667,6 +669,20 @@ export const Battle = {
     h += wasFinal ? `<button class="btn gold" onclick="UI.close()">Finish</button>` : `<button class="btn gold" onclick="UI.close()">Continue</button>`;
     h += `</div><div class="small" style="margin-top:8px">Victory jingle: <a class="link" onclick="Music.cycleStyle('victory')">${cap(Music.styleByState.victory)} ▸</a></div>`;
     Overlay.show(h);
+    // Count the XP/Aether up from 0 over ~0.9s (pure flourish — the DOM above already holds the real
+    // totals, so a mid-animation close/re-render can never show a wrong number for long).
+    const countUp = (id: string, target: number, fmt: (n: number) => string): void => {
+      const elx = document.getElementById(id); if (!elx || target <= 0) return;
+      const t0 = performance.now(), dur = 900;
+      const step = (): void => {
+        const k = Math.min(1, (performance.now() - t0) / dur), eased = 1 - (1 - k) * (1 - k) * (1 - k);
+        elx.textContent = fmt(Math.round(target * eased));
+        if (k < 1 && document.getElementById(id)) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    countUp("victXp", xp, (n) => `+${n}`);
+    countUp("victGold", gold, (n) => `+◈ ${n}`);
   },
 
   /* ---- rendering ---- */
@@ -747,16 +763,24 @@ export const Battle = {
       const rank = e.boss ? " boss" : e.miniboss ? " miniboss" : "";
       const cls = "enemy" + (e.alive ? "" : " dead") + rank + (e.rare ? " rare" : e.champion ? " champion" : e.elite ? " elite" : "") + (targetable && e.alive ? " targetable" : "") + (e.acting ? " acting" : "") + (e.enraged ? " enraged" : "") + (this._enter ? " enter" : "");
       const art = e.art || e.key;
+      const hpPct = pct(e.hp, e.maxhp);
+      const ename = `<div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>`;
+      // HP bar carries a red GHOST layer under the green fill: on damage the green snaps, the ghost
+      // drains down after it (CSS transition) — the classic "here's what that hit cost" read.
       const bar = `<div class="ebar">
-        <div class="ename">${e.rare ? "✦ RARE " : e.champion ? "★ Champion " : ""}${e.name} <span class="att-tag" style="color:${ATT[e.att].color}">◆${e.att}</span>${e.eliteAffixes ? ` <span class="badge ${e.champion ? "champ" : "atkup"}">${e.eliteAffixes.join(" ")}</span>` : ""}${statusBadges(e)}</div>
-        <div class="bar hp"><i style="width:${pct(e.hp, e.maxhp)}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
+        ${ename}
+        <div class="bar hp"><i class="ghost" style="width:${hpPct}%"></i><i style="width:${hpPct}%"></i><span class="bartxt">${Math.max(0, e.hp)}/${e.maxhp}</span></div>
         <div class="bar atb"><i style="width:${e.atb}%"></i></div></div>`;
       const cur = reuse ? (z.children[i] as HTMLElement) : null;
       if (cur && cur.dataset.art === art) {
-        // same creature, same art → keep the sprite, refresh only flags + the bar block.
+        // same creature, same art → keep the sprite; update the bar SURGICALLY (not an outerHTML swap)
+        // so the ghost layer persists across renders and its catch-up drain actually animates.
         if (cur.className !== cls) cur.className = cls;
-        const ebar = cur.querySelector(".ebar");
-        if (ebar) ebar.outerHTML = bar;
+        const en = cur.querySelector(".ename"); if (en) en.outerHTML = ename;
+        const hpG = cur.querySelector<HTMLElement>(".bar.hp > i:not(.ghost)"); if (hpG) hpG.style.width = hpPct + "%";
+        const gh = cur.querySelector<HTMLElement>(".bar.hp > i.ghost"); if (gh) gh.style.width = hpPct + "%";
+        const btxt = cur.querySelector(".bar.hp .bartxt"); if (btxt) btxt.textContent = `${Math.max(0, e.hp)}/${e.maxhp}`;
+        const atb = cur.querySelector<HTMLElement>(".bar.atb > i"); if (atb) atb.style.width = e.atb + "%";
         cur.onclick = targetable && e.alive ? () => this.targetClicked(e) : null;
       } else {
         const d = el("div", cls);
@@ -826,14 +850,17 @@ export const Battle = {
   },
   renderRoster(barsOnly?: boolean): void {
     const p = $("#rosterRows")!;
-    if (!barsOnly || p.children.length !== Game.party.length) {
+    // Build once, then ALWAYS reconcile in place — a rebuild would recreate the HP bars and reset the
+    // red ghost layer, killing its catch-up drain animation mid-fight.
+    if (p.children.length !== Game.party.length) {
       p.innerHTML = "";
       this.rosterOrder().forEach((m) => {
+        const w = pct(m.hp, m.maxhp);
         const row = el("div", "prow" + (m === this.current ? " turn" : "") + (m.alive ? "" : " downed"));
         row.dataset.id = m.id;
         row.innerHTML = `<div class="pn" style="color:${m.alive ? ATT[m.att].color : "#666"}">${m.name}${statusBadges(m)}</div>
         <div class="bars">
-          <div class="bar hp"><i style="width:${pct(m.hp, m.maxhp)}%"></i><span class="bartxt">${Math.max(0, m.hp)}/${m.maxhp}</span></div>
+          <div class="bar hp"><i class="ghost" style="width:${w}%"></i><i style="width:${w}%"></i><span class="bartxt">${Math.max(0, m.hp)}/${m.maxhp}</span></div>
           <div class="bar atb"><i style="width:${m.atb}%"></i></div>
         </div>`;
         p.appendChild(row);
@@ -844,9 +871,16 @@ export const Battle = {
       const m = Game.party.find((x) => x.id === (row as HTMLElement).dataset.id);
       if (!m) return;
       row.classList.toggle("turn", m === this.current);
-      const bars = row.querySelectorAll<HTMLElement>(".bar > i");
-      if (bars[0]) { bars[0].style.width = pct(m.hp, m.maxhp) + "%"; row.querySelector(".bar.hp .bartxt")!.textContent = `${Math.max(0, m.hp)}/${m.maxhp}`; }
-      if (bars[1]) bars[1].style.width = m.atb + "%"; // [hp, atb] — the MP bar was removed (Battle 2.0 uses cooldowns + Resource pools)
+      row.classList.toggle("downed", !m.alive);
+      if (!barsOnly) {
+        const pn = row.querySelector<HTMLElement>(".pn");
+        if (pn) { pn.style.color = m.alive ? ATT[m.att].color : "#666"; pn.innerHTML = `${m.name}${statusBadges(m)}`; }
+      }
+      const w = pct(m.hp, m.maxhp) + "%";
+      const hpG = row.querySelector<HTMLElement>(".bar.hp > i:not(.ghost)");
+      if (hpG) { hpG.style.width = w; row.querySelector(".bar.hp .bartxt")!.textContent = `${Math.max(0, m.hp)}/${m.maxhp}`; }
+      const gh = row.querySelector<HTMLElement>(".bar.hp > i.ghost"); if (gh) gh.style.width = w;
+      const atb = row.querySelector<HTMLElement>(".bar.atb > i"); if (atb) atb.style.width = m.atb + "%";
     });
   },
   // The battle log lives in the right column of the lower window: a scrollable history (capped),

@@ -8,7 +8,7 @@ import { ri, pick } from "../core/rng";
 import { PARTY_DEFS } from "../data/party";
 import { ZONES, type Zone } from "../data/zones";
 import { settlement } from "../data/towns";
-import { makeMember, recalc } from "../systems/progression";
+import { START_LEVEL, makeMember, recalc } from "../systems/progression";
 import { starterWeapon, rollItemAtLevel, itemScore } from "../systems/loot";
 import { zeroResources } from "../systems/resources";
 import { emptyItems, grantItem, capsFromItems, type OwnedItems } from "../systems/inventory";
@@ -91,6 +91,9 @@ export const Game = {
     this._hubChain = []; this._hubIx = 0;
     Telemetry.load(); Telemetry.startSession();
     this.party = defs.map((d) => makeMember(d));
+    // Heroes begin at level 10 with those levels' MNA banked in their own tree (Dara) — the 5/10 MNA
+    // milestones are open immediately (one special + one signature pickable from the first minute).
+    this.party.forEach((m) => { m.level = START_LEVEL; m.mnaAlloc[m.att] += START_LEVEL - 1; });
     // starting gear: a common weapon each, IN THE HERO'S CHOSEN ATTUNEMENT — otherwise the
     // weapon (which sets the class) would default to SOL and silently re-class the whole party.
     this.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +3 MNA starter weapon

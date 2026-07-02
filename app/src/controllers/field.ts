@@ -208,7 +208,7 @@ export const Field = {
   // SMOOTH-STEP GLIDE (presentation only): logic stays discrete — px/py (or wx/wy) snap immediately for
   // collision/encounters/POIs; only the camera + drawn walker glide between tiles (~115ms, eased), with
   // a small foot-bob. A held direction chains glides from the current visual position so motion flows.
-  _glide: null as null | { fx: number; fy: number; t0: number; ms: number },
+  _glide: null as null | { fx: number; fy: number; t0: number; ms: number; lin: boolean },
   // AMBIENT LOOP (the living world): one shared RAF loop drives glides at full rate and ambient life
   // (water shimmer, drifting motes) at ~30fps while the field screen is visible. Self-stops when the
   // field hides or the tab backgrounds; any draw() restarts it. Skipped under prefers-reduced-motion.
@@ -218,6 +218,7 @@ export const Field = {
   _moteStyle: "",
   _moteLast: 0,
   _atmo: "",
+  _held: null as null | [number, number], // held walk direction (d-pad press / key held) — loop-paced
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
   // Stage 2C: the big map is CONTINENT-WIDE — every built zone's authored blueprint is realized into
   // the one 960×640 world, the open continent bridging them (G22). `authoredGrids` maps a built zone
@@ -1620,9 +1621,21 @@ export const Field = {
     if (!this.canvas || typeof requestAnimationFrame === "undefined") return;
     if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const from = this.glidePos(ox, oy); // chain: start where the eye currently is, not the old tile
-    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115 };
+    // Held travel glides LINEARLY (uniform speed tile-to-tile — no per-step deceleration stutter);
+    // a single tap keeps the soft ease-out landing.
+    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115, lin: !!this._held };
     this.ensureLoop();
   },
+  // HELD-DIRECTION WALKING (d-pad pointerdown / key held): record the direction and let the animation
+  // loop chain one step per finished glide — continuous fluid travel instead of key-repeat stutter.
+  // While a glide is live, repeat calls are absorbed (the loop paces the steps); with the loop
+  // unavailable (reduced-motion), each call steps directly, preserving the old behavior.
+  hold(dx: number, dy: number): void {
+    this._held = [dx, dy];
+    if (!this._glide) this.move(dx, dy);
+    this.ensureLoop();
+  },
+  release(): void { this._held = null; },
   // The shared field animation loop: full-rate frames while a glide is live, ~30fps ambient otherwise
   // (water shimmer + motes). Self-stopping: exits when the field screen hides / tab backgrounds; any
   // draw() while visible restarts it, so returning from battle or a menu resumes the living world.
@@ -1635,6 +1648,11 @@ export const Field = {
       if (!scr || !scr.classList.contains("on") || document.hidden) return; // self-stop
       const now = performance.now();
       if (this._glide && now - this._glide.t0 >= this._glide.ms) this._glide = null;
+      // held travel: chain the next step the moment the current glide lands (a dialog/overlay stops it)
+      if (!this._glide && this._held) {
+        if (Overlay.isOn() || Dialogue.isOn()) this._held = null;
+        else this.move(this._held[0], this._held[1]);
+      }
       if (this._glide || now - this._loopLast >= 32) { this._loopLast = now; this.draw(); }
       this._loopRaf = requestAnimationFrame(tick);
     };
@@ -1713,7 +1731,7 @@ export const Field = {
     const g = this._glide;
     if (!g || Math.abs(tx - g.fx) > 2 || Math.abs(ty - g.fy) > 2) return { x: tx, y: ty, k: 0 };
     const k = Math.min(1, (performance.now() - g.t0) / g.ms);
-    const e = 1 - (1 - k) * (1 - k); // ease-out: brisk start, soft landing
+    const e = g.lin ? k : 1 - (1 - k) * (1 - k); // held: linear (uniform speed) · tap: ease-out landing
     return { x: g.fx + (tx - g.fx) * e, y: g.fy + (ty - g.fy) * e, k };
   },
 
