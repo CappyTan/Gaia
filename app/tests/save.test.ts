@@ -30,7 +30,7 @@ beforeEach(() => {
 function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot } {
   const a = makeMember(buildDef("h0", "Auren", "SOL", "Sword & Shield", "front"));
   const b = makeMember(buildDef("h1", "Kaela", "NOX", "Dual Swords", "front"));
-  a.level = 5; a.xp = 42; // MNA is DERIVED (ADR 0021: floor(level/5) + gear) — nothing to bank
+  a.level = 5; a.xp = 42; // MNA is DERIVED (ADR 0021: mnaFloor(level) + gear) — nothing to bank
   a.equip.weapon = makeItem(a.cls, "weapon", 2, a.cls, 10, "SOL");
   a.equip.armor = makeItem(null, "armor", 3, null, 10, "SOL");
   b.level = 4; b.xp = 10;

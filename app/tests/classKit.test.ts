@@ -8,7 +8,7 @@ import { SKILLS } from "../src/data/skills";
 import { HELIOMANCER, SPECS } from "../src/data/classSpecs";
 import { genAbility } from "../src/systems/classGen";
 import { turnGain } from "../src/systems/resources";
-import { makeMember, recalc } from "../src/systems/progression";
+import { makeMember, recalc, mnaFloor } from "../src/systems/progression";
 import { buildDef } from "../src/data/party";
 import type { Item } from "../src/types";
 
@@ -122,7 +122,9 @@ describe("progression — recalc resolves the V3 kit from picks (no legacy fallb
 
   it("picks above the member's MNA go dormant (only Attack/Defend remain)", () => {
     const m = heliomancer();
-    m.equip.trinket = solWell(4); // below the @5 milestone
+    // TOTAL must land below the @5 milestone; a fresh member is level 1, which (ADR 0021, amended
+    // v0.213) already contributes its own mnaFloor(1)=1 baseline — top up the trinket to land at 4.
+    m.equip.trinket = solWell(4 - mnaFloor(m.level));
     m.picks = { "special@5": ["Firebolt"] };
     recalc([m]);
     expect(m.skills).toEqual([]);

@@ -310,10 +310,10 @@ export interface Member extends Unit {
   equip: Record<Slot, Item | null>;
   skills: string[];
   /** DEAD (ADR 0021 D4): the banked-allocation model is deleted. recalc now mirrors the DERIVED
-   *  level floor here (floor(level/5), active attunement) so the legacy Mana screen reads the truth
+   *  level floor here (mnaFloor(level), active attunement) so the legacy Mana screen reads the truth
    *  until its removal lands (controllers/menus.ts, owned separately). Never a source of truth. */
   mnaAlloc: MnaPools;
-  /** Effective MNA = derived level floor (floor(level/5), active attunement) + gear (ADR 0021;
+  /** Effective MNA = derived level floor (mnaFloor(level), active attunement) + gear (ADR 0021;
    *  computed by recalc, also mirrored to Unit.mna). */
   mna: MnaPools;
   /** DEAD (ADR 0021 D4): unspent-allocation pool; recalc forces 0. Kept only for the legacy Mana screen. */

@@ -32,8 +32,9 @@ import { BattleLog } from "../telemetry/battleLog";
 import { gearScore } from "../systems/gearScore";
 import { noteKills } from "../systems/quests";
 import { QUESTS } from "../data/quests";
-import { rollBattleMaterials, addCounts, type Counts } from "../systems/crafting";
+import { rollBattleMaterials, rollBattleConsumables, addCounts, type Counts } from "../systems/crafting";
 import { MATERIALS } from "../data/materials";
+import { CONSUMABLES } from "../data/consumables";
 import { Game } from "./game";
 import { Screens } from "./screens";
 import { Field } from "./field";
@@ -740,6 +741,10 @@ export const Battle = {
     // pool (pure roll — systems/crafting off data/materials); banked straight into the run's stacks.
     const matDrops = rollBattleMaterials(this.enemies.map((e) => e.key));
     addCounts(Game.materials, matDrops);
+    // CONSUMABLE DROPS: a modest flat chance per fallen foe to shed a ready-made potion directly
+    // (independent of crafting — pure roll, systems/crafting off data/consumables).
+    const consDrops = rollBattleConsumables(this.enemies.map((e) => e.key));
+    addCounts(Game.consumables, consDrops);
     // QUESTS: every fallen enemy counts toward accepted kill-bounties (pure log op — systems/quests).
     const questsDone = noteKills(Game.quests, this.enemies.filter((e) => !e.alive).map((e) => e.key));
     const leveled = grantXp(Game.party, xp);
@@ -767,9 +772,9 @@ export const Battle = {
       : () => Screens.show("field");
     if (Game.testMode && Game.testReturn) Game.continueAfterBattle = Game.testReturn; // Test Loop (ADR 0017): victory routes to the loop menu, not the field/zone flow
     Game.saveNow(); // autosave after a battle resolves — XP/gold/loot/level all applied (ADR 0007). (early-returns under testMode)
-    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem, questsDone, matDrops), 500);
+    setTimeout(() => this.showSpoils(xp, gold, drops, leveled, wasFinal, gotItem, questsDone, matDrops, consDrops), 500);
   },
-  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null, questsDone: string[] = [], matDrops: Counts = {}): void {
+  showSpoils(xp: number, gold: number, drops: Item[], leveled: LevelUp[], wasFinal: boolean, gotItem: HeldItemDef | null = null, questsDone: string[] = [], matDrops: Counts = {}, consDrops: Counts = {}): void {
     // FANFARE: a burst-in VICTORY banner over slow-turning golden rays; XP/Aether count up; loot
     // cards cascade in. All CSS/DOM — the numbers land at their true values even if animation is off.
     let h = `<div class="vict"><div class="vict-rays"></div><div class="vict-title">VICTORY</div></div>
@@ -778,7 +783,12 @@ export const Battle = {
     const matPills = Object.entries(matDrops)
       .map(([id, n]) => { const m = MATERIALS[id]; return m ? `<span class="spoil-pill"><b>${m.icon} ${m.name}</b> ×${n}</span>` : ""; })
       .join("");
-    if (matPills) h += `<div class="spoils-head" style="margin-top:4px">${matPills}</div>`;
+    // CONSUMABLE PILLS: the ready-made potions the fallen shed directly (already banked above),
+    // alongside the material pills so a lucky drop reads at a glance.
+    const consPills = Object.entries(consDrops)
+      .map(([id, n]) => { const c = CONSUMABLES[id]; return c ? `<span class="spoil-pill"><b>${c.icon} ${c.name}</b> ×${n}</span>` : ""; })
+      .join("");
+    if (matPills || consPills) h += `<div class="spoils-head" style="margin-top:4px">${matPills}${consPills}</div>`;
     // A held quest/key item picked up from this fight (e.g. the raft from the Kingpin) — a distinct callout
     // above the loot, since it goes to the Items tab, not the Bag.
     for (const qid of questsDone) {

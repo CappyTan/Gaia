@@ -127,11 +127,11 @@ export function makeItem(cls: string | null, slot: Slot, rarityIx: number, weapo
   return { slot, cls: weaponClass || cls || "", att: itemAtt, rarity: R.key, rIx: r, ilvl: Math.max(0, Math.round(ilvl)), name, implicit, mna, prim, affixes };
 }
 
-/** MNA every hero's starting weapon grants in its own Attunement (ADR 0021 D3). The ADR says "≥5"
- *  (the first special threshold), but heroes start at LEVEL 10 (Dara, v0.211) with BOTH the 5-MNA
- *  special and the 10-MNA signature milestones meant to be open on day one — the derived level floor
- *  is floor(10/5)=2, so the guarantee must be ≥8 (2 + 8 = 10). Hence +8, not the ADR's literal ≥5. */
-export const STARTER_WEAPON_MNA = 8;
+/** MNA every hero's starting weapon grants in its own Attunement (ADR 0021 D3, amended v0.213).
+ *  Heroes start at LEVEL 1 (reverted from the v0.211 level-10 start) with BOTH the 5-MNA special and
+ *  the 10-MNA signature milestones meant to be open on day one — the piecewise level floor at L1 is
+ *  mnaFloor(1)=1, so the guarantee must be +10 (1 + 10 = 11, past both thresholds). */
+export const STARTER_WEAPON_MNA = 10;
 /** The basic level-0 weapon a new hero begins with — a common piece in their class, pinned to a
  *  deterministic +STARTER_WEAPON_MNA (not the random roll) so every new character starts identically. */
 export function starterWeapon(cls: string, att: Attunement, rng: Rng = Math.random): Item {

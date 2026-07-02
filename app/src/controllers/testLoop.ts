@@ -74,7 +74,7 @@ export const TestLoop = {
    *  hero's own Attunement, recalc), set it to the chosen level, then show the loop. */
   installParty(defs: MemberDef[]): void {
     Game.party = defs.map((d) => makeMember(d));
-    Game.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +8 MNA starter
+    Game.party.forEach((m) => { m.equip.weapon = starterWeapon(m.cls, m.att); }); // fixed +10 MNA starter
     recalc(Game.party);
     this.setLevel(this.level); // sets level/MNA/HP and renders the loop menu
   },
@@ -82,7 +82,7 @@ export const TestLoop = {
   pickParty(): void { Roster.open((defs) => this.installParty(defs)); },
 
   /** Set every hero to level N (1–100), full HP/MP — a clean bench character. MNA is DERIVED
-   *  (ADR 0021: floor(level/5) + gear), so recalc rebuilds it; nothing to bank here. Coerces a
+   *  (ADR 0021: mnaFloor(level) + gear), so recalc rebuilds it; nothing to bank here. Coerces a
    *  string (from the number field). */
   setLevel(n: number | string): void {
     const v = Math.round(Number(n));

@@ -35,6 +35,18 @@ import { Game } from "./game";
 import { Battle } from "./battle";
 import { Telemetry } from "../telemetry/telemetry";
 
+// ── OVERWORLD MOVEMENT TUNING (Dara: tune-here constants for the walk feel) ────────────────────────
+// WALK_MS — how long (ms) the walker + camera take to glide across ONE tile. Lower = faster/twitchier,
+// higher = slower/more deliberate. 170ms ≈ 5.9 tiles/sec, a brisk "classic JRPG overworld walk" pace
+// (the old value, 115ms ≈ 8.7 tiles/sec, read as a dash/twitch, not a walk — see field-movement-audit.md).
+export const WALK_MS = 170;
+// TURN_MS — how long (ms) the character holds its NEW facing before it actually steps, when the
+// pressed direction is a REORIENTATION (not a continuation of the current facing). This is the
+// classic "plant and pivot" beat (Pokémon/Zelda-style): turning reads as an intentional, readable pivot
+// instead of an instant slide-while-spinning. Continuing straight in the SAME facing skips it entirely
+// — zero added latency for normal walking. Set to 0 to disable (instant turn-and-step, the old behavior).
+export const TURN_MS = 90;
+
 // Per-zone dungeon tileset prefix (east of the gate), indexed by zoneIndex: Greenvale -> Bandit
 // Warren, Silverwood -> the Sunless Grove, Duskmarsh -> Drowned Vault. Matches ZONES order + the
 // per-zone `dungeon.env`.
@@ -221,9 +233,12 @@ export const Field = {
   face: "down" as "down" | "up" | "left" | "right", // walk-cycle facing, set from the last move's dx/dy
   step: 0,                                        // walk-cycle counter, advanced on each successful step
   // SMOOTH-STEP GLIDE (presentation only): logic stays discrete — px/py (or wx/wy) snap immediately for
-  // collision/encounters/POIs; only the camera + drawn walker glide between tiles (~115ms, eased), with
+  // collision/encounters/POIs; only the camera + drawn walker glide between tiles (WALK_MS, eased), with
   // a small foot-bob. A held direction chains glides from the current visual position so motion flows.
-  _glide: null as null | { fx: number; fy: number; t0: number; ms: number; lin: boolean },
+  _glide: null as null | { fx: number; fy: number; t0: number; ms: number },
+  // TURN-THEN-WALK: sits between a facing change and the actual step (see TURN_MS). Cleared the instant
+  // the beat completes (which re-attempts the step) or the direction is released before it fires.
+  _turn: null as null | { dx: number; dy: number; t0: number },
   // AMBIENT LOOP (the living world): one shared RAF loop drives glides at full rate and ambient life
   // (water shimmer, drifting motes) at ~30fps while the field screen is visible. Self-stops when the
   // field hides or the tab backgrounds; any draw() restarts it. Skipped under prefers-reduced-motion.
@@ -661,8 +676,19 @@ export const Field = {
     // While a conversation is open, the d-pad/move keys advance the dialogue instead of walking.
     if (Dialogue.isOn()) { Dialogue.advance(); return; }
     if (Overlay.isOn()) return;
-    // Turn to face the direction we're trying to walk (even into a wall) — drives the walk-cycle sprite.
-    if (dx < 0) this.face = "left"; else if (dx > 0) this.face = "right"; else if (dy < 0) this.face = "up"; else if (dy > 0) this.face = "down";
+    const face = dx < 0 ? "left" : dx > 0 ? "right" : dy < 0 ? "up" : dy > 0 ? "down" : this.face;
+    // TURN-THEN-WALK (see TURN_MS): reorienting plants for a short beat before the step executes, so a
+    // direction change reads as a pivot, not an instant slide-while-spinning. Continuing in the SAME
+    // facing (the common case while walking) skips this entirely. No-op mid-glide (can't turn while
+    // already moving between tiles — the existing glide finishes on its own facing first).
+    if (TURN_MS > 0 && face !== this.face && !this._glide) {
+      this.face = face;
+      this._turn = { dx, dy, t0: performance.now() };
+      this.draw(); this.ensureLoop();
+      return;
+    }
+    this._turn = null;
+    this.face = face;
     if (this.bigMapActive()) { this.bigMove(dx, dy); return; } // windowed big-map roams in world coords
     const nx = this.px + dx, ny = this.py + dy;
     // Walking into an NPC talks to them (you don't move onto their tile).
@@ -1947,9 +1973,7 @@ export const Field = {
     if (!this.canvas || typeof requestAnimationFrame === "undefined") return;
     if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const from = this.glidePos(ox, oy); // chain: start where the eye currently is, not the old tile
-    // Held travel glides LINEARLY (uniform speed tile-to-tile — no per-step deceleration stutter);
-    // a single tap keeps the soft ease-out landing.
-    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115, lin: !!this._held };
+    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: WALK_MS };
     this.ensureLoop();
   },
   // HELD-DIRECTION WALKING (d-pad pointerdown / key held): record the direction and let the animation
@@ -1974,12 +1998,19 @@ export const Field = {
       if (!scr || !scr.classList.contains("on") || document.hidden) return; // self-stop
       const now = performance.now();
       if (this._glide && now - this._glide.t0 >= this._glide.ms) this._glide = null;
+      // TURN-THEN-WALK completion: once the pivot beat elapses, re-attempt the step (now facing the
+      // right way, so move() falls through to the real movement path). Released mid-turn = just a turn.
+      if (this._turn && now - this._turn.t0 >= TURN_MS) {
+        const { dx, dy } = this._turn;
+        this._turn = null;
+        if (this._held) this.move(dx, dy);
+      }
       // held travel: chain the next step the moment the current glide lands (a dialog/overlay stops it)
-      if (!this._glide && this._held) {
+      if (!this._glide && !this._turn && this._held) {
         if (Overlay.isOn() || Dialogue.isOn()) this._held = null;
         else this.move(this._held[0], this._held[1]);
       }
-      if (this._glide || now - this._loopLast >= 32) { this._loopLast = now; this.draw(); }
+      if (this._glide || this._turn || now - this._loopLast >= 32) { this._loopLast = now; this.draw(); }
       this._loopRaf = requestAnimationFrame(tick);
     };
     this._loopRaf = requestAnimationFrame(tick);
@@ -2057,16 +2088,28 @@ export const Field = {
     const g = this._glide;
     if (!g || Math.abs(tx - g.fx) > 2 || Math.abs(ty - g.fy) > 2) return { x: tx, y: ty, k: 0 };
     const k = Math.min(1, (performance.now() - g.t0) / g.ms);
-    const e = g.lin ? k : 1 - (1 - k) * (1 - k); // held: linear (uniform speed) · tap: ease-out landing
+    // Smoothstep (3k²−2k³): a gentle, symmetric ease-in/ease-out on every tile — a soft launch off the
+    // previous tile and a soft landing on the next, chained seamlessly step to step (each tile starts
+    // its OWN curve from the exact resting point of the last, so consecutive tiles never jump/overshoot).
+    // Uniform across tapped AND held movement — no held-vs-tap branch (that distinction used to exist
+    // but was unreachable in practice; see the movement audit).
+    const e = k * k * (3 - 2 * k);
     return { x: g.fx + (tx - g.fx) * e, y: g.fy + (ty - g.fy) * e, k };
   },
 
-  // The player sprite for the current frame: the directional walk-cycle frame (player-<face>-<n>),
-  // cycling neutral→step→neutral→step as `step` advances; falls back to the static sprite if a frame
-  // is missing (so a partial art load never blanks the hero).
+  // The player sprite for the current frame: player-<face>-<0|1|2>, 1 = neutral mid-stance (rest pose).
+  // SYNCED TO ACTUAL GLIDE PROGRESS (not to input events — the root cause of the old "slideshow" look):
+  // idle/turning (no glide) always shows neutral; mid-glide, the first half of each tile shows neutral
+  // and the second half shows a strike-frame, so the leg-swap visibly lands partway ACROSS the tile
+  // rather than snapping the instant a new tile-step begins. `step` (incremented once per completed
+  // tile — see move()) alternates which foot leads, so consecutive tiles read left-right-left-right.
   playerImg(T: Record<string, HTMLImageElement>): HTMLImageElement | undefined {
-    const WALK = [1, 2, 1, 0]; // frame index per step; 1 = neutral mid-stance (rest pose)
-    const f = WALK[this.step % WALK.length];
+    const g = this._glide;
+    let f = 1;
+    if (g) {
+      const k = Math.min(1, (performance.now() - g.t0) / g.ms);
+      if (k >= 0.5) f = this.step % 2 === 0 ? 2 : 0;
+    }
     return T[`player-${this.face}-${f}`] || T.player;
   },
 

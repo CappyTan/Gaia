@@ -78,3 +78,26 @@ combo / Archon Type II). Recorded in [endgame-mechanics.md](../design/classes/en
 
 Dara Saadat, grill session 2026-06-30. Builds on [ADR 0019](0019-resource-economy.md) (MNA = gate, not
 the spendable Resource) and reconciles [`mna-progression.md`](../design/requiem/mna-progression.md).
+
+## Amendment (v0.213, Dara)
+
+Reverts the level-10 start (v0.211) back to **level 1**, and re-derives the level floor as
+**piecewise** so the opening beats land exactly where Dara wants them: the FIRST special (milestone
+5) and FIRST signature (milestone 10) both open on day one, the SECOND special (milestone 15) opens
+at level 5, and the SECOND signature (milestone 20) opens at level 10.
+
+`mnaFloor(level) = level` for `level ≤ 10` (the original pre-ADR-0021 +1/level rate, but capped to
+just the first ten levels), then `mnaFloor(level) = 10 + floor((level - 10) / 5)` beyond it (D1's
+slower cadence, continuous at the seam — re-based to start from 10-at-L10 instead of 0-at-L0).
+`STARTER_WEAPON_MNA` rises from 8 to **10** to match (L1: `mnaFloor(1) + 10 = 11`, past milestones
+5 and 10). Verified beats: L1 → 11 (both first-tier milestones), L5 → 15 (second special, exact),
+L10 → 20 (second signature, exact), L100 → 28 (still a minority of the road to Archon@100 — gear
+supplies the other 72%, so D1/D2's gear-dominant LATE climb is preserved; only the early cadence is
+front-loaded faster than the original flat `floor(level/5)`).
+
+**Why:** the level-10 start (v0.211) was itself a workaround to make the opening beats feel
+immediate — but it meant every new save (and the balance-sim/Test-Loop bench) skipped ten levels of
+early content. Dara asked to restore the honest level-1 start while keeping that immediate-unlock
+feel, so the fix moves into the floor's shape instead: fast for the first ten levels (where it
+matters for feel), slow after (where D1/D2's gear-dominance intent lives). The level-1-start
+rebalance of early zones/enemies is deliberately **out of scope** here — flagged as follow-up.

@@ -7,14 +7,18 @@ import { passiveMods, applyMods } from "./passives";
 import { SUB_BY_KEY } from "../data/substats";
 import { abpFromGear, substatBaseline } from "./stats";
 
-// ADR 0021 D1: leveling grants a small DERIVED MNA floor — floor(level/5) — into the hero's ACTIVE
+// ADR 0021 D1 (amended v0.213): leveling grants a small DERIVED MNA floor into the hero's ACTIVE
 // Attunement. Not earned-and-banked: it's recomputed in recalc and follows a weapon-swap. Gear is
-// the dominant MNA source (D2); the old +1/level allocator (mnaAlloc/mnaPoints) is deleted.
-export const mnaFloor = (level: number): number => Math.floor(level / 5);
-// Heroes start at level 10 (Dara, v0.211): the derived floor is floor(10/5)=2, and the starter
-// weapon guarantees +8 (systems/loot STARTER_WEAPON_MNA) so BOTH the 5-MNA special and the 10-MNA
-// signature milestones are open on day one — one special + one signature pickable out of the gate.
-export const START_LEVEL = 10;
+// still the dominant MNA source over the LATE climb (D2); the old +1/level allocator
+// (mnaAlloc/mnaPoints) is deleted. The floor is now piecewise (Dara, front-loading the first three
+// unlock beats): +1/level for levels 1-10 (the original pre-ADR-0021 rate, just capped to the first
+// 10 levels), then ADR 0021's slower floor(x/5) cadence from level 10 onward, re-based to start from
+// 10 at level 10 (not 0 at level 0) so the curve is continuous at the seam.
+export const mnaFloor = (level: number): number => (level <= 10 ? level : 10 + Math.floor((level - 10) / 5));
+// Heroes start at level 1 (Dara, v0.213 — reverted the v0.211 level-10 start). With the piecewise
+// floor above and the starter weapon's guaranteed +10 (systems/loot STARTER_WEAPON_MNA), L1 opens
+// BOTH the 5-MNA special and the 10-MNA signature milestones on day one: floor(1)=1, +10 = 11.
+export const START_LEVEL = 1;
 
 /** Output-scaling bonus from an MNA total: up to +60% at 200 MNA (REQUIEM mana mechanic). */
 export const mnaBonus = (mna: number): number => 0.6 * Math.max(0, Math.min(1, mna / 200));
@@ -136,7 +140,8 @@ export interface LevelUp {
   name: string;
   level: number;
   newSkill: string | null;
-  /** MNA floor gained on THIS level (ADR 0021): +1 on every 5th level, 0 otherwise (derived, no roll). */
+  /** MNA floor gained on THIS level (ADR 0021, amended v0.213): mnaFloor(level) - mnaFloor(level-1) —
+   *  +1 every level through L10 (front-loaded), then the old floor(x/5) cadence beyond it (derived, no roll). */
   mnaGain?: number;
   /** Stat bumps gained across the level(s) this member just earned (shown on the Victory card). */
   hp?: number;
@@ -156,9 +161,11 @@ export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): Le
       didLevel = true;
       const sb = { hp: m.maxhp, atk: m.atk, arm: m.armor }; // pre-level snapshot for THIS level's deltas
       m.xp -= xpForLevel(m.level);
+      const prevFloor = mnaFloor(m.level); // pre-increment level's floor, for this level's delta
       m.level++;
-      // ADR 0021 D1: no per-level banking — recalc derives the floor(level/5) MNA floor into the
-      // hero's active Attunement, so a level that crosses a multiple of 5 reports +1 MNA (else 0).
+      // ADR 0021 D1 (amended v0.213): no per-level banking — recalc derives the piecewise mnaFloor
+      // into the hero's active Attunement; the delta (not a hardcoded %5 check) reports what THIS
+      // level actually opened, since the floor now grows every level through L10.
       recalc([m]); // settle this single level so the deltas below are per-level (never lumped onto the last)
       const opened = unlockedSkills(m).find((k) => !unlocked.has(k));
       unlocked = new Set(unlockedSkills(m));
@@ -166,7 +173,7 @@ export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): Le
         name: m.name,
         level: m.level,
         newSkill: opened ? SKILLS[opened].name : null,
-        mnaGain: m.level % 5 === 0 ? 1 : 0,
+        mnaGain: mnaFloor(m.level) - prevFloor,
         hp: m.maxhp - sb.hp,
         atk: m.atk - sb.atk,
         arm: m.armor - sb.arm,
