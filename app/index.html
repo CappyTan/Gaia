@@ -90,6 +90,10 @@
   /* ---- Field map ---- */
   #fieldScreen{background:#0c1208;}
   #fieldCanvas{position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated;}
+  /* soft vignette over the canvas (under the HUD, which follows it in the DOM) — pulls the eye to the
+     player at center and gives the overworld atmospheric depth without touching the tile renderer. */
+  #fieldVignette{position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(130% 105% at 50% 44%, transparent 58%, rgba(2,6,2,.42) 100%);}
   #fieldHud{position:absolute; top:8px; left:8px; right:8px; display:flex; flex-direction:column; gap:6px; align-items:stretch; pointer-events:none;}
   .hud-row{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;}
   #fieldPartyWrap{align-self:flex-start; max-width:100%;} /* its own line below the zone/controls row — flows, never overlaps */
@@ -196,6 +200,11 @@
   #resStrip .res-pool .res-val{color:#fff;}
   #battleField{position:absolute; top:0; left:0; right:0; height:70%; overflow:hidden;}
   #battleBg{position:absolute; inset:0;}
+  /* battlefield depth: an edge vignette + a grounding gradient along the bottom of the arena, painted
+     as battleBg's own ::after so it sits over the background art but under every combatant/UI sibling. */
+  #battleBg::after{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(120% 92% at 50% 32%, transparent 52%, rgba(0,0,0,.44) 100%),
+               linear-gradient(to top, rgba(5,5,11,.6), transparent 24%);}
   /* combatants stand on the lower "ground" band — clear of the sky, bottom-anchored so a lone
      enemy/boss isn't floating mid-air (Dara's note) */
   /* enemies share the heroes' vertical band and are CENTRED in it, so enemy + hero sprites line up
@@ -218,7 +227,9 @@
     filter:contrast(1.06) saturate(1.05) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 1px 1px #000) drop-shadow(0 5px 6px rgba(0,0,0,.7));}
   .enemy .ebar{flex:0 0 auto; width:110px; min-width:0;}  /* short HP bar (Dara: ~60% shorter) */
   .enemy.dead{opacity:.18; filter:grayscale(1);}
-  .enemy.targetable{outline:2px dashed var(--gold); outline-offset:4px; border-radius:6px;}
+  .enemy.targetable{border-radius:8px; animation:targetpulse 1.1s ease-in-out infinite;}
+  @keyframes targetpulse{0%,100%{box-shadow:0 0 0 2px rgba(244,185,66,.85), 0 0 14px 2px rgba(244,185,66,.22);}
+    50%{box-shadow:0 0 0 2px rgba(244,185,66,.45), 0 0 22px 6px rgba(244,185,66,.42);}}
   .enemy.elite .ename{color:var(--legendary); font-weight:bold;}
   .enemy.champion .ename{color:var(--gold); font-weight:bold; text-shadow:0 0 7px rgba(244,210,122,.65);}
   .enemy.champion .spr-img, .enemy.champion .spr{transform:scale(1.2); filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 6px rgba(244,210,122,.5)) drop-shadow(0 3px 5px #000);}
@@ -234,7 +245,7 @@
   #enemyZone.has-boss{justify-content:center; align-items:center;}
   #enemyZone.has-boss .enemy{flex-direction:column; align-items:center; gap:4px; text-align:center;}
   #enemyZone.has-boss .enemy .ebar{width:80%; min-width:120px; flex:0 0 auto;}
-  .enemy.acting{transform:translateX(10px) scale(1.05);}
+  .enemy.acting{transform:translateX(10px) scale(1.05); filter:brightness(1.18);}
   .enemy .ename{font-size:12px;}
   .att-tag{font-size:10px; font-weight:bold; letter-spacing:.3px;}
   .pchar{position:relative; display:flex; align-items:center; gap:6px; justify-content:flex-end;}
@@ -250,6 +261,27 @@
   @keyframes bob{50%{transform:translateX(-12px) scale(1.12);}}
   .pchar.hurt .spr, .pchar.hurt .doll{animation:shake .25s;}
   @keyframes shake{25%{transform:translateX(6px);}75%{transform:translateX(-6px);}}
+
+  /* ── battle facelift: grounded, breathing, readable (v0.209) ──
+     Ground shadows anchor every combatant to the arena floor; a slow idle sway keeps the field alive
+     between turns; the active hero gets an on-field caret + lit ground ring (before, whose turn it was
+     only showed in the lower roster panel). All presentation — no combat logic touched. */
+  .enemy::before, .pchar::before{content:""; position:absolute; bottom:1px; height:11px; border-radius:50%;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,.5), transparent 66%); pointer-events:none;}
+  .enemy::before{left:8px; width:58px;}
+  .enemy.miniboss::before{left:16px; width:104px; height:15px;}
+  .enemy.boss::before{left:20px; width:126px; height:18px;}
+  #enemyZone.has-boss .enemy::before{left:50%; transform:translateX(-50%);}
+  .pchar::before{right:2px; width:58px;}
+  .pchar.downed::before{opacity:.25;}
+  @keyframes idlesway{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
+  .enemy:not(.champion):not(.rare):not(.enraged):not(.dead) .spr-img, .pchar .doll{animation:idlesway 3.4s ease-in-out infinite;}
+  .enemy:nth-child(2n) .spr-img, .pchar:nth-child(2n) .doll{animation-delay:-1.7s;}
+  .enemy:nth-child(3n) .spr-img{animation-delay:-2.6s;}
+  .pchar.turn::after{content:"▼"; position:absolute; top:-15px; right:23px; color:var(--gold); font-size:13px;
+    text-shadow:0 0 8px rgba(244,210,122,.85); animation:caretbob 1s ease-in-out infinite; pointer-events:none; z-index:2;}
+  @keyframes caretbob{50%{transform:translateY(3px);}}
+  .pchar.turn::before{background:radial-gradient(ellipse at center, rgba(244,185,66,.42), transparent 66%);}
   /* equipped-weapon glow, by rarity */
   .g-common{filter:drop-shadow(0 0 2px rgba(255,255,255,.4));}
   .g-uncommon{filter:drop-shadow(0 0 3px var(--uncommon));}
@@ -276,8 +308,8 @@
   #cmdPanel .who{font-size:12px; color:var(--gold2); margin-bottom:2px; min-height:14px;}
   #cmdList{flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:5px;
     -webkit-mask-image:linear-gradient(#000 calc(100% - 14px), transparent);}  /* fade hints at more */
-  .cmd{flex:0 0 auto; background:#191830; border:1px solid var(--line); border-radius:6px; padding:11px 10px; color:var(--ink); font-size:14px; text-align:left; min-height:44px; overflow:hidden;}
-  .cmd:hover{border-color:var(--gold); color:var(--gold2);}
+  .cmd{flex:0 0 auto; background:linear-gradient(#1d1c36,#161528); border:1px solid var(--line); border-radius:6px; padding:11px 10px; color:var(--ink); font-size:14px; text-align:left; min-height:44px; overflow:hidden; transition:border-color .12s, transform .12s, box-shadow .12s;}
+  .cmd:hover{border-color:var(--gold); color:var(--gold2); transform:translateX(2px); box-shadow:0 0 10px rgba(244,185,66,.15);}
   .cmd:disabled{opacity:.55; cursor:default;}
   .cmd .cost.low{color:#e87a7a;}
   .cmd .cost{float:right; font-size:11px; color:var(--mp);}
@@ -321,9 +353,15 @@
   .enemy.enraged .spr-img{filter:contrast(1.1) saturate(1.1) drop-shadow(0 0 2px #000) drop-shadow(0 0 14px rgba(255,60,40,.6)) drop-shadow(0 6px 8px rgba(0,0,0,.75)); animation:enragepulse 1.3s ease-in-out infinite;}
   @keyframes enragepulse{50%{filter:contrast(1.15) saturate(1.2) drop-shadow(0 0 3px #000) drop-shadow(0 0 22px rgba(255,70,40,.85)) drop-shadow(0 6px 8px rgba(0,0,0,.75));}}
 
-  .float{position:absolute; font-weight:bold; font-size:16px; pointer-events:none; text-shadow:0 2px 3px #000;
-    z-index:9; animation:floatup .85s ease-out forwards;}
-  @keyframes floatup{0%{transform:translateY(0); opacity:1;}100%{transform:translateY(-34px); opacity:0;}}
+  .float{position:absolute; font-weight:bold; font-size:18px; pointer-events:none;
+    text-shadow:0 2px 3px #000, 0 0 8px rgba(0,0,0,.6);
+    z-index:9; animation:floatup .9s ease-out forwards;}
+  .float.crit{font-size:26px; letter-spacing:.5px; -webkit-text-stroke:.6px rgba(0,0,0,.7);}
+  /* pop-in (scale up past 1, settle) then rise-and-fade — damage lands with weight instead of drifting */
+  @keyframes floatup{0%{transform:translateY(6px) scale(.55); opacity:0;}
+    16%{transform:translateY(-2px) scale(1.18); opacity:1;}
+    30%{transform:translateY(-6px) scale(1);}
+    100%{transform:translateY(-40px) scale(1); opacity:0;}}
   /* layered skill-animation sprites (ui/skillAnimator): all of a layer's frames are stacked here and
      cross-faded by toggling opacity (no src swap → no decode flicker). `.glow` = energy (beam/impact)
      given a gold halo via drop-shadow; plain = a solid figure. NOTE: deliberately NOT mix-blend
@@ -522,6 +560,7 @@
   <!-- FIELD -->
   <div id="fieldScreen" class="screen">
     <canvas id="fieldCanvas"></canvas>
+    <div id="fieldVignette"></div><!-- atmospheric edge-darkening over the canvas, under the HUD -->
     <!-- Slim top HUD: location + Aether + party status only (controls live in the bottom deck). -->
     <div id="fieldHud">
       <div class="hud-row">

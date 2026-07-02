@@ -205,6 +205,11 @@ export const Field = {
   wx: 0, wy: 0,                                   // player world-tile position (source of truth when bigMap)
   face: "down" as "down" | "up" | "left" | "right", // walk-cycle facing, set from the last move's dx/dy
   step: 0,                                        // walk-cycle counter, advanced on each successful step
+  // SMOOTH-STEP GLIDE (presentation only): logic stays discrete — px/py (or wx/wy) snap immediately for
+  // collision/encounters/POIs; only the camera + drawn walker glide between tiles (~115ms, eased), with
+  // a small foot-bob. A held direction chains glides from the current visual position so motion flows.
+  _glide: null as null | { fx: number; fy: number; t0: number; ms: number },
+  _glideRaf: 0,
   chunks: new Map<string, BigCell[][]>(),         // realized 32×32 chunks, key `cx,cy`; built on move()
   // Stage 2C: the big map is CONTINENT-WIDE — every built zone's authored blueprint is realized into
   // the one 960×640 world, the open continent bridging them (G22). `authoredGrids` maps a built zone
@@ -603,6 +608,7 @@ export const Field = {
     // Walking into an NPC talks to them (you don't move onto their tile).
     if (this.townMode) { const npc = this.npcAt(nx, ny); if (npc) { this.talkTo(npc); return; } }
     if (!this.passable(nx, ny)) return;
+    this.glideFrom(this.px, this.py); // smooth-step: camera/walker glide to the new tile (visual only)
     this.px = nx; this.py = ny; this.step++;
     if (this.townMode) { this.draw(); this.hint(); this.townTouch(this.map[ny][nx]); return; } // no steps/encounters in town
     Game.steps++; Telemetry.step();
@@ -955,6 +961,7 @@ export const Field = {
   bigMove(dx: number, dy: number): void {
     const nx = this.wx + dx, ny = this.wy + dy;
     if (!this.bigPassable(nx, ny)) return;
+    this.glideFrom(this.wx, this.wy); // smooth-step: camera/walker glide to the new tile (visual only)
     this.wx = nx; this.wy = ny; this.step++;
     this.realizeAround();      // realize-on-move (never in draw)
     this.syncZoneFromWorld();  // POSITION-DERIVED state (zone/bands/music) — the no-loadZone crossing
@@ -1439,10 +1446,15 @@ export const Field = {
     if (!c || !this.canvas) return;
     c.clearRect(0, 0, this.vw, this.vh);
     const viewW = Math.ceil(this.vw / t), viewH = Math.ceil(this.vh / t);
-    const camx = this.wx - Math.floor(viewW / 2), camy = this.wy - Math.floor(viewH / 2);
+    // fractional camera on the glide position (world coords, unclamped — the world is huge): integer
+    // tile origin + sub-tile pixel offset, so the continent scrolls smoothly under the walker.
+    const vp = this.glidePos(this.wx, this.wy);
+    const camfx = vp.x - Math.floor(viewW / 2), camfy = vp.y - Math.floor(viewH / 2);
+    const camx = Math.floor(camfx), camy = Math.floor(camfy);
+    const sox = Math.round((camfx - camx) * t), soy = Math.round((camfy - camy) * t);
     c.textAlign = "center"; c.textBaseline = "middle";
-    for (let y = 0; y <= viewH; y++) for (let x = 0; x <= viewW; x++) {
-      const wx = camx + x, wy = camy + y, sx = x * t, sy = y * t;
+    for (let y = 0; y <= viewH + 1; y++) for (let x = 0; x <= viewW + 1; x++) {
+      const wx = camx + x, wy = camy + y, sx = x * t - sox, sy = y * t - soy;
       const cell = this.cellAt(wx, wy);
       if (cell.kind === "uncharted") { c.fillStyle = "#10180e"; c.fillRect(sx, sy, t, t); continue; } // soft edge
       // seam dither: a hair of the cell is rendered in the neighbouring Area's biome (the cached choice).
@@ -1563,19 +1575,49 @@ export const Field = {
       // visual, drawn over the realized ground; never affects passability. Only the locked-gorge rim tiles match.
       this.drawGorgeRimProps(c, wx, wy, sx, sy, t);
     }
-    // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback).
-    const cx = (this.wx - camx) * t + t / 2, cy = (this.wy - camy) * t + t / 2;
+    // player marker (same as discrete): feet shadow + ring + tall walker (emoji fallback), drawn at the
+    // GLIDE position with a small mid-step foot-bob (the shadow stays grounded).
+    const cx = (vp.x - camfx) * t + t / 2, cy = (vp.y - camfy) * t + t / 2;
+    const bob = vp.k ? Math.sin(vp.k * Math.PI) * t * 0.07 : 0;
     c.save();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.3, t * 0.13, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.42)"; c.fill();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
     const pimg = this.playerImg(T);
     if (pimg) {
       const ph = t * 1.55, pw = ph * (pimg.width / pimg.height);
-      const py = Math.max(2, cy + t * 0.46 - ph);
+      const py = Math.max(2, cy + t * 0.46 - ph - bob);
       c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
       c.drawImage(pimg, cx - pw / 2, py, pw, ph); c.shadowBlur = 0;
-    } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy); }
+    } else { c.font = `${t * 0.7}px serif`; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy - bob); }
     c.restore();
+  },
+
+  // Begin a smooth visual glide from the tile just left. Guarded for headless/test runs (no canvas /
+  // no RAF) and honors prefers-reduced-motion (steps snap instantly, as before). The transient RAF
+  // loop runs only while a glide is live (~115ms per step), so idle frames cost nothing.
+  glideFrom(ox: number, oy: number): void {
+    if (!this.canvas || typeof requestAnimationFrame === "undefined") return;
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const from = this.glidePos(ox, oy); // chain: start where the eye currently is, not the old tile
+    this._glide = { fx: from.x, fy: from.y, t0: performance.now(), ms: 115 };
+    if (this._glideRaf) return; // draw loop already running
+    const loop = (): void => {
+      const g = this._glide;
+      if (g && performance.now() - g.t0 >= g.ms) this._glide = null;
+      this.draw();
+      this._glideRaf = this._glide ? requestAnimationFrame(loop) : 0;
+    };
+    this._glideRaf = requestAnimationFrame(loop);
+  },
+  // The walker's VISUAL grid position: fractional mid-glide, the live tile once settled. The target is
+  // the caller's live coords (px/py or wx/wy) so a glide always lands on truth; a jump of >2 tiles is a
+  // teleport/space-change — snap rather than glide across it. `k` = glide progress (0 = settled).
+  glidePos(tx: number, ty: number): { x: number; y: number; k: number } {
+    const g = this._glide;
+    if (!g || Math.abs(tx - g.fx) > 2 || Math.abs(ty - g.fy) > 2) return { x: tx, y: ty, k: 0 };
+    const k = Math.min(1, (performance.now() - g.t0) / g.ms);
+    const e = 1 - (1 - k) * (1 - k); // ease-out: brisk start, soft landing
+    return { x: g.fx + (tx - g.fx) * e, y: g.fy + (ty - g.fy) * e, k };
   },
 
   // The player sprite for the current frame: the directional walk-cycle frame (player-<face>-<n>),
@@ -1593,18 +1635,23 @@ export const Field = {
     if (!c || !this.canvas) return;
     c.clearRect(0, 0, this.vw, this.vh);
     const viewW = Math.ceil(this.vw / t), viewH = Math.ceil(this.vh / t);
-    const camx = clamp(this.px - Math.floor(viewW / 2), 0, Math.max(0, this.W - viewW));
-    const camy = clamp(this.py - Math.floor(viewH / 2), 0, Math.max(0, this.H - viewH));
+    // fractional camera centered on the glide position (clamped to the map), split into an integer tile
+    // origin + a sub-tile pixel offset so the world scrolls smoothly under the walker between steps.
+    const vp = this.glidePos(this.px, this.py);
+    const camfx = clamp(vp.x - Math.floor(viewW / 2), 0, Math.max(0, this.W - viewW));
+    const camfy = clamp(vp.y - Math.floor(viewH / 2), 0, Math.max(0, this.H - viewH));
+    const camx = Math.floor(camfx), camy = Math.floor(camfy);
+    const sox = Math.round((camfx - camx) * t), soy = Math.round((camfy - camy) * t);
     const colors: Record<string, string> = { grass: "#4a7a32", grass2: "#52823a", path: "#7a6a3a", tree: "#1f3a1c", bush: "#3a6a2a", rock: "#5a5a52", boss: "#6a1020", chest: "#6a5a2a", miniboss: "#5a1226", river: "#2f5b7a", cliff: "#3f4450", bridge: "#7a6242", ford: "#86b0c4", shrine: "#4a7a32", camp: "#4a7a32", landmark: "#4a7a32", signpost: "#4a7a32" };
     const T = this.tiles;
     c.textAlign = "center"; c.textBaseline = "middle";
     this._townLabels.length = 0; // fresh per frame — building/NPC captions buffer here, flushed last
-    for (let y = 0; y < viewH + 1; y++)
-      for (let x = 0; x < viewW + 1; x++) {
+    for (let y = 0; y < viewH + 2; y++)
+      for (let x = 0; x < viewW + 2; x++) {
         const mx = camx + x, my = camy + y;
         if (mx >= this.W || my >= this.H) continue;
         const cell = this.map[my][mx];
-        const sx = (mx - camx) * t, sy = (my - camy) * t;
+        const sx = (mx - camx) * t - sox, sy = (my - camy) * t - soy;
         if (this.townMode) { this.drawTownCell(c, T, cell, mx, my, sx, sy, t); continue; }
         // dungeon dressing: NEW model = the whole grid is the dungeon (mode); LEGACY = east of the gate.
         const inDun = this.usesNewModel() ? this.mode === "dungeon" : mx > this.gate.x;
@@ -1729,8 +1776,8 @@ export const Field = {
     if (this.townMode) {
       const talking = Dialogue.isOn();
       for (const n of this.npcs) {
-        if (n.x < camx || n.y < camy || n.x > camx + viewW || n.y > camy + viewH) continue;
-        const nx = (n.x - camx) * t + t / 2, ny = (n.y - camy) * t + t / 2;
+        if (n.x < camx || n.y < camy || n.x > camx + viewW + 1 || n.y > camy + viewH + 1) continue;
+        const nx = (n.x - camx) * t - sox + t / 2, ny = (n.y - camy) * t - soy + t / 2;
         c.beginPath(); c.ellipse(nx, ny + t * 0.36, t * 0.26, t * 0.11, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.38)"; c.fill();
         const nimg = this.tiles[`npc:${this.town?.id}-${n.id}`];
         if (nimg) { const h = t * 1.5, w = h * nimg.width / nimg.height; c.drawImage(nimg, nx - w / 2, ny + t * 0.36 - h, w, h); }
@@ -1740,8 +1787,10 @@ export const Field = {
         if (!talking) { c.font = `${t * 0.4}px serif`; c.fillStyle = "rgba(244,210,122,.85)"; c.fillText("💬", nx + t * 0.36, ny - t * 0.4); }
       }
     }
-    // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback)
-    const cx = (this.px - camx) * t + t / 2, cy = (this.py - camy) * t + t / 2;
+    // player marker: feet shadow + "you are here" ring + a tall walker sprite that pops (emoji fallback).
+    // Drawn at the GLIDE position with a small mid-step foot-bob (the shadow stays grounded).
+    const cx = (vp.x - camfx) * t + t / 2, cy = (vp.y - camfy) * t + t / 2;
+    const bob = vp.k ? Math.sin(vp.k * Math.PI) * t * 0.07 : 0;
     c.save();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.3, t * 0.13, 0, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,.42)"; c.fill();
     c.beginPath(); c.ellipse(cx, cy + t * 0.42, t * 0.32, t * 0.14, 0, 0, Math.PI * 2); c.strokeStyle = "rgba(244,210,122,.75)"; c.lineWidth = Math.max(1.5, t * 0.05); c.stroke();
@@ -1751,12 +1800,12 @@ export const Field = {
       // The walker is tall (≈1.55× tile) and anchored at the feet, so at a y≈1 spawn on a tall,
       // camera-scrolled map (e.g. the city) its head would clip above the canvas. Clamp the top edge
       // so the body always stays on-screen rather than vanishing past the top.
-      const py = Math.max(2, cy + t * 0.46 - ph);
+      const py = Math.max(2, cy + t * 0.46 - ph - bob);
       c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 4; c.shadowOffsetY = 2;
       c.drawImage(pimg, cx - pw / 2, py, pw, ph);
       c.shadowBlur = 0;
     } else {
-      c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy);
+      c.font = `${t * 0.7}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#fff"; c.fillText("🧝", cx, cy - bob);
     }
     c.restore();
     // LABEL PASS (town) — every caption drawn LAST, on top of all tiles, NPC sprites AND the player marker
