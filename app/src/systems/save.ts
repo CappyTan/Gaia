@@ -107,6 +107,12 @@ export interface SavedRun {
   // absent / out-of-range on an old or single-floor save → floor 0 (back-compatible, no schema bump).
   // Only meaningful when `enteredDungeon`; ignored otherwise.
   dungeonFloor?: number;
+  // WHICH DUNGEON the save is inside (wave3b — a zone can carry a SECOND descend target, the Ancient
+  // Ruins): "second" when saved inside `zone.dungeon2`, else "main"/absent. OPTIONAL + degrade-never-
+  // throw — absent on an old save → "main" (the only dungeon that existed). Only meaningful when
+  // `enteredDungeon`; the controller's dungeonDef() also falls back to main if the zone lost its
+  // second dungeon across a deploy (the floor index is then clamped as usual).
+  activeDungeon?: string;
   // MULTI-FLOOR: which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten this visit,
   // by floor index ("0".."N" → true). Persisted so a resume past a beaten gate keeps the stairs live
   // (no surprise re-fight / no being stranded past a gate the state thinks is closed). OPTIONAL +
@@ -174,6 +180,8 @@ export interface RunSnapshot {
   poisCleared: Record<string, boolean>;
   openedChests: Record<string, boolean>;
   dungeonFloor: number;
+  /** Which dungeon the run is inside (wave3b): "second" = the zone's dungeon2 (the Ancient Ruins). Optional — defaults "main". */
+  activeDungeon?: "main" | "second";
   dungeonMiniCleared: Record<number, boolean>;
   mouthCleared: Record<string, boolean>;
   ownedCaps: string[];
@@ -209,6 +217,7 @@ export interface LoadedRun {
   poisCleared: Record<string, boolean>; // cleared/spent POIs (per-zone keys); empty on an old save
   openedChests: Record<string, boolean>; // looted chests (per-context keys); empty on an old save
   dungeonFloor: number;      // which multi-floor dungeon floor to resume on (0 if not / single-floor)
+  activeDungeon: "main" | "second"; // which dungeon to rebuild on a mid-dungeon resume (wave3b); "main" on old saves
   dungeonMiniCleared: Record<number, boolean>; // floors whose gating lieutenant was beaten this visit
   mouthCleared: Record<string, boolean>; // zones whose OVERWORLD mouth guard was beaten (per zone id); old saves seed from the global miniBossDefeated
   ownedCaps: string[];       // owned traversal capabilities (e.g. ["gorge"]); old Greenvale-beaten saves auto-get "gorge" (the controller installs these into the run's Set)
@@ -294,6 +303,7 @@ export function serialize(s: RunSnapshot, gameVersion: string): SaveEnvelope {
     poisCleared: { ...s.poisCleared },
     openedChests: { ...s.openedChests },
     dungeonFloor: s.dungeonFloor,
+    activeDungeon: s.activeDungeon ?? "main",
     dungeonMiniCleared: serializeFloorFlags(s.dungeonMiniCleared),
     mouthCleared: { ...s.mouthCleared },
     ownedCaps: [...s.ownedCaps],
@@ -581,6 +591,10 @@ export function deserialize(env: SaveEnvelope | null): LoadedRun | null {
     // MULTI-FLOOR — the saved dungeon floor (clamped ≥0; clamped to the zone's floor count by the
     // controller on resume). Reset to 0 if the zone changed under us. Degrade-never-throw.
     dungeonFloor: resetPos ? 0 : Math.max(0, Math.floor(r.dungeonFloor || 0)),
+    // WHICH DUNGEON (wave3b): "second" only for a live mid-dungeon2 save; anything else (old saves,
+    // junk, a reset position) degrades to "main". The controller's dungeonDef() re-guards against a
+    // zone that lost its second dungeon.
+    activeDungeon: !resetPos && r.enteredDungeon && r.activeDungeon === "second" ? "second" : "main",
     dungeonMiniCleared: resetPos ? {} : reviveFloorFlags(r.dungeonMiniCleared),
     // PER-ZONE MOUTH-CLEARED — sanitized {zoneId→true}. BACK-COMPAT (no soft-lock): an old save with no
     // field but the legacy global `miniBossDefeated` set seeds its current zone (so a Greenvale-beaten save

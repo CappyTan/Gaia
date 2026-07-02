@@ -25,6 +25,20 @@ export function validateContent(): string[] {
     z.bands.forEach((b) => b.sets.forEach((s) => { if (!s.length) issues.push(`zone ${zi} "${z.name}": empty encounter set`); s.forEach((k) => refs.add(k)); }));
     refs.add(z.mini); (z.miniAdds || []).forEach((k) => refs.add(k)); refs.add(z.boss);
     if (z.dungeon.floorMini) refs.add(z.dungeon.floorMini); // multi-floor in-dungeon lieutenant (Bandit Warren)
+    // SECOND DUNGEON (wave3b — the Ancient Ruins): its bands/floorMini feed the same enemy net, and the
+    // entrance↔dungeon pairing must hold both ways (an entrance with no dungeon is a dead tile; a
+    // dungeon with no entrance is unreachable content). A dungeon2 is BOSSLESS by contract, so its last
+    // floor must carry the `seal` terminus genDungeon carves instead of a boss.
+    if (z.dungeon2) {
+      (z.dungeon2.bands ?? []).forEach((b) => b.sets.forEach((s) => { if (!s.length) issues.push(`zone ${zi} "${z.name}": empty dungeon2 encounter set`); s.forEach((k) => refs.add(k)); }));
+      if (z.dungeon2.floorMini) refs.add(z.dungeon2.floorMini);
+      if (!z.layout.ruins) issues.push(`zone ${zi} "${z.name}": dungeon2 "${z.dungeon2.name}" has no layout.ruins entrance`);
+      const fl2 = z.dungeon2.floors && z.dungeon2.floors.length ? z.dungeon2.floors : [z.dungeon2.layout];
+      if (z.dungeon2.floors?.length && z.dungeon2.layout !== z.dungeon2.floors[0]) issues.push(`zone ${zi} "${z.name}": dungeon2 layout !== floors[0] (the single-floor contract)`);
+      if (!fl2[fl2.length - 1].seal) issues.push(`zone ${zi} "${z.name}": dungeon2 "${z.dungeon2.name}" last floor has no seal terminus (a bossless dungeon must end at the sealed door)`);
+    } else if (z.layout.ruins) {
+      issues.push(`zone ${zi} "${z.name}": layout.ruins entrance with no dungeon2 to descend into`);
+    }
     refs.forEach((k) => { if (!ENEMIES[k]) issues.push(`zone ${zi} "${z.name}": missing enemy "${k}"`); });
     if (!ENEMIES[z.boss]?.boss) issues.push(`zone ${zi} "${z.name}": boss "${z.boss}" is not flagged boss`);
   });

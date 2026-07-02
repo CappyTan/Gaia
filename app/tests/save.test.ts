@@ -488,13 +488,14 @@ describe("world coords (schema v2, Stage 2C seamless big-map)", () => {
     delete (env.run as any).wx; delete (env.run as any).wy; delete (env.run as any).bigMap;
     const r = deserialize(env)!;
     expect(r).toBeTruthy();
-    // greenvale placement is (127,62); spawn-relative (12,7) → world (139,69). Migration sets bigMap
-    // false (v1 had no big map → resume discrete), but wx/wy are derived for forward-compat.
+    // greenvale placement is (127,54) (wave3b: the 64×40 shire); local (12,7) → world (139,61).
+    // Migration sets bigMap false (v1 had no big map → resume discrete), but wx/wy are derived for
+    // forward-compat.
     expect(r.bigMap).toBe(false);
     // the migration wrote wx/wy onto the envelope run; deserialize zeroes them only because bigMap is
     // false — so we verify the migration math on the raw migrated run instead.
     expect((env.run as any).wx).toBe(127 + 12);
-    expect((env.run as any).wy).toBe(62 + 7);
+    expect((env.run as any).wy).toBe(54 + 7);
     expect(r.party.length).toBe(2);          // degrade-never-throw: party intact
   });
 

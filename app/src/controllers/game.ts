@@ -160,6 +160,8 @@ export const Game = {
       openedChests: Field.openedChests,
       // MULTI-FLOOR DUNGEON — the floor we're on (0 = B1 / single-floor), so a deep-Warren save resumes there.
       dungeonFloor: Field.dungeonFloor,
+      // WHICH dungeon we're inside (wave3b) — so a save deep in the Ancient Ruins resumes the Ruins, not the Warren.
+      activeDungeon: Field.activeDungeon,
       dungeonMiniCleared: Field.dungeonMiniCleared,
       // PER-ZONE OVERWORLD MOUTH-CLEARED (Silverwood Overhaul fix) — which zones' dungeon-mouth guard is
       // beaten, by zone id; persisted so the right zones' mouths stay open across a reload (not a global).
@@ -243,6 +245,10 @@ export const Game = {
       Screens.show("field"); Field.resize(); Field.draw(); Field.hint();
     } else {
       Field.enteredDungeon = r.enteredDungeon;
+      // WHICH DUNGEON (wave3b): restore BEFORE the genDungeon calls below — dungeonDef()/dungeonFloors()
+      // read it, so a save made deep in the Ancient Ruins rebuilds the Ruins (dungeonDef falls back to
+      // the main dungeon if the zone no longer carries a second one).
+      Field.activeDungeon = r.activeDungeon;
       // MULTI-FLOOR: restore the beaten-gate state BEFORE genDungeon below (it reads dungeonMiniCleared
       // to decide whether each floor's lieutenant still stands), so a resume past a beaten gate keeps
       // the stairs live. Set even when not in a dungeon (harmless; cleared on the next fresh descent).

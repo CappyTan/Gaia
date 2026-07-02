@@ -213,6 +213,9 @@ export function genOverworld(z: { id: string; layout: ZoneLayout; hub?: string }
   const owOpened = (c: Pt) => cleared.chestOpened(c);
   chests.forEach((c) => { halo(g, c); carve(g, c.x, c.y, owOpened(c) ? "path" : "chest"); });
   if (lairAt) { halo(g, lairAt); carve(g, lairAt.x, lairAt.y, "lair"); }
+  // SECOND-DUNGEON ENTRANCE (wave3b — the Ancient Ruins): a walkable "ruins" mouth, halo'd + a flood
+  // target like the lair. Unguarded — stepping onto it descends into `zone.dungeon2` (move()).
+  if (L.ruins) { halo(g, L.ruins); carve(g, L.ruins.x, L.ruins.y, "ruins"); }
   const pois = stampPois(g, L, cleared); // POIs (the INHABITED world)
   // The mouth POI: guarded by the mini until it's beaten, then enterable.
   halo(g, mouth);
@@ -222,8 +225,8 @@ export function genOverworld(z: { id: string; layout: ZoneLayout; hub?: string }
   const village = z.hub ? { x: Math.max(1, L.spawn.x - 1), y: L.spawn.y } : null;
   if (village) { halo(g, village); carve(g, village.x, village.y, "village"); }
 
-  // ANTI-SOFT-LOCK: the mouth + every UNOPENED overworld chest/lair/crossing/POI + the hub marker reachable from spawn.
-  const targets = [mouth, ...chests.filter((c) => !owOpened(c))]; if (lairAt) targets.push(lairAt); if (village) targets.push(village);
+  // ANTI-SOFT-LOCK: the mouth + every UNOPENED overworld chest/lair/ruins/crossing/POI + the hub marker reachable from spawn.
+  const targets = [mouth, ...chests.filter((c) => !owOpened(c))]; if (lairAt) targets.push(lairAt); if (L.ruins) targets.push(L.ruins); if (village) targets.push(village);
   if (L.bridges) targets.push(...L.bridges);
   if (L.fords) targets.push(...L.fords);
   targets.push(...pois.map((p) => ({ x: p.x, y: p.y })));
@@ -254,7 +257,10 @@ export function genDungeon(D: DungeonLayout, last: boolean, cleared: ClearedStat
   chests.forEach((c) => { halo(g, c); carve(g, c.x, c.y, dunOpened(c) ? "path" : "chest"); });
   // Anti-soft-lock targets: UNOPENED chests + the floor's egress (boss on the last floor, stairs-down otherwise).
   const targets: Pt[] = [...chests.filter((c) => !dunOpened(c))];
-  if (last) { carve(g, boss.x, boss.y, "boss"); targets.push(boss); }
+  // THE SEALED TERMINUS (wave3b — the Ancient Ruins): a bossless finale floor carves its walkable
+  // `seal` landmark INSTEAD of a boss (the flavor-overlay door something ancient waits behind).
+  if (last && D.seal) { halo(g, D.seal); carve(g, D.seal.x, D.seal.y, "seal"); targets.push(D.seal); }
+  else if (last) { carve(g, boss.x, boss.y, "boss"); targets.push(boss); }
   else if (D.stairsDown) {
     halo(g, D.stairsDown);
     carve(g, D.stairsDown.x, D.stairsDown.y, "stairsdown");

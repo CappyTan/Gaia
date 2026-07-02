@@ -7,7 +7,7 @@ import type { Item } from "../types";
 import { $ } from "../core/dom";
 import { assetUrl } from "../core/assets";
 import { clamp, ri } from "../core/rng";
-import { ZONES, greenvaleAreaAt, type Zone, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
+import { ZONES, greenvaleAreaAt, type Zone, type ZoneDungeon, type DungeonLayout, type Pt, type Poi, type GreenvaleAreaId } from "../data/zones";
 import {
   OVERWORLD_ID, AURELION_ID, regionAt, authoredAt, placementOf,
   buildAuthoredGrid, realizeKindWorld, tileHash, builtZonesOf, barrierAt, isBarrierCrossing, type Capability,
@@ -158,6 +158,12 @@ export const Field = {
   // Which floor of a multi-floor dungeon (the Bandit Warren) the player is on (0 = B1). 0 for the 9
   // single-floor dungeons (their `dungeon.floors` is absent → a 1-element stack). PERSISTED in the save.
   dungeonFloor: 0,
+  // WHICH dungeon a descent runs (wave3b — the second descend target). A zone can now carry TWO
+  // dungeons: the main `zone.dungeon` (entered via the guarded `mouth`) and an optional `zone.dungeon2`
+  // (the Ancient Ruins, entered via the unguarded `ruins` tile). Resolved AT DESCEND TIME and read by
+  // every this-dungeon accessor through dungeonDef()/dungeonFloors(). PERSISTED in the save (so a
+  // resume mid-Ruins rebuilds the Ruins, not the Warren); "main" outside a dungeon / on a fresh run.
+  activeDungeon: "main" as "main" | "second",
   // Which floors' IN-DUNGEON mini-boss (the gating lieutenant) has been beaten, by floor index. A floor
   // with no `miniboss` is implicitly open; a beaten mini turns that floor's stairs live. Reset on a fresh
   // descent into the dungeon; PERSISTED so a resume mid-dungeon keeps a beaten gate open.
@@ -335,11 +341,31 @@ export const Field = {
   // zone's mouth at once). The single read every mouth-gating site goes through, so they stay in lockstep.
   miniClearedFor(zoneId: string): boolean { return !!this.mouthCleared[zoneId]; },
   // ── MULTI-FLOOR helpers (ADR 0008 Stage 3) ──────────────────────────────────────────────────
-  // The floor stack for a zone's dungeon: its authored `floors` if multi-floor, else a 1-element stack
-  // of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
+  // The ACTIVE dungeon definition (wave3b): the zone's second dungeon (the Ancient Ruins) when a
+  // `ruins` descent is live, else the main dungeon. Defensive: a zone without a `dungeon2` always
+  // resolves main, so a stale "second" flag can never dereference nothing.
+  dungeonDef(zoneIndex?: number): ZoneDungeon {
+    const z = ZONES[zoneIndex ?? this.zoneIndex];
+    return (this.activeDungeon === "second" && z.dungeon2) || z.dungeon;
+  },
+  // The PERSISTENCE NAMESPACE for the current dungeon's chest/rest keys: the plain zone id for the
+  // main dungeon (back-compat with every existing save key), "<zoneId>:ruins" for the second — so a
+  // Ruins floor-1 chest can never collide with a Warren floor-1 chest at the same x,y.
+  dungeonKeyZone(zoneIndex?: number): string {
+    const zid = ZONES[zoneIndex ?? this.zoneIndex].id;
+    return this.activeDungeon === "second" ? zid + ":ruins" : zid;
+  },
+  // The floor stack for the ACTIVE dungeon: its authored `floors` if multi-floor, else a 1-element
+  // stack of the single `layout` (so the 9 single-floor dungeons flow through the same code unchanged).
   dungeonFloors(zoneIndex?: number): DungeonLayout[] {
-    const d = ZONES[zoneIndex ?? this.zoneIndex].dungeon;
+    const d = this.dungeonDef(zoneIndex);
     return d.floors && d.floors.length ? d.floors : [d.layout];
+  },
+  // Whether the ACTIVE dungeon ends at the bossless SEALED DOOR (the Ancient Ruins) — drives the hint/
+  // overlay copy that would otherwise name a boss.
+  dungeonSealed(): boolean {
+    const fl = this.dungeonFloors();
+    return !!fl[fl.length - 1]?.seal;
   },
   // The DungeonLayout the player currently stands on (the current floor). Falls back to floor 0.
   curFloor(): DungeonLayout {
@@ -374,7 +400,7 @@ export const Field = {
   // east of the gate on the combined grid (px > gate.x).
   inDungeon(): boolean { return this.usesNewModel() ? this.mode === "dungeon" : this.px > this.gate.x; },
   envFor(p: number): string {
-    if (this.inDungeon()) return this.zone().dungeon.env;
+    if (this.inDungeon()) return this.dungeonDef().env;
     const e = this.zone().envs;
     return e[clamp(Math.floor(p * 4), 0, e.length - 1)];
   },
@@ -384,6 +410,7 @@ export const Field = {
     this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
     this.zoneIndex = 0;
     this.enteredDungeon = false;
+    this.activeDungeon = "main"; // fresh run — no second-dungeon descent live (a resume restores it AFTER init())
     this.poisCleared = {}; // fresh run — no POIs spent yet (a resume restores the saved set AFTER init())
     this.openedChests = {}; // fresh run — no chests looted yet (PER-RUN, like poisCleared; a resume restores the saved set AFTER init())
     this.ownedCaps = new Set(); // fresh run — no traversal caps owned (the gorge stays locked until the Warren falls; a resume restores the set AFTER init())
@@ -436,6 +463,7 @@ export const Field = {
   // advance to a new zone (party/gold/inventory persist; zone progress + boss flags reset)
   loadZone(i: number): void {
     this.zoneIndex = i; Game.bossDefeated = false; Game.miniBossDefeated = false; this.enteredDungeon = false;
+    this.activeDungeon = "main"; // a fresh zone entry starts on the surface — no second-dungeon descent live
     const zid = ZONES[i]?.id; if (zid) delete this.mouthCleared[zid]; // a fresh entry → this zone's mouth guard stands again
     this.resize(); this.genMap();
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
@@ -529,7 +557,9 @@ export const Field = {
     this.dungeonFloor = clamp(floorIdx, 0, floors.length - 1);
     const last = this.dungeonFloor >= floors.length - 1;
     const D = floors[this.dungeonFloor];
-    const dunZid = ZONES[zoneIndex]?.id ?? this.zone().id;
+    // Keys are namespaced by the ACTIVE dungeon (dungeonKeyZone) so Ruins chests/rests persist apart
+    // from the Warren's (same zone, overlapping floor numbers + coords).
+    const dunZid = this.dungeonKeyZone(zoneIndex);
     const cleared = this.clearedFor(dunZid, this.dungeonFloor, { floorMiniBeaten: !!this.dungeonMiniCleared[this.dungeonFloor] });
     this.applyGen(genDungeon(D, last, cleared));
   },
@@ -634,6 +664,8 @@ export const Field = {
       if (!this.miniClearedFor(this.zone().id)) { this.startMiniBoss(); return; }
     }
     if (cell === "mouth") { this.descend(); return; }        // step onto the cleared mouth → into the dungeon
+    if (cell === "ruins") { this.descend("second"); return; } // the Ancient Ruins entrance (unguarded) → into dungeon2
+    if (cell === "seal") { this.touchSeal(); return; }       // the Ruins' sealed terminus — flavor, never opens
     if (cell === "stairsdown") { if (this.stairsOpen()) this.descendFloor(); return; } // descend a floor
     if (cell === "stairsup") { this.ascendFloor(); return; } // climb a floor (or out on floor 0)
     if (cell === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
@@ -679,9 +711,12 @@ export const Field = {
     }
     this.draw?.(); this.hint?.();
   },
-  // Step onto the cleared mouth → build the dungeon grid (floor 0), drop into it, show the "you descend"
-  // beat. A FRESH descent from the overworld resets the per-floor mini-gate state (re-cleared per visit).
-  descend(): void {
+  // Step onto the cleared mouth (or the Ruins entrance) → build the dungeon grid (floor 0), drop into
+  // it, show the "you descend" beat. `which` resolves the descend TARGET (wave3b): "main" = the zone's
+  // guarded dungeon, "second" = its unguarded Ancient Ruins (`zone.dungeon2`). A FRESH descent from the
+  // overworld resets the per-floor mini-gate state (re-cleared per visit).
+  descend(which: "main" | "second" = "main"): void {
+    this.activeDungeon = which === "second" && this.zone().dungeon2 ? "second" : "main";
     this.enteredDungeon = true;
     this.dungeonMiniCleared = {}; // fresh run of the dungeon — re-fight each floor's gating lieutenant
     this.pendingFloorMini = -1;   // defensive: no floor-mini fight is in flight on a fresh descent
@@ -689,11 +724,19 @@ export const Field = {
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
-    const z = this.zone();
+    const z = this.zone(), dd = this.dungeonDef();
     // Swap to the zone's dedicated dungeon cue if it has one (else keep the overworld cue, as before).
     const dm = Music.forDungeon(z.id);
     if (dm && dm !== this.bigMusic) { this.bigMusic = dm; Music.play(dm); Music._renderStyleLabels?.(); }
-    Overlay.show(`<h2 class="title-gold">${z.dungeon.name}</h2><p class="small">You descend into the dungeon. The enemies here are stronger — but so is their hoard.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+    const body = this.activeDungeon === "second"
+      ? `You climb down into the unearthed halls. The mana here hangs thick enough to taste — and what prowls these ruins is far stronger than the shire above.`
+      : `You descend into the dungeon. The enemies here are stronger — but so is their hoard.`;
+    Overlay.show(`<h2 class="title-gold">${dd.name}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+  },
+  // THE SEALED DOOR (wave3b — the Ancient Ruins' bossless terminus): a walkable landmark that will not
+  // open. Pure flavor beat — never consumed, never a fight; what waits behind it is content for later.
+  touchSeal(): void {
+    Overlay.show(`<h2 class="title-gold">The Sealed Door</h2><p class="small">A great door of no stone you know, graven edge to edge with a five-pointed ring. The mana runs so thick here the air hums against your teeth — and it is seeping from BEHIND the door. No key fits it. No force you command so much as marks it. Whatever the ancients shut away down here… it is still waiting.</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Step back</button></div>`);
   },
   // MULTI-FLOOR: step onto the (open) stairs-down → build the NEXT floor at its entry. Carries the
   // beaten-gate state across floors (per-visit), autosaves the new floor so a resume restores it.
@@ -704,12 +747,14 @@ export const Field = {
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
-    const z = this.zone();
+    const z = this.zone(), dd = this.dungeonDef();
     const last = this.isLastFloor();
     const body = last
-      ? `You descend the last stair — the hideout opens into the ${ENEMIES[z.boss].name}'s hall.`
-      : `You descend deeper into ${z.dungeon.name}. The dens run hotter the lower you go.`;
-    Overlay.show(`<h2 class="title-gold">${z.dungeon.name} · B${this.dungeonFloor + 1}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
+      ? (this.dungeonSealed()
+        ? `You descend the last stair — and the mana thickens like deep water. Something down here is sealed away.`
+        : `You descend the last stair — the hideout opens into the ${ENEMIES[z.boss].name}'s hall.`)
+      : `You descend deeper into ${dd.name}. The ${this.activeDungeon === "second" ? "halls run older and hotter" : "dens run hotter"} the lower you go.`;
+    Overlay.show(`<h2 class="title-gold">${dd.name} · B${this.dungeonFloor + 1}</h2><p class="small">${body}</p><div class="row"><button class="btn gold" onclick="Overlay.hide()">Press on</button></div>`);
   },
   // MULTI-FLOOR: step onto the up-stair on a deeper floor → climb back to the PREVIOUS floor, landing
   // on that floor's stairs-down (so you arrive where you descended). On floor 0 the up-stair IS the
@@ -736,10 +781,15 @@ export const Field = {
     // dismissing the spoils/“Warren falls” overlays reveals the finished battle screen and strands the
     // player (the reported stuck-after-loot bug). Show the field before rebuilding the grid.
     Screens.show("field");
+    // The EXIT tile: the guarded mouth for the main dungeon, the `ruins` entrance for the second —
+    // leaving a dungeon always returns you to the tile you descended through. Read BEFORE the
+    // activeDungeon reset below.
+    const exit = this.activeDungeon === "second" ? (this.zone().layout.ruins ?? this.mouth) : this.mouth;
+    this.activeDungeon = "main"; // back on the surface — the next descent resolves its own target
     if (this.bigMap) {
       this.mode = "overworld"; this.enteredDungeon = false; // back on the seamless surface
       const pl = placementOf(this.bigZone)!;
-      this.wx = pl.wx + this.mouth.x; this.wy = pl.wy + this.mouth.y; // step back out onto the mouth's world tile
+      this.wx = pl.wx + exit.x; this.wy = pl.wy + exit.y; // step back out onto the entrance's world tile
       this.realizeAround();
       this.syncZoneFromWorld();
       this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
@@ -748,7 +798,7 @@ export const Field = {
       return;
     }
     this.resize(); this.genOverworld(this.zone().id); // mode="overworld", px/py at spawn
-    this.px = this.mouth.x; this.py = this.mouth.y;    // step back out onto the mouth, not the far spawn
+    this.px = exit.x; this.py = exit.y;    // step back out onto the entrance, not the far spawn
     this.stepsToEncounter = ri(this.ENC_MIN, this.ENC_MAX);
     this.draw(); this.hint();
     Game.saveNow();
@@ -985,6 +1035,7 @@ export const Field = {
     // and strand the Sunless Grove (the seamless-map soft-lock this overhaul fixes).
     if (cell.kind === "miniboss" && !this.miniClearedFor(this.zone().id)) { this.startMiniBoss(); return; }
     if (cell.kind === "mouth") { this.descend(); return; }
+    if (cell.kind === "ruins") { this.descend("second"); return; } // the Ancient Ruins entrance (unguarded) → dungeon2
     if (cell.kind === "village") { const h = this.zone().hub; if (h) Game.confirmEnterTownVisit(h); return; } // step onto the village → confirm, then into the zone's hub
     if (cell.kind === "chest") { this.openBigChest(nx, ny); return; }
     if (cell.kind === "lair") { this.enterBigLair(nx, ny); return; }
@@ -1049,7 +1100,9 @@ export const Field = {
   // same pool, only the COMPOSITION shifts.
   rollEncounter(): void {
     const enc = rollEncounter({
-      bands: this.zone().bands,
+      // A dungeon may carry its OWN encounter table (wave3b — the Ancient Ruins' hotter cast); the
+      // main dungeons omit `bands` and keep sharing the zone spine, exactly as before.
+      bands: (this.inDungeon() ? this.dungeonDef().bands : undefined) ?? this.zone().bands,
       progress: this.progress(),
       inDungeon: this.inDungeon(),
       dungeonFloor: this.dungeonFloor,
@@ -1152,7 +1205,7 @@ export const Field = {
   // the mouth) cleared. Falls back to the zone mini if no floorMini key is authored.
   startFloorMini(): void {
     const z = this.zone();
-    const key = z.dungeon.floorMini || z.mini;
+    const key = this.dungeonDef().floorMini || z.mini; // the ACTIVE dungeon's lieutenant (the Ruins author none)
     this.pendingFloorMini = this.dungeonFloor;
     // depth runs hotter the deeper the floor (mirrors the dungeon depth bump), capped at 1.
     const fl = this.dungeonFloors().length;
@@ -1176,12 +1229,17 @@ export const Field = {
   openChest(x: number, y: number): void {
     this.map[y][x] = "path";
     // PERSIST the loot: key by context so a Continue (which regenerates the grid from layout data) carves
-    // this cell as path instead of re-spawning the chest. Dungeon chests are floor-scoped; overworld chests
+    // this cell as path instead of re-spawning the chest. Dungeon chests are floor-scoped AND namespaced
+    // by the ACTIVE dungeon (dungeonKeyZone — the Ruins can't collide with the Warren); overworld chests
     // use the "ow" context. (poiKey-style per-zone disambiguation against x,y collisions across zones/floors.)
-    const zid = this.zone().id;
-    this.openedChests[this.chestKey(zid, this.mode === "dungeon" ? this.dungeonFloor : "ow", x, y)] = true;
-    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4); // a higher item level deeper in
-    const it = rollItemAtLevel(CHEST_LEVEL(this.zoneIndex, this.progress()), undefined, ilvl, undefined, DROP_MODS.chest); // level-banded rarity (+treat ceiling), EQUAL across classes (Dara)
+    const inDun = this.mode === "dungeon";
+    const zid = inDun ? this.dungeonKeyZone() : this.zone().id;
+    this.openedChests[this.chestKey(zid, inDun ? this.dungeonFloor : "ow", x, y)] = true;
+    // ILVL EDGE (wave3b): the active dungeon's `ilvlBonus` lifts BOTH the rarity-band level and the
+    // ilvl over the zone's overworld chest curve — the Ruins' +3 "harder place, better loot" promise.
+    const bonus = inDun ? (this.dungeonDef().ilvlBonus ?? 0) : 0;
+    const ilvl = 2 + this.zoneIndex * 6 + Math.round(this.progress() * 4) + bonus; // a higher item level deeper in
+    const it = rollItemAtLevel(CHEST_LEVEL(this.zoneIndex, this.progress()) + bonus, undefined, ilvl, undefined, DROP_MODS.chest); // level-banded rarity (+treat ceiling), EQUAL across classes (Dara)
     Game.inventory.push(it); Telemetry.drop(it.rarity);
     Game.saveNow?.(); // persist the opened-chest record (mirrors the POI clear path)
     this.draw(); this.hint();
@@ -1224,7 +1282,7 @@ export const Field = {
   // at the same x,y can't collide). A spent fire is already carved as floor by genDungeon, so this only
   // fires on a live one. If a layout authored a rest with NO reprieve (a content bug), it's a no-op beat.
   restAt(x: number, y: number): void {
-    const key = this.poiKey(this.zone().id + ":d" + this.dungeonFloor, x, y);
+    const key = this.poiKey(this.dungeonKeyZone() + ":d" + this.dungeonFloor, x, y);
     this.poisCleared[key] = true;
     this.map[y][x] = "path";
     const rep = this.curFloor().reprieve;
@@ -1281,13 +1339,18 @@ export const Field = {
     let msg: string;
     if (this.inDungeon()) {
       // MULTI-FLOOR cues: name the floor lieutenant / the stairs down on intermediate floors; the boss
-      // on the finale floor. Single-floor dungeons keep the original "deep in / boss ahead" read.
+      // on the finale floor. Single-floor dungeons keep the original "deep in / boss ahead" read. The
+      // active-dungeon name (dungeonDef — the Warren OR the Ancient Ruins) drives every line; a SEALED
+      // (bossless) dungeon points at the door instead of a boss.
+      const dd = this.dungeonDef();
       const multi = this.dungeonFloors().length > 1;
       if (multi && !this.isLastFloor()) {
         if (this.curFloor().miniboss && !this.stairsOpen()) msg = `A bandit lieutenant blocks the stairs down — cut him down to descend.`;
-        else msg = `Find the stairs down — ${z.dungeon.name} runs deeper still.`;
+        else msg = `Find the stairs down — ${dd.name} runs deeper still.`;
+      } else if (this.dungeonSealed()) {
+        msg = p > 0.88 ? `The sealed door stands at the heart of ${dd.name} — nothing you carry will open it.` : `Deep in ${dd.name} — the mana thickens, and the halls run hot.`;
       } else {
-        msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${z.dungeon.name}.` : `Deep in ${z.dungeon.name} — stronger foes, richer loot.`;
+        msg = p > 0.88 ? `The ${bossNm} lurks at the heart of ${dd.name}.` : `Deep in ${dd.name} — stronger foes, richer loot.`;
       }
     }
     else if (!this.miniClearedFor(z.id) && p >= 0.38) msg = `A ${miniNm} guards the mouth of ${z.dungeon.name}.`;
@@ -1308,7 +1371,7 @@ export const Field = {
     // so crossing its sub-spaces reads as moving through real places, not one flat zone. Cheap — already
     // sampled for music on the per-step path. Falls back to the zone name off the big map / in a dungeon.
     const area = this.bigMapActive() ? regionAt(OVERWORLD_ID, this.wx, this.wy).area?.name : undefined;
-    const lead = this.inDungeon() ? z.dungeon.name : name;
+    const lead = this.inDungeon() ? this.dungeonDef().name : name;
     const floorTag = this.inDungeon() && this.dungeonFloors().length > 1 ? `B${this.dungeonFloor + 1} · ` : "";
     const sub = this.inDungeon()
       ? `${floorTag}${Game.encountersWon} cleared`
@@ -1568,6 +1631,12 @@ export const Field = {
       if (cell.kind === "chest") obj(T.chest, "📦", 0.8);
       else if (cell.kind === "lair") obj(T.lair, "🕳️", 0.85);
       else if (cell.kind === "mouth") { obj(T[`${dset}-entrance`], "🚪", 0.95); FR.drawMouthLabel(c, sx, sy, t, this.zone().dungeon.name, this.mouthOptional(this.zone().id)); }
+      else if (cell.kind === "ruins") { // the Ancient Ruins entrance (wave3b): its own tileset's door + a captioned (optional) label
+        const zid = authoredAt(wx, wy)?.zoneId;
+        const d2 = (zid ? ZONES.find((zz) => zz.id === zid) : this.zone())?.dungeon2;
+        obj(T[`${d2?.env ?? "crypt"}-entrance`], "🏛️", 0.95);
+        FR.drawMouthLabel(c, sx, sy, t, d2?.name ?? "Ancient Ruins", true);
+      }
       else if (cell.kind === "village") {
         obj(T["town-inn"], "🏘️", 0.95);
         const zid = authoredAt(wx, wy)?.zoneId, hub = zid ? ZONES.find((z) => z.id === zid)?.hub : undefined;
@@ -1822,7 +1891,9 @@ export const Field = {
         if (this.townMode) { this.drawTownCell(c, T, cell, mx, my, sx, sy, t); continue; }
         // dungeon dressing: NEW model = the whole grid is the dungeon (mode); LEGACY = east of the gate.
         const inDun = this.usesNewModel() ? this.mode === "dungeon" : mx > this.gate.x;
-        const dset = DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0];
+        // Inside a dungeon the ACTIVE dungeon's env picks the tileset (wave3b — the Ruins dress as
+        // their own set, not the zone's main one; for main dungeons env == DUNGEON_SETS[zoneIndex]).
+        const dset = inDun ? this.dungeonDef().env : (DUNGEON_SETS[this.zoneIndex] || DUNGEON_SETS[0]);
         const mire = !inDun && this.isMire(); // grim overworld dressing (Duskmarsh)
         const grove = !inDun && this.isForest(); // dense old-growth dressing (Silverwood)
         // ADR 0009 exemplar: in AREA-NATIVE Greenvale the overworld ground is dressed PER-AREA, so the
@@ -1830,7 +1901,7 @@ export const Field = {
         // hushed forest in the SE grove pocket, open shire in the Commons + the Warren Approach run-up.
         const area = !inDun && !mire && !grove ? this.areaAt(mx, my) : undefined;
         const groveArea = area === "gv-grove"; // the SE pocket: reuse the existing forest (grove-*) skin
-        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell);
+        const isObj = cell === "chest" || cell === "miniboss" || cell === "boss" || cell === "lair" || cell === "mouth" || cell === "village" || cell === "ruins" || cell === "seal" || cell === "stairsdown" || cell === "stairsup" || cell === "rest" || cell === "rubble" || POI_KINDS.has(cell);
         // pick the ground sprite: dungeon uses its tileset, overworld uses Greenvale or (mire) the
         // marsh kinds; chest/boss/miniboss sit on a floor/ground tile; a stable hash mixes variant.
         let ground: string;
@@ -1914,6 +1985,12 @@ export const Field = {
         if (cell === "chest") { if (inDun) FR.drawTreasureMark(c, sx, sy, t); obj(inDun ? T[`${dset}-chest`] : T.chest, "📦", 0.8); } // glint behind, chest sprite on top
         else if (cell === "lair") obj(T.lair, "🕳️", 0.85); // rare-monster den (placeholder — see asset-gaps.md)
         else if (cell === "mouth") obj(T[`${dset}-entrance`], "🚪", 0.95); // cleared dungeon mouth — step in to descend
+        else if (cell === "ruins") { // the Ancient Ruins entrance (wave3b) — step in to descend into dungeon2
+          const d2 = this.zone().dungeon2;
+          obj(T[`${d2?.env ?? "crypt"}-entrance`], "🏛️", 0.95);
+          FR.drawMouthLabel(c, sx, sy, t, d2?.name ?? "Ancient Ruins", true);
+        }
+        else if (cell === "seal") FR.drawSealedDoor(c, T[`${dset}-entrance`], sx, sy, t); // the Ruins' sealed terminus (wave3b)
         else if (cell === "village") { // re-enterable hub marker → back into the zone's hub town
           obj(T["town-inn"], "🏘️", 0.95);
           const nm = this.zone().hub ? settlement(this.zone().hub!).name : "Town";

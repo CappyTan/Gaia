@@ -412,7 +412,8 @@ describe("Greenvale Areas (ADR 0009 — Area-native overworld, finest-first, ful
 
   it("the grove pocket WINS over the broad Fields band where they overlap (finest-first)", () => {
     // The lair tile lies inside BOTH the Fields band and the Grove pocket; the smaller Grove must win.
-    expect(greenvaleAreaAt(27, 20)).toBe("gv-grove");
+    // (Local coords: the shire grew 24→40 rows in wave3b — legacy content sits +8, so the lair is (27,28).)
+    expect(greenvaleAreaAt(27, 28)).toBe("gv-grove");
   });
 
   it("covers EVERY walkable overworld tile — no tile west of the gate is Area-less", () => {

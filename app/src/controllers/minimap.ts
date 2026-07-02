@@ -220,6 +220,7 @@ export const Minimap = {
     // POIs from the authored layout (the mouth reflects mini-boss progress: it's still flagged either way).
     for (const c of L.chests) this.marker(ctx, s, ox, oy, c.x, c.y, POI.chest);
     if (L.lair) this.marker(ctx, s, ox, oy, L.lair.x, L.lair.y, POI.lair);
+    if (L.ruins) this.marker(ctx, s, ox, oy, L.ruins.x, L.ruins.y, POI.mouth); // the Ancient Ruins entrance (wave3b)
     this.marker(ctx, s, ox, oy, L.mouth.x, L.mouth.y, POI.mouth, true);
     // Player: world coords → this zone's authored local tile.
     const lx = Field.wx - pl.wx, ly = Field.wy - pl.wy;
@@ -349,7 +350,7 @@ export const Minimap = {
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const k = map[y][x];
       // Map the discrete grid's POI tiles onto terrain colors (markers are drawn over them).
-      const base = k === "chest" || k === "lair" || k === "mouth" || k === "miniboss" || k === "boss" ? "grass" : k;
+      const base = k === "chest" || k === "lair" || k === "mouth" || k === "miniboss" || k === "boss" || k === "ruins" || k === "seal" ? "grass" : k;
       this.cell(ctx, s, ox, oy, x, y, KIND_COLOR[base] ?? "#3a5a2c");
     }
     for (const c of Field.chests) this.marker(ctx, s, ox, oy, c.x, c.y, POI.chest);
@@ -359,7 +360,7 @@ export const Minimap = {
     else this.marker(ctx, s, ox, oy, Field.mouth.x, Field.mouth.y, POI.mouth, true);
     this.player(ctx, s, ox, oy, Field.px, Field.py);
 
-    if (where) where.textContent = Field.inDungeon() ? Field.zone().dungeon.name : Field.zone().name;
+    if (where) where.textContent = Field.inDungeon() ? Field.dungeonDef().name : Field.zone().name; // the ACTIVE dungeon's name (Warren or the Ruins)
   },
 
   // The bright "you are here" dot: a glowing gold disc with a dark rim. Clamped on-canvas so a player
