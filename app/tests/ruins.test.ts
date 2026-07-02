@@ -81,10 +81,13 @@ describe("the Ancient Ruins — data contract", () => {
     const lvls = (bands: typeof GV.bands) => bands.flatMap((b) => b.sets.flat()).map((k) => ENEMIES[k].lvl);
     const owLvls = lvls(GV.bands), ruinLvls = lvls(RUINS.bands!);
     for (const k of RUINS.bands!.flatMap((b) => b.sets.flat())) expect(ENEMIES[k], `enemy "${k}" exists`).toBeTruthy();
-    // the Ruins' cast tops out well above the shire's (early-Silverwood stock) and averages hotter.
+    // the Ruins' cast tops out well above the shire's (Silverwood stock) and averages hotter.
+    // (v0.212 re-center: the whole arc is compressed onto ~L9–21 for the L10 hero start, so the
+    // absolute gaps are tighter than the old L1–25 spread — +2 on the top end, +1 on the average;
+    // the multi-floor depth bump then adds up to +3 effective levels on top.)
     expect(Math.max(...ruinLvls)).toBeGreaterThanOrEqual(Math.max(...owLvls) + 2);
     const avg = (a: number[]) => a.reduce((n, v) => n + v, 0) / a.length;
-    expect(avg(ruinLvls)).toBeGreaterThan(avg(owLvls) + 1.5);
+    expect(avg(ruinLvls)).toBeGreaterThan(avg(owLvls) + 1);
     // the chest curve edge: +2/+3 ilvl over the overworld (Field.openChest adds it to level AND ilvl).
     expect(RUINS.ilvlBonus ?? 0).toBeGreaterThanOrEqual(2);
     // packs stay within the battle-screen cap.

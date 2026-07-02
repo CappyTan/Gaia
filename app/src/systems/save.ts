@@ -55,8 +55,11 @@ export interface SavedMember {
   hp: number;
   mp: number;
   alive: boolean;
-  mnaAlloc: Record<Attunement, number>;
-  mnaPoints: number;
+  /** DEAD (ADR 0021 D5): the banked-allocation model is gone — MNA is recomputed from
+   *  floor(level/5) + gear on load. Kept OPTIONAL so old envelopes still parse; ignored (no
+   *  schema bump needed — the field just stops mattering). New saves don't write them. */
+  mnaAlloc?: Record<Attunement, number>;
+  mnaPoints?: number;
   equip: Partial<Record<Slot, SavedItem | null>>;
   pendingRegen?: number; // carried dungeon "regen" reprieve (ADR 0010); absent on most saves
   // V3 3-lane choice picks (ADR 0020): slot id → chosen ability name(s). OPTIONAL — absent on a save from
@@ -293,11 +296,10 @@ function serializeItem(it: Item): SavedItem {
 function serializeMember(m: Member): SavedMember {
   const equip: Partial<Record<Slot, SavedItem | null>> = {};
   for (const slot of EQUIP_SLOTS) { const it = m.equip[slot]; equip[slot] = it ? serializeItem(it) : null; }
-  const mnaAlloc = {} as Record<Attunement, number>;
-  for (const a of ATTUNEMENTS) mnaAlloc[a] = m.mnaAlloc[a] || 0;
+  // ADR 0021: MNA is DERIVED (level floor + gear) — nothing to persist; recalc rebuilds it on load.
   return {
     def: m.def, level: m.level, xp: m.xp, row: m.row, hp: m.hp, mp: m.mp, alive: m.alive,
-    mnaAlloc, mnaPoints: m.mnaPoints, equip,
+    equip,
     ...(m.pendingRegen ? { pendingRegen: m.pendingRegen } : {}),
     ...(m.picks && Object.keys(m.picks).length ? { picks: m.picks } : {}),
   };
@@ -399,8 +401,9 @@ function reviveMember(sm: SavedMember, notes: string[]): Member | null {
   m.level = Math.max(1, Math.floor(sm.level || 1));
   m.xp = Math.max(0, sm.xp || 0);
   m.row = sm.row === "back" ? "back" : "front";
-  m.mnaPoints = Math.max(0, sm.mnaPoints || 0);
-  for (const a of ATTUNEMENTS) m.mnaAlloc[a] = Math.max(0, sm.mnaAlloc?.[a] || 0);
+  // ADR 0021 D5: an old save's banked mnaAlloc/mnaPoints are DISCARDED — recalc below recomputes MNA
+  // from floor(level/5) + gear (clean recompute, degrade-never-throw). A hero whose banked MNA exceeded
+  // the new derivation simply has picks above threshold go DORMANT (the skillUnlocked path), no crash.
   // V3 picks (ADR 0020) — restored BEFORE recalc so the choice-derived kit resolves on rebuild. A plain
   // {string→string[]} map; anything malformed is ignored (degrade-never-throw). Stale ability names (a
   // renamed ability after a deploy) are harmless — activeKit just skips them, leaving fewer/no active

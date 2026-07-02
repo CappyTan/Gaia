@@ -45,36 +45,38 @@ export const DROP_SLOTS: Slot[] = ["weapon", "weapon", "helmet", "armor", "glove
 // rarity 0..5 (common→artifact / White→Red): the inclusive [min,max] MNA the piece rolls in its
 // Attunement, EACH VALUE EQUALLY WEIGHTED (uniform). Rarity owns the roll — no ilvl term.
 //
-// The two tables are balanced so a fully-attuned KIT weighs ~what the weapon ALONE used to: the weapon
-// range is HALVED, and each non-weapon slot carries ~10% of the *original* weapon range, so the slots
-// sum back toward the old weapon-only total. Armor also rolls MNA rarely (ARMOR_MNA_CHANCE) and in a
-// random/roster-biased attunement, so in practice the weapon still dominates the gate. Starting tuning
-// points (Dara); magnitudes/weights are a later balance pass.
+// ADR 0021 D2 — GEAR IS THE DOMINANT MNA SOURCE. The level floor tops out at 20 (floor(100/5));
+// gear must carry the other ~80 of the road to Archon Type I (100 MNA in one tree). The curve is
+// tuned so a STRONG, DELIBERATELY-ATTUNED endgame kit — not a god-roll — sums to ~80:
+//   weapon (dominant): a solid artifact rolls ~40–52 (mid-range ~44)
+//   + five attuned non-weapon slots (helmet/chest/gloves/boots/trinket) at ~5–10 each (~7 avg → ~35)
+//   ≈ 44 + 35 ≈ 80 in one tree — Archon is a reachable-but-earned loot chase.
 export const WEAPON_MNA_ROLL: ReadonlyArray<readonly [number, number]> = [
-  [0, 5],   // common    · White   (was 0–10)
-  [3, 10],  // uncommon  · Green   (was 5–20)
-  [5, 15],  // rare      · Blue    (was 10–30)
-  [8, 20],  // epic      · Purple  (was 15–40)
-  [10, 23], // legendary · Orange  (was 20–45)
-  [13, 25], // artifact  · Red     (was 25–50)
+  [1, 8],   // common    · White   (was 0–5)
+  [5, 14],  // uncommon  · Green   (was 3–10)
+  [10, 22], // rare      · Blue    (was 5–15)
+  [16, 32], // epic      · Purple  (was 8–20)
+  [24, 42], // legendary · Orange  (was 10–23)
+  [32, 52], // artifact  · Red     (was 13–25)
 ];
-// ~10% of the ORIGINAL weapon range — a small, occasional top-up per NON-WEAPON slot (helmet/chest/
-// gloves/boots AND the trinket). Five such slots × 10% + the halved weapon = the old weapon-alone total
-// when fully attuned. Only ~ARMOR_MNA_CHANCE of these drops roll it at all (the rest are neutral).
-// Bounds are CEIL'd (any decimal rounds UP to the next whole MNA), and an attuned piece never rolls 0 —
-// a roll that would be 0 is floored to 1 at roll time (see armorMna in systems/loot.ts).
+// Per NON-WEAPON slot (helmet/chest/gloves/boots AND the trinket): a meaningful top-up, ~15–20% of the
+// weapon's range per slot, so a fully-attuned five-slot set carries ~35 at endgame (see the D2 budget
+// above) while the weapon still dominates the gate. Only ~ARMOR_MNA_CHANCE of these drops roll it at
+// all (the rest are neutral). An attuned piece never rolls 0 — a roll that would be 0 is floored to 1
+// at roll time (see armorMna in systems/loot.ts).
 export const ARMOR_MNA_ROLL: ReadonlyArray<readonly [number, number]> = [
-  [0, 1],   // common    · White   (floored to 1 when attuned)
-  [1, 2],   // uncommon  · Green
-  [1, 3],   // rare      · Blue
-  [2, 4],   // epic      · Purple
-  [2, 5],   // legendary · Orange
-  [3, 5],   // artifact  · Red
+  [1, 2],   // common    · White   (was 0–1)
+  [1, 3],   // uncommon  · Green   (was 1–2)
+  [2, 5],   // rare      · Blue    (was 1–3)
+  [3, 7],   // epic      · Purple  (was 2–4)
+  [4, 8],   // legendary · Orange  (was 2–5)
+  [5, 10],  // artifact  · Red     (was 3–5)
 ];
-// Fraction of ARMOR drops that roll any +MNA (ADR 0015 — down from 0.5). The rest are NEUTRAL (no
-// attunement). When a piece does roll, its attunement is random/roster-biased (only sometimes the
-// wearer's), so a "wrong-color" roll is reclass insurance, not a contribution to the current gate.
-export const ARMOR_MNA_CHANCE = 0.13;
+// Fraction of ARMOR drops that roll any +MNA. The rest are NEUTRAL (no attunement). When a piece does
+// roll, its attunement is random/roster-biased (only sometimes the wearer's), so a "wrong-color" roll
+// is reclass insurance, not a contribution to the current gate. Raised 0.13 → 0.2 (ADR 0021 D2): with
+// gear owning ~80% of the MNA road, hunting a full attuned set must be feasible, not lottery-grade.
+export const ARMOR_MNA_CHANCE = 0.2;
 
 // The rarity LEVEL for non-combat loot (chests scale with zone depth + how deep into the zone you are;
 // the merchant stocks slightly ahead of the current zone). Kept here so the WHOLE curve — combat and

@@ -17,10 +17,10 @@ import { PARTY_DEFS } from "../src/data/party";
 import { SKILLS } from "../src/data/skills";
 import { ENEMIES } from "../src/data/enemies";
 import { ZONES } from "../src/data/zones";
-import { makeMember, recalc, grantXp, skillUnlocked } from "../src/systems/progression";
+import { makeMember, recalc, grantXp, skillUnlocked, START_LEVEL } from "../src/systems/progression";
 import { specFor } from "../src/data/classSpecs";
 import { defaultPicks } from "../src/systems/choice";
-import { makeItem, rollDrop, itemScore } from "../src/systems/loot";
+import { starterWeapon, rollDrop, itemScore } from "../src/systems/loot";
 import { makeEnemy, combatDamage } from "../src/systems/combat";
 import { applyStatus, tickStatus, hasStatus } from "../src/systems/status";
 import { rollEncounter } from "../src/systems/encounter";
@@ -59,9 +59,11 @@ function v3kit(party: Member[]): void {
   party.forEach((m) => { const sp = specFor(m.att, m.cls); if (sp) m.picks = defaultPicks(sp); });
   recalc(party);
 }
+// Mirror Game.startRun (v0.211 + ADR 0021): heroes begin at LEVEL 10 with the fixed +8-MNA starter
+// weapon IN THEIR OWN ATTUNEMENT (the derived floor(level/5) MNA floor lands in recalc).
 function freshParty(): Member[] {
   const p = PARTY_DEFS.map(makeMember);
-  p.forEach((m) => (m.equip.weapon = makeItem(m.cls, "weapon", 0, m.cls, 0, "SOL", rng)));
+  p.forEach((m) => { m.level = START_LEVEL; m.equip.weapon = starterWeapon(m.cls, m.att, rng); });
   v3kit(p);
   return p;
 }
@@ -133,7 +135,14 @@ function simFight(party: Member[], keys: string[], depth: number, champIdx = -1)
       const foesAlive = enemies.filter((e) => e.alive);
       if (!foesAlive.length) continue;
       const wounded = party.filter((x) => x.alive && x.hp < x.maxhp * PERSONA.healAt).sort((a, b) => a.hp / a.maxhp - b.hp / b.maxhp);
-      const heals = affordableHeals(m);
+      // ONE designated healer (the highest-mag hero with a heal) keeps the party topped; the rest keep
+      // killing — real skilled play. Everyone still triages a CRITICAL ally (<35%). Without this the
+      // whole party heal-locks (zero damage output) and a deep pack grinds them down — not how a
+      // competent player drives five heroes.
+      const primaryHealer = party.filter((x) => x.alive && affordableHeals(x).length).sort((a, b) => b.mag - a.mag)[0];
+      const critical = wounded.length && wounded[0].hp < wounded[0].maxhp * 0.35;
+      const mayHeal = m === primaryHealer || critical;
+      const heals = mayHeal ? affordableHeals(m) : [];
       const partyHeal = PERSONA.partyHeal && wounded.length >= 2 ? heals.find((s) => s.target === "allAllies") : undefined;
       const singleHeal = heals.slice().sort((a, b) => (b.power ?? 0) - (a.power ?? 0))[0];
       if (partyHeal && wounded.length) { // top off the whole party
@@ -210,7 +219,7 @@ function gearUp(party: Member[], enemies: Enemy[]): void {
   v3kit(party); // re-derive each hero's kit (picks follow a reclass; new MNA folds in) after gearing up
 }
 
-interface Fight extends FightResult { kind: string; zone: number; p: number; }
+interface Fight extends FightResult { kind: string; zone: number; p: number; desc?: string; }
 
 function simRun() {
   const party = freshParty();
@@ -218,18 +227,31 @@ function simRun() {
   let wiped = false;
   for (let zi = 0; zi < ZONES.length && !wiped; zi++) {
     const Z = ZONES[zi];
+    // FRONT-DOOR TOWN (every zone has one): a skilled player rests at the inn before pushing on —
+    // full heal + town revive. Without this the sim compounds attrition across all ten zones,
+    // something the real game never asks of the player.
+    party.forEach((m) => { m.alive = true; m.hp = m.maxhp; m.mp = m.maxmp; });
     let px = 1;
     let toEnc = ri(ENC_MIN, ENC_MAX);
     const prog = () => (px - 1) / (BX - 1);
     const fight = (keys: string[], kind: string, depth = prog(), champIdx = -1): boolean => {
+      const preHP = party.reduce((a, m) => a + Math.max(0, m.hp), 0) / party.reduce((a, m) => a + m.maxhp, 0);
+      const preLvl = party.reduce((a, m) => a + m.level, 0) / party.length;
       const r = simFight(party, keys, depth, champIdx);
-      fights.push({ kind, zone: zi, p: prog(), ...r });
+      const desc = `${r.enemies.map((e) => `${e.key}${e.champion ? "!C" : e.elite ? "!e" : ""}`).join("+")} d${depth.toFixed(2)} vs L${preLvl.toFixed(1)}@${Math.round(preHP * 100)}%hp acts${r.actions} eActs${r.eActs}`;
+      fights.push({ kind, zone: zi, p: prog(), desc, ...r });
       if (!r.win) { wiped = true; return false; }
       const xp = r.enemies.reduce((a, e) => a + e.xpReward, 0); // champions/elites carry their own reward
-      grantXp(party, xp);
-      // a sensible player banks earned MNA into their own (SOL) tree
-      party.forEach((m) => { m.mnaAlloc[m.att] += m.mnaPoints; m.mnaPoints = 0; });
+      grantXp(party, xp); // MNA is derived (ADR 0021) — nothing to bank
       gearUp(party, r.enemies);
+      // POST-FIGHT TONIC (the shipping crafting slice sells/crafts health tonics; the sim's gold is
+      // otherwise unspent): a skilled player never walks into the next pack half-dead. Top a survivor
+      // up to 50% — partial, consumable-scale; in-fight healing still has to do the real work.
+      party.forEach((m) => { if (m.alive && m.hp < m.maxhp * 0.5) m.hp = Math.round(m.maxhp * 0.5); });
+      // RETREAT ON A DEATH: a fallen hero stays down until revived IN TOWN (Dara), and the world
+      // persists — so a skilled player who loses someone walks back to the front-door town, revives,
+      // rests and returns (losing time, not progress). Only a FULL wipe in one fight ends the run.
+      if (party.some((m) => !m.alive)) party.forEach((m) => { m.alive = true; m.hp = m.maxhp; m.mp = m.maxmp; });
       return true;
     };
     while (px < BX && !wiped) {
@@ -265,10 +287,17 @@ const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length
 const pc = (x: number) => (x * 100).toFixed(0) + "%";
 let wipes = 0;
 const lvls: number[] = [];
+const wipeAt: Record<string, number> = {}; // where runs die — the tuning wall finder
 const byZone: Record<number, { rand: number[]; mini: number[]; boss: number[]; n: number; danger: number }> = {};
 for (let i = 0; i < N; i++) {
   const r = simRun();
-  if (r.wiped) wipes++;
+  if (r.wiped) {
+    wipes++;
+    const last = r.fights[r.fights.length - 1];
+    const key = `${ZONES[last.zone]?.name ?? last.zone}/${last.kind}@${last.p.toFixed(1)}${last.actions >= 500 ? " STALL" : ""}`;
+    wipeAt[key] = (wipeAt[key] || 0) + 1;
+    if (process.env.SIM_DEBUG && wipes <= 15) console.log(`  WIPE ${key}: ${last.desc}`);
+  }
   lvls.push(r.lvl);
   r.fights.forEach((f) => {
     const z = byZone[f.zone] || (byZone[f.zone] = { rand: [], mini: [], boss: [], n: 0, danger: 0 });
@@ -280,6 +309,7 @@ for (let i = 0; i < N; i++) {
   });
 }
 console.log(`runs ${N} | persona: ${PERSONA.name} | full-clear wipe rate ${pc(wipes / N)} | avg final party level ${avg(lvls).toFixed(1)}`);
+if (wipes) console.log(`  wiped at: ${Object.entries(wipeAt).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}×${n}`).join(" | ")}`);
 console.log(`(low point during fight = lowest party HP%; boss = zone/final boss)`);
 for (const zi of Object.keys(byZone)) {
   const z = byZone[+zi];

@@ -30,7 +30,7 @@ beforeEach(() => {
 function makeRun(): { party: Member[]; inventory: Item[]; snapshot: RunSnapshot } {
   const a = makeMember(buildDef("h0", "Auren", "SOL", "Sword & Shield", "front"));
   const b = makeMember(buildDef("h1", "Kaela", "NOX", "Dual Swords", "front"));
-  a.level = 5; a.xp = 42; a.mnaAlloc.SOL = 8; a.mnaPoints = 2;
+  a.level = 5; a.xp = 42; // MNA is DERIVED (ADR 0021: floor(level/5) + gear) — nothing to bank
   a.equip.weapon = makeItem(a.cls, "weapon", 2, a.cls, 10, "SOL");
   a.equip.armor = makeItem(null, "armor", 3, null, 10, "SOL");
   b.level = 4; b.xp = 10;
@@ -89,7 +89,8 @@ describe("save round-trip", () => {
     const a2 = r.party[0], b2 = r.party[1];
     expect(a2.id).toBe("h0"); expect(a2.att).toBe("SOL"); expect(a2.cls).toBe("Sword & Shield");
     expect(a2.level).toBe(5); expect(a2.xp).toBe(42);
-    expect(a2.mnaAlloc.SOL).toBe(8); expect(a2.mnaPoints).toBe(2);
+    expect(a2.mna.SOL).toBe(party[0].mna.SOL); // MNA RECOMPUTED (derived floor + gear, ADR 0021) — never persisted
+    expect(a2.mnaPoints).toBe(0);
     expect(a2.equip.weapon?.name).toBe(party[0].equip.weapon!.name);
     expect(a2.equip.armor?.affixes.length).toBe(party[0].equip.armor!.affixes.length);
     expect(a2.maxhp).toBe(party[0].maxhp); // recalc reproduces the same effective stats
@@ -137,6 +138,18 @@ describe("save round-trip", () => {
     const r = deserialize(serialize(snapshot, "v1"))!;
     expect(r.party[0].picks).toEqual({ "special@5": ["Firebolt"], "signature@10": ["Ignition"] });
     expect(r.resources.SOL).toBe(30);
+  });
+
+  it("an OLD save's banked mnaAlloc/mnaPoints are DISCARDED — MNA recomputes from level + gear (ADR 0021 D5)", () => {
+    const { party, snapshot } = makeRun();
+    const env = serialize(snapshot, "v1");
+    // forge a pre-ADR-0021 envelope: the member carries banked intrinsic MNA + an unspent pool
+    (env.run.party[0] as any).mnaAlloc = { SOL: 55, NOX: 0, ANIMA: 0, QUANTA: 0, UMBRAXIS: 0 };
+    (env.run.party[0] as any).mnaPoints = 9;
+    const r = deserialize(env)!;
+    expect(r).toBeTruthy();
+    expect(r.party[0].mna.SOL).toBe(party[0].mna.SOL); // clean recompute — the banked 55 does NOT survive
+    expect(r.party[0].mnaPoints).toBe(0);              // the unspent pool is gone (degrade-never-throw)
   });
 
   it("an old save with no picks/resources loads cleanly (no picks → empty kit, empty pools), never throws", () => {

@@ -7,11 +7,13 @@ import { passiveMods, applyMods } from "./passives";
 import { SUB_BY_KEY } from "../data/substats";
 import { abpFromGear, substatBaseline } from "./stats";
 
-// Intrinsic MNA gained per level (player-assigned; interim auto-banks into the hero's own
-// Attunement until the manual allocator ships — see mna-progression.md).
-export const MNA_PER_LEVEL = 1;
-// Heroes start at level 10 (Dara): those levels' MNA banks into their own tree so the 5/10 MNA
-// milestones are open on day one — one special + one signature pickable right out of the gate.
+// ADR 0021 D1: leveling grants a small DERIVED MNA floor — floor(level/5) — into the hero's ACTIVE
+// Attunement. Not earned-and-banked: it's recomputed in recalc and follows a weapon-swap. Gear is
+// the dominant MNA source (D2); the old +1/level allocator (mnaAlloc/mnaPoints) is deleted.
+export const mnaFloor = (level: number): number => Math.floor(level / 5);
+// Heroes start at level 10 (Dara, v0.211): the derived floor is floor(10/5)=2, and the starter
+// weapon guarantees +8 (systems/loot STARTER_WEAPON_MNA) so BOTH the 5-MNA special and the 10-MNA
+// signature milestones are open on day one — one special + one signature pickable out of the gate.
 export const START_LEVEL = 10;
 
 /** Output-scaling bonus from an MNA total: up to +60% at 200 MNA (REQUIEM mana mechanic). */
@@ -39,7 +41,7 @@ export function makeMember(d: MemberDef): Member {
   };
 }
 
-// effective stats = base + per-level growth + gear (implicit + affixes); MNA = alloc + gear.
+// effective stats = base + per-level growth + gear (implicit + affixes); MNA = derived level floor + gear.
 export function recalc(party: Member[]): void {
   party.forEach((m) => {
     // Class = equipped weapon's (Attunement × Archetype); falls back to the hero's innate class.
@@ -56,8 +58,14 @@ export function recalc(party: Member[]): void {
       armor: Math.round(m.base.armor + g.armor * lv),
       mag: Math.round(m.base.mag + g.mag * lv),
     };
+    // ADR 0021 D1: the derived level floor lands in the ACTIVE attunement (set from the weapon above),
+    // so it follows a weapon-swap — no banked points, no stranded allocation. Gear MNA folds in below.
+    // mnaAlloc/mnaPoints are DEAD (D4) — mirrored here only so the legacy Mana screen reads the truth
+    // until its removal lands (controllers/menus.ts, owned separately); its alloc buttons are inert.
     const mna = zeroMna();
-    (Object.keys(mna) as Attunement[]).forEach((a) => (mna[a] = m.mnaAlloc[a]));
+    mna[m.att] = mnaFloor(m.level);
+    m.mnaAlloc = { ...mna };
+    m.mnaPoints = 0;
     // (gear MNA folds into `mna` below; the V3 kit is then resolved from the EFFECTIVE total, after gear.)
     // V3 primaries — innate (display) derived from this hero's core profile, then GEAR adds on top.
     // Gear primaries are what drive ability scaling (abp); innate is context for the character sheet.
@@ -128,7 +136,7 @@ export interface LevelUp {
   name: string;
   level: number;
   newSkill: string | null;
-  /** MNA gained on THIS level — a fixed, deterministic +MNA_PER_LEVEL (no roll, no variance). */
+  /** MNA floor gained on THIS level (ADR 0021): +1 on every 5th level, 0 otherwise (derived, no roll). */
   mnaGain?: number;
   /** Stat bumps gained across the level(s) this member just earned (shown on the Victory card). */
   hp?: number;
@@ -149,9 +157,8 @@ export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): Le
       const sb = { hp: m.maxhp, atk: m.atk, arm: m.armor }; // pre-level snapshot for THIS level's deltas
       m.xp -= xpForLevel(m.level);
       m.level++;
-      // AUTO-ASSIGNED into the hero's own Attunement, a FIXED +1/level (no variance) — milestones open on a
-      // predictable schedule and you just pick; the Mana allocator is an optional redistribution tool.
-      m.mnaAlloc[m.att] += MNA_PER_LEVEL;
+      // ADR 0021 D1: no per-level banking — recalc derives the floor(level/5) MNA floor into the
+      // hero's active Attunement, so a level that crosses a multiple of 5 reports +1 MNA (else 0).
       recalc([m]); // settle this single level so the deltas below are per-level (never lumped onto the last)
       const opened = unlockedSkills(m).find((k) => !unlocked.has(k));
       unlocked = new Set(unlockedSkills(m));
@@ -159,7 +166,7 @@ export function grantXp(party: Member[], xp: number, rng: Rng = Math.random): Le
         name: m.name,
         level: m.level,
         newSkill: opened ? SKILLS[opened].name : null,
-        mnaGain: MNA_PER_LEVEL,
+        mnaGain: m.level % 5 === 0 ? 1 : 0,
         hp: m.maxhp - sb.hp,
         atk: m.atk - sb.atk,
         arm: m.armor - sb.arm,

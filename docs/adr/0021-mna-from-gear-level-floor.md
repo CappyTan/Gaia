@@ -1,12 +1,15 @@
 # ADR 0021 — MNA comes from gear; leveling gives a small derived floor
 
-**Status:** accepted (2026-06-30, Dara-ratified via a grill session). Changes how the **MNA gate** is
+**Status:** accepted (2026-06-30, Dara-ratified via a grill session) **+ implemented (v0.212 — the
+engine pass: derived floor in `recalc`, allocator deleted, gear-MNA rebalanced, save recompute)**.
+Note on D3 as shipped: heroes start at **level 10** (Dara, v0.211) with BOTH the 5-MNA special and
+10-MNA signature milestones open on day one, so the starter-weapon guarantee is **≥8** (floor(10/5)=2
++ 8 = 10), not the literal ≥5. Changes how the **MNA gate** is
 *sourced* — it does **not** touch what MNA does (still a threshold + the +60% output scaler) or the
 spendable per-Attunement **Resource** pools ([ADR 0019](0019-resource-economy.md)). Resolves the
 "level→intrinsic-MNA curve" that ADR 0019 and the [Class System Model](../design/classes/README.md)
 parked. Supersedes the leveling-MNA half of the 2026-06-19 REQUIEM confirmation in
-[`mna-progression.md`](../design/requiem/mna-progression.md) (Dara's canon to change). Engine wiring +
-the gear-MNA rebalance are a **tracked follow-up** (this ADR ratifies the design; see Consequences).
+[`mna-progression.md`](../design/requiem/mna-progression.md) (Dara's canon to change).
 
 ## Context
 
