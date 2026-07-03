@@ -461,28 +461,36 @@ export const Field = {
   // TAP / PRESS-AND-HOLD to walk on the field canvas. The sole movement control in the installed app
   // (the d-pad is hidden there); a bonus alongside the d-pad/keys in a browser tab. Press toward where
   // you want to go (relative to the centred player): a tap steps once, holding keeps walking, and
-  // dragging re-aims. Routes through move(), so its dialogue/overlay/passability guards all apply.
+  // dragging re-aims. Routes through hold()/release() — the SAME shared RAF-paced glide chain the
+  // d-pad and keyboard use (see ensureLoop) — so a step never fires until the previous glide's ease-out
+  // has actually finished. This used to run its own independent `setInterval(150ms)` calling move()
+  // directly; since 150ms < WALK_MS (170ms), that repeat retriggered mid-glide on every step, restarting
+  // the smoothstep curve before it settled — the root cause of the touch-drag walk reading as a stiff,
+  // jerky slideshow (the d-pad/keyboard path was already correct; this was the one control never wired
+  // into the wave7b glide-chain fix).
   setupPointerWalk(): void {
     const cv = this.canvas; if (!cv) return;
-    let dir: [number, number] | null = null, timer = 0;
-    const STEP_MS = 150;
+    let dir: [number, number] | null = null;
     const aim = (cx: number, cy: number): [number, number] => {
       const r = cv.getBoundingClientRect();
       const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return [0, 0]; // centre dead-zone
       return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) as number, 0] : [0, Math.sign(dy) as number];
     };
-    const stop = () => { dir = null; if (timer) { clearInterval(timer); timer = 0; } };
+    const stop = () => { dir = null; this.release(); };
     cv.addEventListener("pointerdown", (e) => {
       if (Dialogue.isOn()) { Dialogue.advance(); return; } // tap advances NPC dialogue
       if (Overlay.isOn()) return;
       const d = aim(e.clientX, e.clientY);
       if (!d[0] && !d[1]) return;
       e.preventDefault(); cv.setPointerCapture?.(e.pointerId);
-      dir = d; this.move(d[0], d[1]);
-      timer = window.setInterval(() => { if (dir) this.move(dir[0], dir[1]); }, STEP_MS);
+      dir = d; this.hold(d[0], d[1]);
     }, { passive: false });
-    cv.addEventListener("pointermove", (e) => { if (dir) { const d = aim(e.clientX, e.clientY); if (d[0] || d[1]) dir = d; } });
+    cv.addEventListener("pointermove", (e) => {
+      if (!dir) return;
+      const d = aim(e.clientX, e.clientY);
+      if ((d[0] || d[1]) && (d[0] !== dir[0] || d[1] !== dir[1])) { dir = d; this.hold(d[0], d[1]); }
+    });
     cv.addEventListener("pointerup", stop);
     cv.addEventListener("pointercancel", stop);
     cv.addEventListener("pointerleave", stop);
