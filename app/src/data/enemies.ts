@@ -36,6 +36,38 @@ import type { EnemyDef } from "../types";
 //     entries (Greenvale's earliest fodder + its mini/boss) carry an explicit XP FLOOR (3 trash / 15
 //     miniboss / 25 boss) — the raw formula rounds to ~0–2 at L1–2, and a "+1 XP" Kingpin kill reads
 //     as broken even when the AGGREGATE pacing is right.
+// wave8b (balance-reviewer follow-up on wave8): wave8 fixed the L1 wipe wall but overcorrected —
+// bosses/minis in 9/10 zones read 60-90% (target 30-50%). Bumped most zone-boss/mini LEVELS by
+// +1 (a few +2, always kept BELOW that zone's trash top per the rule above) and added/nudged a
+// few VIT leans for bulk without extra one-shot ATK risk (Duskmarsh/Goldmeadow/Frostpeak-mini).
+// Reverted Greenvale's brigand/lieutenant bump (hit trash-top, introduced NEW mini wipes for a
+// ~5pt gain — not worth it) and left Dawnfall's shared watchcommander entry untouched (it was
+// already the closest-to-band zone; a level bump there disproportionately punished the BOSS
+// checkpoint via the depth level-lift while barely moving the MINI checkpoint, per the "shared
+// entry, two depths" note above — a real structural tension for the four zones that reuse one
+// entry as both mini AND boss). KEY FINDING: `ENEMY_ATK_EASE`/`ENEMY_HP_EASE` were tested at
+// several values (0.78–0.90) as a possible lever for the "random fights too easy" complaint —
+// empirically INEFFECTIVE (skilled-persona proactive healing absorbs the average-fight delta
+// almost entirely) while directly and repeatably INFLATING the skilled wipe rate (a pure tail-
+// risk cost with no average-metric benefit) — left at the original 0.82/0.86. Net result (N=600,
+// multi-run averaged — single-run deltas are noisy, see below): most zone bosses moved ~5-16pts
+// closer to band, but the skilled wipe rate moved modestly AGAINST the target — averaging ~22%
+// pre-pass to ~25-26% post-pass — rather than the hoped-for drop toward 10%. That's a real (if
+// small) cost of bosses biting harder, not a wash; it's an accepted tradeoff (balance-reviewer
+// verdict: ship-with-fixes), not a neutral one. The residual gap to the 10% target is dominated
+// by the intentional Leviathan knife-edge finale (~6-7% of all runs)
+// and pack-composition spike wipes (multi-elite/champion random packs in Frostpeak/Whisper
+// Hills/Duskmarsh/Sunbridge) — both explicitly out of a data-only tuner's scope (encounter.ts /
+// zone `bands` composition). Frostpeak's holdwarden mini remains stubbornly ~87% despite two
+// level bumps + added lean — likely saturated by the same healing-absorption dynamic; flagged
+// as a residual for the next pass (needs a bigger structural change, not another nudge).
+// FOR WAVE9: `corruptabbot` (Whisper Hills' shared mini/boss) sits BELOW its own zone's trash
+// floor even after this pass's bump — a stronger single-knob lead than another blanket sweep.
+// `wreckcaptain` (Storm Coast) got the largest raw level bump but no VIT lean unlike its peers
+// (broodmother/troll/warcaptain/warlord/holdwarden) — plausibly why it's still ~11pts over band;
+// try a lean there before another level nudge. NOTE: `npm run sim`'s combat resolution is
+// UNSEEDED (only content rolls are pinned — see balance-sim.ts) — repeated runs at the same N
+// showed a ~5-9pt wipe-rate spread from noise alone; average 3+ runs before trusting a delta.
 // Tuned via `npm run sim` (see the persona notes there); re-run it after touching any number here.
 export const ENEMIES: Record<string, EnemyDef> = {
   // ── ZONE 1: Greenvale (trash L1–3, bookends L1–2 — the fresh-L1-party shire) ──
@@ -52,7 +84,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // finale. ANIMA keeps the Warren trio spread (Brigadier NOX / lieutenant ANIMA / Kingpin SOL). DRAFT name
   // (flag for Dara), 🔪 placeholder over the gbandit sprite (flag for art-integrator).
   lieutenant: { name: "Bandit Bloodknife", spr: "🔪", att: "ANIMA", lvl: 2, role: "miniboss", xp: 15, gold: [50, 90], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.22 },
-  kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 1, role: "boss", xp: 25, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.16, enrage: { omega: "kingpin-omega" } },
+  kingpin: { name: "Greenvale Kingpin", spr: "👑", att: "SOL", lvl: 2, role: "boss", xp: 25, gold: [120, 180], ai: "boss", boss: true, skills: ["rally"], castChance: 0.16, enrage: { omega: "kingpin-omega" } },
   // ── ZONE 2: Silverwood — the Ancient Forest (trash L3–5; new region, ADR 0006). Attunements are
   //    spread (Dara's no-region-identity ruling — the forest is NOT an ANIMA theme). CD-authored
   //    bestiary under Dara's granted authority — FLAGGED for Dara / requiem-canon-keeper to vet the
@@ -64,8 +96,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   gloomwisp: { name: "Gloom Wisp", spr: "🔮", att: "UMBRAXIS", lvl: 4, role: "caster", xp: 7, gold: [22, 38], ai: "caster", skills: ["hex"], castChance: 0.5 },
   barkbrute: { name: "Barkhide Brute", spr: "🪵", att: "NOX", lvl: 5, role: "wall", xp: 11, gold: [24, 42], ai: "basic" },
   spriggan: { name: "Spriggan", spr: "🍂", att: "SOL", lvl: 4, role: "skirmisher", xp: 7, gold: [22, 40], ai: "basic", leech: 25 },
-  treantelder: { name: "Elder Treant", spr: "🌳", att: "ANIMA", lvl: 3, role: "miniboss", lean: { VIT: 1.3 }, xp: 15, gold: [110, 180], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.25 },
-  hollowking: { name: "The Hollow King", spr: "🦌", att: "QUANTA", lvl: 2, role: "boss", xp: 25, gold: [160, 240], ai: "boss", boss: true, skills: ["rally"], castChance: 0.17 },
+  treantelder: { name: "Elder Treant", spr: "🌳", att: "ANIMA", lvl: 4, role: "miniboss", lean: { VIT: 1.3 }, xp: 15, gold: [110, 180], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.25 },
+  hollowking: { name: "The Hollow King", spr: "🦌", att: "QUANTA", lvl: 4, role: "boss", xp: 25, gold: [160, 240], ai: "boss", boss: true, skills: ["rally"], castChance: 0.17 },
   mossback: { name: "Mossback Tortoise", spr: "🐢", att: "ANIMA", lvl: 4, role: "rare", lean: { DEF: 9, VIT: 0.3, SPD: 0.4 }, xp: 54, gold: [110, 240], ai: "basic", rare: true },
   // ── ZONE 3: The Duskmarsh → the Drowned Vault (trash L4–6, entered off Silverwood) ──
   rat: { name: "Cave Rat", spr: "🐀", att: "NOX", lvl: 4, role: "skirmisher", xp: 7, gold: [14, 28], ai: "basic" },
@@ -73,8 +105,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   leper: { name: "Cave Leper", spr: "🧟", att: "UMBRAXIS", lvl: 5, role: "bruiser", xp: 11, gold: [20, 38], ai: "basic", leech: 30 },
   direrat: { name: "Dire Rat", spr: "🐀", att: "QUANTA", lvl: 5, role: "skirmisher", xp: 11, gold: [18, 32], ai: "basic", art: "rat" },
   bonespider: { name: "Bone Spider", spr: "🕷️", att: "NOX", lvl: 6, role: "bruiser", xp: 15, gold: [24, 42], ai: "basic", onHit: { poison: 4 }, art: "spider" },
-  broodmother: { name: "Vault Broodmother", spr: "🕷️", att: "UMBRAXIS", lvl: 4, role: "miniboss", lean: { VIT: 1.3 }, xp: 21, gold: [120, 200], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "spider" },
-  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 4, role: "boss", lean: { VIT: 1.2, STR: 1.2 }, xp: 33, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.22, enrage: { omega: "troll-omega" } },
+  broodmother: { name: "Vault Broodmother", spr: "🕷️", att: "UMBRAXIS", lvl: 5, role: "miniboss", lean: { VIT: 1.6 }, xp: 21, gold: [120, 200], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "spider" },
+  troll: { name: "Cave Troll", spr: "👹", att: "NOX", lvl: 5, role: "boss", lean: { VIT: 1.4, STR: 1.25 }, xp: 33, gold: [260, 400], ai: "boss", boss: true, skills: ["rally"], castChance: 0.22, enrage: { omega: "troll-omega" } },
   // ── ZONE 4: Goldmeadow Plains → the occupied Windmill Undercroft (trash L5–7; new region, first
   //    backlog fill 2026-06-21). The grim tide from the Duskmarsh has spilled onto the open
   //    breadbasket: an open-field WAR HOST (raiders who burned the harvest) plus PLAINS PREDATORS
@@ -91,11 +123,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
   carrion: { name: "Carrion Bird", spr: "🦅", att: "UMBRAXIS", lvl: 6, role: "skirmisher", xp: 15, gold: [20, 38], ai: "basic", leech: 28 },
   reaver: { name: "Iron Reaver", spr: "🪓", att: "QUANTA", lvl: 7, role: "wall", xp: 20, gold: [28, 48], ai: "basic" },
   // Mini-boss (mouth gate): a raider war-captain who rallies his band; escorted by marauders.
-  warcaptain: { name: "Raider War-Captain", spr: "⚔️", att: "NOX", lvl: 5, role: "miniboss", xp: 30, gold: [140, 220], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3 },
+  warcaptain: { name: "Raider War-Captain", spr: "⚔️", att: "NOX", lvl: 6, role: "miniboss", lean: { VIT: 1.35 }, xp: 30, gold: [140, 220], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3 },
   // Zone boss (the windmill): the warlord who leads the host — the run-ender. ENRAGE-flagged like the
   // Kingpin/Cave Troll (omega art TBD; the swap no-ops gracefully until art-integrator supplies it). The
   // VIT lean makes the climax bite (survives the party's burst → more turns of rally/enrage pressure).
-  warlord: { name: "The Reaping Warlord", spr: "👹", att: "SOL", lvl: 5, role: "boss", lean: { VIT: 1.2, STR: 1.15 }, xp: 48, gold: [300, 460], ai: "boss", boss: true, skills: ["rally"], castChance: 0.2, enrage: { omega: "warlord-omega" } },
+  warlord: { name: "The Reaping Warlord", spr: "👹", att: "SOL", lvl: 6, role: "boss", lean: { VIT: 1.4, STR: 1.2 }, xp: 48, gold: [300, 460], ai: "boss", boss: true, skills: ["rally"], castChance: 0.2, enrage: { omega: "warlord-omega" } },
   // ════ AURELION COMPLETE — the remaining six regions' rosters (encounter-designer, brief 2026-06-21) ═
   // Authored under granted Director authority. Roles are mixed so packs play as different shapes; levels
   // climb on the curve PAST Goldmeadow (trash L5 → L12). Attunements stay SPREAD across the ring (Dara's
@@ -112,7 +144,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   seaserpent: { name: "Brine Serpent", spr: "🐍", att: "UMBRAXIS", lvl: 8, role: "skirmisher", xp: 26, gold: [26, 48], ai: "basic", leech: 30 },
   // Champion guardian (the sea-cave payoff): a tanky multi-threat wrecker-captain. boss:true so the engine
   // routes it through startBoss as the cave's finale — NOT enrage (champion-tier, not a spine boss).
-  wreckcaptain: { name: "Wrecker-Captain", spr: "🏴‍☠️", att: "NOX", lvl: 5, role: "boss", xp: 44, gold: [180, 280], ai: "boss", boss: true, skills: ["rally"], castChance: 0.28, art: "wrecker" },
+  wreckcaptain: { name: "Wrecker-Captain", spr: "🏴‍☠️", att: "NOX", lvl: 7, role: "boss", xp: 44, gold: [180, 280], ai: "boss", boss: true, skills: ["rally"], castChance: 0.28, art: "wrecker" },
 
   // ── ZONE 6 (index 5): Riverhearth Outskirts (trash L7–9) — road-bandits, smugglers, river-toughs. A
   //    cosh-bruiser, a fast footpad, a crossbow smuggler, a river-tough wall, a fence-leecher; champion =
@@ -122,7 +154,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   smuggler: { name: "Smuggler Crossbow", spr: "🏹", att: "SOL", lvl: 8, role: "harrier", xp: 26, gold: [30, 52], ai: "basic" },
   rivertough: { name: "River Tough", spr: "🪓", att: "QUANTA", lvl: 8, role: "wall", xp: 26, gold: [32, 56], ai: "basic" },
   fence: { name: "Wharf Fence", spr: "🦝", att: "UMBRAXIS", lvl: 9, role: "skirmisher", xp: 33, gold: [34, 58], ai: "basic", leech: 32 },
-  crimelord: { name: "River Crime-Lord", spr: "🎩", att: "UMBRAXIS", lvl: 6, role: "boss", xp: 68, gold: [220, 340], ai: "boss", boss: true, skills: ["rally"], castChance: 0.3, art: "roadbandit" },
+  crimelord: { name: "River Crime-Lord", spr: "🎩", att: "UMBRAXIS", lvl: 7, role: "boss", xp: 68, gold: [220, 340], ai: "boss", boss: true, skills: ["rally"], castChance: 0.3, art: "roadbandit" },
 
   // ── ZONE 7 (index 6): Frostpeak Highlands → the Dwarven Stronghold (trash L7–9, SPINE). Frost beasts
   //    (ice wolves, a snow-troll/yeti), mountain reavers, awakened dwarven stone-sentinels. A frost-bite
@@ -138,10 +170,10 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // Dara's Frostpeak sheet; name agent-given 2026-06-22 — rename freely.)
   rimespine: { name: "Rimespine Mauler", spr: "🦔", att: "QUANTA", lvl: 8, role: "skirmisher", xp: 26, gold: [30, 56], ai: "basic", onHit: { poison: 4 } },
   // Mini-boss (hold-gate): the hold-warden who rallies the sentinels. Escorted by mountain reavers.
-  holdwarden: { name: "Hold-Warden", spr: "⚒️", att: "SOL", lvl: 6, role: "miniboss", xp: 49, gold: [200, 300], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "stonesentinel" },
+  holdwarden: { name: "Hold-Warden", spr: "⚒️", att: "SOL", lvl: 8, role: "miniboss", lean: { VIT: 1.6 }, xp: 49, gold: [200, 300], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "stonesentinel" },
   // Zone boss (the stronghold): a stone/frost guardian — the SPINE GATE; must genuinely bite.
   // ENRAGE-flagged (omega art TBD; no-ops until art). The DEF/VIT lean makes it a true wall-boss.
-  frostguardian: { name: "The Glacier Guardian", spr: "🧊", att: "QUANTA", lvl: 7, role: "boss", lean: { VIT: 1.2, DEF: 1.4 }, xp: 91, gold: [340, 500], ai: "boss", boss: true, skills: ["rally"], castChance: 0.2, enrage: { omega: "frostguardian-omega" } },
+  frostguardian: { name: "The Glacier Guardian", spr: "🧊", att: "QUANTA", lvl: 8, role: "boss", lean: { VIT: 1.2, DEF: 1.4 }, xp: 91, gold: [340, 500], ai: "boss", boss: true, skills: ["rally"], castChance: 0.2, enrage: { omega: "frostguardian-omega" } },
 
   // ── ZONE 8 (index 7): Dawnfall Hold → the breached undervault (trash L9–10). The wilds that broke the fort
   //    + the fallen watch. A feral wild-thing, a broken-watch poison-spear, a ghoul leecher of the fallen
@@ -161,7 +193,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   flagellant: { name: "Cloister Flagellant", spr: "⛓️", att: "NOX", lvl: 11, role: "bruiser", xp: 48, gold: [38, 66], ai: "basic", onHit: { poison: 6 } },
   reliquarygolem: { name: "Reliquary Golem", spr: "🗿", att: "SOL", lvl: 11, role: "wall", xp: 48, gold: [42, 72], ai: "basic" },
   revenant: { name: "Crypt Revenant", spr: "💀", att: "QUANTA", lvl: 11, role: "skirmisher", xp: 48, gold: [40, 70], ai: "basic", leech: 36 },
-  corruptabbot: { name: "Corrupted Abbot", spr: "📿", att: "UMBRAXIS", lvl: 7, role: "boss", lean: { VIT: 1.4 }, xp: 90, gold: [260, 400], ai: "boss", boss: true, skills: ["rally", "hex"], castChance: 0.32, art: "corruptmonk" },
+  corruptabbot: { name: "Corrupted Abbot", spr: "📿", att: "UMBRAXIS", lvl: 8, role: "boss", lean: { VIT: 1.4 }, xp: 90, gold: [260, 400], ai: "boss", boss: true, skills: ["rally", "hex"], castChance: 0.32, art: "corruptmonk" },
 
   // ── ZONE 10 (index 9): Sunbridge → the Besieged Citadel / Lighthouse (trash L11–12, SPINE FINALE / RUN-ENDER).
   //    The besieging host + sea-raiders + something risen from the deep. A siege-trooper bruiser, a fast
@@ -174,7 +206,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   drowned: { name: "Drowned Sailor", spr: "🧟", att: "UMBRAXIS", lvl: 11, role: "bruiser", xp: 54, gold: [44, 78], ai: "basic", leech: 38 },
   siegeram: { name: "Siege Ram", spr: "🐏", att: "SOL", lvl: 12, role: "wall", xp: 63, gold: [48, 84], ai: "basic" },
   // Mini-boss (citadel mouth): the siege captain who rallies the host. Escorted by siege troopers.
-  siegecaptain: { name: "Siege Captain", spr: "🎖️", att: "NOX", lvl: 9, role: "miniboss", xp: 116, gold: [280, 420], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "siegetrooper" },
+  siegecaptain: { name: "Siege Captain", spr: "🎖️", att: "NOX", lvl: 11, role: "miniboss", xp: 116, gold: [280, 420], ai: "boss", miniboss: true, skills: ["rally"], castChance: 0.3, art: "siegetrooper" },
   // CONTINENT-FINALE BOSS (the lighthouse summit): something risen from the deep — THE HARDEST FIGHT IN
   // THE GAME. ENRAGE-flagged (omega art TBD; no-ops until art). The highest BOSS level in the game +
   // its VIT/STR lean make it out-stat every prior boss under the shared boss curve — the apex
