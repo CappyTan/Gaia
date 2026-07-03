@@ -232,7 +232,7 @@
      toward its side's bottom corner at full size; farther ranks step up toward the field's centre
      (the vanishing point) and shrink slightly (--near feeds each sprite's size). Depth is pure CSS
      on the same reconciled DOM: an enemy's rank = its nth-last-child slot (bottom = nearest). */
-  #enemyZone{position:absolute; left:7%; top:16%; bottom:7%; width:46%; display:flex; flex-direction:column; justify-content:flex-end; gap:7px;}
+  #enemyZone{position:absolute; left:7%; top:16%; bottom:7%; width:46%; display:flex; flex-direction:column; justify-content:center; gap:7px;}
   .enemy{--near:1;}
   .enemy:nth-last-child(2){margin-left:6%;  --near:.93;}
   .enemy:nth-last-child(3){margin-left:12%; --near:.87;}
@@ -241,7 +241,7 @@
   /* heroes mirror it on the right: both ranks bottom-anchored; the back rank stands higher on the
      floor (farther), a touch smaller, behind the front — front line forward (left), back right */
   #partyZone{position:absolute; right:3%; top:16%; bottom:7%; width:40%; display:flex; flex-direction:row; justify-content:flex-end; gap:2px; align-items:stretch;}
-  .pcol{position:relative; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; gap:10px; flex:1; min-height:0;}
+  .pcol{position:relative; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:10px; flex:1; min-height:0;}
   .pcol.front{z-index:1;}
   .pcol.back{opacity:.92; transform:translateY(-30px) scale(.9); transform-origin:bottom right;}
   /* within a rank, higher = farther: ease upper fighters toward the field's centre (a receding file) */
