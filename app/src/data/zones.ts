@@ -723,12 +723,12 @@ const GREENVALE_FLOORS: DungeonLayout[] = [WARREN_B1, WARREN_B2, WARREN_B3];
 // "Newly unearthed ancient ruins near Greenvale with a high concentration of mana emanating from
 // within." Three descending floors under the north-downs excavation (`layout.ruins` → `dungeon2`),
 // deliberately OPTIONAL and deliberately HOT: no mouth guard — the interior itself is the gate.
-//   • THE THREAT CURVE (v0.212 re-center — heroes start L10): its own `bands` (below) run the harder
-//     END of the Greenvale cast (Bloated Slime / Raider / Mage, L10) into SILVERWOOD stock
-//     (Direwolf/Thornling L11, Sylvan Archer / Gloom Wisp L12, a Barkhide Brute L13 in the deep) —
-//     things drawn down from the old wood by the mana bloom. With the dungeon depth bump (+floor
-//     climb) that's an effective ~L11–16 delve against an ~L8–10 shire: a place a fresh party BACKS
-//     OUT of and returns to. Tuned via balance-sim.
+//   • THE THREAT CURVE (re-centered for the genuine L1 start, this pass — was v0.212's L10 re-center):
+//     its own `bands` (below) run the harder END of the Greenvale cast (Bloated Slime / Kobold Raider /
+//     Mage, L3) into SILVERWOOD stock (Direwolf/Thornling L3, Sylvan Archer / Gloom Wisp L4, a
+//     Barkhide Brute L5 in the deep) — things drawn down from the old wood by the mana bloom. With the
+//     dungeon depth bump (+floor climb) that's an effective ~L4–8 delve against an ~L1–3 shire: a place
+//     a fresh party BACKS OUT of and returns to. Tuned via balance-sim.
 //   • THE LOOT PROMISE: `ilvlBonus: 3` — every Ruins chest rolls +3 over the Greenvale overworld chest
 //     curve (both rarity-band level and ilvl), and the hotter cast's higher enemy levels give drops
 //     the same edge. Harder place, visibly better loot.
