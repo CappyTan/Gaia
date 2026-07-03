@@ -311,4 +311,19 @@ density so terrain *kind* reads from the floor hue even before you notice the sc
 
 ---
 
+## Action-feel era — character animation & gear visibility (ADR 0024) — **for Dara**
+*Added 2026-07-03 (the continuous-movement / action-feel decision, [ADR 0024](../adr/0024-action-feel-2d-continuous-movement.md)).
+The engine side (60fps continuous movement, procedural bob/lean/shadow/dust, procedural weapon-swing
+tweens, rarity glows) ships without new art. These are the **content upgrades** that multiply it —
+each is drop-in via the existing slice pipeline + rig alignment, no code change needed.*
+
+| Status | Asset | Where used | Placeholder / today | Notes |
+|---|---|---|---|---|
+| ☐ | **Hero walk cycle, 6–8 frames × 4 facings** (right stays mirrored-left) | field walk (`player-<dir>-<n>`) | current 3-frame cycle | The single biggest smoothness upgrade once movement is continuous. Same sheet format `slice-art.py` already handles. |
+| ☐ | **Enemy walk/idle frames (2–3 each)** for roaming field packs | Phase 2 visible encounters | 1 static frame per enemy | Prioritize by which enemies roam the earliest zones (Greenvale bandits → Silverwood). Procedural bob/shadow carries the rest. |
+| ☐ | **Armor appearance-tier layers** — 3–4 visible looks per body archetype (e.g. cloth → mail → plate-tier → radiant), battle-doll only, one facing, rig-spec aligned | `ARMOR_LAYER` (`data/art.ts`, currently empty) | armor invisible on characters | **DEFERRED by decision** — weapons-first; revisit after procedural swings ship. Open with it: tiers keyed by **rarity vs ilvl** (recommendation on record: rarity). |
+| — | ~~8-way / diagonal facing sprites~~ | — | — | **Explicitly NOT requested** (ADR 0024): facing snaps to nearest cardinal while moving at any angle — the Stardew pattern. Don't paint these. |
+
+---
+
 *Keep this list current as each region is built. The art pass happens after, in one go.*
